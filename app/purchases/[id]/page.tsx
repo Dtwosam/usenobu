@@ -7,6 +7,7 @@ import {
   statusTone,
 } from "@/web/status-copy";
 import { getPurchaseDetail } from "@/web/purchase-service";
+import { prepareWebDatabase } from "@/web/prepare-db";
 import { notFound } from "next/navigation";
 import {
   Button,
@@ -27,6 +28,7 @@ export default async function PurchaseDashboardPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  await prepareWebDatabase();
   const detail = getPurchaseDetail(id);
   if (!detail) notFound();
 

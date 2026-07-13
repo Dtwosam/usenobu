@@ -1,4 +1,5 @@
 import { listPurchases } from "@/web/purchase-service";
+import { prepareWebDatabase } from "@/web/prepare-db";
 import { formatUsd, statusLabel, statusTone } from "@/web/status-copy";
 import {
   ButtonLink,
@@ -9,7 +10,8 @@ import {
   StatusBadge,
 } from "@/ui";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  await prepareWebDatabase();
   const purchases = listPurchases();
 
   return (

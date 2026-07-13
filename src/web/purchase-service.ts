@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getWebDatabase } from "./db.js";
+// Callers that run on Vercel request paths should hydrate via session-snapshot first.
 import {
   buildFixtureMonitorOffers,
   buildFixtureOffers,

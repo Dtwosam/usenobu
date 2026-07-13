@@ -2,6 +2,7 @@ import { confirmCandidateAction } from "@/web/actions";
 import { reviewError } from "@/web/error-copy";
 import { formatUsd, matchDecisionLabel } from "@/web/status-copy";
 import { getPurchaseDetail } from "@/web/purchase-service";
+import { prepareWebDatabase } from "@/web/prepare-db";
 import { buildFixtureOffers } from "@/web/fixtures";
 import { evaluateProductMatches } from "@/matching/index";
 import { notFound } from "next/navigation";
@@ -25,6 +26,7 @@ export default async function ReviewPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  await prepareWebDatabase();
   const detail = getPurchaseDetail(id);
   if (!detail) notFound();
 

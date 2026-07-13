@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 7.5D COMPLETE / UNIVERSAL PLATFORM POSITIONING
+**Status:** LANE 7.5D.1 COMPLETE / FIND-PRODUCT PRODUCTION REPAIR
 
 ## Locked decisions
 
@@ -9,42 +9,34 @@
 - Public deployment identity: **UseNobu**
 - Vercel project: **usenobu**
 - Production URL: **https://usenobu.vercel.app**
-- Platform: universal post-purchase price-monitoring design
-- **First and only live retailer:** Target.com / Target app (U.S. MVP scope)
-- Free A2MCP one-time check first; no x402/wallet work until free listing is stable.
-- SerpApi third-party observation only for Target; never official Target API.
-- Fail-closed matching; no refund guarantees; retailer decides (Target for live integration).
-- Stateless A2MCP check path for Target endpoint.
-- Primary implementation agent: Grok Build.
+- Platform positioning: universal post-purchase monitoring; **Target is the only live retailer**
+- Free A2MCP first; SerpApi third-party Target observation only
+- Fail-closed matching; no refund guarantees
 
-## Production
+## Production note (corrected)
+
+Earlier 7.5D production checks covered static pages and `/health` only. The **Find my product** server action was **broken in production** (ENOENT scandir migrations → blank Application error). That is repaired in Lane 7.5D.1.
 
 | Item | Value |
 |---|---|
 | Public production URL | **https://usenobu.vercel.app** |
-| Deployment identity | UseNobu |
-| Health service | `nobu-a2mcp` |
-| Live retailer | Target only |
+| Health | `nobu-a2mcp` |
+| Find my product | Verified in real browser (POST 303 → review 200) |
+| Repair proof | `docs/proof/usenobu-production/find-product-repair/` |
 
 Public A2MCP routes (unchanged):
 
 - `GET /health`
 - `POST /v1/target-price-check`
 
-## Lane 7.5D proof completed
+## Lane 7.5D.1 root cause
 
-| Item | Result |
-|---|---|
-| Universal homepage positioning | Yes |
-| Target labelled as currently supported | Yes |
-| Primary CTA | `Track a purchase` |
-| No fake multi-retailer claims | Yes |
-| Target policy/matching/API | Unchanged |
+`src/db/migrator.ts` called `fs.readdirSync` on a migrations directory not present in the Vercel serverless bundle. First SQLite open/migrate during form submit crashed.
 
 ## Hard locks (unchanged)
 
-- Target only live; Target Plus excluded; U.S. excluding AK/HI unless later verified.
-- No retailer login, claim submission, card/banking/ID/wallet secrets.
+- Target-only live integration; no other retailers
+- No policy/matching/monitoring/API contract changes
 
 ## Next active lane
 

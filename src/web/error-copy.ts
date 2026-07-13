@@ -43,6 +43,15 @@ export function purchaseFormError(
     };
   }
 
+  if (code === "server_error") {
+    return {
+      code,
+      heading: "We couldn’t finish that search",
+      body: "Something went wrong on our side while looking up your product. Your answers are still here.",
+      nextAction: "Try Find my product again. If it keeps failing, wait a minute and retry.",
+    };
+  }
+
   return {
     code,
     heading: "Something went wrong",
@@ -66,6 +75,13 @@ export function reviewError(code: string): UserError {
         heading: "Product already confirmed",
         body: "This purchase is already locked and being watched.",
         nextAction: "Open the purchase dashboard to check the latest price.",
+      };
+    case "server_error":
+      return {
+        code,
+        heading: "We couldn’t confirm just now",
+        body: "Something went wrong on our side. Your product choices are still available to retry.",
+        nextAction: "Try confirming again. If it keeps failing, go back and search again.",
       };
     default:
       return {
@@ -92,6 +108,13 @@ export function dashboardError(code: string): UserError {
         heading: "Purchase not found",
         body: "We couldn’t find that purchase.",
         nextAction: "Return to your purchases list and pick one that is still listed.",
+      };
+    case "server_error":
+      return {
+        code,
+        heading: "Price check didn’t finish",
+        body: "Something went wrong on our side while checking for a lower price.",
+        nextAction: "Try the check again. If it keeps failing, wait a few minutes.",
       };
     default:
       return {

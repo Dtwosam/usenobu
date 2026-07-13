@@ -1,4 +1,5 @@
 import { getAlert } from "@/web/purchase-service";
+import { prepareWebDatabase } from "@/web/prepare-db";
 import { daysRemaining, formatUsd } from "@/web/status-copy";
 import { DEFAULT_POLICY_DISCLAIMER } from "@/policy/target-us-policy";
 import { notFound } from "next/navigation";
@@ -18,6 +19,7 @@ export default async function AlertPage({
   params: Promise<{ id: string; alertId: string }>;
 }) {
   const { id, alertId } = await params;
+  await prepareWebDatabase();
   const data = getAlert(id, alertId);
   if (!data) notFound();
 

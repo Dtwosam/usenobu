@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   },
   // node:sqlite is built into Node 22+
   serverExternalPackages: [],
+  // Ensure migration SQL files are available if filesystem fallback is used
+  outputFileTracingIncludes: {
+    "/**": ["./src/db/migrations/**/*"],
+  },
 };
 
 export default nextConfig;
