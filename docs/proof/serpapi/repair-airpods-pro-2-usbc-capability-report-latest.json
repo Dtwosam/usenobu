@@ -1,0 +1,158 @@
+{
+  "audit_id": "repair-airpods-pro-2-usbc-2026-07-13T15-28-41-408Z",
+  "audited_at": "2026-07-13T15:28:41.408Z",
+  "live": true,
+  "provider": "SerpApi",
+  "engine": "google_shopping",
+  "query": "Apple AirPods Pro MTJV3AM/A",
+  "location": "Austin, Texas, United States",
+  "provider_status": "NO_TARGET_RESULT",
+  "searches_consumed": 1,
+  "target_offer_count": 0,
+  "total_offer_count": 40,
+  "fields": [
+    {
+      "field": "provider",
+      "available": true,
+      "sample_redacted": "SerpApi"
+    },
+    {
+      "field": "engine",
+      "available": true,
+      "sample_redacted": "google_shopping"
+    },
+    {
+      "field": "provider_status",
+      "available": true,
+      "sample_redacted": "NO_TARGET_RESULT"
+    },
+    {
+      "field": "observed_at",
+      "available": true,
+      "sample_redacted": "2026-07-13T15:28:41.408Z"
+    },
+    {
+      "field": "query",
+      "available": true,
+      "sample_redacted": "Apple AirPods Pro MTJV3AM/A"
+    },
+    {
+      "field": "shoprs",
+      "available": false,
+      "sample_redacted": null
+    },
+    {
+      "field": "gl",
+      "available": true,
+      "sample_redacted": "us"
+    },
+    {
+      "field": "hl",
+      "available": true,
+      "sample_redacted": "en"
+    },
+    {
+      "field": "location",
+      "available": true,
+      "sample_redacted": "Austin, Texas, United States"
+    },
+    {
+      "field": "seller_source_text",
+      "available": true,
+      "sample_redacted": "Apple"
+    },
+    {
+      "field": "seller_kind",
+      "available": true,
+      "sample_redacted": "other"
+    },
+    {
+      "field": "is_target_plus",
+      "available": true,
+      "sample_redacted": false
+    },
+    {
+      "field": "product_title",
+      "available": true,
+      "sample_redacted": "AirPods Pro 3"
+    },
+    {
+      "field": "title_utf8_ok",
+      "available": true,
+      "sample_redacted": true
+    },
+    {
+      "field": "merchant_direct_link",
+      "available": false,
+      "notes": "non-Google merchant URL when returned",
+      "sample_redacted": null
+    },
+    {
+      "field": "google_product_link",
+      "available": true,
+      "notes": "Google Shopping product page — not Target.com",
+      "sample_redacted": "[google product link present]"
+    },
+    {
+      "field": "extracted_price",
+      "available": true,
+      "sample_redacted": 249
+    },
+    {
+      "field": "currency",
+      "available": true,
+      "notes": "assumed USD when price parsed",
+      "sample_redacted": "USD"
+    },
+    {
+      "field": "product_id",
+      "available": true,
+      "notes": "SerpApi/Google product_id if present — not a Target TCIN guarantee",
+      "sample_redacted": "2327420681279440941"
+    },
+    {
+      "field": "immersive_product_page_token",
+      "available": true,
+      "sample_redacted": "[present]"
+    },
+    {
+      "field": "target_offer_present",
+      "available": false,
+      "notes": "count=0",
+      "sample_redacted": false
+    },
+    {
+      "field": "target_shoprs_filter",
+      "available": true,
+      "notes": "tokens=2",
+      "sample_redacted": "[present]"
+    },
+    {
+      "field": "raw_result_hash",
+      "available": true,
+      "sample_redacted": "35b02189237703c90ff487bc81401684e0e2946d071336dc2c9c66c5efd2a1c4"
+    },
+    {
+      "field": "search_metadata.id",
+      "available": true,
+      "sample_redacted": "6a55042adb99ec2afa1de539"
+    }
+  ],
+  "missing_fields": [
+    "shoprs",
+    "merchant_direct_link",
+    "target_offer_present"
+  ],
+  "notes": [
+    "SerpApi is a third-party search observation source, not an official Target API.",
+    "This audit does not perform product matching or eligibility decisions (Lane 4+).",
+    "provider_status=NO_TARGET_RESULT",
+    "total_offers=40; target_offers=0",
+    "target_shoprs_tokens=2",
+    "merchant_link_available=false"
+  ],
+  "redacted_fixture_path": "docs\\proof\\serpapi\\repair-airpods-pro-2-usbc-shopping-redacted-2026-07-13T15-28-41-408Z.json",
+  "disclaimer": "Third-party observed shopping data only. Target verifies price and makes the final adjustment decision. No refund guarantee.",
+  "target_shoprs_found": true,
+  "merchant_link_available": false
+}

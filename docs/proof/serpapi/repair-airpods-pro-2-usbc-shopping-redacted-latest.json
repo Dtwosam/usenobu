@@ -1,0 +1,941 @@
+{
+  "disclaimer": "Redacted SerpApi Google Shopping observation. Not an official Target API response. API key removed.",
+  "live": true,
+  "provider": "SerpApi",
+  "engine": "google_shopping",
+  "provider_status": "NO_TARGET_RESULT",
+  "query": {
+    "q": "Apple AirPods Pro MTJV3AM/A",
+    "gl": "us",
+    "hl": "en",
+    "location": "Austin, Texas, United States",
+    "device": "desktop",
+    "no_cache": false
+  },
+  "observed_at": "2026-07-13T15:28:41.408Z",
+  "offers": [
+    {
+      "title": "AirPods Pro 3",
+      "title_utf8_ok": true,
+      "source_text": "Apple",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 249,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro 2nd Generation",
+      "title_utf8_ok": true,
+      "source_text": "Best Buy",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 164.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro",
+      "title_utf8_ok": true,
+      "source_text": "Unclaimed Baggage",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 79.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Airpods Pro Wireless Bluetooth In-ear Earbuds White Mtvj3am/a",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 135,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Restored Apple AirPods Pro White with Magsafe Charging Case In Ear Headphones Mlwk3am/a",
+      "title_utf8_ok": true,
+      "source_text": "Walmart - The InstantPods",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 104.85,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro with MagSafe Charging Case",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 60,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple - Refurbished Excellent - AirPods Pro (2nd Gen) with MagSafe Case (USB-C) Active Noise Cancelling White",
+      "title_utf8_ok": true,
+      "source_text": "Best Buy",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 249.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Headphones | Apple Airpods Pro 2 White With Usb-C Charging Case In Ear Headphones Mtjv3am/A | Color: White | Size: Os | Baconbitz's Closet",
+      "title_utf8_ok": true,
+      "source_text": "Poshmark",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 220,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "AirPods Pro 2nd generation",
+      "title_utf8_ok": true,
+      "source_text": "eBay - 6ave",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 263.49,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro Active Noise Cancellation Built-in Microphone Sweat- and Water-Resistant",
+      "title_utf8_ok": true,
+      "source_text": "Walmart - Reebelo",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 106.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro with Wireless Charging Case",
+      "title_utf8_ok": true,
+      "source_text": "Gingko Press",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 120,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro (2nd Gen) MTJV3LL/A or MTJV3AM/A MagSafe Wireless Bluetooth White Sweat-Proof In-Ear Canal Earbuds | USB-C | 3ft Cable",
+      "title_utf8_ok": true,
+      "source_text": "eBay - qnsny42m2012",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 189.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro 2nd GEN Wireless Bluetooth Earbud with Charging Case -White",
+      "title_utf8_ok": true,
+      "source_text": "Poshmark",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 100,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "AirPods Pro",
+      "title_utf8_ok": true,
+      "source_text": "PowerPak Civil & Safety Supplies",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 450,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "AirPods Pro 3 Wireless Earbuds With Elite ANC",
+      "title_utf8_ok": true,
+      "source_text": "VXB.com Bearings",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 368.95,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Airpods Pro White Wireless Bluetooth In-ear Earbuds With",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 179,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro 3 Active Noise Cancellation Wireless Earphones",
+      "title_utf8_ok": true,
+      "source_text": "McGrocer",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 401.33,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro with Wireless White Charging Case Includes Cord & Ear Bud Sets",
+      "title_utf8_ok": true,
+      "source_text": "Poshmark",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 148,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Airpods Pro Wireless Bluetooth Earbuds White Built-in Microphone",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 60,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro With Magsafe Charging Case",
+      "title_utf8_ok": true,
+      "source_text": "Gingko Press",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 130,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "AirPod Pro 3rd gen2",
+      "title_utf8_ok": true,
+      "source_text": "Whatnot",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 165,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Airpods Pro",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 125.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro with Charging Case - White",
+      "title_utf8_ok": true,
+      "source_text": "Poshmark",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 90,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro 3 Wireless Earbuds, Active Noise Cancellation, Live Translation, Heart Rate Sensing, Hearing Aid Feature, Bluetooth Headphones,",
+      "title_utf8_ok": true,
+      "source_text": "UFP Gear",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 199,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro | Wireless | Bluetooth | Earbud (In Ear) | White",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 244.32,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "AirPods Pro(2nd generation) with MagSafe Charging1",
+      "title_utf8_ok": true,
+      "source_text": "Whatnot",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 120,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Airpod Pro with Wireless Charging Case + Case charger - White",
+      "title_utf8_ok": true,
+      "source_text": "Poshmark",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 150,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Airpods Pro 3 Wireless Bluetooth Headphones Earbuds White (2025",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 200,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro With Charging Case",
+      "title_utf8_ok": true,
+      "source_text": "Gingko Press",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 140,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro - White",
+      "title_utf8_ok": true,
+      "source_text": "Poshmark",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 85,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro White Wireless Bluetooth In-Ear Earbuds | Double Earpieces | Built-In | United States | Live Monitoring | In-Ear Only",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 120,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "AirPods Pro MagSafe charging case5",
+      "title_utf8_ok": true,
+      "source_text": "Whatnot",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 80,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro Earbuds in White - Original Packaging",
+      "title_utf8_ok": true,
+      "source_text": "street-plans.com",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 100,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "New Apple AirPods Pro Factory Sealed With MagSafe Charging Case",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 199,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro Wireless Earbuds",
+      "title_utf8_ok": true,
+      "source_text": "Poshmark",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 80,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Airpods Pro Wireless Bluetooth In-ear Earbuds White With",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 120,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro 3 Wireless Earbuds with Charging Case1",
+      "title_utf8_ok": true,
+      "source_text": "Whatnot",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 160.52,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Headphones | Apple Airpods Pro | 3rd Gen | Brand New Sealed | Color: White | Size: Os | Omnishopny's Closet",
+      "title_utf8_ok": true,
+      "source_text": "Poshmark",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 269,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple Airpods Pro Wireless Bluetooth Earbuds With Charging Case -",
+      "title_utf8_ok": true,
+      "source_text": "eBay",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 150,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Apple AirPods Pro 3",
+      "title_utf8_ok": true,
+      "source_text": "agwaterplus.com.au",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 200,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    }
+  ],
+  "target_offers_count": 0,
+  "target_offers": [],
+  "filters_summary": [
+    {
+      "type": null,
+      "options": [
+        {
+          "text": "On sale",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Nearby",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "New",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Used",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Price",
+      "options": [
+        {
+          "text": "Under $100",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "$100 - $150",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Over $150",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Stores",
+      "options": [
+        {
+          "text": "Best Buy",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Target",
+          "is_target_store_filter": true,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Walmart",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "eBay",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Category",
+      "options": [
+        {
+          "text": "Noise Canceling Headphones",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Earbuds",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Speakers, Headphones & Headsets",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Headphones",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Features",
+      "options": [
+        {
+          "text": "With Charging Case",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Noise Canceling",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Water-resistant",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "With Adaptive EQ",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Product Rating",
+      "options": [
+        {
+          "text": "4 and up",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Free shipping",
+      "options": [
+        {
+          "text": "Free shipping",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Height",
+      "options": [
+        {
+          "text": "1.2″ tall",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "1.78″ tall",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Width",
+      "options": [
+        {
+          "text": "0.8″ wide",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "0.9″ wide",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "2.39″ wide",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Max Battery Life",
+      "options": [
+        {
+          "text": "4.5 hours",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "5 hours",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "6 hours",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "8 hours",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Impedance",
+      "options": [
+        {
+          "text": "16 ohms",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "32 ohms",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Carousel Filters",
+      "options": [
+        {
+          "text": "On sale",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Under $100",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Nearby",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Best Buy",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Target",
+          "is_target_store_filter": true,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Walmart",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "New",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Used",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Noise Canceling Headphones",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Get it fast",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "With Charging Case",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "White",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Noise Canceling",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "eBay",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Earbuds",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Speakers, Headphones & Headsets",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Headphones",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Sam's Club",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Water-resistant",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Poshmark",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Sports",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Adorama",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "With Adaptive EQ",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Free shipping",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "1.2″ tall",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "0.9″ wide",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    }
+  ],
+  "target_shoprs_tokens_present": 2,
+  "search_metadata": {
+    "id": "6a55042adb99ec2afa1de539",
+    "status": "Success",
+    "total_time_taken": 17.41
+  },
+  "raw_result_hash": "35b02189237703c90ff487bc81401684e0e2946d071336dc2c9c66c5efd2a1c4",
+  "searches_recorded": 1,
+  "error_message": null
+}

@@ -3,6 +3,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   classifySeller,
+  isTargetStoreFilterText,
+  meetsLane3LivePassCriteria,
   normalizeShoppingResponse,
 } from "../../src/serpapi/index.js";
 
@@ -108,5 +110,34 @@ describe("SerpApi normalize + seller classification", () => {
       httpStatus: 400,
     });
     expect(result.provider_status).toBe("PROVIDER_ERROR");
+  });
+
+  it("extracts Target shoprs filter tokens without treating Target Plus as Target", () => {
+    expect(isTargetStoreFilterText("Target")).toBe(true);
+    expect(isTargetStoreFilterText("Target Plus")).toBe(false);
+    const result = normalizeShoppingResponse({
+      raw: loadFixture("shopping-with-target-filter.json"),
+      query,
+      observedAt: "2026-07-13T15:00:00.000Z",
+      live: false,
+      searchesRecorded: 0,
+      httpStatus: 200,
+    });
+    expect(result.target_shoprs_tokens).toContain("CAE_TEST_TARGET_SHOPRS_TOKEN");
+    expect(result.target_shoprs_tokens.join(" ")).not.toContain("PLUS");
+    expect(result.provider_status).toBe("NO_TARGET_RESULT");
+  });
+
+  it("captures merchant_link only for non-Google hosts", () => {
+    const result = normalizeShoppingResponse({
+      raw: loadFixture("shopping-success-target.json"),
+      query,
+      observedAt: "2026-07-13T15:00:00.000Z",
+      live: false,
+      searchesRecorded: 0,
+      httpStatus: 200,
+    });
+    expect(result.target_offers[0]?.merchant_link).toContain("target.com");
+    expect(meetsLane3LivePassCriteria(result).pass).toBe(true);
   });
 });

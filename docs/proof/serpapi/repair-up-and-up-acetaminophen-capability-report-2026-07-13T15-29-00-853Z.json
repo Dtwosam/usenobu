@@ -1,0 +1,157 @@
+{
+  "audit_id": "repair-up-and-up-acetaminophen-2026-07-13T15-29-00-853Z",
+  "audited_at": "2026-07-13T15:29:00.853Z",
+  "live": true,
+  "provider": "SerpApi",
+  "engine": "google_shopping",
+  "query": "up&up acetaminophen 500 mg 100 tablets",
+  "location": "Austin, Texas, United States",
+  "provider_status": "AMBIGUOUS_TARGET_RESULTS",
+  "searches_consumed": 2,
+  "target_offer_count": 8,
+  "total_offer_count": 12,
+  "fields": [
+    {
+      "field": "provider",
+      "available": true,
+      "sample_redacted": "SerpApi"
+    },
+    {
+      "field": "engine",
+      "available": true,
+      "sample_redacted": "google_shopping"
+    },
+    {
+      "field": "provider_status",
+      "available": true,
+      "sample_redacted": "AMBIGUOUS_TARGET_RESULTS"
+    },
+    {
+      "field": "observed_at",
+      "available": true,
+      "sample_redacted": "2026-07-13T15:29:00.853Z"
+    },
+    {
+      "field": "query",
+      "available": true,
+      "sample_redacted": "up&up acetaminophen 500 mg 100 tablets"
+    },
+    {
+      "field": "shoprs",
+      "available": false,
+      "sample_redacted": null
+    },
+    {
+      "field": "gl",
+      "available": true,
+      "sample_redacted": "us"
+    },
+    {
+      "field": "hl",
+      "available": true,
+      "sample_redacted": "en"
+    },
+    {
+      "field": "location",
+      "available": true,
+      "sample_redacted": "Austin, Texas, United States"
+    },
+    {
+      "field": "seller_source_text",
+      "available": true,
+      "sample_redacted": "Target"
+    },
+    {
+      "field": "seller_kind",
+      "available": true,
+      "sample_redacted": "target"
+    },
+    {
+      "field": "is_target_plus",
+      "available": true,
+      "sample_redacted": false
+    },
+    {
+      "field": "product_title",
+      "available": true,
+      "sample_redacted": "up&up Acetaminophen Pain Relief Coated Tablets"
+    },
+    {
+      "field": "title_utf8_ok",
+      "available": true,
+      "sample_redacted": true
+    },
+    {
+      "field": "merchant_direct_link",
+      "available": false,
+      "notes": "non-Google merchant URL when returned",
+      "sample_redacted": null
+    },
+    {
+      "field": "google_product_link",
+      "available": true,
+      "notes": "Google Shopping product page — not Target.com",
+      "sample_redacted": "[google product link present]"
+    },
+    {
+      "field": "extracted_price",
+      "available": true,
+      "sample_redacted": 1.99
+    },
+    {
+      "field": "currency",
+      "available": true,
+      "notes": "assumed USD when price parsed",
+      "sample_redacted": "USD"
+    },
+    {
+      "field": "product_id",
+      "available": true,
+      "notes": "SerpApi/Google product_id if present — not a Target TCIN guarantee",
+      "sample_redacted": "3917112396226353691"
+    },
+    {
+      "field": "immersive_product_page_token",
+      "available": true,
+      "sample_redacted": "[present]"
+    },
+    {
+      "field": "target_offer_present",
+      "available": true,
+      "notes": "count=8",
+      "sample_redacted": true
+    },
+    {
+      "field": "target_shoprs_filter",
+      "available": true,
+      "notes": "tokens=2",
+      "sample_redacted": "[present]"
+    },
+    {
+      "field": "raw_result_hash",
+      "available": true,
+      "sample_redacted": "53762d796abcd35eccfc47a38f2cfcf917ec7a80aa688cfb429bfd0e9df56e3b"
+    },
+    {
+      "field": "search_metadata.id",
+      "available": true,
+      "sample_redacted": "6a55043d3f79e8466d2af2c2"
+    }
+  ],
+  "missing_fields": [
+    "shoprs",
+    "merchant_direct_link"
+  ],
+  "notes": [
+    "SerpApi is a third-party search observation source, not an official Target API.",
+    "This audit does not perform product matching or eligibility decisions (Lane 4+).",
+    "provider_status=AMBIGUOUS_TARGET_RESULTS",
+    "total_offers=12; target_offers=8",
+    "target_shoprs_tokens=2",
+    "merchant_link_available=false"
+  ],
+  "redacted_fixture_path": "docs\\proof\\serpapi\\repair-up-and-up-acetaminophen-shopping-redacted-2026-07-13T15-29-00-853Z.json",
+  "disclaimer": "Third-party observed shopping data only. Target verifies price and makes the final adjustment decision. No refund guarantee.",
+  "target_shoprs_found": true,
+  "merchant_link_available": false
+}

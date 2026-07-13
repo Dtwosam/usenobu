@@ -8,7 +8,10 @@ import type {
   NormalizedShoppingOffer,
   SerpApiShoppingQuery,
   SerpApiShoppingResult,
+  ShoppingFilterGroup,
+  ShoppingFilterOption,
 } from "./types.js";
+import { decodeShoppingTitle, titleLooksWellFormedUtf8 } from "./utf8.js";
 
 export function hashRawPayload(payload: unknown): string {
   const json = JSON.stringify(payload);
@@ -28,6 +31,23 @@ function parsePrice(value: unknown): number | undefined {
   return undefined;
 }
 
+function isGoogleHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return (
+      host === "google.com" ||
+      host === "www.google.com" ||
+      host.endsWith(".google.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Classify seller text only — no product matching, no optimistic Target promotion
+ * from Google product links or title text alone.
+ */
 export function classifySeller(sourceText: string): {
   seller_kind: SellerKind;
   is_target_plus: boolean;
@@ -39,7 +59,6 @@ export function classifySeller(sourceText: string): {
   if (s.includes("target plus") || s.includes("targetplus")) {
     return { seller_kind: SellerKind.TARGET_PLUS, is_target_plus: true };
   }
-  // Exact-ish Target seller labels; do not treat "Target" substring in other brands as Target.
   if (
     s === "target" ||
     s === "target.com" ||
@@ -52,10 +71,21 @@ export function classifySeller(sourceText: string): {
   return { seller_kind: SellerKind.OTHER, is_target_plus: false };
 }
 
-export function normalizeOffer(raw: unknown, index: number): NormalizedShoppingOffer | null {
+export function isTargetStoreFilterText(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t) return false;
+  if (t.includes("target plus") || t.includes("targetplus")) return false;
+  return t === "target" || t === "target.com" || t.startsWith("target ");
+}
+
+export function normalizeOffer(
+  raw: unknown,
+  index: number,
+): NormalizedShoppingOffer | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
-  const title = typeof row.title === "string" ? row.title.trim() : "";
+  const rawTitle = typeof row.title === "string" ? row.title : "";
+  const title = decodeShoppingTitle(rawTitle);
   if (!title) return null;
 
   const source =
@@ -70,17 +100,22 @@ export function normalizeOffer(raw: unknown, index: number): NormalizedShoppingO
     parsePrice(row.price) ??
     parsePrice(row.old_price);
 
-  const link =
-    (typeof row.link === "string" && row.link) ||
-    (typeof row.product_link === "string" && row.product_link) ||
-    undefined;
+  const rawLink = typeof row.link === "string" ? row.link : undefined;
   const product_link =
     typeof row.product_link === "string" ? row.product_link : undefined;
 
+  // Prefer explicit non-Google merchant URL; do not treat Google product_link as Target URL.
+  let merchant_link: string | undefined;
+  if (rawLink && !isGoogleHost(rawLink)) {
+    merchant_link = rawLink;
+  }
+
   return {
     title,
-    link,
+    title_utf8_ok: titleLooksWellFormedUtf8(title),
+    merchant_link,
     product_link,
+    link: rawLink ?? product_link,
     source_text: source || "unknown",
     seller_kind,
     is_target_plus,
@@ -101,6 +136,80 @@ export function normalizeOffer(raw: unknown, index: number): NormalizedShoppingO
     raw_position:
       typeof row.position === "number" ? row.position : index + 1,
   };
+}
+
+function collectShoppingRows(raw: Record<string, unknown>): unknown[] {
+  const rows: unknown[] = [];
+  if (Array.isArray(raw.shopping_results)) {
+    rows.push(...raw.shopping_results);
+  }
+  if (Array.isArray(raw.inline_shopping_results)) {
+    rows.push(...raw.inline_shopping_results);
+  }
+  if (Array.isArray(raw.categorized_shopping_results)) {
+    for (const cat of raw.categorized_shopping_results) {
+      if (
+        cat &&
+        typeof cat === "object" &&
+        Array.isArray((cat as { shopping_results?: unknown[] }).shopping_results)
+      ) {
+        rows.push(
+          ...((cat as { shopping_results: unknown[] }).shopping_results),
+        );
+      }
+    }
+  }
+  if (rows.length === 0 && Array.isArray(raw.organic_results)) {
+    rows.push(...raw.organic_results);
+  }
+  return rows;
+}
+
+function extractFilterOptions(raw: unknown): ShoppingFilterOption[] {
+  if (!raw || typeof raw !== "object") return [];
+  const obj = raw as Record<string, unknown>;
+  const options: ShoppingFilterOption[] = [];
+  if (Array.isArray(obj.options)) {
+    for (const opt of obj.options) {
+      if (!opt || typeof opt !== "object") continue;
+      const o = opt as Record<string, unknown>;
+      const text = typeof o.text === "string" ? o.text : "";
+      if (!text) continue;
+      options.push({
+        text,
+        shoprs: typeof o.shoprs === "string" ? o.shoprs : undefined,
+        is_target_store_filter: isTargetStoreFilterText(text),
+      });
+    }
+  }
+  // Some payloads put shoprs on the filter node itself
+  if (typeof obj.text === "string" && typeof obj.shoprs === "string") {
+    options.push({
+      text: obj.text,
+      shoprs: obj.shoprs,
+      is_target_store_filter: isTargetStoreFilterText(obj.text),
+    });
+  }
+  return options;
+}
+
+export function extractFilters(raw: Record<string, unknown>): ShoppingFilterGroup[] {
+  const groups: ShoppingFilterGroup[] = [];
+  const buckets = [raw.filters, raw.carousel_filters, raw.shopping_filters];
+  for (const bucket of buckets) {
+    if (!Array.isArray(bucket)) continue;
+    for (const item of bucket) {
+      if (!item || typeof item !== "object") continue;
+      const node = item as Record<string, unknown>;
+      const options = extractFilterOptions(node);
+      if (options.length === 0) continue;
+      groups.push({
+        type: typeof node.type === "string" ? node.type : undefined,
+        options,
+      });
+    }
+  }
+  return groups;
 }
 
 export function resolveProviderStatus(args: {
@@ -138,7 +247,6 @@ export function resolveProviderStatus(args: {
     return ProviderStatus.NO_TARGET_RESULT;
   }
   if (args.targetOffers.length === 1) {
-    // Connector only classifies a single Target-seller offer; matching is Lane 4.
     return ProviderStatus.LIVE_TARGET_MATCH;
   }
   return ProviderStatus.AMBIGUOUS_TARGET_RESULTS;
@@ -146,9 +254,15 @@ export function resolveProviderStatus(args: {
 
 export function normalizeShoppingResponse(args: {
   raw: unknown;
-  query: Required<
-    Pick<SerpApiShoppingQuery, "q" | "gl" | "hl" | "location" | "device">
-  > & { no_cache: boolean };
+  query: {
+    q: string;
+    gl: string;
+    hl: string;
+    location: string;
+    device: "desktop" | "mobile" | "tablet";
+    no_cache: boolean;
+    shoprs?: string;
+  };
   observedAt: string;
   live: boolean;
   searchesRecorded: number;
@@ -164,11 +278,7 @@ export function normalizeShoppingResponse(args: {
         ? (raw.error as { message: string }).message
         : undefined;
 
-  const shopping =
-    (Array.isArray(raw.shopping_results) && raw.shopping_results) ||
-    (Array.isArray(raw.organic_results) && raw.organic_results) ||
-    [];
-
+  const shopping = collectShoppingRows(raw);
   const offers: NormalizedShoppingOffer[] = [];
   for (let i = 0; i < shopping.length; i++) {
     const offer = normalizeOffer(shopping[i], i);
@@ -178,6 +288,12 @@ export function normalizeShoppingResponse(args: {
   const targetOffers = offers.filter(
     (o) => o.seller_kind === SellerKind.TARGET && !o.is_target_plus,
   );
+
+  const filters = extractFilters(raw);
+  const target_shoprs_tokens = filters
+    .flatMap((g) => g.options)
+    .filter((o) => o.is_target_store_filter && o.shoprs)
+    .map((o) => o.shoprs as string);
 
   const meta =
     raw.search_metadata && typeof raw.search_metadata === "object"
@@ -199,6 +315,8 @@ export function normalizeShoppingResponse(args: {
     observed_at: args.observedAt,
     offers,
     target_offers: targetOffers,
+    filters,
+    target_shoprs_tokens: [...new Set(target_shoprs_tokens)],
     search_metadata: meta
       ? {
           id: typeof meta.id === "string" ? meta.id : undefined,
@@ -219,3 +337,5 @@ export function normalizeShoppingResponse(args: {
     searches_recorded: args.searchesRecorded,
   };
 }
+
+export type { SerpApiShoppingQuery };

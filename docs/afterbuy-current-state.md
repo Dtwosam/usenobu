@@ -1,66 +1,64 @@
 # AfterBuy Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 3 BLOCKED — OFFLINE CONNECTOR COMPLETE / LIVE AUDIT PENDING KEY
+**Status:** LANE 3 COMPLETE / SERPAPI LIVE CAPABILITY AUDIT CLOSED
 
 ## Locked decisions
 
 - Product: consumer price-drop protection, not a merchant Shopify app.
-- Retailer: Target.
-- Channel: Target.com / Target online purchases only.
-- Price source: SerpApi Google Shopping API.
-- SerpApi classification: provisional third-party observation source (not an official Target API).
-- Match model: user confirms exact product once; later checks use a locked fingerprint.
-- Policy window: up to 14 days after purchase, subject to Target's current policy and exclusions.
-- ASP: free A2MCP first.
-- Primary category: Lifestyle Companion.
-- Primary repository implementation agent: Grok Build (lane by lane).
-- Domain contracts + Target policy engine complete (Lanes 1–2).
-- SerpApi connector: server-only client with normalization, redaction, usage recording, and fixture tests.
+- Retailer: Target (Target.com / online only).
+- Price source: SerpApi Google Shopping (third-party observation, **not** an official Target API).
+- Match model: user confirms exact product once; locked fingerprint thereafter (Lane 4+).
+- Policy engine: deterministic Target policy (Lane 2 complete).
+- Primary implementation agent: Grok Build.
+- Ambiguous multi-Target Google Shopping results stay `AMBIGUOUS_TARGET_RESULTS` — never auto-promoted to an exact match.
 
 ## Lane 0–2 proof completed
 
-- Source pack, baseline, domain schemas, migrations, deterministic Target policy engine.
+- Source pack, domain schemas, migrations, Target policy engine.
 
-## Lane 3 offline proof completed
+## Lane 3 proof completed
+
+### Connector
 
 - Server-only SerpApi Google Shopping client (`src/serpapi/`).
-- Normalized shopping offers and locked provider statuses.
-- Timeout, rate-limit, and provider-error handling.
-- API-key redaction from logs/errors/serialized results.
-- Connector unit tests with fixtures (no network).
-- Search usage counter recorded on live and optional fixture paths.
-- Offline capability notes: `docs/proof/serpapi/offline-capability-report.md`.
-- No optimistic product matching, scheduler, UI, alerts, or Target scraping.
+- Normalization, `shoprs` / filter extraction, merchant vs Google link split, UTF-8 title handling, redaction, search usage recording.
+- Fixture unit tests for success, no-Target, ambiguous Target, Target Plus, rate limit, errors, shoprs filter tokens, pass criteria.
 
-## Lane 3 live proof blocked
+### Live capability audit (repair)
 
-| Blocker | Detail |
+| Item | Result |
 |---|---|
-| `SERPAPI_API_KEY` | Not set in environment; no `.env` present |
-| Live query | Not executed (0 live searches consumed) |
-| Redacted live fixture | Not produced |
-| Live field audit | Not produced |
+| Verdict | `AFTERBUY_LANE_3_PASS` |
+| New live searches consumed | **2** (max allowed 4) |
+| Query 1 | `Apple AirPods Pro MTJV3AM/A` → `NO_TARGET_RESULT` (40 offers, 0 Target) |
+| Query 2 | `up&up acetaminophen 500 mg 100 tablets` → **8 Target-sold offers**, status `AMBIGUOUS_TARGET_RESULTS` |
+| Pass basis | Target seller + usable prices + identity evidence (title UTF-8 OK, product_id present); **not** treated as exact match |
+| Target shoprs tokens | Discovered in filters (`target_shoprs_discovered: true`); not required for pass |
+| Merchant direct Target.com links | **Not returned** on live layout (Google product links only) |
+| Secrets | Redacted fixtures/reports; no API key in proof files |
+| Evidence | `docs/proof/serpapi/repair-audit-summary.json` and redacted repair fixtures |
 
-**Exact live-proof blocker:** `SERPAPI_API_KEY is not set`.
+### Prior failed broad query (historical)
 
-To complete Lane 3: set a server-side `SERPAPI_API_KEY`, run `npm run serpapi:live-audit`, verify redacted fixture under `docs/proof/serpapi/`, then close the lane and advance to Lane 4.
+- `Apple AirPods Pro 2 USB-C Target` → 40 offers, 0 Target (marketplace-dominated).
+
+### Explicit non-scope
+
+- No product matching engine, no user confirmation flow, no scheduler/UI/deploy/OKX (Lane 4+).
 
 ## Remaining later gates
 
-1. Provide SerpApi key and complete live capability audit (Lane 3 closeout).
-2. Prove exact product matching and fail-closed behavior (Lane 4).
-3. Deploy free A2MCP endpoint and OKX listing.
-4. Demo, X post, and official submission before the deadline.
+1. Candidate matching and product confirmation (Lane 4).
+2. Monitoring loop, consumer UI, free A2MCP endpoint, OKX listing, demo/submission.
 
 ## Risk register snapshot
 
-- Google Shopping may omit Target, return stale data, or mix sellers.
-- Free-plan search capacity is limited; usage must be budgeted.
-- Target must independently verify the lower price.
-- Hackathon approval timing can consume the remaining deadline window.
+- Google Shopping may omit Target or return only Google product links (no merchant deep link).
+- Multiple Target-sold rows require fail-closed matching (Lane 4) — status remains ambiguous until user confirmation.
+- Free-plan SerpApi capacity is limited; budget searches carefully.
+- Target makes the final price-adjustment decision.
 
 ## Next active lane
 
-**Lane 3 (continue) — complete live SerpApi capability audit when `SERPAPI_API_KEY` is available.**  
-After live proof: **Lane 4 — Candidate matching and product confirmation.**
+**Lane 4 — Candidate matching and product confirmation.**

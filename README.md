@@ -1,6 +1,6 @@
 # AfterBuy
 
-**Status:** Lane 3 offline connector complete / live SerpApi audit blocked without key  
+**Status:** Lane 3 complete / SerpApi live capability audit closed  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  
@@ -100,7 +100,7 @@ A different stack requires an ADR and must not weaken the contracts.
 
 See `docs/afterbuy-current-state.md` for the current lane and `docs/afterbuy-build-order.md` for the full sequence. Do not skip lanes or invent live proof.
 
-**Current active work:** finish Lane 3 live SerpApi capability audit when `SERPAPI_API_KEY` is available, then Lane 4 — Candidate matching and product confirmation.
+**Current active lane after Lane 3 closeout:** Lane 4 — Candidate matching and product confirmation.
 
 ## License / secrets
 

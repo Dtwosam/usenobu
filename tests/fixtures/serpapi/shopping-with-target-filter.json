@@ -1,0 +1,35 @@
+{
+  "search_metadata": {
+    "id": "fixture-filters-001",
+    "status": "Success"
+  },
+  "filters": [
+    {
+      "type": "Stores",
+      "options": [
+        {
+          "text": "Target",
+          "shoprs": "CAE_TEST_TARGET_SHOPRS_TOKEN"
+        },
+        {
+          "text": "Walmart",
+          "shoprs": "CAE_TEST_WALMART_SHOPRS_TOKEN"
+        },
+        {
+          "text": "Target Plus",
+          "shoprs": "CAE_TEST_TARGET_PLUS_TOKEN"
+        }
+      ]
+    }
+  ],
+  "shopping_results": [
+    {
+      "position": 1,
+      "title": "Example Item from Other Store",
+      "source": "Walmart",
+      "price": "$10.00",
+      "extracted_price": 10,
+      "product_link": "https://www.google.com/search?ibp=oshop&q=example"
+    }
+  ]
+}

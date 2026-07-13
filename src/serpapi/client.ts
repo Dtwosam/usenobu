@@ -66,7 +66,6 @@ export class SerpApiShoppingClient {
 
   /**
    * Normalize a fixture or previously fetched payload without a network call.
-   * Does not increment live search budget unless recordAsSearch is true.
    */
   normalizeFixture(
     raw: unknown,
@@ -79,9 +78,10 @@ export class SerpApiShoppingClient {
       this.usage.record({
         at: observedAt,
         engine: "google_shopping",
-        query: resolved.q,
+        query: resolved.q || resolved.shoprs || "(empty)",
         live: options.live === true,
         http_status: options.httpStatus,
+        shoprs_used: Boolean(resolved.shoprs),
       });
     }
     const result = normalizeShoppingResponse({
@@ -96,7 +96,6 @@ export class SerpApiShoppingClient {
       const entries = this.usage.getEntries();
       const last = entries[entries.length - 1];
       if (last) {
-        // patch last entry status via re-record pattern — immutable list: update by recording already done
         (last as { provider_status?: typeof result.provider_status }).provider_status =
           result.provider_status;
       }
@@ -106,9 +105,13 @@ export class SerpApiShoppingClient {
 
   async searchShopping(query: SerpApiShoppingQuery): Promise<SerpApiShoppingResult> {
     const resolved = this.resolveQuery(query);
+    if (!resolved.q && !resolved.shoprs) {
+      throw new Error("SerpApi shopping query requires q and/or shoprs");
+    }
     const timeoutMs = query.timeout_ms ?? this.defaultTimeoutMs;
     const observedAt = this.now().toISOString();
     const url = this.buildUrl(resolved);
+    const queryLabel = resolved.q || `[shoprs]`;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -118,13 +121,17 @@ export class SerpApiShoppingClient {
       const response = await this.fetchImpl(url, {
         method: "GET",
         headers: {
-          Accept: "application/json",
-          "User-Agent": "AfterBuy/0.1 (server-side SerpApi connector; third-party observation)",
+          Accept: "application/json; charset=utf-8",
+          "Accept-Charset": "utf-8",
+          "User-Agent":
+            "AfterBuy/0.1 (server-side SerpApi connector; third-party observation)",
         },
         signal: controller.signal,
       });
       httpStatus = response.status;
-      const text = await response.text();
+      // Force UTF-8 decode of response body (SerpApi JSON is UTF-8)
+      const buf = Buffer.from(await response.arrayBuffer());
+      const text = buf.toString("utf8");
       const redactedText = redactSecrets(text, this.apiKey);
 
       let raw: unknown;
@@ -134,11 +141,12 @@ export class SerpApiShoppingClient {
         this.usage.record({
           at: observedAt,
           engine: "google_shopping",
-          query: resolved.q,
+          query: queryLabel,
           live: true,
           http_status: httpStatus,
           provider_status: ProviderStatus.PROVIDER_ERROR,
           error_class: "invalid_json",
+          shoprs_used: Boolean(resolved.shoprs),
         });
         return {
           provider: "SerpApi",
@@ -148,8 +156,12 @@ export class SerpApiShoppingClient {
           observed_at: observedAt,
           offers: [],
           target_offers: [],
+          filters: [],
+          target_shoprs_tokens: [],
           error_message: "Invalid JSON from SerpApi",
-          raw_result_hash: hashRawPayload({ redacted: redactedText.slice(0, 500) }),
+          raw_result_hash: hashRawPayload({
+            redacted: redactedText.slice(0, 500),
+          }),
           live: true,
           searches_recorded: this.usage.getCount(),
         };
@@ -164,7 +176,6 @@ export class SerpApiShoppingClient {
         httpStatus,
       });
 
-      // Override status for hard HTTP failures when body lacked error field
       let provider_status = result.provider_status;
       if (httpStatus === 429) {
         provider_status = ProviderStatus.PROVIDER_RATE_LIMITED;
@@ -175,10 +186,11 @@ export class SerpApiShoppingClient {
       this.usage.record({
         at: observedAt,
         engine: "google_shopping",
-        query: resolved.q,
+        query: queryLabel,
         live: true,
         http_status: httpStatus,
         provider_status,
+        shoprs_used: Boolean(resolved.shoprs),
       });
 
       return {
@@ -198,18 +210,17 @@ export class SerpApiShoppingClient {
           "name" in error &&
           (error as { name: string }).name === "AbortError");
 
-      const provider_status = aborted
-        ? ProviderStatus.PROVIDER_ERROR
-        : ProviderStatus.PROVIDER_ERROR;
+      const provider_status = ProviderStatus.PROVIDER_ERROR;
 
       this.usage.record({
         at: observedAt,
         engine: "google_shopping",
-        query: resolved.q,
+        query: queryLabel,
         live: true,
         http_status: httpStatus,
         provider_status,
         error_class: aborted ? "timeout" : "network_error",
+        shoprs_used: Boolean(resolved.shoprs),
       });
 
       return {
@@ -220,6 +231,8 @@ export class SerpApiShoppingClient {
         observed_at: observedAt,
         offers: [],
         target_offers: [],
+        filters: [],
+        target_shoprs_tokens: [],
         error_message: aborted
           ? `SerpApi request timed out after ${timeoutMs}ms`
           : redactSecrets("SerpApi network error", this.apiKey),
@@ -234,11 +247,12 @@ export class SerpApiShoppingClient {
 
   private resolveQuery(query: SerpApiShoppingQuery) {
     return {
-      q: query.q.trim(),
+      q: (query.q ?? "").trim(),
+      shoprs: query.shoprs?.trim() || undefined,
       gl: (query.gl ?? "us").toLowerCase(),
       hl: (query.hl ?? "en").toLowerCase(),
       location: query.location ?? "Austin, Texas, United States",
-      device: query.device ?? "desktop",
+      device: query.device ?? ("desktop" as const),
       no_cache: query.no_cache === true,
     };
   }
@@ -248,13 +262,18 @@ export class SerpApiShoppingClient {
   ): string {
     const params = new URLSearchParams({
       engine: "google_shopping",
-      q: resolved.q,
       gl: resolved.gl,
       hl: resolved.hl,
       location: resolved.location,
       device: resolved.device,
       api_key: this.apiKey,
     });
+    if (resolved.q) {
+      params.set("q", resolved.q);
+    }
+    if (resolved.shoprs) {
+      params.set("shoprs", resolved.shoprs);
+    }
     if (resolved.no_cache) {
       params.set("no_cache", "true");
     }

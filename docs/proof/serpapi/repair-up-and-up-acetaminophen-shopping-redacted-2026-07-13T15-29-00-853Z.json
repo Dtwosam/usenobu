@@ -1,0 +1,389 @@
+{
+  "disclaimer": "Redacted SerpApi Google Shopping observation. Not an official Target API response. API key removed.",
+  "live": true,
+  "provider": "SerpApi",
+  "engine": "google_shopping",
+  "provider_status": "AMBIGUOUS_TARGET_RESULTS",
+  "query": {
+    "q": "up&up acetaminophen 500 mg 100 tablets",
+    "gl": "us",
+    "hl": "en",
+    "location": "Austin, Texas, United States",
+    "device": "desktop",
+    "no_cache": false
+  },
+  "observed_at": "2026-07-13T15:29:00.853Z",
+  "offers": [
+    {
+      "title": "up&up Acetaminophen Pain Relief Coated Tablets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "seller_kind": "target",
+      "is_target_plus": false,
+      "extracted_price": 1.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "up&up Acetaminophen Extra Strength Pain Reliever & Fever Reducer Caplets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "seller_kind": "target",
+      "is_target_plus": false,
+      "extracted_price": 1.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "up&up Acetaminophen Extra Strength Pain Reliever + Fever Reducer Quick Release Gelcaps",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "seller_kind": "target",
+      "is_target_plus": false,
+      "extracted_price": 6.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "up&up Extra Strength Acetaminophen Caplets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "seller_kind": "target",
+      "is_target_plus": false,
+      "extracted_price": 14.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Acetaminophen Extra Strength Pain Reliever & Fever Reducer Caplets - 500ct: Oral Use, General Pain Relief",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "seller_kind": "target",
+      "is_target_plus": false,
+      "extracted_price": 7.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "up&up Acetaminophen & Aspirin added-Strength Pain Reliever Caplets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "seller_kind": "target",
+      "is_target_plus": false,
+      "extracted_price": 6.79,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "up&up Extra Strength Headache Pain Relief Caplets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "seller_kind": "target",
+      "is_target_plus": false,
+      "extracted_price": 2.59,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "up&up Extra Strength Rapid Release Gelcaps",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "seller_kind": "target",
+      "is_target_plus": false,
+      "extracted_price": 2.29,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Equate Extra Strength Acetaminophen Gelcaps",
+      "title_utf8_ok": true,
+      "source_text": "Walmart",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 4.76,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Walgreens Extra Strength Pain Relief Tablets",
+      "title_utf8_ok": true,
+      "source_text": "Walgreens.com",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 9.99,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "Extra Strength Acetaminophen Pain Relief Tablets - 500 mg | 100 Caplets | Case of 12",
+      "title_utf8_ok": true,
+      "source_text": "VitalityMedical.com",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 37.41,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    },
+    {
+      "title": "(4 pack) Equate Pain Acetaminophen 500 mg Tablets for Body Aches & Pains Compare to Tylenol Extra Strength 100 Count",
+      "title_utf8_ok": true,
+      "source_text": "Walmart",
+      "seller_kind": "other",
+      "is_target_plus": false,
+      "extracted_price": 7.92,
+      "currency": "USD",
+      "merchant_link": null,
+      "product_link": "[google product link]",
+      "link_is_google_only": true,
+      "product_id": "[present]",
+      "immersive_product_page_token": "[present]"
+    }
+  ],
+  "target_offers_count": 8,
+  "target_offers": [
+    {
+      "title": "up&up Acetaminophen Pain Relief Coated Tablets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "extracted_price": 1.99,
+      "merchant_link": null,
+      "product_id": "[present]"
+    },
+    {
+      "title": "up&up Acetaminophen Extra Strength Pain Reliever & Fever Reducer Caplets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "extracted_price": 1.99,
+      "merchant_link": null,
+      "product_id": "[present]"
+    },
+    {
+      "title": "up&up Acetaminophen Extra Strength Pain Reliever + Fever Reducer Quick Release Gelcaps",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "extracted_price": 6.99,
+      "merchant_link": null,
+      "product_id": "[present]"
+    },
+    {
+      "title": "up&up Extra Strength Acetaminophen Caplets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "extracted_price": 14.99,
+      "merchant_link": null,
+      "product_id": "[present]"
+    },
+    {
+      "title": "Acetaminophen Extra Strength Pain Reliever & Fever Reducer Caplets - 500ct: Oral Use, General Pain Relief",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "extracted_price": 7.99,
+      "merchant_link": null,
+      "product_id": "[present]"
+    },
+    {
+      "title": "up&up Acetaminophen & Aspirin added-Strength Pain Reliever Caplets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "extracted_price": 6.79,
+      "merchant_link": null,
+      "product_id": "[present]"
+    },
+    {
+      "title": "up&up Extra Strength Headache Pain Relief Caplets",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "extracted_price": 2.59,
+      "merchant_link": null,
+      "product_id": "[present]"
+    },
+    {
+      "title": "up&up Extra Strength Rapid Release Gelcaps",
+      "title_utf8_ok": true,
+      "source_text": "Target",
+      "extracted_price": 2.29,
+      "merchant_link": null,
+      "product_id": "[present]"
+    }
+  ],
+  "filters_summary": [
+    {
+      "type": null,
+      "options": [
+        {
+          "text": "Nearby",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Get it fast",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Stores",
+      "options": [
+        {
+          "text": "Walmart",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Target",
+          "is_target_store_filter": true,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Walgreens.com",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Price",
+      "options": [
+        {
+          "text": "Under $5",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "$5 - $10",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Over $10",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Brand",
+      "options": [
+        {
+          "text": "up & up",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Walgreens",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Equate",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "OTC Tools",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    },
+    {
+      "type": "Carousel Filters",
+      "options": [
+        {
+          "text": "Nearby",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Walmart",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Target",
+          "is_target_store_filter": true,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Walgreens.com",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Get it fast",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Under $5",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Joint",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        },
+        {
+          "text": "Berry",
+          "is_target_store_filter": false,
+          "shoprs": "[present]"
+        }
+      ]
+    }
+  ],
+  "target_shoprs_tokens_present": 2,
+  "search_metadata": {
+    "id": "6a55043d3f79e8466d2af2c2",
+    "status": "Success",
+    "total_time_taken": 5.43
+  },
+  "raw_result_hash": "53762d796abcd35eccfc47a38f2cfcf917ec7a80aa688cfb429bfd0e9df56e3b",
+  "searches_recorded": 2,
+  "error_message": null
+}

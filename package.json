@@ -10,7 +10,8 @@
     "test:watch": "vitest",
     "migrate:up": "tsx src/db/cli.ts up",
     "migrate:down": "tsx src/db/cli.ts down",
-    "serpapi:live-audit": "tsx src/serpapi/run-live-audit.ts"
+    "serpapi:live-audit": "tsx src/serpapi/run-live-audit.ts",
+    "serpapi:repair-audit": "tsx src/serpapi/run-repair-audit.ts"
   },
   "engines": {
     "node": ">=22.5"

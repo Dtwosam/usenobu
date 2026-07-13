@@ -2,8 +2,10 @@ import type { ProviderStatus, SellerKind } from "../domain/enums.js";
 
 /** Server-side SerpApi Google Shopping query controls (data contract). */
 export interface SerpApiShoppingQuery {
-  /** Search query; prefer model/identifier + Target terms. */
-  q: string;
+  /** Search query; prefer model/identifier terms. Optional when shoprs alone is used. */
+  q?: string;
+  /** SerpApi shoprs filter token(s); join multiple with || */
+  shoprs?: string;
   /** ISO country for Google (MVP: us). */
   gl?: string;
   /** Language (MVP: en). */
@@ -20,8 +22,17 @@ export interface SerpApiShoppingQuery {
 
 export interface NormalizedShoppingOffer {
   title: string;
-  link?: string;
+  /** True when title passed UTF-8 well-formed checks after decode. */
+  title_utf8_ok: boolean;
+  /**
+   * Merchant/direct product URL when SerpApi returns a non-Google host.
+   * New Google Shopping layouts often omit this (product_link only).
+   */
+  merchant_link?: string;
+  /** Google Shopping product page link (not a Target.com URL). */
   product_link?: string;
+  /** Raw link field as returned (may be Google or merchant). */
+  link?: string;
   source_text: string;
   seller_kind: SellerKind;
   is_target_plus: boolean;
@@ -35,20 +46,40 @@ export interface NormalizedShoppingOffer {
   raw_position?: number;
 }
 
+export interface ShoppingFilterOption {
+  text: string;
+  shoprs?: string;
+  /** True when filter text clearly names Target (not Target Plus). */
+  is_target_store_filter: boolean;
+}
+
+export interface ShoppingFilterGroup {
+  type?: string;
+  options: ShoppingFilterOption[];
+}
+
 export interface SerpApiShoppingResult {
   provider: "SerpApi";
   engine: "google_shopping";
   /** Classification only — not Target eligibility and not optimistic matching. */
   provider_status: ProviderStatus;
-  query: Required<
-    Pick<SerpApiShoppingQuery, "q" | "gl" | "hl" | "location" | "device">
-  > & {
+  query: {
+    q: string;
+    gl: string;
+    hl: string;
+    location: string;
+    device: "desktop" | "mobile" | "tablet";
     no_cache: boolean;
+    shoprs?: string;
   };
   observed_at: string;
   offers: NormalizedShoppingOffer[];
-  /** Target-seller offers only (filter, not fingerprint match). */
+  /** Target-seller offers only (seller filter, not fingerprint match). */
   target_offers: NormalizedShoppingOffer[];
+  /** Filter groups including shoprs tokens when SerpApi returns them. */
+  filters: ShoppingFilterGroup[];
+  /** shoprs tokens whose text indicates Target store (not Plus). */
+  target_shoprs_tokens: string[];
   search_metadata?: {
     id?: string;
     status?: string;
@@ -81,6 +112,7 @@ export interface SearchUsageRecord {
   http_status?: number;
   provider_status?: ProviderStatus;
   error_class?: string;
+  shoprs_used?: boolean;
 }
 
 export interface SearchUsageRecorder {
@@ -114,4 +146,6 @@ export interface LiveCapabilityReport {
   /** Path to redacted fixture if written. */
   redacted_fixture_path?: string;
   disclaimer: string;
+  target_shoprs_found?: boolean;
+  merchant_link_available?: boolean;
 }

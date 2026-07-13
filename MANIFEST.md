@@ -21,7 +21,7 @@
 - `tests/policy/`
 - `tests/serpapi/`
 - `tests/fixtures/serpapi/`
-- `docs/proof/serpapi/` (offline/live capability proof artifacts; redacted only)
+- `docs/proof/serpapi/` (offline + live redacted capability proof; repair-audit-summary.json)
 - `data/retailer-policies/target-us-v1.yaml`
 - `docs/adr/0001-target-serpapi-mvp.md`
 - `docs/adr/0002-a2mcp-free-first.md`
