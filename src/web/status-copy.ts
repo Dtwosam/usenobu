@@ -4,7 +4,7 @@ import type { StatusTone } from "@/ui/StatusBadge";
 export function statusLabel(status: string): string {
   switch (status) {
     case "MONITORING_ACTIVE":
-      return "Watching the price";
+      return "Nobu is watching this purchase";
     case "PRICE_DROP_DETECTED":
       return "Price drop found";
     case "NO_PRICE_DROP":

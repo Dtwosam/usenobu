@@ -2,13 +2,13 @@
 
 ## Short description
 
-Nobu is a post-purchase price-monitoring platform that watches supported purchases for possible retailer price drops. The current live integration supports eligible Target.com purchases.
+Nobu is an AI agent that monitors supported purchases after checkout and alerts users when a lower retailer price may be available. Currently supports eligible Target.com purchases.
 
 ## Full project description
 
-Nobu is a consumer post-purchase price-monitoring platform and OKX.AI A2MCP ASP. It is designed to support retailer-specific connectors, policy contracts and price-monitoring workflows. The current live version supports eligible Target.com and Target app purchases only.
+Nobu is a consumer AI agent and OKX.AI A2MCP ASP for post-purchase price monitoring. It understands natural-language purchase descriptions, requires user confirmation of structured details, then applies deterministic retailer policy and exact-product matching. The current live version supports eligible Target.com and Target app purchases only.
 
-Add a supported purchase once. Nobu watches the retailer price during the applicable monitoring window and alerts you when there may be a difference to request.
+Tell Nobu what you bought once. After you confirm the details, Nobu watches the retailer price during the applicable monitoring window and alerts you when there may be a difference to request.
 
 For Target purchases, Nobu uses SerpApi as a third-party shopping-search observation source. It never describes this data as an official Target API price. Product matching is fail-closed: a lower price is accepted only when the seller is Target and the product identity is confirmed strongly enough under the matching contract.
 

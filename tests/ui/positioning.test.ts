@@ -25,21 +25,25 @@ describe("universal platform positioning copy", () => {
     "docs/nobu-current-state.md",
   ];
 
-  it("homepage uses universal CTA and Target availability label", () => {
+  it("homepage uses agent CTA and Target availability label", () => {
     const home = readFileSync(resolve("app/page.tsx"), "utf8");
-    expect(home).toContain("Track a purchase");
+    expect(home).toContain("Ask Nobu to watch a purchase");
     expect(home).toContain("Currently supports eligible Target.com purchases");
-    expect(home).toContain(
-      "Nobu monitors supported purchases after checkout",
-    );
+    expect(home).toContain("Your AI agent after checkout");
+    expect(home).toContain("Tell Nobu what you bought");
     expect(home).not.toContain("Track a Target purchase");
   });
 
   it("add-purchase labels Target as currently supported retailer", () => {
-    const form = readFileSync(resolve("app/purchases/new/page.tsx"), "utf8");
-    expect(form).toContain("Add your purchase");
+    const form = readFileSync(
+      resolve("app/purchases/new/PurchaseIntake.tsx"),
+      "utf8",
+    );
+    expect(form).toContain("Tell Nobu what you bought");
     expect(form).toContain("Target — currently supported");
     expect(form).toContain("This retailer isn’t supported yet");
+    expect(form).toContain("Fill details with AI");
+    expect(form).toContain("Find my product");
   });
 
   it("does not claim other retailers are live", () => {

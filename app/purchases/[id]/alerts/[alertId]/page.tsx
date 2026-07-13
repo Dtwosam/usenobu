@@ -35,7 +35,7 @@ export default async function AlertPage({
     <div className="n-screen n-screen--reading">
       <PageHeader
         eyebrow="Price update"
-        title="Price drop found"
+        title="Nobu found a possible price difference"
         description="A lower observed retailer price appeared while your monitoring window was open."
       />
 

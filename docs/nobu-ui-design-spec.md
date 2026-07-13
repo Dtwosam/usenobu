@@ -8,17 +8,19 @@ Reference direction: green-and-cream consumer UI (visual hierarchy, cards, contr
 
 ## UX rules (locked)
 
-1. **One primary action** per screen (default: *Track a purchase*).
+1. **One primary action** per screen (default homepage CTA: *Ask Nobu to watch a purchase*).
 2. **Plain English** first; technical detail only under progressive disclosure.
 3. **No raw enums or provider jargon** as main copy (e.g. avoid leading with `EXACT_MATCH_CANDIDATE` or “SerpApi” without plain context).
 4. **Never ask** for information Nobu does not use.
 5. **Fewest reasonable steps** for important tasks.
 6. **Progressive disclosure** for policy, provenance, and technical evidence.
-7. **Preserve form data** after validation errors.
+7. **Preserve form data** after validation errors (and after AI recovery failures).
 8. **Explain disabled actions** (`disabledReason` / `title` / helper text).
 9. **Every error** says what to do next.
 10. **No fake activity**, savings, users, testimonials, or live data.
 11. **No guaranteed-refund** language. Target decides.
+12. **AI is not a chatbot UI** — bounded intake only; deterministic systems own match/monitor decisions.
+13. **Confirmation gate** — AI never auto-submits Find my product or starts monitoring.
 
 ## Brand
 
@@ -113,9 +115,33 @@ Styles live in `app/globals.css` (single token + component system). Legacy `.car
 - Skip-to-content link
 - Sticky header with original **N** wordmark
 - Desktop nav + responsive mobile panel
-- Primary CTA: **Track a purchase** → `/purchases/new`
+- Header CTA may still say **Track a purchase** → `/purchases/new`
+- Homepage primary CTA: **Ask Nobu to watch a purchase**
 - Footer with privacy-safe disclaimer
 - Landmarks: `header`, `main#main-content`, `footer`
+
+## Product positioning copy (Lane 7.5E)
+
+| Surface | Copy |
+|---|---|
+| Homepage eyebrow | Your AI agent after checkout |
+| Homepage headline | Bought it? We’ll keep watch. |
+| Homepage lead | Tell Nobu what you bought. It confirms the exact product, monitors the supported retailer price, and alerts you when a lower price may be available. |
+| Availability | Currently supports eligible Target.com purchases |
+| Primary CTA | Ask Nobu to watch a purchase |
+| Monitoring status | Nobu is watching this purchase |
+| Alert heading | Nobu found a possible price difference |
+| Trust line | AI helps Nobu understand purchase information. Deterministic retailer rules and exact-product matching control every monitoring decision. |
+
+## Add purchase — natural language intake
+
+1. Card heading: **Tell Nobu what you bought**
+2. Supporting: Describe purchase in your own words; Nobu fills details for review
+3. Example synthetic purchase text in placeholder/hint
+4. Primary secondary actions: **Fill details with AI** / **Enter details manually**
+5. After extraction: **Here’s what I understood** + mark missing/uncertain fields
+6. Existing structured form remains (editable); user must click **Find my product**
+7. AI unavailable → warning notice + manual path preserved (no blank error page)
 
 ## Accessibility
 

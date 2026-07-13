@@ -1,17 +1,43 @@
 openapi: 3.1.0
 info:
   title: Nobu A2MCP API
-  version: 1.0.0
+  version: 1.1.0
   description: >-
-    Checks a recent eligible Target.com purchase against a third-party observed
-    Target online price and Target's current price-match policy. Target verifies
-    the lower price and makes the final decision.
+    Nobu is an AI agent that monitors supported purchases after checkout.
+    Free A2MCP endpoints: structured Target price check and bounded agent actions.
+    Target verifies prices and makes the final decision. Currently supports
+    eligible Target.com purchases only.
 servers:
   - url: https://usenobu.vercel.app
     description: Public HTTPS free A2MCP (UseNobu production)
   - url: http://127.0.0.1:3000
     description: Local Next.js dev only — not external proof
 paths:
+  /v1/agent:
+    post:
+      operationId: nobuAgent
+      summary: Bounded Nobu agent actions (understand, check confirmed, status)
+      description: >-
+        Fixed actions only. UNDERSTAND_PURCHASE extracts fields and always requires
+        user confirmation. CHECK_CONFIRMED_PURCHASE runs the existing deterministic
+        Target check. CHECK_MONITORING_STATUS returns stored monitor state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+      responses:
+        '200':
+          description: Agent action result
+        '400':
+          description: Invalid input
+        '404':
+          description: Purchase not found
+        '429':
+          description: Rate limited
+        '503':
+          description: AI provider unavailable
   /v1/target-price-check:
     post:
       operationId: checkTargetPriceProtection
@@ -142,3 +168,66 @@ components:
           const: Target
         disclaimer:
           type: string
+    AgentRequest:
+      oneOf:
+        - type: object
+          required: [action, purchase_text]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: UNDERSTAND_PURCHASE
+            purchase_text:
+              type: string
+              maxLength: 2000
+        - type: object
+          required:
+            - action
+            - target_product_url
+            - purchase_price
+            - currency
+            - purchase_date
+            - country
+            - purchase_channel
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: CHECK_CONFIRMED_PURCHASE
+            target_product_url:
+              type: string
+              format: uri
+            purchase_price:
+              type: number
+            currency:
+              type: string
+              const: USD
+            purchase_date:
+              type: string
+              format: date
+            country:
+              type: string
+              const: US
+            region:
+              type: string
+            purchase_channel:
+              type: string
+              const: target_online
+            model_number:
+              type: string
+            upc_or_gtin:
+              type: string
+            target_item_id:
+              type: string
+            user_confirmed_match_id:
+              type: string
+        - type: object
+          required: [action, purchase_id]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: CHECK_MONITORING_STATUS
+            purchase_id:
+              type: string
+

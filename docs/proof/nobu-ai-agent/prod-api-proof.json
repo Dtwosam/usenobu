@@ -1,0 +1,47 @@
+{
+  "base": "https://usenobu.vercel.app",
+  "at": "2026-07-13T21:48:28.743Z",
+  "checks": {
+    "health": {
+      "ok": true,
+      "service": "nobu-a2mcp"
+    },
+    "understand_purchase": {
+      "http_status": 200,
+      "agent_state": "CONFIRMATION_REQUIRED",
+      "next_action": "CONFIRM_PURCHASE_DETAILS",
+      "requires_user_action": true,
+      "purchase_price": 9.99,
+      "product_url": "https://www.target.com/p/acetaminophen/-/A-12345678",
+      "retailer": "Target",
+      "missing_fields": [],
+      "uncertain_fields": [],
+      "provider": "deterministic",
+      "raw_text_absent_from_response": true,
+      "secrets_absent": true,
+      "no_match_status": true
+    },
+    "check_confirmed_purchase": {
+      "http_status": 200,
+      "status": "MATCH_REVIEW_REQUIRED",
+      "final_decision_by": "Target",
+      "deterministic_keys_present": true
+    },
+    "target_price_check_compat": {
+      "http_status": 200,
+      "status": "MATCH_REVIEW_REQUIRED",
+      "same_family_as_agent_check": true
+    },
+    "ui_copy": {
+      "home_eyebrow": true,
+      "home_headline": true,
+      "home_cta": true,
+      "nl_heading": true,
+      "fill_ai": true,
+      "manual": true,
+      "find_product": true,
+      "trust": true
+    }
+  },
+  "verdict": "NOBU_LANE_7_5E_PROD_PROOF_PASS"
+}

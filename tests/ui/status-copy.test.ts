@@ -9,7 +9,9 @@ import { purchaseFormError } from "../../src/web/error-copy.js";
 
 describe("status copy", () => {
   it("maps monitoring statuses to plain English", () => {
-    expect(statusLabel("MONITORING_ACTIVE")).toBe("Watching the price");
+    expect(statusLabel("MONITORING_ACTIVE")).toBe(
+      "Nobu is watching this purchase",
+    );
     expect(statusLabel("PRICE_DROP_DETECTED")).toBe("Price drop found");
     expect(statusLabel("MATCH_REVIEW_REQUIRED")).toBe(
       "Confirm your exact product",

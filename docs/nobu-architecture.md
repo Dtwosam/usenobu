@@ -15,6 +15,13 @@ The default implementation is:
 
 A different stack requires an ADR and must not weaken the contracts.
 
+## AI agent boundary (Lane 7.5E)
+
+- **Intake:** natural language → structured extraction (xAI or deterministic) → confirmation UI.
+- **Authority:** matching, policy, fingerprints, monitoring remain deterministic code paths.
+- **API:** `POST /v1/agent` for bounded actions; `POST /v1/target-price-check` for structured Target checks.
+- **Privacy:** raw purchase text is not stored in the DB; audits use hashes.
+
 ## Platform concepts
 
 Nobu is structured as a multi-retailer-capable platform with retailer-specific connectors:
@@ -32,13 +39,20 @@ Target-specific implementations remain named as Target-specific (Target policy e
 
 ### 1. Web UI
 
-- add purchase form;
+- natural-language purchase intake + structured form (confirmation gate);
 - candidate product confirmation;
 - monitoring status;
 - price history;
 - price-drop alert;
 - retailer claim instructions (Target for the live integration);
 - privacy and supported-case notices.
+
+### 1b. AI extract service (`src/ai/`)
+
+- server-only xAI client with structured JSON + Zod validation;
+- fail-closed deterministic extractor when no key / invalid output;
+- rate limiting, timeout, refusal handling;
+- never invents identifiers; never starts matching or monitoring.
 
 ### 2. Purchase service
 

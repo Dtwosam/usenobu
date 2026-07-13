@@ -23,7 +23,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
       "Currently supports eligible Target.com purchases",
     );
     await expect(page.getByTestId("cta-add-purchase")).toContainText(
-      "Track a purchase",
+      "Ask Nobu to watch a purchase",
     );
     await expect(page.getByTestId("cta-how-it-works")).toBeVisible();
     const home = (await page.locator("body").innerText()).toLowerCase();
@@ -90,7 +90,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.getByTestId("confirm-candidate").click();
 
     await expect(page.getByTestId("status-pill")).toContainText(
-      "Watching the price",
+      "Nobu is watching this purchase",
     );
     await expect(page.getByTestId("status-code")).toHaveText("MONITORING_ACTIVE");
     await expect(page.getByTestId("fingerprint-id")).toBeVisible();
@@ -114,7 +114,11 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await expect(page.getByTestId("alert-summary")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByRole("heading", { name: /Price drop found/i })).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: /Nobu found a possible price difference|Price drop found/i,
+      }),
+    ).toBeVisible();
     await expect(page.getByTestId("potential-recovery")).toContainText(
       "Potential recovery",
     );

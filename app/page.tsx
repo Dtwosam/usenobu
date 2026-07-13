@@ -7,27 +7,28 @@ import {
 } from "@/ui";
 
 /**
- * Homepage — universal platform positioning (Lane 7.5D).
- * Target is clearly the first (and only) live retailer.
+ * Homepage — AI agent positioning (Lane 7.5E).
+ * Target is the first and only live retailer.
  */
 export default function HomePage() {
   return (
     <div className="n-screen n-screen--home">
       <section className="n-hero" aria-labelledby="home-title">
-        <p className="n-page-header__eyebrow">Post-purchase price monitoring</p>
+        <p className="n-page-header__eyebrow">Your AI agent after checkout</p>
         <h1 id="home-title" className="n-hero__title">
           Bought it? We’ll keep watch.
         </h1>
         <p className="n-hero__lead">
-          Nobu monitors supported purchases after checkout and alerts you when a
-          lower retailer price may be available.
+          Tell Nobu what you bought. It confirms the exact product, monitors the
+          supported retailer price, and alerts you when a lower price may be
+          available.
         </p>
         <p className="n-availability" data-testid="availability-label">
           Currently supports eligible Target.com purchases
         </p>
         <div className="n-hero__actions">
           <ButtonLink href="/purchases/new" data-testid="cta-add-purchase">
-            Track a purchase
+            Ask Nobu to watch a purchase
           </ButtonLink>
           <ButtonLink href="/notices" variant="secondary" data-testid="cta-how-it-works">
             See how it works
@@ -44,22 +45,22 @@ export default function HomePage() {
             <span className="n-step-card__num" aria-hidden>
               1
             </span>
-            <strong>Add your purchase</strong>
-            <p>Enter details from a recent supported order.</p>
+            <strong>Tell Nobu what you bought</strong>
+            <p>Describe the purchase or enter details manually.</p>
           </li>
           <li className="n-step-card">
             <span className="n-step-card__num" aria-hidden>
               2
             </span>
             <strong>Confirm the exact product</strong>
-            <p>Make sure Nobu locks the right item before watching.</p>
+            <p>You review the details before Nobu locks the item.</p>
           </li>
           <li className="n-step-card">
             <span className="n-step-card__num" aria-hidden>
               3
             </span>
             <strong>Nobu watches the price</strong>
-            <p>We’ll alert you if a lower observed retailer price appears.</p>
+            <p>Deterministic rules control monitoring and alerts.</p>
           </li>
         </ol>
       </section>
@@ -71,6 +72,13 @@ export default function HomePage() {
           <li>The retailer makes the final decision</li>
         </ul>
       </section>
+
+      <InlineNotice tone="info" data-testid="ai-trust-notice">
+        <p>
+          AI helps Nobu understand purchase information. Deterministic retailer rules
+          and exact-product matching control every monitoring decision.
+        </p>
+      </InlineNotice>
 
       <DemoDataBanner data-testid="home-fixture-notice">
         <p>
@@ -106,8 +114,8 @@ export default function HomePage() {
         </div>
         <InlineNotice tone="info">
           <p>
-            For Target purchases, Target must verify the current price and decides any
-            adjustment. Nobu does not guarantee a refund.
+            Nobu found a possible price difference (example). Target must verify the
+            current price and decides any adjustment. Nobu does not guarantee a refund.
           </p>
         </InlineNotice>
       </Card>

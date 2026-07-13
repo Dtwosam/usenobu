@@ -56,15 +56,17 @@ The active build order is `docs/nobu-build-order.md`.
 
 AI may:
 
-- parse receipt/order text;
-- extract candidate product identifiers;
+- parse natural-language purchase descriptions and receipt/order text;
+- extract candidate purchase fields and product identifiers (never invent them);
+- flag missing or uncertain fields for user review;
 - explain results in plain English;
 - draft a user-facing reminder or claim checklist.
 
 AI may not:
 
-- invent Target rules;
+- invent Target rules, prices, dates, models, or identifiers;
 - override deterministic matching or eligibility;
 - convert ambiguous evidence into a confirmed match;
+- start monitoring or lock a fingerprint without user confirmation;
 - guarantee a price adjustment;
 - rewrite price/source provenance.

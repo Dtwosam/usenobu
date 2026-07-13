@@ -1,43 +1,43 @@
 # Nobu Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 7.5D.1 COMPLETE / FIND-PRODUCT PRODUCTION REPAIR
+**Status:** LANE 7.5E COMPLETE / BOUNDED AI AGENT INTAKE
 
 ## Locked decisions
 
-- Product name: **Nobu**
-- Public deployment identity: **UseNobu**
-- Vercel project: **usenobu**
-- Production URL: **https://usenobu.vercel.app**
-- Platform positioning: universal post-purchase monitoring; **Target is the only live retailer**
-- Free A2MCP first; SerpApi third-party Target observation only
-- Fail-closed matching; no refund guarantees
+- Product: **AI agent** for post-purchase price monitoring
+- Deployment: **UseNobu** at **https://usenobu.vercel.app**
+- Live retailer: **Target only**
+- NL intake: extraction → **user confirmation** → deterministic Find my product
+- Agent API: `POST /v1/agent` (bounded actions)
+- Structured API: `POST /v1/target-price-check` (unchanged)
+- AI provider: xAI (`XAI_API_KEY`) with deterministic fallback extractor
+- Free A2MCP first; no x402
 
-## Production note (corrected)
-
-Earlier 7.5D production checks covered static pages and `/health` only. The **Find my product** server action was **broken in production** (ENOENT scandir migrations → blank Application error). That is repaired in Lane 7.5D.1.
+## Production
 
 | Item | Value |
 |---|---|
-| Public production URL | **https://usenobu.vercel.app** |
+| URL | https://usenobu.vercel.app |
+| Agent endpoint | `/v1/agent` |
+| Target check | `/v1/target-price-check` |
 | Health | `nobu-a2mcp` |
-| Find my product | Verified in real browser (POST 303 → review 200) |
-| Repair proof | `docs/proof/usenobu-production/find-product-repair/` |
 
-Public A2MCP routes (unchanged):
+## Lane 7.5E proof
 
-- `GET /health`
-- `POST /v1/target-price-check`
-
-## Lane 7.5D.1 root cause
-
-`src/db/migrator.ts` called `fs.readdirSync` on a migrations directory not present in the Vercel serverless bundle. First SQLite open/migrate during form submit crashed.
-
-## Hard locks (unchanged)
-
-- Target-only live integration; no other retailers
-- No policy/matching/monitoring/API contract changes
+| Item | Result |
+|---|---|
+| UNDERSTAND_PURCHASE → CONFIRMATION_REQUIRED | Yes |
+| No auto matching/monitoring from AI | Yes |
+| Manual entry + Find my product | Yes |
+| Deterministic tests | Green (155 unit) |
+| Existing matching/policy/A2MCP tests | Green |
+| E2E | 24 passed / 2 skipped |
+| Production browser NL flow | `docs/proof/nobu-ai-agent/` |
+| Production `/v1/agent` API | PROD_PROOF_PASS |
+| Verdict | **NOBU_LANE_7_5E_PASS** |
 
 ## Next active lane
 
-**Lane 8 — OKX ASP registration and live listing.**
+**Lane 8 — OKX ASP registration and live listing**  
+Listing endpoint: **`https://usenobu.vercel.app/v1/agent`**

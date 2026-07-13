@@ -10,7 +10,11 @@
 
 ## Accurate listing description
 
-> Nobu is a post-purchase price-monitoring platform that watches supported purchases for possible retailer price drops. The current live integration supports eligible Target.com purchases. For those purchases, Nobu checks a third-party observed Target online price and Target's current price-match rules, then returns a possible price drop, estimated difference, remaining request window, evidence provenance, and Target's official next step. Target verifies the lower price and makes the final decision. Other retailers are not live.
+> Nobu is an AI agent that monitors supported purchases after checkout and alerts users when a lower retailer price may be available. It understands natural-language purchase details, requires user confirmation, then applies deterministic Target policy and exact-product matching. The live integration supports eligible Target.com purchases only. Free endpoint: https://usenobu.vercel.app/v1/agent. Target verifies the lower price and makes the final decision.
+
+## Preferred listing URL
+
+`https://usenobu.vercel.app/v1/agent`
 
 Do not claim:
 

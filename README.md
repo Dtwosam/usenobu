@@ -1,15 +1,16 @@
 # Nobu
 
-**Status:** Lane 7.5D complete / universal platform positioning  
+**Status:** Lane 7.5E complete / bounded AI agent intake  
 **Production:** https://usenobu.vercel.app (UseNobu; product Nobu; health `nobu-a2mcp`)  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **First live retailer:** Target.com / Target app (U.S., excluding Alaska and Hawaii)  
 **Price source (Target):** SerpApi Google Shopping (third-party observation, not an official Target API)  
+**Agent API:** `POST /v1/agent`  
 **Primary implementation agent:** Grok Build
 
-Nobu is a post-purchase price-monitoring platform that watches supported purchases for possible retailer price drops. The current live integration supports eligible Target.com purchases.
+Nobu is an AI agent that monitors supported purchases after checkout and alerts users when a lower retailer price may be available. Currently supports eligible Target.com purchases.
 
-Add a supported purchase once. Nobu watches the retailer price during the applicable monitoring window and alerts you when there may be a difference to request.
+Tell Nobu what you bought (or enter details). You review and confirm. Then deterministic matching and monitoring take over.
 
 Nobu does **not** guarantee a refund, submit a claim, log into retailer accounts, scrape Target, or claim observed prices are official Target API prices. For Target purchases, Target verifies the price and makes the final decision. Other retailers remain unsupported until separately integrated.
 
@@ -76,7 +77,7 @@ npm test
 npm run typecheck
 ```
 
-Lane 1 domain contracts live under `src/domain/`. Database models and SQL migrations live under `src/db/`. The Lane 2 Target policy engine lives under `src/policy/`. The Lane 3 SerpApi connector lives under `src/serpapi/` (server-only; third-party observation, not an official Target API). Fail-closed product matching and confirmation live under `src/matching/`. The price monitoring loop lives under `src/monitoring/`. Consumer UI is Next.js App Router under `app/` with server services in `src/web/`. Local migration proof uses Node built-in `node:sqlite` (no secrets, no native compile). Production remains PostgreSQL per the architecture doc.
+Lane 1 domain contracts live under `src/domain/`. Database models and SQL migrations live under `src/db/`. The Lane 2 Target policy engine lives under `src/policy/`. The Lane 3 SerpApi connector lives under `src/serpapi/` (server-only; third-party observation, not an official Target API). Fail-closed product matching and confirmation live under `src/matching/`. The price monitoring loop lives under `src/monitoring/`. Bounded AI agent intake (NL extraction, confirmation gate, `POST /v1/agent`) lives under `src/ai/` with contract `docs/nobu-ai-agent-contract.md`. Consumer UI is Next.js App Router under `app/` with server services in `src/web/`. Local migration proof uses Node built-in `node:sqlite` (no secrets, no native compile). Production remains PostgreSQL per the architecture doc.
 
 ```bash
 # Unit / domain tests

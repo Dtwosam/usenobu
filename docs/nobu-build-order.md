@@ -145,7 +145,26 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** homepage/add-purchase/notices positioning tests; Target-only logic unchanged; unit/typecheck/build/e2e pass.
 
-## Lane 8 — OKX ASP registration and live listing
+## Lane 7.5D.1 — Production Find my product repair
+
+- Fix serverless migration scandir ENOENT and Vercel DB path.
+- Cookie snapshot for demo persistence across instances.
+- Safe form errors; no blank application-error page.
+
+## Lane 7.5E — Bounded AI agent + NL purchase intake ✅ COMPLETE
+
+- Natural-language intake with confirmation gate.
+- `POST /v1/agent` actions: UNDERSTAND_PURCHASE, CHECK_CONFIRMED_PURCHASE, CHECK_MONITORING_STATUS.
+- AI extraction never starts matching/monitoring.
+- Existing `/v1/target-price-check` unchanged.
+- Listing path for Lane 8: `https://usenobu.vercel.app/v1/agent`.
+
+**Proof:** AI unit tests, e2e intake, production browser NL flow, agent API checks under `docs/proof/nobu-ai-agent/`.
+
+## Lane 8 — OKX ASP registration and live listing (**ACTIVE NEXT**)
+
+- Register free A2MCP ASP using **`https://usenobu.vercel.app/v1/agent`** (or structured Target path if required by listing form).
+- Accurate listing: AI agent + Target-only live integration.
 
 - Install/use Onchain OS according to current official instructions.
 - Register A2MCP ASP with price `0`.

@@ -102,7 +102,7 @@ test.describe("Lane 7.5B3 final visual proof", () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.getByTestId("confirm-candidate").click();
     await expect(page.getByTestId("status-pill")).toContainText(
-      "Watching the price",
+      "Nobu is watching this purchase",
     );
     await page.screenshot({
       path: path.join(FINAL, "desktop-dashboard.png"),
@@ -119,7 +119,11 @@ test.describe("Lane 7.5B3 final visual proof", () => {
       page.waitForURL(/\/alerts\//, { timeout: 30_000 }),
       page.getByTestId("run-check").click(),
     ]);
-    await expect(page.getByRole("heading", { name: /Price drop found/i })).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: /Nobu found a possible price difference|Price drop found/i,
+      }),
+    ).toBeVisible();
     await page.screenshot({
       path: path.join(FINAL, "desktop-price-drop.png"),
       fullPage: true,

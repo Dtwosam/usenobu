@@ -21,6 +21,9 @@
 - `src/web/` (purchase service, fixture labels, server actions)
 - `src/ui/` (design system components + shell)
 - `src/a2mcp/` (free A2MCP check service, rate limit, audit)
+- `src/ai/` (bounded agent extraction + agent service)
+- `docs/nobu-ai-agent-contract.md`
+- `app/v1/agent/` (POST /v1/agent)
 - `app/` (Next.js consumer UI + `/health` + `/v1/target-price-check` + `/design/foundation`)
 - `docs/nobu-ui-design-spec.md`
 - `docs/design/nobu-ui-reference.png`
@@ -57,6 +60,8 @@
 - `docs/nobu-test-and-proof-plan.md`
 - `docs/external-source-registry.md`
 - `docs/proof/usenobu-production/` (UseNobu public production verification)
+- `docs/proof/nobu-ai-agent/` (Lane 7.5E AI agent intake + /v1/agent proof)
+- `tests/ai/` (AI extraction and agent boundary tests)
 - `openapi/nobu-a2mcp.openapi.yaml`
 - `prompts/CHATGPT_HANDOFF_PROMPT.md`
 - `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`

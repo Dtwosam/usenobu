@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import {
   confirmPurchaseCandidate,
   createPurchaseFlow,
@@ -14,6 +15,19 @@ import {
 
 function formString(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "");
+}
+
+/** Next.js redirect() throws; always rethrow so navigation is not swallowed. */
+function rethrowIfNavigation(err: unknown): void {
+  if (isRedirectError(err)) throw err;
+  if (
+    err &&
+    typeof err === "object" &&
+    "digest" in err &&
+    String((err as { digest?: string }).digest).includes("NEXT_REDIRECT")
+  ) {
+    throw err;
+  }
 }
 
 /** Preserve user-entered values on validation/policy failure (no secrets collected). */
@@ -70,15 +84,7 @@ export async function submitPurchaseAction(formData: FormData) {
       )}&title=${encodeURIComponent(formString(formData, "product_title"))}`,
     );
   } catch (err) {
-    // Next.js redirect() throws a special error — rethrow it
-    if (
-      err &&
-      typeof err === "object" &&
-      "digest" in err &&
-      String((err as { digest?: string }).digest).startsWith("NEXT_REDIRECT")
-    ) {
-      throw err;
-    }
+    rethrowIfNavigation(err);
     console.error("submitPurchaseAction_failed", {
       message: err instanceof Error ? err.message : String(err),
       name: err instanceof Error ? err.name : undefined,
@@ -106,14 +112,7 @@ export async function confirmCandidateAction(formData: FormData) {
     await persistDatabaseToCookie(db);
     redirect(`/purchases/${purchaseId}`);
   } catch (err) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "digest" in err &&
-      String((err as { digest?: string }).digest).startsWith("NEXT_REDIRECT")
-    ) {
-      throw err;
-    }
+    rethrowIfNavigation(err);
     console.error("confirmCandidateAction_failed", {
       message: err instanceof Error ? err.message : String(err),
     });
@@ -142,14 +141,7 @@ export async function runCheckAction(formData: FormData) {
     }
     redirect(`/purchases/${purchaseId}?checked=1`);
   } catch (err) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "digest" in err &&
-      String((err as { digest?: string }).digest).startsWith("NEXT_REDIRECT")
-    ) {
-      throw err;
-    }
+    rethrowIfNavigation(err);
     console.error("runCheckAction_failed", {
       message: err instanceof Error ? err.message : String(err),
     });
