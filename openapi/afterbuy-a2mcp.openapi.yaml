@@ -1,0 +1,141 @@
+openapi: 3.1.0
+info:
+  title: AfterBuy A2MCP API
+  version: 1.0.0
+  description: >-
+    Checks a recent eligible Target.com purchase against a third-party observed
+    Target online price and Target's current price-match policy. Target verifies
+    the lower price and makes the final decision.
+servers:
+  - url: https://REPLACE_WITH_PUBLIC_DOMAIN
+paths:
+  /v1/target-price-check:
+    post:
+      operationId: checkTargetPriceProtection
+      summary: Check a recent Target.com purchase for a possible price drop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetPriceCheckRequest'
+      responses:
+        '200':
+          description: Structured check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetPriceCheckResponse'
+        '400':
+          description: Invalid input
+        '429':
+          description: Rate limited
+        '503':
+          description: Provider unavailable
+  /health:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: Service health
+components:
+  schemas:
+    TargetPriceCheckRequest:
+      type: object
+      required:
+        - target_product_url
+        - purchase_price
+        - currency
+        - purchase_date
+        - country
+        - purchase_channel
+      properties:
+        target_product_url:
+          type: string
+          format: uri
+        purchase_price:
+          type: number
+          exclusiveMinimum: 0
+        currency:
+          type: string
+          const: USD
+        purchase_date:
+          type: string
+          format: date
+        country:
+          type: string
+          const: US
+        region:
+          type: string
+          description: U.S. state or territory code
+        purchase_channel:
+          type: string
+          const: target_online
+        model_number:
+          type: string
+        upc_or_gtin:
+          type: string
+        target_item_id:
+          type: string
+        user_confirmed_match_id:
+          type: string
+          description: Optional locked fingerprint from prior candidate confirmation
+    TargetPriceCheckResponse:
+      type: object
+      required:
+        - status
+        - policy_id
+        - price_source_type
+        - final_decision_by
+        - checked_at
+      properties:
+        status:
+          type: string
+          enum:
+            - PRICE_DROP_DETECTED
+            - POTENTIALLY_ELIGIBLE
+            - NO_PRICE_DROP
+            - WINDOW_EXPIRED
+            - MATCH_REVIEW_REQUIRED
+            - NO_RELIABLE_PRICE
+            - POLICY_EXCLUSION
+            - UNSUPPORTED_PURCHASE
+            - POLICY_STALE
+            - DATA_SOURCE_UNAVAILABLE
+        purchase_price:
+          type: number
+        observed_target_price:
+          type: number
+        potential_recovery:
+          type: number
+        currency:
+          type: string
+        days_remaining:
+          type: integer
+        matched_product:
+          type: object
+          additionalProperties: true
+        price_source_type:
+          type: string
+          const: THIRD_PARTY_SEARCH_OBSERVATION
+        provider:
+          type: string
+          const: SerpApi
+        policy_id:
+          type: string
+          const: target-us-online-price-match-v1
+        checked_at:
+          type: string
+          format: date-time
+        official_next_action:
+          type: object
+          properties:
+            online_chat:
+              type: boolean
+            guest_services_phone:
+              type: string
+        final_decision_by:
+          type: string
+          const: Target
+        disclaimer:
+          type: string

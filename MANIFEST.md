@@ -1,0 +1,32 @@
+# File Manifest
+
+- `PROJECT_DESCRIPTION.md`
+- `AFTERBUY_CHATGPT_PROJECT_SOURCE.md`
+- `AGENTS.md`
+- `CHATGPT_PROJECT_INSTRUCTIONS.md`
+- `START-HERE.md`
+- `README.md`
+- `.gitignore`
+- `.env.example`
+- `data/retailer-policies/target-us-v1.yaml`
+- `docs/adr/0001-target-serpapi-mvp.md`
+- `docs/adr/0002-a2mcp-free-first.md`
+- `docs/adr/0003-fail-closed-price-matching.md`
+- `docs/adr/0004-no-retailer-login-or-claim-submission.md`
+- `docs/afterbuy-architecture.md`
+- `docs/afterbuy-build-order.md`
+- `docs/afterbuy-clean-master-spec.md`
+- `docs/afterbuy-current-state.md`
+- `docs/afterbuy-hackathon-compliance-matrix.md`
+- `docs/afterbuy-privacy-security-threat-model.md`
+- `docs/afterbuy-retailer-and-price-source-governance.md`
+- `docs/afterbuy-serpapi-data-contract.md`
+- `docs/afterbuy-submission-runbook.md`
+- `docs/afterbuy-target-policy-contract.md`
+- `docs/afterbuy-test-and-proof-plan.md`
+- `docs/external-source-registry.md`
+- `openapi/afterbuy-a2mcp.openapi.yaml`
+- `prompts/CHATGPT_HANDOFF_PROMPT.md`
+- `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`
+- `prompts/GROK_RESEARCH_VERIFICATION_PROMPT.md`
+- `prompts/CLAUDE_CODEX_LANE_PROMPT_TEMPLATE.md` (optional fallback only; not active workflow)

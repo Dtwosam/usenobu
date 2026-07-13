@@ -1,0 +1,61 @@
+policy_id: target-us-online-price-match-v1
+retailer_id: target
+jurisdiction: US
+purchase_channel: online
+status: active_freshness_sensitive
+verified_at: '2026-07-13T00:00:00Z'
+source_url: https://www.target.com/help/articles/policies-guidelines/price-match-guarantee
+window:
+  type: calendar_days_after_purchase
+  days: 14
+supported:
+  seller: target
+  target_plus: false
+  alaska: false
+  hawaii: false
+requirements:
+  original_receipt_or_packing_slip: true
+  price_must_be_listed_and_valid: true
+  retailer_verifies_price: true
+  exact_match_fields:
+    - item
+    - brand
+    - size
+    - weight
+    - color
+    - quantity
+    - model_number
+excluded_categories:
+  - clearance
+  - closeout
+  - liquidation
+  - damaged
+  - used
+  - open_package
+  - refurbished
+  - pre_owned
+  - rent_lease_to_own
+  - total_store_discount
+  - minimum_purchase_deal
+  - typographical_error
+  - credit_card_offer
+  - gift_card_offer
+  - financing_offer
+  - service_offer
+  - bundle_offer
+  - tax_promotion
+  - free_item
+  - rebate
+  - mail_in_offer
+  - contract_mobile_device
+  - optical
+  - warranty_or_product_service
+  - clinic
+  - pharmacy
+  - preorder
+  - target_plus
+claim_route:
+  online_chat: true
+  guest_services_phone: '1-800-591-3869'
+final_decision_by: target
+maximum_positive_language: potentially_eligible
