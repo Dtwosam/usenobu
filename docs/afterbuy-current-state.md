@@ -1,7 +1,7 @@
 # AfterBuy Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 1 COMPLETE / DOMAIN SCHEMAS AND DETERMINISTIC CONTRACTS
+**Status:** LANE 2 COMPLETE / TARGET POLICY ENGINE
 
 ## Locked decisions
 
@@ -17,32 +17,36 @@
 - Primary repository implementation agent: Grok Build (lane by lane).
 - Regular Grok research: public discussion, competition, and external-change verification only; does not override official sources.
 - Domain contracts: Zod schemas in TypeScript; local migration proof via Node `node:sqlite` with equivalent tables (production target remains PostgreSQL per architecture).
+- Target policy engine: deterministic evaluation bound to `target-us-online-price-match-v1` (YAML + code snapshot); no refund guarantees.
 
 ## Lane 0 proof completed
 
-- Source-of-truth pack adopted in the repository.
-- Repository baseline adopted.
-- `README.md`, `.gitignore`, and `.env.example` created.
-- Required-file check passed.
-- Secret-file and secret-pattern scans passed.
-- Tool workflow locked: ChatGPT for product/architecture/lane coordination; Grok Build for repository implementation; regular Grok research for external verification only.
+- Source-of-truth pack adopted; baseline README, `.gitignore`, `.env.example`.
+- Secret and required-file checks passed.
+- Grok Build locked as primary implementation agent.
 
 ## Lane 1 proof completed
 
-- Minimal TypeScript + Vitest + Zod tooling added (no secrets required).
-- Purchase input, Target product candidate, locked fingerprint, price observation, evidence provenance, and Target policy result schemas implemented.
-- Locked product/provider/result status enums implemented and tested.
-- Initial migration for `purchases`, `product_matches`, `price_observations`, and `policy_versions` applies cleanly, is idempotent on re-run, and is reversible then re-applicable.
-- Schema validation tests pass (invalid prices, dates, currencies, incomplete fingerprints fail closed).
-- No SerpApi network calls, matching engine, policy engine, scheduler, UI, deployment, or OKX work.
+- Domain schemas, locked enums, DB migration, pure unit/migration tests.
 
-## No product runtime proof yet
+## Lane 2 proof completed
 
-The live SerpApi connector, Target policy engine execution, matching engine, deployment, A2MCP public endpoint, OKX listing, demo, and submission are not yet complete unless later state updates explicitly prove them.
+- Deterministic Target policy engine implements online-channel and supported-geography checks.
+- 14-day calendar window with day 0, day 14 (in window), and day 15 (expired) boundaries.
+- Known exclusions (Target Plus, clearance, preorder, coupon/bonus ambiguity, unknown labels) fail closed.
+- Missing channel, date, receipt evidence, and unlocked fingerprint fail correctly.
+- Stale policy (>24h since verified_at or forced) returns `POLICY_STALE`.
+- Results bind `policy_id`, `policy_version`, `policy_verified_at`, and `final_decision_by: Target`.
+- Full Target policy fixture matrix and date unit tests pass.
+- No SerpApi calls, matching engine, scheduler, UI, deployment, or OKX work.
+
+## No live provider proof yet
+
+The live SerpApi connector, capability audit, matching engine, deployment, A2MCP public endpoint, OKX listing, demo, and submission are not yet complete unless later state updates explicitly prove them.
 
 ## Remaining later gates
 
-1. Create a SerpApi account/key; no retailer partner approval is required, but the provider's terms apply.
+1. Create a SerpApi account/key; provider terms apply.
 2. Select at least one Target.com product with stable identifiers for a live proof.
 3. Prove that SerpApi returns a Target offer for that product in the chosen U.S. location.
 4. Prove exact product matching and fail-closed behavior.
@@ -60,4 +64,4 @@ The live SerpApi connector, Target policy engine execution, matching engine, dep
 
 ## Next active lane
 
-**Lane 2 — Target policy engine.**
+**Lane 3 — SerpApi connector and live capability audit.**

@@ -14,8 +14,10 @@
 - `vitest.config.ts`
 - `src/domain/` (schemas, enums, provenance contracts)
 - `src/db/` (models, migrator, SQL migrations)
+- `src/policy/` (Target policy engine, dates, locked policy snapshot)
 - `tests/domain/`
 - `tests/db/`
+- `tests/policy/`
 - `data/retailer-policies/target-us-v1.yaml`
 - `docs/adr/0001-target-serpapi-mvp.md`
 - `docs/adr/0002-a2mcp-free-first.md`

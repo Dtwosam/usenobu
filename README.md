@@ -1,6 +1,6 @@
 # AfterBuy
 
-**Status:** Lane 1 complete / domain schemas and deterministic contracts  
+**Status:** Lane 2 complete / Target policy engine  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  
@@ -73,7 +73,7 @@ npm test
 npm run typecheck
 ```
 
-Lane 1 domain contracts live under `src/domain/`. Database models and SQL migrations live under `src/db/`. Local migration proof uses Node built-in `node:sqlite` (no secrets, no native compile). Production remains PostgreSQL per the architecture doc.
+Lane 1 domain contracts live under `src/domain/`. Database models and SQL migrations live under `src/db/`. The Lane 2 Target policy engine lives under `src/policy/`. Local migration proof uses Node built-in `node:sqlite` (no secrets, no native compile). Production remains PostgreSQL per the architecture doc.
 
 ## Reference stack
 
@@ -92,7 +92,7 @@ A different stack requires an ADR and must not weaken the contracts.
 
 See `docs/afterbuy-current-state.md` for the current lane and `docs/afterbuy-build-order.md` for the full sequence. Do not skip lanes or invent live proof.
 
-**Current active lane after Lane 1 closeout:** Lane 2 — Target policy engine.
+**Current active lane after Lane 2 closeout:** Lane 3 — SerpApi connector and live capability audit.
 
 ## License / secrets
 
