@@ -297,8 +297,13 @@ a:hover {
   gap: var(--space-2);
 }
 
-.n-menu-toggle {
+/* Responsive header: higher specificity so later .n-btn / .n-icon-btn rules cannot override */
+.n-header .n-menu-toggle {
   display: inline-flex;
+}
+
+.n-header .n-header__cta-desktop {
+  display: none !important;
 }
 
 @media (min-width: 768px) {
@@ -306,17 +311,13 @@ a:hover {
     display: flex;
   }
 
-  .n-menu-toggle {
-    display: none;
+  .n-header .n-menu-toggle {
+    display: none !important;
   }
 
-  .n-header__cta-desktop {
+  .n-header .n-header__cta-desktop {
     display: inline-flex !important;
   }
-}
-
-.n-header__cta-desktop {
-  display: none;
 }
 
 .n-mobile-panel {
@@ -978,6 +979,16 @@ a:hover {
   margin: 0;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.n-money,
+.n-kv dd,
+.n-result-card__amount,
+.n-purchase-card__price,
+.n-history-list strong {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 .n-price-summary__diff {
@@ -1339,11 +1350,13 @@ td {
   color: var(--warning);
 }
 
-/* —— Consumer screens (Lane 7.5B2) —— */
+/* —— Consumer screens (Lane 7.5B2 / B3 polish) —— */
 .n-screen {
   display: grid;
   gap: var(--space-6);
   max-width: var(--container-reading);
+  width: 100%;
+  margin: 0 auto;
 }
 
 .n-screen--home {
@@ -1357,6 +1370,17 @@ td {
 
 .n-screen--reading {
   max-width: var(--container-reading);
+}
+
+/* Main already padded by legacy-main; avoid double-centering confusion */
+main.legacy-main {
+  max-width: none;
+  width: 100%;
+}
+
+main.legacy-main > .n-screen {
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .n-hero {
@@ -1702,6 +1726,15 @@ td {
 
 .n-btn--block {
   width: 100%;
+}
+
+@media (max-width: 767px) {
+  .n-form-card .n-btn[type="submit"],
+  .n-confirm-card .n-btn[type="submit"],
+  .n-screen .n-hero__actions .n-btn,
+  .n-card .n-btn[type="submit"] {
+    width: 100%;
+  }
 }
 
 /* form cards reuse n-card visual */

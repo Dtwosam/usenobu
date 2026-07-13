@@ -62,6 +62,7 @@ export function Header() {
           <ButtonLink
             href="/purchases/new"
             className="n-header__cta-desktop"
+            size="sm"
             data-testid="nav-add"
           >
             Track a purchase

@@ -41,8 +41,8 @@ export default async function AlertPage({
         <p>
           <strong>Demo data</strong>
           <br />
-          This screen uses test fixtures, not a live current Target price. DEMO
-          FIXTURE DATA.
+          This screen uses test fixtures, not a live current Target price.
+          <span className="visually-hidden"> DEMO FIXTURE DATA</span>
         </p>
       </DemoDataBanner>
 

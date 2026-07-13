@@ -83,8 +83,8 @@ export default async function ReviewPage({
         <p>
           <strong>Demo data</strong>
           <br />
-          This screen uses test fixtures, not a live current Target price. DEMO
-          FIXTURE DATA.
+          This screen uses test fixtures, not a live current Target price.
+          <span className="visually-hidden"> DEMO FIXTURE DATA</span>
         </p>
       </DemoDataBanner>
 
@@ -112,18 +112,23 @@ export default async function ReviewPage({
             </dd>
           </div>
         </dl>
-        <p className="muted">
-          Result:{" "}
+        <p>
+          <StatusBadge
+            label={matchDecisionLabel(evaluation.decision)}
+            tone={
+              evaluation.decision === "EXACT_MATCH_CANDIDATE"
+                ? "success"
+                : "warning"
+            }
+            data-testid="match-decision-label"
+          />
+          {/* Machine-readable decision for tests — not shown as primary copy */}
           <span
-            className="pill warn"
+            className="visually-hidden"
             data-testid="match-decision"
             data-decision={evaluation.decision}
           >
             {evaluation.decision}
-          </span>
-          <span className="n-inline-sep">·</span>
-          <span data-testid="match-decision-label">
-            {matchDecisionLabel(evaluation.decision)}
           </span>
         </p>
         <p className="muted visually-hidden" data-testid="match-reasons">
@@ -261,8 +266,8 @@ export default async function ReviewPage({
 
       <InlineNotice tone="info">
         <p>
-          Prices shown are third-party observations (fixtures in demo), not an official
-          Target API. Target makes the final adjustment decision.
+          Prices shown are third-party shopping observations (sample data in demo), not
+          official Target prices. Target makes the final adjustment decision.
         </p>
       </InlineNotice>
     </div>

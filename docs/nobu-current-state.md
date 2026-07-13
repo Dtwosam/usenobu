@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 7.5B2 COMPLETE / CONSUMER SCREENS
+**Status:** LANE 7.5B3 COMPLETE / POLISH + PRODUCTION DEPLOY
 
 ## Locked decisions
 
@@ -13,32 +13,38 @@
 - Stateless A2MCP check path (no SQLite as shared production persistence for the endpoint).
 - Primary implementation agent: Grok Build.
 
-## Lanes 0–7.5B1
+## Production
 
-Completed. Design system tokens/components in `src/ui/` and `app/globals.css`.
+| Item | Value |
+|---|---|
+| Public production URL | **https://afterbuy.vercel.app** |
+| Health service | `nobu-a2mcp` |
+| Preferred `nobu.vercel.app` | Unavailable (third-party in use) |
+| Extra Nobu aliases | Created but SSO-protected (not public) |
 
 Public A2MCP routes (unchanged):
 
 - `GET /health`
 - `POST /v1/target-price-check`
 
-## Lane 7.5B2 proof completed
+## Lane 7.5B3 proof completed
 
 | Item | Result |
 |---|---|
-| Consumer screens | Homepage, add purchase, review, purchase dashboard, price-drop, notices, list dashboard |
-| Design system reuse | B1 components + tokens only |
-| Status copy | Plain English (`Watching the price`, etc.) |
-| Fixture banner | “Demo data” on data-bearing screens |
-| Screenshots | `docs/proof/ui/screens/` |
+| Visual QA checklist | `docs/proof/ui/final/qa-checklist.md` |
+| Final screenshots | `docs/proof/ui/final/` |
+| Header responsive fix | Desktop CTA only; mobile menu only |
+| Raw enum UI | Hidden; plain-English labels only |
+| axe serious/critical | 0 on key routes |
+| Production health | `nobu-a2mcp`, SerpApi configured |
+| Production A2MCP POST | Truthful structured JSON |
 | Domain / API / matching | Unchanged |
 
 ## Hard locks (unchanged)
 
 - Target only; Target Plus excluded; U.S. excluding AK/HI unless later verified.
 - No retailer login, claim submission, card/banking/ID/wallet secrets.
-- No policy/matching/monitoring/SerpApi/A2MCP contract changes in this lane.
 
 ## Next active lane
 
-**Lane 7.5B3 — Visual QA, polish and deployment.**
+**Lane 8 — OKX ASP registration and live listing.**

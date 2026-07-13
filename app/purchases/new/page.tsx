@@ -67,8 +67,8 @@ export default async function NewPurchasePage({
         <p>
           <strong>Demo data</strong>
           <br />
-          This screen uses test fixtures (demo fixtures), not a live current Target
-          price.
+          This screen uses test fixtures, not a live current Target price.
+          <span className="visually-hidden"> demo fixtures</span>
         </p>
       </DemoDataBanner>
 
@@ -235,26 +235,33 @@ export default async function NewPurchasePage({
             </Field>
           </div>
 
-          <Field
-            id="fixture_scenario"
-            label="Demo scenario"
-            hint="For proof only — chooses fixture candidates, not live shopping data"
-          >
-            <Select
-              id="fixture_scenario"
-              name="fixture_scenario"
-              data-testid="input-scenario"
-              defaultValue={defaults.scenario}
-            >
-              <option value="exact_match">Exact Target match (fixture)</option>
-              <option value="ambiguous">Ambiguous multi-Target (fixture)</option>
-              <option value="no_price">No Target price (fixture)</option>
-            </Select>
-          </Field>
+          <details className="n-disclosure n-demo-scenario" open>
+            <summary className="n-disclosure__summary">
+              <span>Demo options (for testing only)</span>
+            </summary>
+            <div className="n-disclosure__body">
+              <Field
+                id="fixture_scenario"
+                label="Demo scenario"
+                hint="Chooses sample candidates only — not live shopping data"
+              >
+                <Select
+                  id="fixture_scenario"
+                  name="fixture_scenario"
+                  data-testid="input-scenario"
+                  defaultValue={defaults.scenario}
+                >
+                  <option value="exact_match">Exact Target match (fixture)</option>
+                  <option value="ambiguous">Ambiguous multi-Target (fixture)</option>
+                  <option value="no_price">No Target price (fixture)</option>
+                </Select>
+              </Field>
+            </div>
+          </details>
 
           <p className="muted n-form-note">
-            Currency is USD. No password, card, bank, or 2FA fields — Nobu never asks
-            for those.
+            Currency is USD. Nobu never asks for passwords, cards, bank details, or
+            2FA codes.
           </p>
 
           <Button type="submit" block data-testid="submit-purchase">

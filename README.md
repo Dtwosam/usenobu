@@ -1,6 +1,7 @@
 # Nobu
 
-**Status:** Lane 7.5B2 complete / consumer screens  
+**Status:** Lane 7.5B3 complete / polished + production  
+**Production:** https://afterbuy.vercel.app (UI brand Nobu; health `nobu-a2mcp`)  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  

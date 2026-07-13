@@ -86,20 +86,22 @@ export default function HomePage() {
         <p className="muted">
           Sample only — not your purchase and not a live Target price.
         </p>
-        <dl className="n-price-summary">
-          <div className="n-price-summary__row">
-            <dt>You paid</dt>
-            <dd>$24.99</dd>
-          </div>
-          <div className="n-price-summary__row">
-            <dt>Observed Target price</dt>
-            <dd>$19.99</dd>
-          </div>
-          <div className="n-price-summary__row n-price-summary__diff">
-            <dt>Possible difference</dt>
-            <dd>$5.00</dd>
-          </div>
-        </dl>
+        <div className="n-price-summary">
+          <dl>
+            <div className="n-price-summary__row">
+              <dt>You paid</dt>
+              <dd className="n-money">$24.99</dd>
+            </div>
+            <div className="n-price-summary__row">
+              <dt>Observed Target price</dt>
+              <dd className="n-money">$19.99</dd>
+            </div>
+            <div className="n-price-summary__row n-price-summary__diff">
+              <dt>Possible difference</dt>
+              <dd className="n-money">$5.00</dd>
+            </div>
+          </dl>
+        </div>
         <InlineNotice tone="info">
           <p>
             Target must verify the current price and decides any adjustment. Nobu

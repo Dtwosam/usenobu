@@ -26,8 +26,10 @@
 - `docs/design/nobu-ui-reference.png`
 - `docs/proof/ui/foundation/`
 - `docs/proof/ui/screens/`
+- `docs/proof/ui/final/`
 - `src/web/status-copy.ts`
 - `src/web/error-copy.ts`
+- `tests/e2e/final-proof.spec.ts`
 - `tests/domain/`
 - `tests/db/`
 - `tests/policy/`
