@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 7.5E COMPLETE / BOUNDED AI AGENT INTAKE
+**Status:** LANE 7.5E.2 COMPLETE / LIVE GROQ EXTRACTION
 
 ## Locked decisions
 
@@ -11,8 +11,9 @@
 - NL intake: extraction → **user confirmation** → deterministic Find my product
 - Agent API: `POST /v1/agent` (bounded actions)
 - Structured API: `POST /v1/target-price-check` (unchanged)
-- AI provider: xAI (`XAI_API_KEY`) with deterministic fallback extractor
+- AI provider: **Groq** (`GROQ_API_KEY`, model `openai/gpt-oss-20b`) with deterministic fallback
 - Free A2MCP first; no x402
+- xAI / `XAI_API_KEY` **not used**
 
 ## Production
 
@@ -21,21 +22,10 @@
 | URL | https://usenobu.vercel.app |
 | Agent endpoint | `/v1/agent` |
 | Target check | `/v1/target-price-check` |
-| Health | `nobu-a2mcp` |
-
-## Lane 7.5E proof
-
-| Item | Result |
-|---|---|
-| UNDERSTAND_PURCHASE → CONFIRMATION_REQUIRED | Yes |
-| No auto matching/monitoring from AI | Yes |
-| Manual entry + Find my product | Yes |
-| Deterministic tests | Green (155 unit) |
-| Existing matching/policy/A2MCP tests | Green |
-| E2E | 24 passed / 2 skipped |
-| Production browser NL flow | `docs/proof/nobu-ai-agent/` |
-| Production `/v1/agent` API | PROD_PROOF_PASS |
-| Verdict | **NOBU_LANE_7_5E_PASS** |
+| Health | `nobu-a2mcp`, `groq_configured: true` |
+| Live LLM | **Groq** — `provider: "groq"` proven |
+| Proof | `docs/proof/nobu-ai-agent/live-groq-provider/` |
+| Verdict | **NOBU_LANE_7_5E_2_PASS** |
 
 ## Next active lane
 

@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { isSerpApiConfigured } from "@/serpapi/client";
+import { getAiModel, isGroqConfigured } from "@/ai/groq-client";
 
 /**
  * OpenAPI GET /health — free service health.
- * Reports whether SerpApi is configured without exposing the key.
+ * Reports SerpApi / Groq configuration without exposing keys or purchase text.
  */
 export async function GET() {
   const serpapiConfigured = isSerpApiConfigured();
+  const groqConfigured = isGroqConfigured();
   return NextResponse.json(
     {
       status: "ok",
@@ -17,7 +19,11 @@ export async function GET() {
       provider: "SerpApi",
       serpapi_configured: serpapiConfigured,
       provider_ready: serpapiConfigured,
-      note: "Free A2MCP health. Not an official Target API. serpapi_configured is boolean only — no secrets.",
+      /** Boolean only — never the key or partial secret. */
+      groq_configured: groqConfigured,
+      /** Configured extraction model name (safe). */
+      nobu_ai_model: getAiModel(),
+      note: "Free A2MCP health. Not an official Target API. serpapi_configured and groq_configured are boolean only — no secrets.",
     },
     { status: 200 },
   );

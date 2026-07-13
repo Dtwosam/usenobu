@@ -161,7 +161,18 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** AI unit tests, e2e intake, production browser NL flow, agent API checks under `docs/proof/nobu-ai-agent/`.
 
+## Lane 7.5E.2 — Migrate AI extraction to Groq + activate live provider ✅ COMPLETE
+
+- Replace unactivated xAI path with **Groq** (`GROQ_API_KEY`, default model `openai/gpt-oss-20b`).
+- Strict JSON schema extraction; deterministic fallback retained.
+- Health: `groq_configured` boolean + model name only.
+- Live production: `provider: "groq"` proven.
+
+**Proof:** `docs/proof/nobu-ai-agent/live-groq-provider/` — `NOBU_LANE_7_5E_2_PASS`.
+
 ## Lane 8 — OKX ASP registration and live listing (**ACTIVE NEXT**)
+
+- Register free A2MCP ASP using **`https://usenobu.vercel.app/v1/agent`**.
 
 - Register free A2MCP ASP using **`https://usenobu.vercel.app/v1/agent`** (or structured Target path if required by listing form).
 - Accurate listing: AI agent + Target-only live integration.

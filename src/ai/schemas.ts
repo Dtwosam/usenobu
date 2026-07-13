@@ -34,7 +34,8 @@ export type ExtractedPurchase = z.infer<typeof ExtractedPurchaseSchema>;
 export const FieldEvidenceSchema = z.object({
   field: z.string(),
   confidence: z.enum(["high", "medium", "low", "uncertain"]),
-  evidence: z.string().optional(),
+  /** Nullable for Groq strict schema (all properties required). */
+  evidence: z.string().nullable().optional(),
 });
 
 export type FieldEvidence = z.infer<typeof FieldEvidenceSchema>;
@@ -72,7 +73,7 @@ export const UnderstandPurchaseResponseSchema = z
     missing_fields: z.array(z.string()),
     uncertain_fields: z.array(z.string()),
     field_evidence: z.array(FieldEvidenceSchema).optional(),
-    provider: z.enum(["xai", "deterministic", "unavailable"]).optional(),
+    provider: z.enum(["groq", "deterministic", "unavailable"]).optional(),
   })
   .strict();
 

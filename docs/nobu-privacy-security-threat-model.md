@@ -42,13 +42,13 @@ If receipt images are added:
 - **Do not store or log raw purchase text** by default; audit logs may keep a hash, length, outcome, and provider only.
 - Reject or redact card/bank/password/2FA/ID/wallet patterns.
 - AI extraction never starts matching or monitoring; only user-confirmed structured fields enter deterministic systems.
-- AI API keys (`XAI_API_KEY`) are server-only; never expose provider payloads or secrets to the client.
+- AI API keys (`GROQ_API_KEY`) are server-only; never expose provider payloads or secrets to the client.
 - Separate stricter rate limits for `UNDERSTAND_PURCHASE` / AI actions.
 
 ## Primary threats
 
 - SerpApi key exposure;
-- AI provider key exposure (`XAI_API_KEY`);
+- AI provider key exposure (`GROQ_API_KEY`);
 - insecure cron/monitor endpoint;
 - cross-user purchase access;
 - prompt injection from product titles, receipt text, or free-form purchase descriptions;

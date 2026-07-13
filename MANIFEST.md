@@ -21,7 +21,7 @@
 - `src/web/` (purchase service, fixture labels, server actions)
 - `src/ui/` (design system components + shell)
 - `src/a2mcp/` (free A2MCP check service, rate limit, audit)
-- `src/ai/` (bounded agent extraction + agent service)
+- `src/ai/` (bounded agent extraction + Groq client + agent service)
 - `docs/nobu-ai-agent-contract.md`
 - `app/v1/agent/` (POST /v1/agent)
 - `app/` (Next.js consumer UI + `/health` + `/v1/target-price-check` + `/design/foundation`)

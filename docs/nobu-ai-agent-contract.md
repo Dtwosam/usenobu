@@ -1,4 +1,4 @@
-# Nobu AI Agent Contract (Lane 7.5E)
+# Nobu AI Agent Contract (Lane 7.5E / 7.5E.2)
 
 ## Purpose
 
@@ -58,9 +58,12 @@ No open-ended chat, tools, or free-form action loops.
     "upc_or_gtin": null
   },
   "missing_fields": ["product_url"],
-  "uncertain_fields": []
+  "uncertain_fields": [],
+  "provider": "groq"
 }
 ```
+
+`provider` is `"groq"` when live LLM extraction succeeds, or `"deterministic"` when the rule-based extractor is used (no key, fallback, or forced).
 
 ### CHECK_CONFIRMED_PURCHASE
 
@@ -76,7 +79,7 @@ Returns stored status only (no re-search unless the client separately triggers a
 
 ## Extraction schema
 
-Nullable fields only:
+Nullable fields only (unknown → `null`; never omit under strict schema):
 
 - retailer, product_description, product_url
 - purchase_price, currency, purchase_date, purchase_channel, region
@@ -91,6 +94,8 @@ Rules:
 - No browsing or retailer tools during extraction
 - Max text length: 2000 characters
 - Raw purchase text is **not** stored in the database or default logs (hash only)
+- Strict JSON Schema: `strict: true`, `additionalProperties: false`, all properties required (use nullables)
+- Zod validation after the provider response
 
 ## Confirmation gate
 
@@ -112,30 +117,40 @@ AI must **not** auto-confirm products, lock fingerprints, decide eligibility, st
 | Summarize stored results | Convert ambiguity into approval |
 | | Guarantee refunds |
 
-## Provider configuration
+## Provider configuration (Lane 7.5E.2 — Groq)
 
 | Env | Purpose |
 |---|---|
-| `XAI_API_KEY` | Server-only xAI / SpaceXAI key |
-| `NOBU_AI_MODEL` | Optional model (default `grok-4.5`) |
+| `GROQ_API_KEY` | Server-only Groq API key |
+| `NOBU_AI_MODEL` | Optional model (default `openai/gpt-oss-20b`) |
 | `NOBU_AI_FORCE_DETERMINISTIC` | Force rule-based extractor |
 
-When no API key is configured, Nobu uses a **fail-closed deterministic extractor** so intake still works for demos/tests. Production should set `XAI_API_KEY` for LLM extraction.
+Base URL: `https://api.groq.com/openai/v1` (OpenAI-compatible chat completions).
 
-Base URL: `https://api.x.ai/v1` (OpenAI-compatible).
+When no API key is configured, Nobu uses a **fail-closed deterministic extractor** so intake still works for demos/tests. Production should set `GROQ_API_KEY` for live LLM extraction.
+
+xAI / `XAI_API_KEY` are **not** used.
 
 ## Failure behavior
 
-- Timeout / provider error → plain message + manual entry
+- Timeout / provider error / auth failure / rate limit / invalid structured output → deterministic fallback where appropriate, or plain message + manual entry
 - Sensitive content → reject with correction guidance
-- Invalid structured output → deterministic fallback (or error if forced unavailable)
 - Never blank Application error pages for recoverable intake failures
 
 ## Privacy
 
 - No card / bank / password / 2FA / ID / wallet collection
 - Sensitive patterns rejected or redacted
-- Audit logs: outcome, provider, text hash/length — **not** raw purchase text
+- Audit logs: outcome, provider, model, latency, token counts when available, text hash/length — **not** raw purchase text or full model responses
+
+## Health
+
+`GET /health` may include:
+
+- `groq_configured` (boolean only)
+- `nobu_ai_model` (model name only)
+
+Never the API key.
 
 ## Listing endpoint (Lane 8)
 

@@ -15,12 +15,13 @@ The default implementation is:
 
 A different stack requires an ADR and must not weaken the contracts.
 
-## AI agent boundary (Lane 7.5E)
+## AI agent boundary (Lane 7.5E / 7.5E.2)
 
-- **Intake:** natural language → structured extraction (xAI or deterministic) → confirmation UI.
+- **Intake:** natural language → structured extraction (**Groq** or deterministic fallback) → confirmation UI.
 - **Authority:** matching, policy, fingerprints, monitoring remain deterministic code paths.
 - **API:** `POST /v1/agent` for bounded actions; `POST /v1/target-price-check` for structured Target checks.
 - **Privacy:** raw purchase text is not stored in the DB; audits use hashes.
+- **Provider:** Groq (`GROQ_API_KEY`, `https://api.groq.com/openai/v1`, default model `openai/gpt-oss-20b`).
 
 ## Platform concepts
 
@@ -49,8 +50,8 @@ Target-specific implementations remain named as Target-specific (Target policy e
 
 ### 1b. AI extract service (`src/ai/`)
 
-- server-only xAI client with structured JSON + Zod validation;
-- fail-closed deterministic extractor when no key / invalid output;
+- server-only **Groq** client (`groq-client.ts`) with strict JSON schema + Zod validation;
+- fail-closed deterministic extractor when no key / invalid output / rate limit / auth failure;
 - rate limiting, timeout, refusal handling;
 - never invents identifiers; never starts matching or monitoring.
 

@@ -36,7 +36,7 @@ Script: `run-prod-proof.mjs` → `prod-api-proof.json`
 
 ## Provider note
 
-Production ran with **deterministic extractor** (`provider: "deterministic"`) because `XAI_API_KEY` is not required for fallback. Set `XAI_API_KEY` (and optional `NOBU_AI_MODEL`) on Vercel for live LLM extraction. Fallback remains fail-closed and never invents identifiers.
+Production historically ran with **deterministic extractor** (`provider: "deterministic"`) when no LLM key was configured. Live extraction uses **Groq** (`GROQ_API_KEY`, default model `openai/gpt-oss-20b`). Fallback remains fail-closed and never invents identifiers.
 
 ## Privacy
 

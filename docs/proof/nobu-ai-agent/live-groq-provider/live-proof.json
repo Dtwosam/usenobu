@@ -1,0 +1,66 @@
+{
+  "at": "2026-07-13T22:44:04.902Z",
+  "base": "https://usenobu.vercel.app",
+  "deployment_note": "GROQ_API_KEY and NOBU_AI_MODEL present on Vercel Production (encrypted; values never logged).",
+  "checks": {
+    "health": {
+      "http_status": 200,
+      "groq_configured": true,
+      "nobu_ai_model": "openai/gpt-oss-20b",
+      "serpapi_configured": true,
+      "no_secret_fields": true
+    },
+    "understand_purchase": {
+      "http_status": 200,
+      "provider": "groq",
+      "agent_state": "CONFIRMATION_REQUIRED",
+      "requires_user_action": true,
+      "next_action": "CONFIRM_PURCHASE_DETAILS",
+      "purchase_price": 9.99,
+      "product_url": "https://www.target.com/p/up-up-acetaminophen/-/A-12345678",
+      "retailer": "Target",
+      "model_number": null,
+      "upc_or_gtin": null,
+      "missing_fields": [],
+      "no_match_status": true,
+      "raw_text_absent": true,
+      "secrets_absent": true,
+      "schema_keys": [
+        "agent_state",
+        "message",
+        "requires_user_action",
+        "next_action",
+        "extracted_purchase",
+        "missing_fields",
+        "uncertain_fields",
+        "field_evidence",
+        "provider"
+      ]
+    },
+    "prompt_injection": {
+      "http_status": 200,
+      "provider": "groq",
+      "agent_state": "CONFIRMATION_REQUIRED",
+      "invented_tcin_absent": true,
+      "invented_upc_absent": true,
+      "requires_confirmation": true
+    },
+    "target_price_check": {
+      "http_status": 200,
+      "has_status": true,
+      "final_decision_by": "Target"
+    },
+    "browser": {
+      "confirmation_gate": true,
+      "price_populated": true,
+      "url_has_target": true,
+      "edited_then_review": true,
+      "manual_review_ok": true
+    },
+    "fallback": {
+      "unit_covered": "auth_failure, rate_limit, invalid_output, missing key covered in tests/ai",
+      "live_note": "Production live path proven with provider=groq; deterministic remains code path when Groq fails."
+    }
+  },
+  "verdict": "NOBU_LANE_7_5E_2_PASS"
+}

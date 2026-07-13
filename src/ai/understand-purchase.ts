@@ -10,15 +10,18 @@ import {
 } from "./schemas.js";
 import { deterministicExtract } from "./deterministic-extract.js";
 import {
-  isXaiConfigured,
-  xaiExtractPurchase,
-  type XaiExtractResult,
-} from "./xai-client.js";
+  isGroqConfigured,
+  groqExtractPurchase,
+  type GroqExtractResult,
+  type GroqCallMeta,
+} from "./groq-client.js";
 import {
   auditExtractEvent,
   detectSensitive,
   hashPurchaseText,
+  priceGroundedInText,
   stripInjectionAttempts,
+  valueGroundedInText,
 } from "./sanitize.js";
 import { toIsoDate } from "./dates.js";
 
@@ -27,7 +30,7 @@ export type UnderstandDeps = {
   llm?: (args: {
     purchaseText: string;
     serverToday: string;
-  }) => Promise<XaiExtractResult>;
+  }) => Promise<GroqExtractResult>;
   /** Force deterministic path even if key present. */
   forceDeterministic?: boolean;
   /** Force unavailable. */
@@ -35,36 +38,63 @@ export type UnderstandDeps = {
   now?: () => Date;
 };
 
-function normalizeFromLlm(raw: {
-  retailer: string | null;
-  product_description: string | null;
-  product_url: string | null;
-  purchase_price: number | null;
-  currency: string | null;
-  purchase_date: string | null;
-  purchase_channel: string | null;
-  region: string | null;
-  model_number: string | null;
-  target_item_id: string | null;
-  upc_or_gtin: string | null;
-}): ExtractedPurchase {
+function normalizeFromLlm(
+  raw: {
+    retailer: string | null;
+    product_description: string | null;
+    product_url: string | null;
+    purchase_price: number | null;
+    currency: string | null;
+    purchase_date: string | null;
+    purchase_channel: string | null;
+    region: string | null;
+    model_number: string | null;
+    target_item_id: string | null;
+    upc_or_gtin: string | null;
+  },
+  cleanedText: string,
+): ExtractedPurchase {
+  const priceOk = priceGroundedInText(raw.purchase_price, cleanedText);
+  const urlOk = valueGroundedInText(raw.product_url, cleanedText);
+  const modelOk = valueGroundedInText(raw.model_number, cleanedText);
+  const tcinOk = valueGroundedInText(raw.target_item_id, cleanedText);
+  // TCIN may appear as A-12345678 in URL only
+  const tcinFromUrl =
+    raw.target_item_id &&
+    cleanedText.toLowerCase().includes(`a-${raw.target_item_id.toLowerCase()}`);
+  const upcOk = valueGroundedInText(raw.upc_or_gtin, cleanedText);
+
   return ExtractedPurchaseSchema.parse({
     retailer: raw.retailer,
     product_description: raw.product_description,
-    product_url: raw.product_url,
+    product_url: urlOk ? raw.product_url : null,
     purchase_price:
-      raw.purchase_price != null && raw.purchase_price > 0
+      priceOk && raw.purchase_price != null && raw.purchase_price > 0
         ? raw.purchase_price
         : null,
-    currency: raw.currency === "USD" ? "USD" : null,
+    currency: raw.currency === "USD" && priceOk ? "USD" : null,
     purchase_date: raw.purchase_date,
     purchase_channel:
       raw.purchase_channel === "target_online" ? "target_online" : null,
     region: raw.region,
-    model_number: raw.model_number,
-    target_item_id: raw.target_item_id,
-    upc_or_gtin: raw.upc_or_gtin,
+    model_number: modelOk ? raw.model_number : null,
+    target_item_id: tcinOk || tcinFromUrl ? raw.target_item_id : null,
+    upc_or_gtin: upcOk ? raw.upc_or_gtin : null,
   });
+}
+
+function safeMeta(meta?: GroqCallMeta, fallback_reason?: string | null) {
+  return {
+    model: meta?.model ?? null,
+    call_succeeded: meta?.call_succeeded,
+    http_status: meta?.http_status ?? null,
+    api_host: meta?.api_host ?? null,
+    latency_ms_provider: meta?.latency_ms,
+    prompt_tokens: meta?.prompt_tokens ?? null,
+    completion_tokens: meta?.completion_tokens ?? null,
+    total_tokens: meta?.total_tokens ?? null,
+    fallback_reason: fallback_reason ?? null,
+  };
 }
 
 export type UnderstandResult =
@@ -153,16 +183,29 @@ export async function understandPurchase(
   let extracted: ExtractedPurchase;
   let uncertain: string[] = [];
   let field_evidence: FieldEvidence[] = [];
-  let provider: "xai" | "deterministic" = "deterministic";
+  let provider: "groq" | "deterministic" = "deterministic";
+  let auditExtras: ReturnType<typeof safeMeta> = {
+    model: null,
+    call_succeeded: undefined,
+    http_status: null,
+    api_host: null,
+    latency_ms_provider: undefined,
+    prompt_tokens: null,
+    completion_tokens: null,
+    total_tokens: null,
+    fallback_reason: null,
+  };
 
-  const tryLlm =
-    !deps.forceDeterministic && (deps.llm != null || isXaiConfigured());
+  const forceDet =
+    deps.forceDeterministic ||
+    process.env.NOBU_AI_FORCE_DETERMINISTIC === "1";
+  const tryLlm = !forceDet && (deps.llm != null || isGroqConfigured());
 
   if (tryLlm) {
     const llm =
       deps.llm ??
       ((a: { purchaseText: string; serverToday: string }) =>
-        xaiExtractPurchase({
+        groqExtractPurchase({
           purchaseText: a.purchaseText,
           serverToday: a.serverToday,
         }));
@@ -171,15 +214,17 @@ export async function understandPurchase(
       purchaseText: cleaned,
       serverToday,
     });
+    const meta = "meta" in llmResult ? llmResult.meta : undefined;
 
     if (llmResult.ok) {
       if (llmResult.output.contains_sensitive_data) {
         auditExtractEvent({
           outcome: "sensitive_from_model",
-          provider: "xai",
+          provider: "groq",
           text_hash: hash,
           text_length: text.length,
           duration_ms: Date.now() - started,
+          ...safeMeta(meta),
         });
         return {
           ok: false,
@@ -189,17 +234,19 @@ export async function understandPurchase(
           http_status: 400,
         };
       }
-      extracted = normalizeFromLlm(llmResult.output);
+      extracted = normalizeFromLlm(llmResult.output, cleaned);
       uncertain = llmResult.output.uncertain_fields ?? [];
       field_evidence = llmResult.output.field_evidence ?? [];
-      provider = "xai";
+      provider = "groq";
+      auditExtras = safeMeta(meta);
     } else if (llmResult.error === "timeout") {
       auditExtractEvent({
         outcome: "timeout",
-        provider: "xai",
+        provider: "groq",
         text_hash: hash,
         text_length: text.length,
         duration_ms: Date.now() - started,
+        ...safeMeta(meta),
       });
       return {
         ok: false,
@@ -211,10 +258,11 @@ export async function understandPurchase(
     } else if (llmResult.error === "refusal") {
       auditExtractEvent({
         outcome: "refusal",
-        provider: "xai",
+        provider: "groq",
         text_hash: hash,
         text_length: text.length,
         duration_ms: Date.now() - started,
+        ...safeMeta(meta),
       });
       return {
         ok: false,
@@ -224,19 +272,15 @@ export async function understandPurchase(
         http_status: 400,
       };
     } else {
-      // missing_api_key | invalid_output | provider_error → deterministic fallback
-      auditExtractEvent({
-        outcome: `llm_${llmResult.error}_fallback`,
-        provider: "xai",
-        text_hash: hash,
-        text_length: text.length,
-        duration_ms: Date.now() - started,
-      });
+      // missing_api_key | invalid_output | provider_error | auth_failure | rate_limit
+      // → deterministic fallback
+      const fallbackReason = llmResult.error;
       const det = deterministicExtract(cleaned, today);
       extracted = det.extracted;
       uncertain = det.uncertain_fields;
       field_evidence = det.field_evidence;
       provider = "deterministic";
+      auditExtras = safeMeta(meta, fallbackReason);
     }
   } else {
     const det = deterministicExtract(cleaned, today);
@@ -244,6 +288,9 @@ export async function understandPurchase(
     uncertain = det.uncertain_fields;
     field_evidence = det.field_evidence;
     provider = "deterministic";
+    auditExtras = safeMeta(undefined, forceDet
+      ? "force_deterministic"
+      : "groq_not_configured");
   }
 
   const missing = computeMissingFields(extracted);
@@ -265,6 +312,7 @@ export async function understandPurchase(
     text_hash: hash,
     text_length: text.length,
     duration_ms: Date.now() - started,
+    ...auditExtras,
   });
 
   return { ok: true, body };
