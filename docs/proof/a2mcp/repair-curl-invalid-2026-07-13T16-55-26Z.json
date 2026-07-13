@@ -1,0 +1,10 @@
+﻿{
+    "name":  "invalid",
+    "base_url":  "https://afterbuy.vercel.app",
+    "https":  true,
+    "http_status":  400,
+    "request":  "{\"currency\":\"EUR\"}",
+    "body_redacted":  "{\"error\":\"invalid_input\",\"details\":{\"formErrors\":[],\"fieldErrors\":{\"target_product_url\":[\"Required\"],\"purchase_price\":[\"Required\"],\"currency\":[\"Invalid literal value, expected \\\"USD\\\"\"],\"purchase_date\":[\"Required\"],\"country\":[\"Invalid literal value, expected \\\"US\\\"\"],\"purchase_channel\":[\"Invalid literal value, expected \\\"target_online\\\"\"]}}}",
+    "secret_leak":  false,
+    "proved_at":  "2026-07-13T16:55:30.4110289Z"
+}

@@ -155,10 +155,12 @@ export async function runA2mcpTargetPriceCheck(
         : deps.serpClient;
 
     if (!client) {
-      // No key and no injected offers → provider unavailable (not fake live data)
+      // No key and no injected offers → provider unavailable (not fake live data).
+      // Root cause of production 503 when SERPAPI_API_KEY is missing/empty on host.
       const body = baseResponse("DATA_SOURCE_UNAVAILABLE", checkedAt, {
         purchase_price: req.purchase_price,
         currency: req.currency,
+        disclaimer: `${DEFAULT_POLICY_DISCLAIMER} Provider configuration missing on server (SERPAPI_API_KEY not available to runtime).`,
       });
       assertResponseHasNoSecrets(body, apiKey);
       return { http_status: 503, body };
@@ -181,6 +183,7 @@ export async function runA2mcpTargetPriceCheck(
         const body = baseResponse("DATA_SOURCE_UNAVAILABLE", checkedAt, {
           purchase_price: req.purchase_price,
           currency: req.currency,
+          disclaimer: `${DEFAULT_POLICY_DISCLAIMER} Third-party provider error or rate limit (not Target).`,
         });
         assertResponseHasNoSecrets(body, apiKey);
         return { http_status: 503, body };
@@ -192,6 +195,7 @@ export async function runA2mcpTargetPriceCheck(
       const body = baseResponse("DATA_SOURCE_UNAVAILABLE", checkedAt, {
         purchase_price: req.purchase_price,
         currency: req.currency,
+        disclaimer: `${DEFAULT_POLICY_DISCLAIMER} Third-party provider request failed (not Target).`,
       });
       assertResponseHasNoSecrets(body, apiKey);
       return { http_status: 503, body };

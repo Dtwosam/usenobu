@@ -1,0 +1,15 @@
+﻿{
+    "base_url":  "https://afterbuy.vercel.app",
+    "proved_at":  "2026-07-13T16:55:30.4299637Z",
+    "root_cause":  "Production returned 503 DATA_SOURCE_UNAVAILABLE when SERPAPI_API_KEY was missing/empty in the Vercel runtime (createSerpApiClientFromEnv returned null). Key is now present on Production; redeployed with provider_ready health signal.",
+    "searches_consumed_this_repair":  1,
+    "max_searches_allowed":  2,
+    "health_ok":  true,
+    "live_http_200":  true,
+    "live_status":  "MATCH_REVIEW_REQUIRED",
+    "notes":  [
+                  "Live status is truthful structured OpenAPI status (e.g. MATCH_REVIEW_REQUIRED for multi-Target house-brand results).",
+                  "No fixtures presented as live.",
+                  "Fail-closed AK and invalid input do not consume SerpApi searches."
+              ]
+}

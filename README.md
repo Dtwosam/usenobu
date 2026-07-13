@@ -1,6 +1,6 @@
 # AfterBuy
 
-**Status:** Lane 7 complete / public free A2MCP at https://afterbuy.vercel.app  
+**Status:** Lane 7 complete / production A2MCP listing-ready at https://afterbuy.vercel.app  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  

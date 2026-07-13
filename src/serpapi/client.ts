@@ -285,7 +285,15 @@ export function createSerpApiClientFromEnv(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
   overrides: Partial<SerpApiClientOptions> = {},
 ): SerpApiShoppingClient | null {
-  const key = env.SERPAPI_API_KEY?.trim();
+  // Vercel injects Production env vars at runtime; empty/whitespace = not configured
+  const key = (env.SERPAPI_API_KEY ?? env.SERP_API_KEY ?? "").trim();
   if (!key) return null;
   return new SerpApiShoppingClient({ apiKey: key, ...overrides });
+}
+
+/** Boolean-only readiness check for health endpoints (never returns the key). */
+export function isSerpApiConfigured(
+  env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
+): boolean {
+  return Boolean((env.SERPAPI_API_KEY ?? env.SERP_API_KEY ?? "").trim());
 }
