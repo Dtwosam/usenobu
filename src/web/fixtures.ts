@@ -4,8 +4,9 @@
  */
 import type { MatchableOffer } from "../matching/types.js";
 
+/** Short fixture banner body (heading "Demo data" is rendered by DemoDataBanner). */
 export const FIXTURE_BANNER =
-  "DEMO FIXTURE DATA — not a live SerpApi response. Third-party observed prices are simulated for product flow proof only.";
+  "This screen uses test fixtures, not a live current Target price. DEMO FIXTURE DATA — not a live SerpApi response.";
 
 export type FixtureScenario =
   | "exact_match"

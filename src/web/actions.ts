@@ -7,40 +7,58 @@ import {
   runDemoPriceCheck,
 } from "./purchase-service.js";
 
+function formString(formData: FormData, key: string): string {
+  return String(formData.get(key) ?? "");
+}
+
+/** Preserve user-entered values on validation/policy failure (no secrets collected). */
+function purchaseErrorRedirect(formData: FormData, error: string, status = "") {
+  const q = new URLSearchParams({
+    error,
+    status,
+    target_product_url: formString(formData, "target_product_url"),
+    purchase_price: formString(formData, "purchase_price"),
+    purchase_date: formString(formData, "purchase_date"),
+    region: formString(formData, "region"),
+    model_number: formString(formData, "model_number"),
+    target_item_id: formString(formData, "target_item_id"),
+    upc_or_gtin: formString(formData, "upc_or_gtin"),
+    product_title: formString(formData, "product_title"),
+    fixture_scenario: formString(formData, "fixture_scenario") || "exact_match",
+  });
+  redirect(`/purchases/new?${q.toString()}`);
+}
+
 export async function submitPurchaseAction(formData: FormData) {
   const result = createPurchaseFlow({
-    target_product_url: String(formData.get("target_product_url") ?? ""),
-    purchase_price: String(formData.get("purchase_price") ?? ""),
-    purchase_date: String(formData.get("purchase_date") ?? ""),
-    region: String(formData.get("region") ?? "") || undefined,
-    model_number: String(formData.get("model_number") ?? "") || undefined,
-    target_item_id: String(formData.get("target_item_id") ?? "") || undefined,
-    upc_or_gtin: String(formData.get("upc_or_gtin") ?? "") || undefined,
-    product_title: String(formData.get("product_title") ?? "") || undefined,
-    fixture_scenario: (String(formData.get("fixture_scenario") ?? "exact_match") ||
+    target_product_url: formString(formData, "target_product_url"),
+    purchase_price: formString(formData, "purchase_price"),
+    purchase_date: formString(formData, "purchase_date"),
+    region: formString(formData, "region") || undefined,
+    model_number: formString(formData, "model_number") || undefined,
+    target_item_id: formString(formData, "target_item_id") || undefined,
+    upc_or_gtin: formString(formData, "upc_or_gtin") || undefined,
+    product_title: formString(formData, "product_title") || undefined,
+    fixture_scenario: (formString(formData, "fixture_scenario") ||
       "exact_match") as "exact_match" | "ambiguous" | "no_price" | "unsupported",
   });
 
   if (!result.ok) {
-    const q = new URLSearchParams({
-      error: result.error,
-      status: "policy" in result && result.policy ? result.policy.status : "",
-    });
-    redirect(`/purchases/new?${q.toString()}`);
+    const status =
+      "policy" in result && result.policy ? result.policy.status : "";
+    purchaseErrorRedirect(formData, result.error, status);
   }
 
-  // Stash evaluation in query via session-less cookie is hard; re-evaluate on review page from DB + scenario
-  // Pass scenario for review page reconstruction
   redirect(
     `/purchases/${result.purchase_id}/review?scenario=${encodeURIComponent(
-      String(formData.get("fixture_scenario") ?? "exact_match"),
-    )}&title=${encodeURIComponent(String(formData.get("product_title") ?? ""))}`,
+      formString(formData, "fixture_scenario") || "exact_match",
+    )}&title=${encodeURIComponent(formString(formData, "product_title"))}`,
   );
 }
 
 export async function confirmCandidateAction(formData: FormData) {
-  const purchaseId = String(formData.get("purchase_id") ?? "");
-  const candidateJson = String(formData.get("candidate_json") ?? "");
+  const purchaseId = formString(formData, "purchase_id");
+  const candidateJson = formString(formData, "candidate_json");
   const result = confirmPurchaseCandidate({
     purchase_id: purchaseId,
     candidate_json: candidateJson,
@@ -54,7 +72,7 @@ export async function confirmCandidateAction(formData: FormData) {
 }
 
 export async function runCheckAction(formData: FormData) {
-  const purchaseId = String(formData.get("purchase_id") ?? "");
+  const purchaseId = formString(formData, "purchase_id");
   const result = await runDemoPriceCheck(purchaseId);
   if (!result.ok) {
     redirect(

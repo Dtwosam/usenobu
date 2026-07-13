@@ -23,7 +23,11 @@
 - `src/a2mcp/` (free A2MCP check service, rate limit, audit)
 - `app/` (Next.js consumer UI + `/health` + `/v1/target-price-check` + `/design/foundation`)
 - `docs/nobu-ui-design-spec.md`
+- `docs/design/nobu-ui-reference.png`
 - `docs/proof/ui/foundation/`
+- `docs/proof/ui/screens/`
+- `src/web/status-copy.ts`
+- `src/web/error-copy.ts`
 - `tests/domain/`
 - `tests/db/`
 - `tests/policy/`

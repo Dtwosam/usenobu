@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 7.5B1 COMPLETE / DESIGN FOUNDATION
+**Status:** LANE 7.5B2 COMPLETE / CONSUMER SCREENS
 
 ## Locked decisions
 
@@ -13,35 +13,32 @@
 - Stateless A2MCP check path (no SQLite as shared production persistence for the endpoint).
 - Primary implementation agent: Grok Build.
 
-## Lanes 0–7.5A
+## Lanes 0–7.5B1
 
-Completed. Historical production hostname and curl archives live in `docs/proof/historical-afterbuy/`.
+Completed. Design system tokens/components in `src/ui/` and `app/globals.css`.
 
 Public A2MCP routes (unchanged):
 
 - `GET /health`
 - `POST /v1/target-price-check`
 
-## Lane 7.5B1 proof completed
+## Lane 7.5B2 proof completed
 
 | Item | Result |
 |---|---|
-| Design tokens | CSS variables in `app/globals.css` |
-| Typography | Manrope 400/500/600/700 via `next/font` |
-| Components | `src/ui/*` foundation set |
-| Shell | Header, mobile nav, footer, skip link |
-| Design spec | `docs/nobu-ui-design-spec.md` |
-| Gallery | `/design/foundation` |
-| Proof | `docs/proof/ui/foundation/` |
-| Product screens | Not fully redesigned (deferred to 7.5B2) |
-| API / policy / matching | Unchanged |
+| Consumer screens | Homepage, add purchase, review, purchase dashboard, price-drop, notices, list dashboard |
+| Design system reuse | B1 components + tokens only |
+| Status copy | Plain English (`Watching the price`, etc.) |
+| Fixture banner | “Demo data” on data-bearing screens |
+| Screenshots | `docs/proof/ui/screens/` |
+| Domain / API / matching | Unchanged |
 
 ## Hard locks (unchanged)
 
 - Target only; Target Plus excluded; U.S. excluding AK/HI unless later verified.
 - No retailer login, claim submission, card/banking/ID/wallet secrets.
-- No policy/matching/monitoring/SerpApi contract changes in this lane.
+- No policy/matching/monitoring/SerpApi/A2MCP contract changes in this lane.
 
 ## Next active lane
 
-**Lane 7.5B2 — Complete screen implementation.**
+**Lane 7.5B3 — Visual QA, polish and deployment.**

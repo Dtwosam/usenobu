@@ -1,52 +1,81 @@
+import { Card, Disclosure, PageHeader } from "@/ui";
 import { DEFAULT_POLICY_DISCLAIMER } from "@/policy/target-us-policy";
 
 export default function NoticesPage() {
   return (
-    <div>
-      <h1>Supported cases, provenance & privacy</h1>
+    <div className="n-screen n-screen--reading">
+      <PageHeader
+        title="How Nobu works"
+        description="Short answers about supported purchases, price data, privacy, and Target’s final decision."
+      />
 
-      <div className="card" data-testid="supported-case-notice">
-        <h2>Supported cases (MVP)</h2>
-        <ul className="notices">
-          <li>Target.com / Target app online purchases only</li>
-          <li>Item sold by Target (not Target Plus)</li>
-          <li>U.S. locations excluding Alaska and Hawaii</li>
-          <li>Within 14 days of purchase</li>
-          <li>Identical item with strong product identity</li>
-        </ul>
-      </div>
+      <div className="n-stack">
+        <Card data-testid="supported-case-notice">
+          <h2 className="n-card-title">1. Supported purchases</h2>
+          <ul className="n-list">
+            <li>Target.com or Target app online purchases</li>
+            <li>Sold by Target — not Target Plus</li>
+            <li>U.S. locations excluding Alaska and Hawaii</li>
+            <li>Within Target’s usual 14-day adjustment window</li>
+            <li>Exact product confirmed before watching</li>
+          </ul>
+          <Disclosure title="More detail">
+            <p>
+              Nobu does not support store-only purchases outside the online channel
+              lock, Target Plus marketplace offers, or purchases outside the supported
+              geography. Matching is fail-closed when identity is weak.
+            </p>
+          </Disclosure>
+        </Card>
 
-      <div className="card" data-testid="provenance-notice">
-        <h2>Price provenance</h2>
-        <p>
-          Nobu uses <strong>SerpApi Google Shopping</strong> as a{" "}
-          <strong>third-party search observation</strong> source. Observed prices are{" "}
-          <strong>not</strong> official Target API prices. Matching is fail-closed.
-        </p>
-        <p className="muted">{DEFAULT_POLICY_DISCLAIMER}</p>
-      </div>
+        <Card data-testid="provenance-notice">
+          <h2 className="n-card-title">2. Price data</h2>
+          <p>
+            Nobu uses third-party SerpApi shopping observations. This is not an
+            official Target API.
+          </p>
+          <p className="muted">{DEFAULT_POLICY_DISCLAIMER}</p>
+          <Disclosure title="What “observed price” means">
+            <p>
+              Observed prices come from third-party shopping search results filtered
+              toward Target. Target team members must still verify the current price
+              before any adjustment.
+            </p>
+          </Disclosure>
+        </Card>
 
-      <div className="card" data-testid="privacy-notice">
-        <h2>Privacy & security</h2>
-        <ul className="notices">
-          <li>We collect only purchase URL, price, date, location/channel, and optional product identifiers.</li>
-          <li>No Target passwords, payment cards, bank details, government IDs, or 2FA codes.</li>
-          <li>No retailer login and no automated claim submission.</li>
-          <li>Do not enter secrets or full card numbers in any field.</li>
-        </ul>
-      </div>
+        <Card data-testid="privacy-notice">
+          <h2 className="n-card-title">3. Privacy</h2>
+          <ul className="n-list">
+            <li>
+              Nobu does not collect card, bank, password or 2FA information.
+            </li>
+            <li>No Target passwords or retailer login.</li>
+            <li>Only purchase details needed to find and watch a product.</li>
+          </ul>
+          <Disclosure title="What we store">
+            <p>
+              Typical fields: product link, price paid, purchase date, location and
+              channel, and optional model / TCIN / UPC. Never enter secrets or full
+              card numbers in any field.
+            </p>
+          </Disclosure>
+        </Card>
 
-      <div className="card" data-testid="target-action-notice">
-        <h2>Official Target next steps</h2>
-        <p>
-          Keep your original receipt, digital receipt, or packing slip. Contact Target
-          online chat or Guest Services. Target team members verify the current price.
-          Screenshots are not accepted as final proof by Target.
-        </p>
-        <p>
-          Guest Services phone (from Target policy fixture):{" "}
-          <strong>1-800-591-3869</strong>
-        </p>
+        <Card data-testid="target-action-notice">
+          <h2 className="n-card-title">4. Target’s final decision</h2>
+          <p>
+            Nobu does not log into Target or submit requests. Target verifies prices
+            and makes the final adjustment decision.
+          </p>
+          <Disclosure title="If you contact Target">
+            <p>
+              Keep your receipt or packing slip. Contact Target online chat or Guest
+              Services (1-800-591-3869). Screenshots are not accepted by Target as
+              final proof.
+            </p>
+          </Disclosure>
+        </Card>
       </div>
     </div>
   );

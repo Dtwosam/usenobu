@@ -1,6 +1,16 @@
 import { getAlert } from "@/web/purchase-service";
+import { daysRemaining, formatUsd } from "@/web/status-copy";
 import { DEFAULT_POLICY_DISCLAIMER } from "@/policy/target-us-policy";
 import { notFound } from "next/navigation";
+import {
+  ButtonLink,
+  Card,
+  DemoDataBanner,
+  Disclosure,
+  InlineNotice,
+  PageHeader,
+  PriceSummary,
+} from "@/ui";
 
 export default async function AlertPage({
   params,
@@ -11,67 +21,110 @@ export default async function AlertPage({
   const data = getAlert(id, alertId);
   if (!data) notFound();
 
-  const { alert, purchase, claim_route, fixture_banner } = data;
+  const { alert, purchase, claim_route } = data;
+  const remaining = daysRemaining(
+    purchase?.monitoring_deadline
+      ? String(purchase.monitoring_deadline)
+      : null,
+  );
+  const disclaimer = String(alert.disclaimer || DEFAULT_POLICY_DISCLAIMER);
 
   return (
-    <div>
-      <h1>Price drop result</h1>
-      <div className="banner-fixture" data-testid="fixture-banner">
-        {fixture_banner}
-      </div>
+    <div className="n-screen n-screen--reading">
+      <PageHeader
+        eyebrow="Price update"
+        title="Price drop found"
+        description="A lower observed Target price appeared while your window was open."
+      />
 
-      <div className="banner-ok" data-testid="alert-summary">
-        <strong>Price drop detected</strong> (potential eligibility only). Observed
-        Target price is third-party data. Target must verify and decides any
-        adjustment. Nobu does <strong>not</strong> guarantee a refund.
-      </div>
+      <DemoDataBanner data-testid="fixture-banner">
+        <p>
+          <strong>Demo data</strong>
+          <br />
+          This screen uses test fixtures, not a live current Target price. DEMO
+          FIXTURE DATA.
+        </p>
+      </DemoDataBanner>
 
-      <div className="card" data-testid="alert-details">
-        <p>
-          <strong>Purchase price:</strong> ${String(alert.purchase_price)}{" "}
-          {String(alert.currency)}
+      <Card className="n-result-card" data-testid="alert-summary">
+        <p className="n-result-card__kicker">Possible difference</p>
+        <p
+          className="n-result-card__amount"
+          data-testid="potential-recovery"
+        >
+          Potential recovery {formatUsd(String(alert.potential_recovery))}
         </p>
-        <p>
-          <strong>Observed Target price:</strong> ${String(alert.observed_price)}{" "}
-          {String(alert.currency)}
-        </p>
-        <p data-testid="potential-recovery">
-          <strong>Potential recovery:</strong> ${String(alert.potential_recovery)}{" "}
-          {String(alert.currency)}
-        </p>
-        <p>
-          <strong>Status:</strong> {String(alert.status)}
-        </p>
-        <p className="muted" data-testid="alert-disclaimer">
-          {String(alert.disclaimer || DEFAULT_POLICY_DISCLAIMER)}
-        </p>
-      </div>
+        <PriceSummary
+          purchasePrice={formatUsd(String(alert.purchase_price))}
+          observedPrice={formatUsd(String(alert.observed_price))}
+          difference={formatUsd(String(alert.potential_recovery))}
+          note={
+            remaining != null
+              ? `About ${remaining} day${remaining === 1 ? "" : "s"} remaining in the window.`
+              : undefined
+          }
+        />
+        <InlineNotice tone="info">
+          <p data-testid="alert-disclaimer">
+            Target must verify the current price and makes the final adjustment
+            decision. {disclaimer}
+          </p>
+        </InlineNotice>
+      </Card>
 
-      <div className="card" data-testid="target-official-actions">
-        <h2>Official Target next steps</h2>
-        <ol className="notices">
-          <li>Keep your original receipt, digital receipt, or packing slip.</li>
+      <Card data-testid="target-official-actions">
+        <h2 className="n-card-title">Request guidance</h2>
+        <p className="muted">
+          Target must verify the current price and makes the final adjustment
+          decision. Nobu does not submit the request.
+        </p>
+        <ol className="n-list n-list--numbered">
+          <li>Keep receipt or purchase information ready.</li>
           <li>
-            Contact Target online chat or Guest Services (
+            Open Target’s official help route (online chat or Guest Services{" "}
             {claim_route.guest_services_phone}).
           </li>
-          <li>
-            Target team members verify the current lower price. Screenshots are not
-            accepted as final proof by Target.
-          </li>
-          <li>
-            Target makes the final decision. Nobu does not submit claims or log
-            into your Target account.
-          </li>
+          <li>Ask Target to verify the current price.</li>
+          <li>Complete any steps Target requires.</li>
         </ol>
-        <p className="muted">
-          Purchase: {String(purchase?.target_product_url ?? "")}
+        <ButtonLink href="#request-anchor" className="n-btn--block">
+          View Target request steps
+        </ButtonLink>
+        <p id="request-anchor" className="muted">
+          Guest Services: {claim_route.guest_services_phone}. Screenshots are not
+          accepted by Target as final proof.
         </p>
-      </div>
+      </Card>
 
-      <a className="btn secondary" href={`/purchases/${id}`} data-testid="back-dashboard">
-        Back to dashboard
-      </a>
+      <Disclosure title="How this result was checked">
+        <ul className="n-list">
+          <li>
+            Provider: third-party SerpApi shopping observation (fixture in demo)
+          </li>
+          <li>Seller evidence: Target (from observation record)</li>
+          <li>
+            Match evidence: locked product fingerprint for this purchase only
+          </li>
+          <li>Policy version: target-us-online-price-match-v1</li>
+          <li>
+            Observed at: stored with the alert; not an official Target API price
+          </li>
+        </ul>
+        <p className="muted">
+          No secrets or raw provider payloads are shown. Purchase link:{" "}
+          <span className="n-break">
+            {String(purchase?.target_product_url ?? "")}
+          </span>
+        </p>
+      </Disclosure>
+
+      <ButtonLink
+        href={`/purchases/${id}`}
+        variant="secondary"
+        data-testid="back-dashboard"
+      >
+        Back to this purchase
+      </ButtonLink>
     </div>
   );
 }

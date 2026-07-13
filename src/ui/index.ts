@@ -30,5 +30,6 @@ export { ProductCard } from "./ProductCard.js";
 export { SectionHeader } from "./SectionHeader.js";
 export { Select } from "./Select.js";
 export { StatusBadge } from "./StatusBadge.js";
+export type { StatusTone } from "./StatusBadge.js";
 export { Stepper } from "./Stepper.js";
 export type { Step, StepState } from "./Stepper.js";

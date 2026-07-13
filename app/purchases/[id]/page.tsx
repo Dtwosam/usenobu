@@ -1,6 +1,22 @@
 import { runCheckAction } from "@/web/actions";
+import { dashboardError } from "@/web/error-copy";
+import {
+  daysRemaining,
+  formatUsd,
+  statusLabel,
+  statusTone,
+} from "@/web/status-copy";
 import { getPurchaseDetail } from "@/web/purchase-service";
 import { notFound } from "next/navigation";
+import {
+  Button,
+  Card,
+  DemoDataBanner,
+  FormError,
+  InlineNotice,
+  PageHeader,
+  StatusBadge,
+} from "@/ui";
 
 export default async function PurchaseDashboardPage({
   params,
@@ -14,151 +30,195 @@ export default async function PurchaseDashboardPage({
   const detail = getPurchaseDetail(id);
   if (!detail) notFound();
 
-  const { purchase, fingerprint, observations, alerts, runs, fixture_banner } =
-    detail;
-  const monitoring = purchase.status === "MONITORING_ACTIVE" && purchase.fingerprint_id;
+  const { purchase, fingerprint, observations, alerts, runs } = detail;
+  const status = String(purchase.status);
+  const monitoring =
+    purchase.status === "MONITORING_ACTIVE" && purchase.fingerprint_id;
+  const remaining = daysRemaining(
+    purchase.monitoring_deadline
+      ? String(purchase.monitoring_deadline)
+      : null,
+  );
+  const latest = observations[0];
+  const productTitle =
+    (fingerprint?.product_title as string | undefined) ||
+    (latest?.product_title as string | undefined) ||
+    "Your Target purchase";
+  const err = sp.error ? dashboardError(sp.error) : null;
 
   return (
-    <div>
-      <h1>Monitoring dashboard</h1>
-      <div className="banner-fixture" data-testid="fixture-banner">
-        {fixture_banner}
-      </div>
+    <div className="n-screen">
+      <PageHeader
+        eyebrow="Purchase"
+        title={productTitle}
+        description="What Nobu is watching and the latest observed Target price."
+      />
+
+      <DemoDataBanner data-testid="fixture-banner">
+        <p>
+          <strong>Demo data</strong>
+          <br />
+          This screen uses test fixtures, not a live current Target price.
+        </p>
+      </DemoDataBanner>
 
       {sp.checked ? (
-        <div className="banner-ok" data-testid="check-complete">
-          Price check completed (fixture observation). See history and alerts below.
-        </div>
-      ) : null}
-      {sp.error ? (
-        <div className="banner-warn" data-testid="dashboard-error">
-          {sp.error}
-        </div>
+        <InlineNotice tone="success" data-testid="check-complete">
+          <p>Price check completed. See history and any alerts below.</p>
+        </InlineNotice>
       ) : null}
 
-      <div className="card" data-testid="purchase-status">
-        <h2>Purchase</h2>
-        <p>
-          <span className="pill" data-testid="status-pill">
-            {String(purchase.status)}
+      {err ? (
+        <FormError data-testid="dashboard-error" title={err.heading}>
+          <p>{err.body}</p>
+          <p>
+            <strong>Next:</strong> {err.nextAction}
+          </p>
+        </FormError>
+      ) : null}
+
+      <Card data-testid="purchase-status" className="n-status-card">
+        <div className="n-status-card__head">
+          <StatusBadge
+            label={statusLabel(status)}
+            tone={statusTone(status)}
+            data-testid="status-pill"
+          />
+          <span className="visually-hidden" data-testid="status-code">
+            {status}
           </span>
-        </p>
-        <p>
-          <strong>URL:</strong> {String(purchase.target_product_url)}
-        </p>
-        <p>
-          <strong>Purchase price:</strong> ${String(purchase.purchase_price)}{" "}
-          {String(purchase.currency)}
-        </p>
-        <p>
-          <strong>Purchase date:</strong> {String(purchase.purchase_date)}
-        </p>
-        <p>
-          <strong>Deadline:</strong> {String(purchase.monitoring_deadline ?? "—")}
-        </p>
+        </div>
+
+        <dl className="n-kv n-kv--grid">
+          <div>
+            <dt>You paid</dt>
+            <dd>{formatUsd(String(purchase.purchase_price))}</dd>
+          </div>
+          <div>
+            <dt>Latest observed Target price</dt>
+            <dd>
+              {latest?.observed_price != null
+                ? formatUsd(String(latest.observed_price))
+                : "Not checked yet"}
+            </dd>
+          </div>
+          <div>
+            <dt>Days remaining</dt>
+            <dd>{remaining != null ? remaining : "—"}</dd>
+          </div>
+          <div>
+            <dt>Last checked</dt>
+            <dd>
+              {latest?.observed_at
+                ? String(latest.observed_at)
+                : "Not checked yet"}
+            </dd>
+          </div>
+        </dl>
+
         {fingerprint ? (
-          <p data-testid="fingerprint-id">
-            <strong>Locked fingerprint:</strong> {String(fingerprint.fingerprint_id)}
+          <p className="muted" data-testid="fingerprint-id">
+            Locked product identity on file
+            <span className="visually-hidden">
+              {" "}
+              {String(fingerprint.fingerprint_id)}
+            </span>
           </p>
         ) : (
-          <p className="muted">No locked fingerprint yet.</p>
+          <InlineNotice tone="warning">
+            <p>
+              Confirm the exact product before watching.{" "}
+              <a href={`/purchases/${id}/review`}>Review candidates</a>
+            </p>
+          </InlineNotice>
         )}
-      </div>
+
+        <p className="muted n-break">
+          Link: {String(purchase.target_product_url)}
+        </p>
+      </Card>
 
       {monitoring ? (
-        <form className="card" action={runCheckAction} data-testid="run-check-form">
-          <h2>Run price check</h2>
+        <form
+          className="n-card"
+          action={runCheckAction}
+          data-testid="run-check-form"
+        >
+          <h2 className="n-card-title">Check the price</h2>
           <p className="muted">
-            Demo check uses a <strong>fixture</strong> lower observed Target price.
-            Not a live SerpApi call. Search budget is still recorded.
+            Demo check uses a fixture lower observed Target price — not a live
+            shopping call. Search budget is still recorded.
           </p>
           <input type="hidden" name="purchase_id" value={id} />
-          <button type="submit" data-testid="run-check">
-            Run demo price check
-          </button>
+          <Button type="submit" block data-testid="run-check">
+            Check for a lower price
+          </Button>
         </form>
       ) : null}
 
-      <div className="card" data-testid="price-history">
-        <h2>Price history</h2>
+      <Card data-testid="price-history">
+        <h2 className="n-card-title">Price history</h2>
         {observations.length === 0 ? (
-          <p className="muted">No observations yet.</p>
+          <p className="muted">
+            No price checks yet. Run a check when watching is active.
+          </p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Price</th>
-                <th>Seller</th>
-                <th>Provider status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {observations.map((o) => (
-                <tr key={String(o.id)} data-testid="observation-row">
-                  <td>{String(o.observed_at)}</td>
-                  <td>
-                    {o.observed_price != null
-                      ? `$${String(o.observed_price)}`
-                      : "—"}
-                  </td>
-                  <td>{String(o.seller_text)}</td>
-                  <td>{String(o.provider_status)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul className="n-history-list">
+            {observations.map((o) => (
+              <li key={String(o.id)} data-testid="observation-row">
+                <strong>
+                  {o.observed_price != null
+                    ? formatUsd(String(o.observed_price))
+                    : "No price"}
+                </strong>
+                <span className="muted"> · {String(o.observed_at)}</span>
+                <div className="muted">{String(o.seller_text)}</div>
+              </li>
+            ))}
+          </ul>
         )}
-      </div>
+      </Card>
 
-      <div className="card" data-testid="alerts-list">
-        <h2>Alerts</h2>
+      <Card data-testid="alerts-list">
+        <h2 className="n-card-title">Price updates</h2>
         {alerts.length === 0 ? (
-          <p className="muted">No price-drop alerts.</p>
+          <p className="muted">No price-drop alerts yet.</p>
         ) : (
-          <ul>
+          <ul className="n-list">
             {alerts.map((a) => (
               <li key={String(a.id)}>
                 <a
                   href={`/purchases/${id}/alerts/${String(a.id)}`}
                   data-testid="alert-link"
                 >
-                  Potential recovery ${String(a.potential_recovery)} (observed $
-                  {String(a.observed_price)})
+                  Possible difference {formatUsd(String(a.potential_recovery))}{" "}
+                  (observed {formatUsd(String(a.observed_price))})
                 </a>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </Card>
 
-      <div className="card">
-        <h2>Monitor runs</h2>
-        {runs.length === 0 ? (
-          <p className="muted">No runs yet.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Outcome</th>
-                <th>Skip</th>
-                <th>Searches</th>
-              </tr>
-            </thead>
-            <tbody>
+      <details className="n-disclosure">
+        <summary className="n-disclosure__summary">
+          <span>Check history (advanced)</span>
+        </summary>
+        <div className="n-disclosure__body">
+          {runs.length === 0 ? (
+            <p className="muted">No monitor runs yet.</p>
+          ) : (
+            <ul className="n-history-list">
               {runs.map((r) => (
-                <tr key={String(r.id)}>
-                  <td>{String(r.finished_at)}</td>
-                  <td>{String(r.outcome)}</td>
-                  <td>{String(r.skip_reason ?? "—")}</td>
-                  <td>{String(r.searches_consumed)}</td>
-                </tr>
+                <li key={String(r.id)}>
+                  {String(r.finished_at)} · {String(r.outcome)}
+                  {r.skip_reason ? ` · ${String(r.skip_reason)}` : ""}
+                </li>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </ul>
+          )}
+        </div>
+      </details>
     </div>
   );
 }

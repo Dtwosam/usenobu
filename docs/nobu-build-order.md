@@ -119,6 +119,14 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** browser path still works; brand and UI updated; tests pass.
 
+## Lane 7.5B3 — Visual QA, polish and deployment
+
+- Visual QA against the design reference and design system.
+- Polish spacing, copy, and residual a11y issues.
+- Deploy consumer UI only after proof; still no OKX registration until Lane 8.
+
+**Proof:** polished screenshots, residual fixes, deployment evidence if approved.
+
 ## Lane 8 — OKX ASP registration and live listing
 
 - Install/use Onchain OS according to current official instructions.

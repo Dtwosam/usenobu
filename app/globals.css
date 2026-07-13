@@ -1338,3 +1338,378 @@ td {
   background: var(--warning-soft);
   color: var(--warning);
 }
+
+/* —— Consumer screens (Lane 7.5B2) —— */
+.n-screen {
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--container-reading);
+}
+
+.n-screen--home {
+  max-width: var(--container-main);
+  gap: var(--space-8);
+}
+
+.n-screen--form {
+  max-width: var(--container-main);
+}
+
+.n-screen--reading {
+  max-width: var(--container-reading);
+}
+
+.n-hero {
+  max-width: 40rem;
+}
+
+.n-hero__title {
+  margin: 0 0 var(--space-4);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.n-hero__lead {
+  margin: 0 0 var(--space-6);
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  max-width: 36rem;
+}
+
+.n-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.n-hero__actions .n-btn {
+  min-width: min(100%, 220px);
+}
+
+@media (max-width: 480px) {
+  .n-hero__actions .n-btn {
+    width: 100%;
+  }
+}
+
+.n-section-title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.n-steps-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .n-steps-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.n-step-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+.n-step-card__num {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: var(--space-3);
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.n-step-card strong {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.n-step-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.n-trust__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 768px) {
+  .n-trust__list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.n-trust__list li {
+  background: var(--brand-soft);
+  color: var(--brand-active);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.n-example-card__head {
+  margin-bottom: var(--space-3);
+}
+
+.n-example-card__title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.15rem;
+}
+
+.n-stack {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.n-card-title {
+  margin: 0 0 var(--space-3);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.n-list {
+  margin: 0 0 var(--space-4);
+  padding-left: 1.2rem;
+}
+
+.n-list li {
+  margin-bottom: var(--space-2);
+}
+
+.n-list--numbered {
+  padding-left: 1.4rem;
+}
+
+.n-form-layout {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .n-form-layout {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+}
+
+.n-form-card {
+  margin: 0;
+}
+
+.n-form-note {
+  margin: 0 0 var(--space-4);
+}
+
+.n-support-panel .n-card {
+  margin: 0;
+  position: sticky;
+  top: 88px;
+}
+
+.n-kv {
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.n-kv > div {
+  display: grid;
+  gap: 2px;
+}
+
+.n-kv dt {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.n-kv dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.n-kv--grid {
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .n-kv--grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.n-break {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.n-inline-sep {
+  margin: 0 var(--space-2);
+  color: var(--text-tertiary);
+}
+
+.n-candidate-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.n-candidate {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
+
+.n-candidate__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.n-meta-list {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.n-confirm-card {
+  border-color: var(--brand);
+  box-shadow: var(--shadow-md);
+}
+
+.n-notice-heading {
+  margin: 0 0 var(--space-2);
+  font-size: 1.05rem;
+}
+
+.n-empty-inline-title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.05rem;
+}
+
+.n-purchase-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.n-purchase-card {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.12s ease;
+}
+
+.n-purchase-card:hover {
+  border-color: var(--brand);
+}
+
+.n-purchase-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.n-purchase-card__title {
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.n-purchase-card__price {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.n-status-card__head {
+  margin-bottom: var(--space-5);
+}
+
+.n-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.n-history-list li {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.n-history-list li:last-child {
+  border-bottom: none;
+}
+
+.n-result-card__kicker {
+  margin: 0 0 var(--space-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--brand);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.n-result-card__amount {
+  margin: 0 0 var(--space-5);
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--success);
+}
+
+.n-btn--block {
+  width: 100%;
+}
+
+/* form cards reuse n-card visual */
+form.n-card,
+form.n-form-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
+}

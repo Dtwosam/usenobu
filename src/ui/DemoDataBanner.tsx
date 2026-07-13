@@ -16,8 +16,9 @@ export function DemoDataBanner({
       <div>
         {children ?? (
           <p>
-            <strong>Demo data.</strong> This screen uses clearly labelled sample
-            information — not live shopping results or real refunds.
+            <strong>Demo data</strong>
+            <br />
+            This screen uses test fixtures, not a live current Target price.
           </p>
         )}
       </div>
