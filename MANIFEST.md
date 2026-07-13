@@ -8,6 +8,14 @@
 - `README.md`
 - `.gitignore`
 - `.env.example`
+- `package.json`
+- `package-lock.json`
+- `tsconfig.json`
+- `vitest.config.ts`
+- `src/domain/` (schemas, enums, provenance contracts)
+- `src/db/` (models, migrator, SQL migrations)
+- `tests/domain/`
+- `tests/db/`
 - `data/retailer-policies/target-us-v1.yaml`
 - `docs/adr/0001-target-serpapi-mvp.md`
 - `docs/adr/0002-a2mcp-free-first.md`

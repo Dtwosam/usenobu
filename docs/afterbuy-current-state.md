@@ -1,7 +1,7 @@
 # AfterBuy Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 0 COMPLETE / PRE-IMPLEMENTATION BASELINE ADOPTED
+**Status:** LANE 1 COMPLETE / DOMAIN SCHEMAS AND DETERMINISTIC CONTRACTS
 
 ## Locked decisions
 
@@ -16,6 +16,7 @@
 - Primary category: Lifestyle Companion.
 - Primary repository implementation agent: Grok Build (lane by lane).
 - Regular Grok research: public discussion, competition, and external-change verification only; does not override official sources.
+- Domain contracts: Zod schemas in TypeScript; local migration proof via Node `node:sqlite` with equivalent tables (production target remains PostgreSQL per architecture).
 
 ## Lane 0 proof completed
 
@@ -24,12 +25,20 @@
 - `README.md`, `.gitignore`, and `.env.example` created.
 - Required-file check passed.
 - Secret-file and secret-pattern scans passed.
-- No product implementation exists yet (no application source, Target policy engine, SerpApi client, matching, monitoring, UI, deployment, or OKX listing work).
 - Tool workflow locked: ChatGPT for product/architecture/lane coordination; Grok Build for repository implementation; regular Grok research for external verification only.
 
-## No product code proof exists yet
+## Lane 1 proof completed
 
-The deployment, API, scheduler, Target connector, SerpApi key, live query proof, OKX listing, demo, and submission are not yet complete unless later state updates explicitly prove them.
+- Minimal TypeScript + Vitest + Zod tooling added (no secrets required).
+- Purchase input, Target product candidate, locked fingerprint, price observation, evidence provenance, and Target policy result schemas implemented.
+- Locked product/provider/result status enums implemented and tested.
+- Initial migration for `purchases`, `product_matches`, `price_observations`, and `policy_versions` applies cleanly, is idempotent on re-run, and is reversible then re-applicable.
+- Schema validation tests pass (invalid prices, dates, currencies, incomplete fingerprints fail closed).
+- No SerpApi network calls, matching engine, policy engine, scheduler, UI, deployment, or OKX work.
+
+## No product runtime proof yet
+
+The live SerpApi connector, Target policy engine execution, matching engine, deployment, A2MCP public endpoint, OKX listing, demo, and submission are not yet complete unless later state updates explicitly prove them.
 
 ## Remaining later gates
 
@@ -51,4 +60,4 @@ The deployment, API, scheduler, Target connector, SerpApi key, live query proof,
 
 ## Next active lane
 
-**Lane 1 — Domain schemas and deterministic contracts.**
+**Lane 2 — Target policy engine.**
