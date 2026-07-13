@@ -101,10 +101,20 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** active repository scan empty of the prior brand (except documented `docs/proof/historical-afterbuy/`); tests, typecheck, and build pass.
 
-## Lane 7.5B — Nobu interface redesign
+## Lane 7.5B1 — Design foundation and reusable UI components
 
-- Redesign consumer UI under the Nobu brand only.
-- Preserve product locks, notices, and fail-closed flows.
+- Design tokens, Manrope typography, global shell (header/footer/mobile nav).
+- Reusable components with hover/active/focus/disabled/loading/error states.
+- First-time UX rules, accessibility, and foundation proof gallery.
+- Do **not** fully redesign product screens in this lane.
+- No OKX registration.
+
+**Proof:** design spec, foundation screenshots, component/a11y tests, unit/typecheck/build pass.
+
+## Lane 7.5B2 — Complete screen implementation
+
+- Redesign consumer product screens on the 7.5B1 foundation.
+- Preserve product locks, notices, fail-closed flows, and E2E contracts.
 - No OKX registration in this lane.
 
 **Proof:** browser path still works; brand and UI updated; tests pass.

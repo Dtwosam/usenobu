@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 7.5A COMPLETE / GLOBAL NOBU RENAME
+**Status:** LANE 7.5B1 COMPLETE / DESIGN FOUNDATION
 
 ## Locked decisions
 
@@ -13,28 +13,28 @@
 - Stateless A2MCP check path (no SQLite as shared production persistence for the endpoint).
 - Primary implementation agent: Grok Build.
 
-## Lanes 0–7
+## Lanes 0–7.5A
 
-Completed under prior branding; product behavior preserved. Historical production hostname and curl archives live in `docs/proof/historical-afterbuy/` (see that folder’s README).
+Completed. Historical production hostname and curl archives live in `docs/proof/historical-afterbuy/`.
 
 Public A2MCP routes (unchanged):
 
 - `GET /health`
 - `POST /v1/target-price-check`
 
-## Lane 7.5A proof completed
+## Lane 7.5B1 proof completed
 
 | Item | Result |
 |---|---|
-| Active identity | Nobu / `nobu` / `NOBU` |
-| Docs pack | `docs/nobu-*.md` |
-| OpenAPI | `openapi/nobu-a2mcp.openapi.yaml` (title Nobu A2MCP API) |
-| Health service | `nobu-a2mcp` |
-| Env example | `NOBU_DB_PATH` |
-| Package name | `nobu` |
-| Lane verdicts | `NOBU_LANE_*` |
-| Active case-insensitive prior-brand scan | Empty (excluding `docs/proof/historical-afterbuy/`) |
-| Historical exceptions | Documented in `docs/proof/historical-afterbuy/README.md` |
+| Design tokens | CSS variables in `app/globals.css` |
+| Typography | Manrope 400/500/600/700 via `next/font` |
+| Components | `src/ui/*` foundation set |
+| Shell | Header, mobile nav, footer, skip link |
+| Design spec | `docs/nobu-ui-design-spec.md` |
+| Gallery | `/design/foundation` |
+| Proof | `docs/proof/ui/foundation/` |
+| Product screens | Not fully redesigned (deferred to 7.5B2) |
+| API / policy / matching | Unchanged |
 
 ## Hard locks (unchanged)
 
@@ -44,4 +44,4 @@ Public A2MCP routes (unchanged):
 
 ## Next active lane
 
-**Lane 7.5B — Nobu interface redesign.**
+**Lane 7.5B2 — Complete screen implementation.**

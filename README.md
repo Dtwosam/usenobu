@@ -1,6 +1,6 @@
 # Nobu
 
-**Status:** Lane 7.5A complete / global Nobu rename  
+**Status:** Lane 7.5B1 complete / design foundation  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  

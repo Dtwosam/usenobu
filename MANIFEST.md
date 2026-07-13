@@ -19,8 +19,11 @@
 - `src/matching/` (fail-closed candidate matching, confirmation, fingerprint store)
 - `src/monitoring/` (active-window selection, budget guard, check runner, alerts)
 - `src/web/` (purchase service, fixture labels, server actions)
+- `src/ui/` (design system components + shell)
 - `src/a2mcp/` (free A2MCP check service, rate limit, audit)
-- `app/` (Next.js consumer UI + `/health` + `/v1/target-price-check`)
+- `app/` (Next.js consumer UI + `/health` + `/v1/target-price-check` + `/design/foundation`)
+- `docs/nobu-ui-design-spec.md`
+- `docs/proof/ui/foundation/`
 - `tests/domain/`
 - `tests/db/`
 - `tests/policy/`

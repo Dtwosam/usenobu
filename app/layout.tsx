@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
+import { Manrope } from "next/font/google";
+import { Footer } from "@/ui/Footer";
+import { Header } from "@/ui/Header";
 import "./globals.css";
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-manrope",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Nobu — Target price-drop monitoring",
   description:
-    "Monitor recent Target.com purchases for possible price drops. Third-party observed prices; Target decides.",
+    "Track recent Target.com purchases for possible price drops. Third-party observed prices; Target decides.",
 };
 
 export default function RootLayout({
@@ -13,28 +23,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
-        <header className="site">
-          <div>
-            <a href="/" data-testid="nav-home">
-              Nobu
-            </a>
-            <a href="/purchases/new" data-testid="nav-add">
-              Add purchase
-            </a>
-            <a href="/dashboard" data-testid="nav-dashboard">
-              Dashboard
-            </a>
-            <a href="/notices" data-testid="nav-notices">
-              Notices
-            </a>
-          </div>
-          <div className="sub">
-            Target.com MVP · third-party price observation · no refund guarantees
-          </div>
-        </header>
-        <main>{children}</main>
+    <html lang="en" className={manrope.variable}>
+      <body className={manrope.className}>
+        <a className="n-skip" href="#main-content">
+          Skip to content
+        </a>
+        <div className="n-shell">
+          <Header />
+          <main id="main-content" className="n-main legacy-main" tabIndex={-1}>
+            {children}
+          </main>
+          <Footer />
+        </div>
       </body>
     </html>
   );
