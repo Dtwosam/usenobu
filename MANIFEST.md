@@ -19,7 +19,9 @@
 - `src/matching/` (fail-closed candidate matching, confirmation, fingerprint store)
 - `src/monitoring/` (active-window selection, budget guard, check runner, alerts)
 - `src/web/` (purchase service, fixture labels, server actions)
-- `app/` (Next.js consumer UI routes)
+- `src/a2mcp/` (free A2MCP check service, rate limit, audit)
+- `app/` (Next.js consumer UI + `/health` + `/v1/target-price-check`)
+- `docs/proof/a2mcp/` (Lane 7 endpoint proof notes)
 - `tests/domain/`
 - `tests/db/`
 - `tests/policy/`
@@ -27,6 +29,7 @@
 - `tests/matching/`
 - `tests/monitoring/`
 - `tests/e2e/` (Playwright consumer flow)
+- `tests/a2mcp/`
 - `tests/fixtures/serpapi/`
 - `docs/proof/serpapi/` (offline + live redacted capability proof; repair-audit-summary.json)
 - `data/retailer-policies/target-us-v1.yaml`
