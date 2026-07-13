@@ -62,6 +62,36 @@ export interface ProductMatchRow {
   confirmed_at: string | null;
   fingerprint_json: string | null;
   created_at: string;
+  /** SerpApi/Google id — never treat as Target TCIN. */
+  serpapi_product_id: string | null;
+  match_decision: string | null;
+  match_tier: string | null;
+  match_rule_version: string | null;
+  rejection_reason: string | null;
+}
+
+export interface ProductFingerprintRow {
+  fingerprint_id: string;
+  purchase_id: string;
+  product_match_id: string;
+  target_product_url: string;
+  target_item_id: string | null;
+  model_number: string | null;
+  upc_or_gtin: string | null;
+  brand: string | null;
+  size: string | null;
+  color: string | null;
+  weight: string | null;
+  quantity: string | null;
+  product_title: string | null;
+  seller_kind: string;
+  is_target_plus: number;
+  match_rule_version: string;
+  match_tier: string;
+  fingerprint_json: string;
+  confirmed_at: string;
+  confirmed_by_user: number;
+  created_at: string;
 }
 
 export interface PriceObservationRow {
@@ -99,6 +129,7 @@ export const TABLE_NAMES = [
   "purchases",
   "product_matches",
   "price_observations",
+  "product_fingerprints",
 ] as const;
 
 export type TableName = (typeof TABLE_NAMES)[number];

@@ -9,19 +9,18 @@ import {
   TABLE_NAMES,
 } from "../../src/db/index.js";
 
-describe("Lane 1 database migration", () => {
-  it("lists 0001 up/down migration pair", () => {
+describe("database migrations", () => {
+  it("lists 0001 and 0002 migration pairs", () => {
     const migrations = listMigrations();
-    expect(migrations.length).toBeGreaterThanOrEqual(1);
-    expect(migrations[0]?.id).toBe("0001_init");
+    expect(migrations.map((m) => m.id)).toEqual(["0001_init", "0002_matching"]);
   });
 
   it("applies cleanly and creates required tables", () => {
     const db = openDatabase(":memory:");
     try {
       const applied = migrateUp(db);
-      expect(applied).toEqual(["0001_init"]);
-      expect(getAppliedMigrations(db)).toEqual(["0001_init"]);
+      expect(applied).toEqual(["0001_init", "0002_matching"]);
+      expect(getAppliedMigrations(db)).toEqual(["0001_init", "0002_matching"]);
 
       for (const table of TABLE_NAMES) {
         expect(tableExists(db, table)).toBe(true);
@@ -30,26 +29,31 @@ describe("Lane 1 database migration", () => {
 
       // Idempotent second up: no duplicate apply
       expect(migrateUp(db)).toEqual([]);
-      expect(getAppliedMigrations(db)).toEqual(["0001_init"]);
+      expect(getAppliedMigrations(db)).toEqual(["0001_init", "0002_matching"]);
     } finally {
       db.close();
     }
   });
 
-  it("is reversible and re-applicable", () => {
+  it("is reversible step-by-step and re-applicable", () => {
     const db = openDatabase(":memory:");
     try {
       migrateUp(db);
-      const reversed = migrateDown(db);
-      expect(reversed).toEqual(["0001_init"]);
+      const reversed2 = migrateDown(db, undefined, 1);
+      expect(reversed2).toEqual(["0002_matching"]);
+      expect(tableExists(db, "product_fingerprints")).toBe(false);
+      expect(tableExists(db, "purchases")).toBe(true);
+
+      const reversed1 = migrateDown(db, undefined, 1);
+      expect(reversed1).toEqual(["0001_init"]);
       expect(getAppliedMigrations(db)).toEqual([]);
 
-      for (const table of TABLE_NAMES) {
+      for (const table of ["policy_versions", "purchases", "product_matches", "price_observations"]) {
         expect(tableExists(db, table)).toBe(false);
       }
 
       const reapplied = migrateUp(db);
-      expect(reapplied).toEqual(["0001_init"]);
+      expect(reapplied).toEqual(["0001_init", "0002_matching"]);
       for (const table of TABLE_NAMES) {
         expect(tableExists(db, table)).toBe(true);
       }
