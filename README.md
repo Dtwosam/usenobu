@@ -1,6 +1,6 @@
 # AfterBuy
 
-**Status:** Lane 2 complete / Target policy engine  
+**Status:** Lane 3 offline connector complete / live SerpApi audit blocked without key  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  
@@ -73,7 +73,15 @@ npm test
 npm run typecheck
 ```
 
-Lane 1 domain contracts live under `src/domain/`. Database models and SQL migrations live under `src/db/`. The Lane 2 Target policy engine lives under `src/policy/`. Local migration proof uses Node built-in `node:sqlite` (no secrets, no native compile). Production remains PostgreSQL per the architecture doc.
+Lane 1 domain contracts live under `src/domain/`. Database models and SQL migrations live under `src/db/`. The Lane 2 Target policy engine lives under `src/policy/`. The Lane 3 SerpApi connector lives under `src/serpapi/` (server-only; third-party observation, not an official Target API). Local migration proof uses Node built-in `node:sqlite` (no secrets, no native compile). Production remains PostgreSQL per the architecture doc.
+
+```bash
+# Offline connector tests (no key required)
+npm test
+
+# One bounded live capability audit (requires SERPAPI_API_KEY; never commit the key)
+npm run serpapi:live-audit
+```
 
 ## Reference stack
 
@@ -92,7 +100,7 @@ A different stack requires an ADR and must not weaken the contracts.
 
 See `docs/afterbuy-current-state.md` for the current lane and `docs/afterbuy-build-order.md` for the full sequence. Do not skip lanes or invent live proof.
 
-**Current active lane after Lane 2 closeout:** Lane 3 — SerpApi connector and live capability audit.
+**Current active work:** finish Lane 3 live SerpApi capability audit when `SERPAPI_API_KEY` is available, then Lane 4 — Candidate matching and product confirmation.
 
 ## License / secrets
 

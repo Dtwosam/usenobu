@@ -1,0 +1,24 @@
+{
+  "search_metadata": {
+    "id": "fixture-search-003",
+    "status": "Success"
+  },
+  "shopping_results": [
+    {
+      "position": 1,
+      "title": "Widget Model A",
+      "source": "Target",
+      "price": "$20.00",
+      "extracted_price": 20,
+      "link": "https://www.target.com/p/widget-a/-/A-111"
+    },
+    {
+      "position": 2,
+      "title": "Widget Model B",
+      "source": "Target",
+      "price": "$22.00",
+      "extracted_price": 22,
+      "link": "https://www.target.com/p/widget-b/-/A-222"
+    }
+  ]
+}

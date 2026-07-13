@@ -1,0 +1,29 @@
+{
+  "search_metadata": {
+    "id": "fixture-search-001",
+    "status": "Success",
+    "total_time_taken": 0.42,
+    "google_shopping_url": "https://www.google.com/search?tbm=shop&q=fixture"
+  },
+  "shopping_results": [
+    {
+      "position": 1,
+      "title": "Example Wireless Earbuds - White",
+      "link": "https://www.target.com/p/example-earbuds/-/A-87654321",
+      "product_link": "https://www.google.com/search?ibp=oshop&q=example",
+      "source": "Target",
+      "price": "$29.99",
+      "extracted_price": 29.99,
+      "thumbnail": "https://example.invalid/thumb.jpg",
+      "product_id": "1234567890"
+    },
+    {
+      "position": 2,
+      "title": "Example Wireless Earbuds - White",
+      "link": "https://www.example-store.com/p/earbuds",
+      "source": "Other Store",
+      "price": "$31.00",
+      "extracted_price": 31
+    }
+  ]
+}

@@ -15,9 +15,13 @@
 - `src/domain/` (schemas, enums, provenance contracts)
 - `src/db/` (models, migrator, SQL migrations)
 - `src/policy/` (Target policy engine, dates, locked policy snapshot)
+- `src/serpapi/` (SerpApi Google Shopping connector, redaction, live audit CLI)
 - `tests/domain/`
 - `tests/db/`
 - `tests/policy/`
+- `tests/serpapi/`
+- `tests/fixtures/serpapi/`
+- `docs/proof/serpapi/` (offline/live capability proof artifacts; redacted only)
 - `data/retailer-policies/target-us-v1.yaml`
 - `docs/adr/0001-target-serpapi-mvp.md`
 - `docs/adr/0002-a2mcp-free-first.md`

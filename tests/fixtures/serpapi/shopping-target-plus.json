@@ -1,0 +1,16 @@
+{
+  "search_metadata": {
+    "id": "fixture-search-004",
+    "status": "Success"
+  },
+  "shopping_results": [
+    {
+      "position": 1,
+      "title": "Marketplace Item",
+      "source": "Target Plus",
+      "price": "$18.00",
+      "extracted_price": 18,
+      "link": "https://www.target.com/p/marketplace/-/A-999"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "search_metadata": {
+    "id": "fixture-search-002",
+    "status": "Success"
+  },
+  "shopping_results": [
+    {
+      "position": 1,
+      "title": "Example Widget",
+      "source": "Walmart",
+      "price": "$12.00",
+      "extracted_price": 12,
+      "link": "https://www.walmart.com/ip/example"
+    },
+    {
+      "position": 2,
+      "title": "Example Widget",
+      "source": "Amazon.com",
+      "price": "$11.50",
+      "extracted_price": 11.5
+    }
+  ]
+}
