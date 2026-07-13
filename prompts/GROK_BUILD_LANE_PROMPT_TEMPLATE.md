@@ -1,12 +1,12 @@
 # Grok Build Lane Prompt Template
 
-**Active AfterBuy implementation workflow.** Use this template for one lane at a time with Grok Build as the repository executor.
+**Active Nobu implementation workflow.** Use this template for one lane at a time with Grok Build as the repository executor.
 
 Keep prompts concise, lane-scoped, phone-friendly, and explicit about mandatory files, hard locks, tests, proof, final report, and stopping on first failure.
 
 ---
 
-You are working on **AfterBuy** in Grok Build.
+You are working on **Nobu** in Grok Build.
 
 ## Active lane
 
@@ -21,16 +21,16 @@ You are working on **AfterBuy** in Grok Build.
 Read in this order before editing:
 
 1. `AGENTS.md`
-2. `docs/afterbuy-clean-master-spec.md`
-3. `docs/afterbuy-current-state.md`
-4. `docs/afterbuy-hackathon-compliance-matrix.md`
-5. `docs/afterbuy-retailer-and-price-source-governance.md`
-6. `docs/afterbuy-target-policy-contract.md`
-7. `docs/afterbuy-serpapi-data-contract.md`
-8. `docs/afterbuy-architecture.md`
-9. `openapi/afterbuy-a2mcp.openapi.yaml`
-10. `docs/afterbuy-build-order.md`
-11. `docs/afterbuy-test-and-proof-plan.md`
+2. `docs/nobu-clean-master-spec.md`
+3. `docs/nobu-current-state.md`
+4. `docs/nobu-hackathon-compliance-matrix.md`
+5. `docs/nobu-retailer-and-price-source-governance.md`
+6. `docs/nobu-target-policy-contract.md`
+7. `docs/nobu-serpapi-data-contract.md`
+8. `docs/nobu-architecture.md`
+9. `openapi/nobu-a2mcp.openapi.yaml`
+10. `docs/nobu-build-order.md`
+11. `docs/nobu-test-and-proof-plan.md`
 12. Any lane-specific ADR or source file
 
 Start with and maintain a todo/checklist.
@@ -62,7 +62,7 @@ Start with and maintain a todo/checklist.
 3. Stop on the first failure and repair it.
 4. Add/update tests required by the source contracts.
 5. Run the lane proof.
-6. Update `docs/afterbuy-current-state.md` only with proven facts.
+6. Update `docs/nobu-current-state.md` only with proven facts.
 7. Do not commit or tag unless explicitly instructed.
 
 ## Final report

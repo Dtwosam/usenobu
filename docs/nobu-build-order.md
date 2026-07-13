@@ -1,4 +1,4 @@
-# AfterBuy Active Build Order
+# Nobu Active Build Order
 
 **Status:** ACTIVE BUILD ORDER  
 **Date:** 2026-07-13
@@ -91,6 +91,23 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 - Curl proof.
 
 **Proof:** external curl succeeds; ambiguous match fails closed; no sensitive data in output.
+
+## Lane 7.5A — Global Nobu rename
+
+- Rename active project identity to Nobu across UI, docs, package metadata, OpenAPI, prompts, env names, and source comments.
+- Move immutable historical proof that retains the prior brand to `docs/proof/historical-afterbuy/`.
+- Keep A2MCP routes `/health` and `/v1/target-price-check` unchanged.
+- Do not change Target policy, matching, monitoring, or HTTP contract behavior.
+
+**Proof:** active repository scan empty of the prior brand (except documented `docs/proof/historical-afterbuy/`); tests, typecheck, and build pass.
+
+## Lane 7.5B — Nobu interface redesign
+
+- Redesign consumer UI under the Nobu brand only.
+- Preserve product locks, notices, and fail-closed flows.
+- No OKX registration in this lane.
+
+**Proof:** browser path still works; brand and UI updated; tests pass.
 
 ## Lane 8 — OKX ASP registration and live listing
 

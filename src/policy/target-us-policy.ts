@@ -89,4 +89,4 @@ export const TARGET_US_POLICY = {
 export type TargetUsPolicy = typeof TARGET_US_POLICY;
 
 export const DEFAULT_POLICY_DISCLAIMER =
-  "Observed Target price is third-party data. Target must verify the lower price and makes the final decision. AfterBuy does not guarantee a refund.";
+  "Observed Target price is third-party data. Target must verify the lower price and makes the final decision. Nobu does not guarantee a refund.";

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document prevents AfterBuy from treating convenient data as authoritative or expanding into unsupported retailers.
+This document prevents Nobu from treating convenient data as authoritative or expanding into unsupported retailers.
 
 ## Source classes
 

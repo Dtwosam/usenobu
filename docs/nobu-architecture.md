@@ -1,4 +1,4 @@
-# AfterBuy MVP Architecture
+# Nobu MVP Architecture
 
 ## Reference stack
 

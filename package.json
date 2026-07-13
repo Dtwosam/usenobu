@@ -1,8 +1,8 @@
 {
-  "name": "afterbuy",
+  "name": "nobu",
   "version": "0.1.0",
   "private": true,
-  "description": "AfterBuy — Target.com price-drop monitoring",
+  "description": "Nobu — Target.com price-drop monitoring",
   "type": "module",
   "scripts": {
     "dev": "next dev",

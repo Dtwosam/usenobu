@@ -1,4 +1,4 @@
-# AfterBuy Privacy and Security Threat Model
+# Nobu Privacy and Security Threat Model
 
 ## Sensitive data risks
 

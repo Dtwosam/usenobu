@@ -1,4 +1,4 @@
-# AfterBuy Clean Master Spec
+# Nobu Clean Master Spec
 
 **Version:** 1.0  
 **Status:** ACTIVE INTERNAL SOURCE OF TRUTH  
@@ -6,15 +6,15 @@
 
 ## 1. Product definition
 
-AfterBuy is a consumer post-purchase price-protection service and OKX.AI A2MCP ASP.
+Nobu is a consumer post-purchase price-protection service and OKX.AI A2MCP ASP.
 
-A user adds a recent eligible Target.com purchase once. AfterBuy identifies and locks the exact Target product, checks a third-party shopping data source for a lower Target online price while the purchase remains within Target's adjustment window, and alerts the user when a possible price-adjustment opportunity appears.
+A user adds a recent eligible Target.com purchase once. Nobu identifies and locks the exact Target product, checks a third-party shopping data source for a lower Target online price while the purchase remains within Target's adjustment window, and alerts the user when a possible price-adjustment opportunity appears.
 
-AfterBuy returns the observed price difference, remaining time, evidence provenance, policy conditions, and Target's official next step. Target verifies the price and makes the final decision.
+Nobu returns the observed price difference, remaining time, evidence provenance, policy conditions, and Target's official next step. Target verifies the price and makes the final decision.
 
 ## 2. Core user promise
 
-> Add a recent Target purchase once. AfterBuy watches the online price during the eligible window and alerts you when you may be able to request the difference.
+> Add a recent Target purchase once. Nobu watches the online price during the eligible window and alerts you when you may be able to request the difference.
 
 ## 3. Problem
 
@@ -82,12 +82,12 @@ Initial user:
 ## 7. User journey
 
 1. User enters a Target.com purchase URL, purchase price, purchase date, and optional model/TCIN/UPC.
-2. AfterBuy queries SerpApi for Target offers matching the product.
-3. AfterBuy returns one or more candidates with seller, product identifiers, URL, and observed price.
+2. Nobu queries SerpApi for Target offers matching the product.
+3. Nobu returns one or more candidates with seller, product identifiers, URL, and observed price.
 4. The user confirms the exact product once.
-5. AfterBuy stores the product fingerprint and starts checks until the 14-day window ends.
+5. Nobu stores the product fingerprint and starts checks until the 14-day window ends.
 6. Each scheduled check searches for the locked Target offer.
-7. If a lower valid observed price appears, AfterBuy creates an alert.
+7. If a lower valid observed price appears, Nobu creates an alert.
 8. The result shows potential recovery, days remaining, price provenance, and Target's official claim route.
 9. The user contacts Target. Target independently verifies the price and decides the adjustment.
 
@@ -122,7 +122,7 @@ Forbidden:
 - "Guaranteed refund"
 - "Target owes you"
 - "Refund confirmed"
-- "AfterBuy will recover your money"
+- "Nobu will recover your money"
 
 ## 10. Success criteria
 

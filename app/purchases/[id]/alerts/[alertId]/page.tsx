@@ -23,7 +23,7 @@ export default async function AlertPage({
       <div className="banner-ok" data-testid="alert-summary">
         <strong>Price drop detected</strong> (potential eligibility only). Observed
         Target price is third-party data. Target must verify and decides any
-        adjustment. AfterBuy does <strong>not</strong> guarantee a refund.
+        adjustment. Nobu does <strong>not</strong> guarantee a refund.
       </div>
 
       <div className="card" data-testid="alert-details">
@@ -60,7 +60,7 @@ export default async function AlertPage({
             accepted as final proof by Target.
           </li>
           <li>
-            Target makes the final decision. AfterBuy does not submit claims or log
+            Target makes the final decision. Nobu does not submit claims or log
             into your Target account.
           </li>
         </ol>

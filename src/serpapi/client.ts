@@ -124,7 +124,7 @@ export class SerpApiShoppingClient {
           Accept: "application/json; charset=utf-8",
           "Accept-Charset": "utf-8",
           "User-Agent":
-            "AfterBuy/0.1 (server-side SerpApi connector; third-party observation)",
+            "Nobu/0.1 (server-side SerpApi connector; third-party observation)",
         },
         signal: controller.signal,
       });

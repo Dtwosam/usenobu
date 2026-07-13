@@ -19,7 +19,7 @@ export default function NoticesPage() {
       <div className="card" data-testid="provenance-notice">
         <h2>Price provenance</h2>
         <p>
-          AfterBuy uses <strong>SerpApi Google Shopping</strong> as a{" "}
+          Nobu uses <strong>SerpApi Google Shopping</strong> as a{" "}
           <strong>third-party search observation</strong> source. Observed prices are{" "}
           <strong>not</strong> official Target API prices. Matching is fail-closed.
         </p>

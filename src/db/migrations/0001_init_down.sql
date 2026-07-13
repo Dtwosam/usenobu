@@ -1,4 +1,4 @@
--- Reverse AfterBuy Lane 1 initial schema (repeatable with up migration).
+-- Reverse Nobu Lane 1 initial schema (repeatable with up migration).
 
 DROP INDEX IF EXISTS idx_price_observations_observed_at;
 DROP INDEX IF EXISTS idx_price_observations_fingerprint_id;

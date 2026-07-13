@@ -1,20 +1,20 @@
-# AfterBuy
+# Nobu
 
-**Status:** Lane 7 complete / production A2MCP listing-ready at https://afterbuy.vercel.app  
+**Status:** Lane 7.5A complete / global Nobu rename  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  
 **Primary implementation agent:** Grok Build
 
-AfterBuy lets a user add a recent eligible Target.com purchase once. It checks a third-party shopping data source for a lower Target online price during Target's 14-day adjustment window and alerts the user when they may be able to request the difference.
+Nobu lets a user add a recent eligible Target.com purchase once. It checks a third-party shopping data source for a lower Target online price during Target's 14-day adjustment window and alerts the user when they may be able to request the difference.
 
-AfterBuy does **not** guarantee a refund, submit a claim, log into Target, scrape Target, or claim observed prices are official Target API prices. Target verifies the price and makes the final decision.
+Nobu does **not** guarantee a refund, submit a claim, log into Target, scrape Target, or claim observed prices are official Target API prices. Target verifies the price and makes the final decision.
 
 ## Start here
 
 1. Read `START-HERE.md` and `AGENTS.md`.
 2. Follow the mandatory source stack in those files.
-3. Build only against the active lane in `docs/afterbuy-build-order.md`.
+3. Build only against the active lane in `docs/nobu-build-order.md`.
 4. Implement with **Grok Build** using `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`.
 
 ## Tool workflow
@@ -34,10 +34,10 @@ Regular Grok research does not implement product code and does not override offi
 When sources conflict:
 
 1. Current official external rules, policies, terms, and API documentation
-2. `docs/afterbuy-clean-master-spec.md`
-3. `docs/afterbuy-current-state.md`
+2. `docs/nobu-clean-master-spec.md`
+3. `docs/nobu-current-state.md`
 4. Compliance and governance documents
-5. Policy/data contracts and `openapi/afterbuy-a2mcp.openapi.yaml`
+5. Policy/data contracts and `openapi/nobu-a2mcp.openapi.yaml`
 6. Active build order
 7. Tests and proof plan
 8. README, prompts, demo copy, and comments
@@ -85,9 +85,10 @@ npm run dev
 # Browser E2E proof
 npm run test:e2e
 
-# Free public A2MCP
-# GET  https://afterbuy.vercel.app/health
-# POST https://afterbuy.vercel.app/v1/target-price-check
+# Free public A2MCP (routes unchanged; host via APP_BASE_URL)
+# GET  {APP_BASE_URL}/health
+# POST {APP_BASE_URL}/v1/target-price-check
+# Historical public hostname proof: docs/proof/historical-afterbuy/
 
 # One bounded live capability audit (requires SERPAPI_API_KEY; never commit the key)
 npm run serpapi:live-audit
@@ -95,7 +96,7 @@ npm run serpapi:live-audit
 
 ## Reference stack
 
-Default implementation (see `docs/afterbuy-architecture.md`):
+Default implementation (see `docs/nobu-architecture.md`):
 
 - TypeScript
 - Next.js (or equivalent server-capable framework)
@@ -108,10 +109,10 @@ A different stack requires an ADR and must not weaken the contracts.
 
 ## Active build lane
 
-See `docs/afterbuy-current-state.md` for the current lane and `docs/afterbuy-build-order.md` for the full sequence. Do not skip lanes or invent live proof.
+See `docs/nobu-current-state.md` for the current lane and `docs/nobu-build-order.md` for the full sequence. Do not skip lanes or invent live proof.
 
-**Current active lane after Lane 7 closeout:** Lane 8 — OKX ASP registration and live listing.
+**Current active lane:** Lane 7.5B — Nobu interface redesign.
 
 ## License / secrets
 
-Do not commit API keys, credentials, wallet keys, passwords, or personal data. See `docs/afterbuy-privacy-security-threat-model.md`.
+Do not commit API keys, credentials, wallet keys, passwords, or personal data. See `docs/nobu-privacy-security-threat-model.md`.

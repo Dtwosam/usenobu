@@ -1,4 +1,4 @@
-# AfterBuy ChatGPT Project Source
+# Nobu ChatGPT Project Source
 
 **Generated:** 2026-07-13
 
@@ -9,36 +9,36 @@ This combined source mirrors the modular governing files. When the repository ex
 
 ## FILE: `START-HERE.md`
 
-# AfterBuy Source-of-Truth Pack v1
+# Nobu Source-of-Truth Pack v1
 
 **Prepared:** 2026-07-13  
-**Project:** AfterBuy  
+**Project:** Nobu  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **Current product decision:** Target.com price-drop monitoring through SerpApi, with a free A2MCP check endpoint and a small consumer web app.
 
-## What AfterBuy is
+## What Nobu is
 
-AfterBuy lets a user add a recent eligible Target.com purchase once. It checks a third-party shopping data source for a lower Target online price during Target's 14-day adjustment window and alerts the user when they may be able to request the difference.
+Nobu lets a user add a recent eligible Target.com purchase once. It checks a third-party shopping data source for a lower Target online price during Target's 14-day adjustment window and alerts the user when they may be able to request the difference.
 
-AfterBuy does **not** guarantee a refund, submit a claim, log into Target, or claim its observed price is an official Target API price. Target verifies the price and makes the final decision.
+Nobu does **not** guarantee a refund, submit a claim, log into Target, or claim its observed price is an official Target API price. Target verifies the price and makes the final decision.
 
 ## Mandatory source stack
 
 Read these in order before planning or changing code:
 
 1. `AGENTS.md`
-2. `docs/afterbuy-clean-master-spec.md`
-3. `docs/afterbuy-current-state.md`
-4. `docs/afterbuy-hackathon-compliance-matrix.md`
-5. `docs/afterbuy-retailer-and-price-source-governance.md`
-6. `docs/afterbuy-target-policy-contract.md`
-7. `docs/afterbuy-serpapi-data-contract.md`
-8. `docs/afterbuy-architecture.md`
-9. `openapi/afterbuy-a2mcp.openapi.yaml`
-10. `docs/afterbuy-build-order.md`
-11. `docs/afterbuy-test-and-proof-plan.md`
-12. `docs/afterbuy-privacy-security-threat-model.md`
-13. `docs/afterbuy-submission-runbook.md`
+2. `docs/nobu-clean-master-spec.md`
+3. `docs/nobu-current-state.md`
+4. `docs/nobu-hackathon-compliance-matrix.md`
+5. `docs/nobu-retailer-and-price-source-governance.md`
+6. `docs/nobu-target-policy-contract.md`
+7. `docs/nobu-serpapi-data-contract.md`
+8. `docs/nobu-architecture.md`
+9. `openapi/nobu-a2mcp.openapi.yaml`
+10. `docs/nobu-build-order.md`
+11. `docs/nobu-test-and-proof-plan.md`
+12. `docs/nobu-privacy-security-threat-model.md`
+13. `docs/nobu-submission-runbook.md`
 14. `docs/external-source-registry.md`
 
 ## Source precedence
@@ -46,8 +46,8 @@ Read these in order before planning or changing code:
 When sources conflict, use this order:
 
 1. Current official external rules, policies, terms, and API documentation
-2. `docs/afterbuy-clean-master-spec.md`
-3. `docs/afterbuy-current-state.md`
+2. `docs/nobu-clean-master-spec.md`
+3. `docs/nobu-current-state.md`
 4. Compliance and governance documents
 5. Policy/data contracts and OpenAPI contract
 6. Active build order
@@ -68,38 +68,38 @@ Dynamic external facts must be rechecked against the official URL before they ar
 
 ## Tool responsibilities
 
-- **ChatGPT:** product, architecture, lane coordination, source-of-truth management, and review. Upload `AFTERBUY_CHATGPT_PROJECT_SOURCE.md` and paste `CHATGPT_PROJECT_INSTRUCTIONS.md` into Project instructions. Modular files may also be uploaded as sources.
+- **ChatGPT:** product, architecture, lane coordination, source-of-truth management, and review. Upload `NOBU_CHATGPT_PROJECT_SOURCE.md` and paste `CHATGPT_PROJECT_INSTRUCTIONS.md` into Project instructions. Modular files may also be uploaded as sources.
 - **Grok Build:** primary repository implementation and test execution, lane by lane. Follow `AGENTS.md` and `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`.
 - **Regular Grok research:** current public discussion, competition, and external-change research only, using `prompts/GROK_RESEARCH_VERIFICATION_PROMPT.md`. Regular Grok research does not implement product code and does not override official sources.
 - **Official Target, OKX, and SerpApi sources** remain authoritative for external facts. Dynamic external facts must be rechecked against the official URL before repository changes.
-- **Claude/Codex (optional fallback only):** not the active AfterBuy implementation workflow. If needed, use `prompts/CLAUDE_CODEX_LANE_PROMPT_TEMPLATE.md` under the same hard locks.
+- **Claude/Codex (optional fallback only):** not the active Nobu implementation workflow. If needed, use `prompts/CLAUDE_CODEX_LANE_PROMPT_TEMPLATE.md` under the same hard locks.
 
 
 ---
 
 ## FILE: `AGENTS.md`
 
-# AGENTS.md — AfterBuy
+# AGENTS.md — Nobu
 
 ## Mandatory reading order
 
 Before planning, auditing, implementing, testing, documenting, or closing a lane, read:
 
-1. `docs/afterbuy-clean-master-spec.md`
-2. `docs/afterbuy-current-state.md`
-3. `docs/afterbuy-hackathon-compliance-matrix.md`
-4. `docs/afterbuy-retailer-and-price-source-governance.md`
-5. `docs/afterbuy-target-policy-contract.md`
-6. `docs/afterbuy-serpapi-data-contract.md`
-7. `docs/afterbuy-architecture.md`
-8. `openapi/afterbuy-a2mcp.openapi.yaml`
-9. `docs/afterbuy-build-order.md`
-10. `docs/afterbuy-test-and-proof-plan.md`
-11. `docs/afterbuy-privacy-security-threat-model.md`
-12. `docs/afterbuy-submission-runbook.md`
+1. `docs/nobu-clean-master-spec.md`
+2. `docs/nobu-current-state.md`
+3. `docs/nobu-hackathon-compliance-matrix.md`
+4. `docs/nobu-retailer-and-price-source-governance.md`
+5. `docs/nobu-target-policy-contract.md`
+6. `docs/nobu-serpapi-data-contract.md`
+7. `docs/nobu-architecture.md`
+8. `openapi/nobu-a2mcp.openapi.yaml`
+9. `docs/nobu-build-order.md`
+10. `docs/nobu-test-and-proof-plan.md`
+11. `docs/nobu-privacy-security-threat-model.md`
+12. `docs/nobu-submission-runbook.md`
 13. `docs/external-source-registry.md`
 
-The active build order is `docs/afterbuy-build-order.md`.
+The active build order is `docs/nobu-build-order.md`.
 
 ## Execution discipline
 
@@ -153,9 +153,9 @@ AI may not:
 
 ---
 
-## FILE: `docs/afterbuy-clean-master-spec.md`
+## FILE: `docs/nobu-clean-master-spec.md`
 
-# AfterBuy Clean Master Spec
+# Nobu Clean Master Spec
 
 **Version:** 1.0  
 **Status:** ACTIVE INTERNAL SOURCE OF TRUTH  
@@ -163,15 +163,15 @@ AI may not:
 
 ## 1. Product definition
 
-AfterBuy is a consumer post-purchase price-protection service and OKX.AI A2MCP ASP.
+Nobu is a consumer post-purchase price-protection service and OKX.AI A2MCP ASP.
 
-A user adds a recent eligible Target.com purchase once. AfterBuy identifies and locks the exact Target product, checks a third-party shopping data source for a lower Target online price while the purchase remains within Target's adjustment window, and alerts the user when a possible price-adjustment opportunity appears.
+A user adds a recent eligible Target.com purchase once. Nobu identifies and locks the exact Target product, checks a third-party shopping data source for a lower Target online price while the purchase remains within Target's adjustment window, and alerts the user when a possible price-adjustment opportunity appears.
 
-AfterBuy returns the observed price difference, remaining time, evidence provenance, policy conditions, and Target's official next step. Target verifies the price and makes the final decision.
+Nobu returns the observed price difference, remaining time, evidence provenance, policy conditions, and Target's official next step. Target verifies the price and makes the final decision.
 
 ## 2. Core user promise
 
-> Add a recent Target purchase once. AfterBuy watches the online price during the eligible window and alerts you when you may be able to request the difference.
+> Add a recent Target purchase once. Nobu watches the online price during the eligible window and alerts you when you may be able to request the difference.
 
 ## 3. Problem
 
@@ -239,12 +239,12 @@ Initial user:
 ## 7. User journey
 
 1. User enters a Target.com purchase URL, purchase price, purchase date, and optional model/TCIN/UPC.
-2. AfterBuy queries SerpApi for Target offers matching the product.
-3. AfterBuy returns one or more candidates with seller, product identifiers, URL, and observed price.
+2. Nobu queries SerpApi for Target offers matching the product.
+3. Nobu returns one or more candidates with seller, product identifiers, URL, and observed price.
 4. The user confirms the exact product once.
-5. AfterBuy stores the product fingerprint and starts checks until the 14-day window ends.
+5. Nobu stores the product fingerprint and starts checks until the 14-day window ends.
 6. Each scheduled check searches for the locked Target offer.
-7. If a lower valid observed price appears, AfterBuy creates an alert.
+7. If a lower valid observed price appears, Nobu creates an alert.
 8. The result shows potential recovery, days remaining, price provenance, and Target's official claim route.
 9. The user contacts Target. Target independently verifies the price and decides the adjustment.
 
@@ -279,7 +279,7 @@ Forbidden:
 - "Guaranteed refund"
 - "Target owes you"
 - "Refund confirmed"
-- "AfterBuy will recover your money"
+- "Nobu will recover your money"
 
 ## 10. Success criteria
 
@@ -299,9 +299,9 @@ The hackathon MVP is complete only when:
 
 ---
 
-## FILE: `docs/afterbuy-current-state.md`
+## FILE: `docs/nobu-current-state.md`
 
-# AfterBuy Current State
+# Nobu Current State
 
 **Date:** 2026-07-13  
 **Status:** LANE 0 COMPLETE / PRE-IMPLEMENTATION BASELINE ADOPTED
@@ -359,14 +359,14 @@ The deployment, API, scheduler, Target connector, SerpApi key, live query proof,
 
 ---
 
-## FILE: `docs/afterbuy-hackathon-compliance-matrix.md`
+## FILE: `docs/nobu-hackathon-compliance-matrix.md`
 
-# AfterBuy Hackathon Compliance Matrix
+# Nobu Hackathon Compliance Matrix
 
 **Official event:** OKX.AI Genesis Hackathon  
 **Submission deadline:** 2026-07-17 23:59 UTC
 
-| Requirement / criterion | Official basis | AfterBuy implementation | Required proof | Status |
+| Requirement / criterion | Official basis | Nobu implementation | Required proof | Status |
 |---|---|---|---|---|
 | Clear real-world use case | Build an ASP solving a clear real-world use case | Monitor recent Target purchases for possible price drops | Working end-to-end demo | Pending |
 | Crypto not required | Both crypto and non-crypto services welcome | Consumer shopping service | Listing description | Satisfied by design |
@@ -394,13 +394,13 @@ Do not bypass any OKX, Agentic Wallet, payment, identity, location, age, or guar
 
 ---
 
-## FILE: `docs/afterbuy-retailer-and-price-source-governance.md`
+## FILE: `docs/nobu-retailer-and-price-source-governance.md`
 
 # Retailer and Price-Source Governance
 
 ## Purpose
 
-This document prevents AfterBuy from treating convenient data as authoritative or expanding into unsupported retailers.
+This document prevents Nobu from treating convenient data as authoritative or expanding into unsupported retailers.
 
 ## Source classes
 
@@ -470,7 +470,7 @@ If any required condition is missing or ambiguous, return `MATCH_REVIEW_REQUIRED
 
 ---
 
-## FILE: `docs/afterbuy-target-policy-contract.md`
+## FILE: `docs/nobu-target-policy-contract.md`
 
 # Target U.S. Price-Match Policy Contract — MVP
 
@@ -505,7 +505,7 @@ Where applicable, identical means:
 - For Target.com/app purchases, the user contacts Target online chat or Guest Services phone.
 - Target team members verify the lower price.
 - Screenshots or pictures are not accepted as the final proof by Target.
-- AfterBuy's observation is an alert and decision aid, not Target's verification.
+- Nobu's observation is an alert and decision aid, not Target's verification.
 
 ## MVP exclusions
 
@@ -556,7 +556,7 @@ If the policy has not been rechecked within 24 hours during the hackathon submis
 
 ---
 
-## FILE: `docs/afterbuy-serpapi-data-contract.md`
+## FILE: `docs/nobu-serpapi-data-contract.md`
 
 # SerpApi Google Shopping Data Contract
 
@@ -640,9 +640,9 @@ The API key must remain server-side in an environment variable. Never include it
 
 ---
 
-## FILE: `docs/afterbuy-architecture.md`
+## FILE: `docs/nobu-architecture.md`
 
-# AfterBuy MVP Architecture
+# Nobu MVP Architecture
 
 ## Reference stack
 
@@ -757,9 +757,9 @@ Do not log receipt images, full addresses, emails, keys, or sensitive personal d
 
 ---
 
-## FILE: `docs/afterbuy-build-order.md`
+## FILE: `docs/nobu-build-order.md`
 
-# AfterBuy Active Build Order
+# Nobu Active Build Order
 
 **Status:** ACTIVE BUILD ORDER  
 **Date:** 2026-07-13
@@ -890,9 +890,9 @@ No second retailer during the hackathon MVP.
 
 ---
 
-## FILE: `docs/afterbuy-test-and-proof-plan.md`
+## FILE: `docs/nobu-test-and-proof-plan.md`
 
-# AfterBuy Test and Proof Plan
+# Nobu Test and Proof Plan
 
 ## Principles
 
@@ -1000,9 +1000,9 @@ Archive:
 
 ---
 
-## FILE: `docs/afterbuy-privacy-security-threat-model.md`
+## FILE: `docs/nobu-privacy-security-threat-model.md`
 
-# AfterBuy Privacy and Security Threat Model
+# Nobu Privacy and Security Threat Model
 
 ## Sensitive data risks
 
@@ -1075,13 +1075,13 @@ Never provide instructions to bypass OKX, retailer, payment, identity, age, regi
 
 ---
 
-## FILE: `docs/afterbuy-submission-runbook.md`
+## FILE: `docs/nobu-submission-runbook.md`
 
-# AfterBuy Submission Runbook
+# Nobu Submission Runbook
 
 ## Listing identity
 
-**Name:** AfterBuy  
+**Name:** Nobu  
 **Type:** A2MCP  
 **Initial price:** 0  
 **Primary category:** Lifestyle Companion  
@@ -1089,7 +1089,7 @@ Never provide instructions to bypass OKX, retailer, payment, identity, age, regi
 
 ## Accurate listing description
 
-> AfterBuy checks a recent eligible Target.com purchase against a third-party observed Target online price and Target's current price-match rules. It returns a possible price drop, estimated difference, remaining request window, evidence provenance, and Target's official next step. Target verifies the lower price and makes the final decision.
+> Nobu checks a recent eligible Target.com purchase against a third-party observed Target online price and Target's current price-match rules. It returns a possible price drop, estimated difference, remaining request window, evidence provenance, and Target's official next step. Target verifies the lower price and makes the final decision.
 
 Do not claim:
 
@@ -1126,7 +1126,7 @@ Do not bypass any platform account or eligibility requirement.
 ## X post checklist
 
 - `#OKXAI` included;
-- AfterBuy introduced in one sentence;
+- Nobu introduced in one sentence;
 - real user problem explained;
 - demo/walkthrough no longer than 90 seconds;
 - price source honestly labelled;
@@ -1137,11 +1137,11 @@ Do not bypass any platform account or eligibility requirement.
 ## Demo story
 
 1. User adds a recent Target.com purchase.
-2. AfterBuy identifies a Target offer and the user confirms the exact product.
+2. Nobu identifies a Target offer and the user confirms the exact product.
 3. Monitoring runs.
 4. A lower observed Target price appears.
-5. AfterBuy shows potential recovery and days remaining.
-6. AfterBuy shows Target's official contact route and explains Target verifies the price.
+5. Nobu shows potential recovery and days remaining.
+6. Nobu shows Target's official contact route and explains Target verifies the price.
 
 If a natural live price drop is unavailable, use a clearly labelled recorded historical observation or test fixture for the transition while still showing a real live provider lookup. Never present a fixture as a real current refund opportunity.
 

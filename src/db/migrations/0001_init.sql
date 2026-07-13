@@ -1,4 +1,4 @@
--- AfterBuy Lane 1 initial schema
+-- Nobu Lane 1 initial schema
 -- Dialect: SQLite for local proof; column types map 1:1 to PostgreSQL TEXT/REAL/INTEGER.
 -- Production deployment may re-target PostgreSQL without changing logical models.
 

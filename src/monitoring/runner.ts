@@ -1,4 +1,4 @@
-import type { AfterBuyDatabase } from "../db/migrator.js";
+import type { NobuDatabase } from "../db/migrator.js";
 import { MATCH_RULE_VERSION } from "../matching/rules.js";
 import { canConsumeSearches, consumeSearches } from "./budget.js";
 import { createPriceDropAlert } from "./alerts.js";
@@ -23,7 +23,7 @@ import type {
 } from "./types.js";
 
 export interface RunMonitoringOptions {
-  db: AfterBuyDatabase;
+  db: NobuDatabase;
   mode: MonitorMode;
   as_of?: string;
   /** Optional single purchase for manual check. */

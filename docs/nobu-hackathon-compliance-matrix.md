@@ -1,9 +1,9 @@
-# AfterBuy Hackathon Compliance Matrix
+# Nobu Hackathon Compliance Matrix
 
 **Official event:** OKX.AI Genesis Hackathon  
 **Submission deadline:** 2026-07-17 23:59 UTC
 
-| Requirement / criterion | Official basis | AfterBuy implementation | Required proof | Status |
+| Requirement / criterion | Official basis | Nobu implementation | Required proof | Status |
 |---|---|---|---|---|
 | Clear real-world use case | Build an ASP solving a clear real-world use case | Monitor recent Target purchases for possible price drops | Working end-to-end demo | Pending |
 | Crypto not required | Both crypto and non-crypto services welcome | Consumer shopping service | Listing description | Satisfied by design |

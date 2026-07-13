@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const MIGRATIONS_DIR = path.join(__dirname, "migrations");
 
-export type AfterBuyDatabase = DatabaseSync;
+export type NobuDatabase = DatabaseSync;
 
 export interface MigrationFile {
   id: string;
@@ -38,13 +38,13 @@ export function listMigrations(migrationsDir = MIGRATIONS_DIR): MigrationFile[] 
 
 export function openDatabase(
   filename: string | ":memory:" = ":memory:",
-): AfterBuyDatabase {
+): NobuDatabase {
   const db = new DatabaseSync(filename);
   db.exec("PRAGMA foreign_keys = ON;");
   return db;
 }
 
-function ensureMigrationsTable(db: AfterBuyDatabase): void {
+function ensureMigrationsTable(db: NobuDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id TEXT PRIMARY KEY NOT NULL,
@@ -53,7 +53,7 @@ function ensureMigrationsTable(db: AfterBuyDatabase): void {
   `);
 }
 
-export function getAppliedMigrations(db: AfterBuyDatabase): string[] {
+export function getAppliedMigrations(db: NobuDatabase): string[] {
   ensureMigrationsTable(db);
   const rows = db
     .prepare("SELECT id FROM schema_migrations ORDER BY id ASC")
@@ -62,7 +62,7 @@ export function getAppliedMigrations(db: AfterBuyDatabase): string[] {
 }
 
 export function migrateUp(
-  db: AfterBuyDatabase,
+  db: NobuDatabase,
   migrationsDir = MIGRATIONS_DIR,
 ): string[] {
   ensureMigrationsTable(db);
@@ -90,7 +90,7 @@ export function migrateUp(
 }
 
 export function migrateDown(
-  db: AfterBuyDatabase,
+  db: NobuDatabase,
   migrationsDir = MIGRATIONS_DIR,
   steps = 1,
 ): string[] {
@@ -122,7 +122,7 @@ export function migrateDown(
   return reversed;
 }
 
-export function tableExists(db: AfterBuyDatabase, table: string): boolean {
+export function tableExists(db: NobuDatabase, table: string): boolean {
   const row = db
     .prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",

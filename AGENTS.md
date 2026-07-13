@@ -1,24 +1,24 @@
-# AGENTS.md — AfterBuy
+# AGENTS.md — Nobu
 
 ## Mandatory reading order
 
 Before planning, auditing, implementing, testing, documenting, or closing a lane, read:
 
-1. `docs/afterbuy-clean-master-spec.md`
-2. `docs/afterbuy-current-state.md`
-3. `docs/afterbuy-hackathon-compliance-matrix.md`
-4. `docs/afterbuy-retailer-and-price-source-governance.md`
-5. `docs/afterbuy-target-policy-contract.md`
-6. `docs/afterbuy-serpapi-data-contract.md`
-7. `docs/afterbuy-architecture.md`
-8. `openapi/afterbuy-a2mcp.openapi.yaml`
-9. `docs/afterbuy-build-order.md`
-10. `docs/afterbuy-test-and-proof-plan.md`
-11. `docs/afterbuy-privacy-security-threat-model.md`
-12. `docs/afterbuy-submission-runbook.md`
+1. `docs/nobu-clean-master-spec.md`
+2. `docs/nobu-current-state.md`
+3. `docs/nobu-hackathon-compliance-matrix.md`
+4. `docs/nobu-retailer-and-price-source-governance.md`
+5. `docs/nobu-target-policy-contract.md`
+6. `docs/nobu-serpapi-data-contract.md`
+7. `docs/nobu-architecture.md`
+8. `openapi/nobu-a2mcp.openapi.yaml`
+9. `docs/nobu-build-order.md`
+10. `docs/nobu-test-and-proof-plan.md`
+11. `docs/nobu-privacy-security-threat-model.md`
+12. `docs/nobu-submission-runbook.md`
 13. `docs/external-source-registry.md`
 
-The active build order is `docs/afterbuy-build-order.md`.
+The active build order is `docs/nobu-build-order.md`.
 
 ## Execution discipline
 

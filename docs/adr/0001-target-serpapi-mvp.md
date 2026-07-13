@@ -5,7 +5,7 @@
 
 ## Decision
 
-Build the original consumer AfterBuy product around eligible Target.com purchases. Use SerpApi Google Shopping as a provisional third-party observed price source.
+Build the original consumer Nobu product around eligible Target.com purchases. Use SerpApi Google Shopping as a provisional third-party observed price source.
 
 ## Reasons
 

@@ -1,8 +1,8 @@
-# AfterBuy Submission Runbook
+# Nobu Submission Runbook
 
 ## Listing identity
 
-**Name:** AfterBuy  
+**Name:** Nobu  
 **Type:** A2MCP  
 **Initial price:** 0  
 **Primary category:** Lifestyle Companion  
@@ -10,7 +10,7 @@
 
 ## Accurate listing description
 
-> AfterBuy checks a recent eligible Target.com purchase against a third-party observed Target online price and Target's current price-match rules. It returns a possible price drop, estimated difference, remaining request window, evidence provenance, and Target's official next step. Target verifies the lower price and makes the final decision.
+> Nobu checks a recent eligible Target.com purchase against a third-party observed Target online price and Target's current price-match rules. It returns a possible price drop, estimated difference, remaining request window, evidence provenance, and Target's official next step. Target verifies the lower price and makes the final decision.
 
 Do not claim:
 
@@ -47,7 +47,7 @@ Do not bypass any platform account or eligibility requirement.
 ## X post checklist
 
 - `#OKXAI` included;
-- AfterBuy introduced in one sentence;
+- Nobu introduced in one sentence;
 - real user problem explained;
 - demo/walkthrough no longer than 90 seconds;
 - price source honestly labelled;
@@ -58,11 +58,11 @@ Do not bypass any platform account or eligibility requirement.
 ## Demo story
 
 1. User adds a recent Target.com purchase.
-2. AfterBuy identifies a Target offer and the user confirms the exact product.
+2. Nobu identifies a Target offer and the user confirms the exact product.
 3. Monitoring runs.
 4. A lower observed Target price appears.
-5. AfterBuy shows potential recovery and days remaining.
-6. AfterBuy shows Target's official contact route and explains Target verifies the price.
+5. Nobu shows potential recovery and days remaining.
+6. Nobu shows Target's official contact route and explains Target verifies the price.
 
 If a natural live price drop is unavailable, use a clearly labelled recorded historical observation or test fixture for the transition while still showing a real live provider lookup. Never present a fixture as a real current refund opportunity.
 

@@ -12,7 +12,7 @@ async function main(): Promise<void> {
   const client = createSerpApiClientFromEnv();
   if (!client) {
     console.error(
-      "AFTERBUY_LANE_3_BLOCKED: SERPAPI_API_KEY is not set. Offline connector tests may still pass.",
+      "NOBU_LANE_3_BLOCKED: SERPAPI_API_KEY is not set. Offline connector tests may still pass.",
     );
     process.exitCode = 2;
     return;

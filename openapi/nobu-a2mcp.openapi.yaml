@@ -1,14 +1,14 @@
 openapi: 3.1.0
 info:
-  title: AfterBuy A2MCP API
+  title: Nobu A2MCP API
   version: 1.0.0
   description: >-
     Checks a recent eligible Target.com purchase against a third-party observed
     Target online price and Target's current price-match policy. Target verifies
     the lower price and makes the final decision.
 servers:
-  - url: https://afterbuy.vercel.app
-    description: Public HTTPS free A2MCP (Lane 7 proved 2026-07-13)
+  - url: https://PUBLIC_HTTPS_BASE_URL
+    description: Public HTTPS free A2MCP (see docs/proof/historical-afterbuy for prior production hostname proof)
   - url: http://127.0.0.1:3000
     description: Local Next.js dev only — not external proof
 paths:

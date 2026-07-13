@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { AfterBuyDatabase } from "../db/migrator.js";
+import type { NobuDatabase } from "../db/migrator.js";
 import type { LockedProductFingerprint } from "../domain/product-fingerprint.js";
 import {
   DEFAULT_MONTHLY_SEARCH_LIMIT,
@@ -21,7 +21,7 @@ export function newId(prefix: string): string {
 }
 
 export function loadSearchBudget(
-  db: AfterBuyDatabase,
+  db: NobuDatabase,
   asOfIso: string,
   limit = DEFAULT_MONTHLY_SEARCH_LIMIT,
 ): SearchBudgetSnapshot {
@@ -50,7 +50,7 @@ export function loadSearchBudget(
 }
 
 export function saveSearchBudget(
-  db: AfterBuyDatabase,
+  db: NobuDatabase,
   budget: SearchBudgetSnapshot,
   asOfIso: string,
 ): void {
@@ -64,7 +64,7 @@ export function saveSearchBudget(
   ).run(budget.period_key, budget.used, budget.limit, asOfIso);
 }
 
-export function listPurchaseRows(db: AfterBuyDatabase): PurchaseSelectionRow[] {
+export function listPurchaseRows(db: NobuDatabase): PurchaseSelectionRow[] {
   return db
     .prepare(
       `SELECT id, status, purchase_price, currency, purchase_date, purchase_channel,
@@ -76,7 +76,7 @@ export function listPurchaseRows(db: AfterBuyDatabase): PurchaseSelectionRow[] {
 }
 
 export function loadFingerprint(
-  db: AfterBuyDatabase,
+  db: NobuDatabase,
   fingerprintId: string,
 ): LockedProductFingerprint | null {
   const row = db
@@ -89,7 +89,7 @@ export function loadFingerprint(
 }
 
 export function markPurchaseWindowExpired(
-  db: AfterBuyDatabase,
+  db: NobuDatabase,
   purchaseId: string,
   asOfIso: string,
 ): void {
@@ -99,7 +99,7 @@ export function markPurchaseWindowExpired(
 }
 
 export function insertMonitorRun(args: {
-  db: AfterBuyDatabase;
+  db: NobuDatabase;
   purchase_id: string;
   mode: MonitorMode;
   outcome: MonitorRunOutcome;
@@ -141,7 +141,7 @@ export function insertMonitorRun(args: {
 }
 
 export function insertPriceObservation(args: {
-  db: AfterBuyDatabase;
+  db: NobuDatabase;
   purchase: ActivePurchase;
   fingerprint_id: string;
   offer_title: string;
@@ -206,7 +206,7 @@ export function insertPriceObservation(args: {
 
 /** Insert alert if alert_key is new; returns { id, created }. */
 export function insertAlertIdempotent(
-  db: AfterBuyDatabase,
+  db: NobuDatabase,
   alert: PriceDropAlert,
 ): { id: string; created: boolean } {
   const existing = db
@@ -240,7 +240,7 @@ export function insertAlertIdempotent(
 }
 
 export function countAlertsForPurchase(
-  db: AfterBuyDatabase,
+  db: NobuDatabase,
   purchaseId: string,
 ): number {
   const row = db

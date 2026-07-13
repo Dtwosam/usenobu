@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 
-test.describe("AfterBuy consumer web flow (fixture-labelled)", () => {
+test.describe("Nobu consumer web flow (fixture-labelled)", () => {
   test.beforeAll(() => {
     // Fresh DB for e2e process (webServer also sets path)
     try {
-      fs.rmSync("data/afterbuy.e2e.sqlite", { force: true });
+      fs.rmSync("data/nobu.e2e.sqlite", { force: true });
     } catch {
       // ignore
     }

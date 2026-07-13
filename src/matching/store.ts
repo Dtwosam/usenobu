@@ -1,4 +1,4 @@
-import type { AfterBuyDatabase } from "../db/migrator.js";
+import type { NobuDatabase } from "../db/migrator.js";
 import type { LockedProductFingerprint } from "../domain/product-fingerprint.js";
 import { MatchLifecycle } from "../domain/enums.js";
 import { confirmProductMatch, newMatchRowId, type ConfirmMatchInput } from "./confirm.js";
@@ -6,7 +6,7 @@ import { MATCH_RULE_VERSION } from "./rules.js";
 import type { MatchEvaluationResult, PurchaseMatchReference, ScoredCandidate } from "./types.js";
 
 export interface PersistCandidatesInput {
-  db: AfterBuyDatabase;
+  db: NobuDatabase;
   purchaseId: string;
   evaluation: MatchEvaluationResult;
   now?: string;
@@ -71,7 +71,7 @@ export function persistMatchEvaluation(input: PersistCandidatesInput): string[] 
 }
 
 export interface ConfirmAndPersistInput {
-  db: AfterBuyDatabase;
+  db: NobuDatabase;
   purchase: PurchaseMatchReference & { purchase_id: string };
   candidate: ScoredCandidate;
   confirmed_at?: string;
@@ -183,7 +183,7 @@ export function confirmAndPersistLockedFingerprint(
 }
 
 export function getLockedFingerprint(
-  db: AfterBuyDatabase,
+  db: NobuDatabase,
   fingerprintId: string,
 ): LockedProductFingerprint | null {
   const row = db

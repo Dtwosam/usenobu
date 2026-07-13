@@ -1,7 +1,7 @@
 # File Manifest
 
 - `PROJECT_DESCRIPTION.md`
-- `AFTERBUY_CHATGPT_PROJECT_SOURCE.md`
+- `NOBU_CHATGPT_PROJECT_SOURCE.md`
 - `AGENTS.md`
 - `CHATGPT_PROJECT_INSTRUCTIONS.md`
 - `START-HERE.md`
@@ -21,7 +21,6 @@
 - `src/web/` (purchase service, fixture labels, server actions)
 - `src/a2mcp/` (free A2MCP check service, rate limit, audit)
 - `app/` (Next.js consumer UI + `/health` + `/v1/target-price-check`)
-- `docs/proof/a2mcp/` (Lane 7 endpoint proof notes)
 - `tests/domain/`
 - `tests/db/`
 - `tests/policy/`
@@ -31,25 +30,25 @@
 - `tests/e2e/` (Playwright consumer flow)
 - `tests/a2mcp/`
 - `tests/fixtures/serpapi/`
-- `docs/proof/serpapi/` (offline + live redacted capability proof; repair-audit-summary.json)
 - `data/retailer-policies/target-us-v1.yaml`
 - `docs/adr/0001-target-serpapi-mvp.md`
 - `docs/adr/0002-a2mcp-free-first.md`
 - `docs/adr/0003-fail-closed-price-matching.md`
 - `docs/adr/0004-no-retailer-login-or-claim-submission.md`
-- `docs/afterbuy-architecture.md`
-- `docs/afterbuy-build-order.md`
-- `docs/afterbuy-clean-master-spec.md`
-- `docs/afterbuy-current-state.md`
-- `docs/afterbuy-hackathon-compliance-matrix.md`
-- `docs/afterbuy-privacy-security-threat-model.md`
-- `docs/afterbuy-retailer-and-price-source-governance.md`
-- `docs/afterbuy-serpapi-data-contract.md`
-- `docs/afterbuy-submission-runbook.md`
-- `docs/afterbuy-target-policy-contract.md`
-- `docs/afterbuy-test-and-proof-plan.md`
+- `docs/nobu-architecture.md`
+- `docs/nobu-build-order.md`
+- `docs/nobu-clean-master-spec.md`
+- `docs/nobu-current-state.md`
+- `docs/nobu-hackathon-compliance-matrix.md`
+- `docs/nobu-privacy-security-threat-model.md`
+- `docs/nobu-retailer-and-price-source-governance.md`
+- `docs/nobu-serpapi-data-contract.md`
+- `docs/nobu-submission-runbook.md`
+- `docs/nobu-target-policy-contract.md`
+- `docs/nobu-test-and-proof-plan.md`
 - `docs/external-source-registry.md`
-- `openapi/afterbuy-a2mcp.openapi.yaml`
+- `docs/proof/historical-afterbuy/` (immutable prior-brand proof only)
+- `openapi/nobu-a2mcp.openapi.yaml`
 - `prompts/CHATGPT_HANDOFF_PROMPT.md`
 - `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`
 - `prompts/GROK_RESEARCH_VERIFICATION_PROMPT.md`

@@ -1,4 +1,4 @@
-# AfterBuy Test and Proof Plan
+# Nobu Test and Proof Plan
 
 ## Principles
 

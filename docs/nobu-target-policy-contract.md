@@ -31,7 +31,7 @@ Where applicable, identical means:
 - For Target.com/app purchases, the user contacts Target online chat or Guest Services phone.
 - Target team members verify the lower price.
 - Screenshots or pictures are not accepted as the final proof by Target.
-- AfterBuy's observation is an alert and decision aid, not Target's verification.
+- Nobu's observation is an alert and decision aid, not Target's verification.
 
 ## MVP exclusions
 

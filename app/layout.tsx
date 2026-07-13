@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AfterBuy — Target price-drop monitoring",
+  title: "Nobu — Target price-drop monitoring",
   description:
     "Monitor recent Target.com purchases for possible price drops. Third-party observed prices; Target decides.",
 };
@@ -18,7 +18,7 @@ export default function RootLayout({
         <header className="site">
           <div>
             <a href="/" data-testid="nav-home">
-              AfterBuy
+              Nobu
             </a>
             <a href="/purchases/new" data-testid="nav-add">
               Add purchase

@@ -3,16 +3,16 @@ import path from "node:path";
 import {
   migrateUp,
   openDatabase,
-  type AfterBuyDatabase,
+  type NobuDatabase,
 } from "../db/index.js";
 
-let cached: AfterBuyDatabase | null = null;
+let cached: NobuDatabase | null = null;
 let cachedPath: string | null = null;
 
-export function getWebDatabase(): AfterBuyDatabase {
+export function getWebDatabase(): NobuDatabase {
   const dbPath =
-    process.env.AFTERBUY_DB_PATH ??
-    path.join(process.cwd(), "data", "afterbuy.web.sqlite");
+    process.env.NOBU_DB_PATH ??
+    path.join(process.cwd(), "data", "nobu.web.sqlite");
 
   if (cached && cachedPath === dbPath) {
     return cached;

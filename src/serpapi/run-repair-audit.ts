@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   const client = createSerpApiClientFromEnv();
   if (!client) {
     console.error(
-      "AFTERBUY_LANE_3_BLOCKED: SERPAPI_API_KEY is not set. Cannot run live repair audit.",
+      "NOBU_LANE_3_BLOCKED: SERPAPI_API_KEY is not set. Cannot run live repair audit.",
     );
     process.exitCode = 2;
     return;
@@ -200,7 +200,7 @@ async function main(): Promise<void> {
   }
 
   const summary = {
-    verdict: passing ? "AFTERBUY_LANE_3_PASS" : "AFTERBUY_LANE_3_BLOCKED",
+    verdict: passing ? "NOBU_LANE_3_PASS" : "NOBU_LANE_3_BLOCKED",
     searches_consumed: client.getUsageCount(),
     max_searches: MAX_SEARCHES,
     target_shoprs_discovered: Boolean(targetShoprs),

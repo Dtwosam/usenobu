@@ -1,6 +1,6 @@
 /**
- * Optional local migration CLI. Uses SQLite file path from AFTERBUY_DB_PATH
- * or defaults to ./data/afterbuy.local.sqlite (gitignored via *.sqlite).
+ * Optional local migration CLI. Uses SQLite file path from NOBU_DB_PATH
+ * or defaults to ./data/nobu.local.sqlite (gitignored via *.sqlite).
  * No secrets required. Uses Node built-in node:sqlite (Node >= 22.5).
  */
 import path from "node:path";
@@ -12,8 +12,8 @@ import {
 
 const command = process.argv[2] ?? "up";
 const dbPath =
-  process.env.AFTERBUY_DB_PATH ??
-  path.join(process.cwd(), "data", "afterbuy.local.sqlite");
+  process.env.NOBU_DB_PATH ??
+  path.join(process.cwd(), "data", "nobu.local.sqlite");
 
 const db = openDatabase(dbPath);
 

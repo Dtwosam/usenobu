@@ -58,7 +58,7 @@ describe("TargetPolicyResultSchema", () => {
     expect(
       safeParseTargetPolicyResult({
         ...base,
-        final_decision_by: "AfterBuy",
+        final_decision_by: "Nobu",
       }).success,
     ).toBe(false);
   });
