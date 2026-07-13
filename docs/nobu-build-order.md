@@ -95,11 +95,10 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 ## Lane 7.5A — Global Nobu rename
 
 - Rename active project identity to Nobu across UI, docs, package metadata, OpenAPI, prompts, env names, and source comments.
-- Move immutable historical proof that retains the prior brand to `docs/proof/historical-afterbuy/`.
 - Keep A2MCP routes `/health` and `/v1/target-price-check` unchanged.
 - Do not change Target policy, matching, monitoring, or HTTP contract behavior.
 
-**Proof:** active repository scan empty of the prior brand (except documented `docs/proof/historical-afterbuy/`); tests, typecheck, and build pass.
+**Proof:** active repository scan empty of the prior brand; tests, typecheck, and build pass.
 
 ## Lane 7.5B1 — Design foundation and reusable UI components
 
@@ -126,6 +125,16 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 - Deploy consumer UI only after proof; still no OKX registration until Lane 8.
 
 **Proof:** polished screenshots, residual fixes, deployment evidence if approved.
+
+## Lane 7.5C — UseNobu production identity
+
+- Remove every residual prior-brand string, path, and proof archive from the working tree.
+- Vercel project name: `usenobu`.
+- Primary production URL: `https://usenobu.vercel.app` (public, no SSO).
+- Product name remains Nobu; deployment identity is UseNobu.
+- No OKX registration in this lane.
+
+**Proof:** case-insensitive prior-brand repository scan empty; production health and A2MCP checks on usenobu.vercel.app; proof under `docs/proof/usenobu-production/`.
 
 ## Lane 8 — OKX ASP registration and live listing
 

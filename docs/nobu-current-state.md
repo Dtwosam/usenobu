@@ -1,11 +1,14 @@
 # Nobu Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 7.5B3 COMPLETE / POLISH + PRODUCTION DEPLOY
+**Status:** LANE 7.5C COMPLETE / USENOBU PRODUCTION
 
 ## Locked decisions
 
-- Product name: **Nobu** (prior brand archives only under `docs/proof/historical-afterbuy/`).
+- Product name: **Nobu**
+- Public deployment identity: **UseNobu**
+- Vercel project: **usenobu**
+- Production URL: **https://usenobu.vercel.app**
 - Consumer price-drop protection for Target.com MVP.
 - Free A2MCP one-time check first; no x402/wallet work until free listing is stable.
 - SerpApi third-party observation only; never official Target API.
@@ -17,27 +20,25 @@
 
 | Item | Value |
 |---|---|
-| Public production URL | **https://afterbuy.vercel.app** |
+| Public production URL | **https://usenobu.vercel.app** |
+| Deployment identity | UseNobu |
 | Health service | `nobu-a2mcp` |
-| Preferred `nobu.vercel.app` | Unavailable (third-party in use) |
-| Extra Nobu aliases | Created but SSO-protected (not public) |
+| Proof archive | `docs/proof/usenobu-production/` |
 
 Public A2MCP routes (unchanged):
 
 - `GET /health`
 - `POST /v1/target-price-check`
 
-## Lane 7.5B3 proof completed
+## Lane 7.5C proof completed
 
 | Item | Result |
 |---|---|
-| Visual QA checklist | `docs/proof/ui/final/qa-checklist.md` |
-| Final screenshots | `docs/proof/ui/final/` |
-| Header responsive fix | Desktop CTA only; mobile menu only |
-| Raw enum UI | Hidden; plain-English labels only |
-| axe serious/critical | 0 on key routes |
-| Production health | `nobu-a2mcp`, SerpApi configured |
-| Production A2MCP POST | Truthful structured JSON |
+| Prior-brand working-tree scan | Empty |
+| Historical prior-brand folder | Removed from working tree (Git history retains past commits) |
+| OpenAPI production server | `https://usenobu.vercel.app` |
+| Public accessibility | No Vercel login/SSO required |
+| Health / A2MCP | Verified on UseNobu URL |
 | Domain / API / matching | Unchanged |
 
 ## Hard locks (unchanged)

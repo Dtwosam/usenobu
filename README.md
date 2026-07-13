@@ -1,7 +1,7 @@
 # Nobu
 
-**Status:** Lane 7.5B3 complete / polished + production  
-**Production:** https://afterbuy.vercel.app (UI brand Nobu; health `nobu-a2mcp`)  
+**Status:** Lane 7.5C complete / UseNobu production  
+**Production:** https://usenobu.vercel.app (UseNobu; product Nobu; health `nobu-a2mcp`)  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  
@@ -86,10 +86,9 @@ npm run dev
 # Browser E2E proof
 npm run test:e2e
 
-# Free public A2MCP (routes unchanged; host via APP_BASE_URL)
-# GET  {APP_BASE_URL}/health
-# POST {APP_BASE_URL}/v1/target-price-check
-# Historical public hostname proof: docs/proof/historical-afterbuy/
+# Free public A2MCP (UseNobu production)
+# GET  https://usenobu.vercel.app/health
+# POST https://usenobu.vercel.app/v1/target-price-check
 
 # One bounded live capability audit (requires SERPAPI_API_KEY; never commit the key)
 npm run serpapi:live-audit

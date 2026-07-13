@@ -56,7 +56,7 @@
 - `docs/nobu-target-policy-contract.md`
 - `docs/nobu-test-and-proof-plan.md`
 - `docs/external-source-registry.md`
-- `docs/proof/historical-afterbuy/` (immutable prior-brand proof only)
+- `docs/proof/usenobu-production/` (UseNobu public production verification)
 - `openapi/nobu-a2mcp.openapi.yaml`
 - `prompts/CHATGPT_HANDOFF_PROMPT.md`
 - `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`
