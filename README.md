@@ -1,6 +1,6 @@
 # AfterBuy
 
-**Status:** Lane 4 complete / fail-closed product matching and confirmation  
+**Status:** Lane 5 complete / idempotent price monitoring loop  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  
@@ -73,7 +73,7 @@ npm test
 npm run typecheck
 ```
 
-Lane 1 domain contracts live under `src/domain/`. Database models and SQL migrations live under `src/db/`. The Lane 2 Target policy engine lives under `src/policy/`. The Lane 3 SerpApi connector lives under `src/serpapi/` (server-only; third-party observation, not an official Target API). Fail-closed product matching and confirmation live under `src/matching/`. Local migration proof uses Node built-in `node:sqlite` (no secrets, no native compile). Production remains PostgreSQL per the architecture doc.
+Lane 1 domain contracts live under `src/domain/`. Database models and SQL migrations live under `src/db/`. The Lane 2 Target policy engine lives under `src/policy/`. The Lane 3 SerpApi connector lives under `src/serpapi/` (server-only; third-party observation, not an official Target API). Fail-closed product matching and confirmation live under `src/matching/`. The price monitoring loop lives under `src/monitoring/`. Local migration proof uses Node built-in `node:sqlite` (no secrets, no native compile). Production remains PostgreSQL per the architecture doc.
 
 ```bash
 # Offline connector tests (no key required)
@@ -100,7 +100,7 @@ A different stack requires an ADR and must not weaken the contracts.
 
 See `docs/afterbuy-current-state.md` for the current lane and `docs/afterbuy-build-order.md` for the full sequence. Do not skip lanes or invent live proof.
 
-**Current active lane after Lane 4 closeout:** Lane 5 — Price monitoring loop.
+**Current active lane after Lane 5 closeout:** Lane 6 — Consumer web flow.
 
 ## License / secrets
 

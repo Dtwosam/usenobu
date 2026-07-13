@@ -10,17 +10,29 @@ import {
 } from "../../src/db/index.js";
 
 describe("database migrations", () => {
-  it("lists 0001 and 0002 migration pairs", () => {
+  it("lists 0001–0003 migration pairs", () => {
     const migrations = listMigrations();
-    expect(migrations.map((m) => m.id)).toEqual(["0001_init", "0002_matching"]);
+    expect(migrations.map((m) => m.id)).toEqual([
+      "0001_init",
+      "0002_matching",
+      "0003_monitoring",
+    ]);
   });
 
   it("applies cleanly and creates required tables", () => {
     const db = openDatabase(":memory:");
     try {
       const applied = migrateUp(db);
-      expect(applied).toEqual(["0001_init", "0002_matching"]);
-      expect(getAppliedMigrations(db)).toEqual(["0001_init", "0002_matching"]);
+      expect(applied).toEqual([
+        "0001_init",
+        "0002_matching",
+        "0003_monitoring",
+      ]);
+      expect(getAppliedMigrations(db)).toEqual([
+        "0001_init",
+        "0002_matching",
+        "0003_monitoring",
+      ]);
 
       for (const table of TABLE_NAMES) {
         expect(tableExists(db, table)).toBe(true);
@@ -29,7 +41,11 @@ describe("database migrations", () => {
 
       // Idempotent second up: no duplicate apply
       expect(migrateUp(db)).toEqual([]);
-      expect(getAppliedMigrations(db)).toEqual(["0001_init", "0002_matching"]);
+      expect(getAppliedMigrations(db)).toEqual([
+        "0001_init",
+        "0002_matching",
+        "0003_monitoring",
+      ]);
     } finally {
       db.close();
     }
@@ -39,21 +55,33 @@ describe("database migrations", () => {
     const db = openDatabase(":memory:");
     try {
       migrateUp(db);
-      const reversed2 = migrateDown(db, undefined, 1);
-      expect(reversed2).toEqual(["0002_matching"]);
+      expect(migrateDown(db, undefined, 1)).toEqual(["0003_monitoring"]);
+      expect(tableExists(db, "alerts")).toBe(false);
+      expect(tableExists(db, "monitor_runs")).toBe(false);
+      expect(tableExists(db, "product_fingerprints")).toBe(true);
+
+      expect(migrateDown(db, undefined, 1)).toEqual(["0002_matching"]);
       expect(tableExists(db, "product_fingerprints")).toBe(false);
       expect(tableExists(db, "purchases")).toBe(true);
 
-      const reversed1 = migrateDown(db, undefined, 1);
-      expect(reversed1).toEqual(["0001_init"]);
+      expect(migrateDown(db, undefined, 1)).toEqual(["0001_init"]);
       expect(getAppliedMigrations(db)).toEqual([]);
 
-      for (const table of ["policy_versions", "purchases", "product_matches", "price_observations"]) {
+      for (const table of [
+        "policy_versions",
+        "purchases",
+        "product_matches",
+        "price_observations",
+      ]) {
         expect(tableExists(db, table)).toBe(false);
       }
 
       const reapplied = migrateUp(db);
-      expect(reapplied).toEqual(["0001_init", "0002_matching"]);
+      expect(reapplied).toEqual([
+        "0001_init",
+        "0002_matching",
+        "0003_monitoring",
+      ]);
       for (const table of TABLE_NAMES) {
         expect(tableExists(db, table)).toBe(true);
       }

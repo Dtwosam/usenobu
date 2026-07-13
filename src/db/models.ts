@@ -124,12 +124,53 @@ export interface PriceObservationRow {
   created_at: string;
 }
 
+export interface MonitorRunRow {
+  id: string;
+  purchase_id: string;
+  mode: string;
+  outcome: string;
+  skip_reason: string | null;
+  searches_consumed: number;
+  observation_id: string | null;
+  alert_id: string | null;
+  provider_status: string | null;
+  match_result: string | null;
+  notes: string | null;
+  started_at: string;
+  finished_at: string;
+}
+
+export interface AlertRow {
+  id: string;
+  purchase_id: string;
+  fingerprint_id: string;
+  observation_id: string;
+  purchase_price: number;
+  observed_price: number;
+  potential_recovery: number;
+  currency: string;
+  alert_key: string;
+  status: string;
+  disclaimer: string;
+  created_at: string;
+}
+
+export interface SearchBudgetLedgerRow {
+  period_key: string;
+  used_count: number;
+  limit_count: number;
+  updated_at: string;
+}
+
 export const TABLE_NAMES = [
   "policy_versions",
   "purchases",
   "product_matches",
   "price_observations",
   "product_fingerprints",
+  "search_budget_ledger",
+  "monitor_runs",
+  "alerts",
 ] as const;
 
 export type TableName = (typeof TABLE_NAMES)[number];

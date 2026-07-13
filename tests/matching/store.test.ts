@@ -44,7 +44,11 @@ describe("matching persistence", () => {
     const db = openDatabase(":memory:");
     try {
       const applied = migrateUp(db);
-      expect(applied).toEqual(["0001_init", "0002_matching"]);
+      expect(applied).toEqual([
+        "0001_init",
+        "0002_matching",
+        "0003_monitoring",
+      ]);
       seedPurchase(db, "pur-lock-1");
 
       const purchase = {

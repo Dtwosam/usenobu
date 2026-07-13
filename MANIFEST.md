@@ -17,11 +17,13 @@
 - `src/policy/` (Target policy engine, dates, locked policy snapshot)
 - `src/serpapi/` (SerpApi Google Shopping connector, redaction, live audit CLI)
 - `src/matching/` (fail-closed candidate matching, confirmation, fingerprint store)
+- `src/monitoring/` (active-window selection, budget guard, check runner, alerts)
 - `tests/domain/`
 - `tests/db/`
 - `tests/policy/`
 - `tests/serpapi/`
 - `tests/matching/`
+- `tests/monitoring/`
 - `tests/fixtures/serpapi/`
 - `docs/proof/serpapi/` (offline + live redacted capability proof; repair-audit-summary.json)
 - `data/retailer-policies/target-us-v1.yaml`
