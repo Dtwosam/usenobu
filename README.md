@@ -1,6 +1,6 @@
 # AfterBuy
 
-**Status:** Lane 7 blocked — free A2MCP implemented locally; public HTTPS curl pending  
+**Status:** Lane 7 complete / public free A2MCP at https://afterbuy.vercel.app  
 **Hackathon:** OKX.AI Genesis Hackathon  
 **MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
 **Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  
@@ -85,8 +85,9 @@ npm run dev
 # Browser E2E proof
 npm run test:e2e
 
-# Free A2MCP (local): GET /health , POST /v1/target-price-check
-# Public HTTPS deploy + external curl still required for Lane 7 closeout
+# Free public A2MCP
+# GET  https://afterbuy.vercel.app/health
+# POST https://afterbuy.vercel.app/v1/target-price-check
 
 # One bounded live capability audit (requires SERPAPI_API_KEY; never commit the key)
 npm run serpapi:live-audit
@@ -109,7 +110,7 @@ A different stack requires an ADR and must not weaken the contracts.
 
 See `docs/afterbuy-current-state.md` for the current lane and `docs/afterbuy-build-order.md` for the full sequence. Do not skip lanes or invent live proof.
 
-**Current active work:** finish Lane 7 public HTTPS deploy + external curl, then Lane 8 — OKX ASP registration.
+**Current active lane after Lane 7 closeout:** Lane 8 — OKX ASP registration and live listing.
 
 ## License / secrets
 

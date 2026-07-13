@@ -1,0 +1,111 @@
+﻿{
+    "base_url":  "https://afterbuy.vercel.app",
+    "proved_at":  "2026-07-13T16:45:05Z",
+    "public_https":  true,
+    "secret_leak_any":  false,
+    "outcomes":  {
+                     "health":  "200 ok",
+                     "valid_openapi_request":  "503 DATA_SOURCE_UNAVAILABLE (structured OpenAPI body; SerpApi key not configured on host)",
+                     "invalid_input":  "400 invalid_input",
+                     "fail_closed_ak":  "200 UNSUPPORTED_PURCHASE",
+                     "ambiguous_fail_closed":  "200 MATCH_REVIEW_REQUIRED",
+                     "rate_limit":  "429 after 27 requests (limit 30/min; prior valid calls consumed budget)"
+                 },
+    "proofs":  [
+                   {
+                       "name":  "ambiguous-or-provider",
+                       "method":  "POST",
+                       "url":  "https://afterbuy.vercel.app/v1/target-price-check",
+                       "request_body":  "{\"purchase_channel\":\"target_online\",\"purchase_price\":10,\"purchase_date\":\"2026-07-05\",\"currency\":\"USD\",\"region\":\"TX\",\"country\":\"US\",\"model_number\":\"UPUP-ACET-500\",\"target_product_url\":\"https://www.target.com/p/up-and-up-acetaminophen\"}",
+                       "http_status":  200,
+                       "body":  "{\"status\":\"MATCH_REVIEW_REQUIRED\",\"policy_id\":\"target-us-online-price-match-v1\",\"price_source_type\":\"THIRD_PARTY_SEARCH_OBSERVATION\",\"final_decision_by\":\"Target\",\"checked_at\":\"2026-07-13T16:44:47.503Z\",\"purchase_price\":10,\"currency\":\"USD\",\"days_remaining\":6,\"provider\":\"SerpApi\",\"official_next_action\":{\"online_chat\":true,\"guest_services_phone\":\"1-800-591-3869\"},\"disclaimer\":\"Observed Target price is third-party data. Target must verify the lower price and makes the final decision. AfterBuy does not guarantee a refund.\"}",
+                       "secret_leak":  false,
+                       "https":  true
+                   },
+                   {
+                       "name":  "fail-closed-unsupported-ak",
+                       "method":  "POST",
+                       "url":  "https://afterbuy.vercel.app/v1/target-price-check",
+                       "request_body":  "{\"purchase_channel\":\"target_online\",\"purchase_price\":24.99,\"purchase_date\":\"2026-07-05\",\"currency\":\"USD\",\"region\":\"AK\",\"country\":\"US\",\"model_number\":\"WDG-100\",\"target_product_url\":\"https://www.target.com/p/example-widget\"}",
+                       "http_status":  200,
+                       "body":  "{\"status\":\"UNSUPPORTED_PURCHASE\",\"policy_id\":\"target-us-online-price-match-v1\",\"price_source_type\":\"THIRD_PARTY_SEARCH_OBSERVATION\",\"final_decision_by\":\"Target\",\"checked_at\":\"2026-07-13T16:44:47.065Z\",\"purchase_price\":24.99,\"currency\":\"USD\",\"provider\":\"SerpApi\",\"official_next_action\":{\"online_chat\":true,\"guest_services_phone\":\"1-800-591-3869\"},\"disclaimer\":\"Observed Target price is third-party data. Target must verify the lower price and makes the final decision. AfterBuy does not guarantee a refund.\"}",
+                       "secret_leak":  false,
+                       "https":  true
+                   },
+                   {
+                       "name":  "health",
+                       "method":  "GET",
+                       "url":  "https://afterbuy.vercel.app/health",
+                       "request_body":  null,
+                       "http_status":  200,
+                       "body":  "{\"status\":\"ok\",\"service\":\"afterbuy-a2mcp\",\"version\":\"1.0.0\",\"checked_at\":\"2026-07-13T16:44:25.302Z\",\"price_source_type\":\"THIRD_PARTY_SEARCH_OBSERVATION\",\"provider\":\"SerpApi\",\"note\":\"Free A2MCP health. Not an official Target API.\"}",
+                       "secret_leak":  false,
+                       "https":  true
+                   },
+                   {
+                       "name":  "invalid-input",
+                       "method":  "POST",
+                       "url":  "https://afterbuy.vercel.app/v1/target-price-check",
+                       "request_body":  "{\"purchase_price\":24.99,\"currency\":\"EUR\",\"country\":\"US\",\"target_product_url\":\"https://www.target.com/p/example-widget/-/A-87654321\",\"purchase_channel\":\"target_online\",\"purchase_date\":\"2026-07-05\"}",
+                       "http_status":  400,
+                       "body":  "{\"error\":\"invalid_input\",\"details\":{\"formErrors\":[],\"fieldErrors\":{\"currency\":[\"Invalid literal value, expected \\\"USD\\\"\"]}}}",
+                       "secret_leak":  false,
+                       "https":  true
+                   },
+                   {
+                       "name":  "rate-limit",
+                       "method":  "POST",
+                       "url":  "https://afterbuy.vercel.app/v1/target-price-check",
+                       "request_body":  "{\"currency\":\"EUR\"}",
+                       "attempts":  27,
+                       "statuses":  [
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        400,
+                                        429
+                                    ],
+                       "hit_429":  true,
+                       "https":  true,
+                       "secret_leak":  false
+                   },
+                   {
+                       "name":  "valid-request",
+                       "method":  "POST",
+                       "url":  "https://afterbuy.vercel.app/v1/target-price-check",
+                       "request_body":  "{\"currency\":\"USD\",\"purchase_channel\":\"target_online\",\"model_number\":\"WDG-100\",\"region\":\"TX\",\"purchase_date\":\"2026-07-05\",\"target_item_id\":\"87654321\",\"target_product_url\":\"https://www.target.com/p/example-widget/-/A-87654321\",\"purchase_price\":24.99,\"country\":\"US\"}",
+                       "http_status":  503,
+                       "body":  "{\"status\":\"DATA_SOURCE_UNAVAILABLE\",\"policy_id\":\"target-us-online-price-match-v1\",\"price_source_type\":\"THIRD_PARTY_SEARCH_OBSERVATION\",\"final_decision_by\":\"Target\",\"checked_at\":\"2026-07-13T16:44:25.945Z\",\"purchase_price\":24.99,\"currency\":\"USD\",\"provider\":\"SerpApi\",\"official_next_action\":{\"online_chat\":true,\"guest_services_phone\":\"1-800-591-3869\"},\"disclaimer\":\"Observed Target price is third-party data. Target must verify the lower price and makes the final decision. AfterBuy does not guarantee a refund.\"}",
+                       "secret_leak":  false,
+                       "https":  true
+                   }
+               ],
+    "notes":  [
+                  "All calls over https://afterbuy.vercel.app",
+                  "No API keys or sensitive fields in responses",
+                  "Valid schema request returns documented 503 when live provider is unavailable",
+                  "Ambiguous/weak matching fail-closed as MATCH_REVIEW_REQUIRED when provider returns multi-candidate data"
+              ]
+}

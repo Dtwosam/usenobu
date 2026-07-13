@@ -1,0 +1,10 @@
+﻿{
+    "name":  "fail-closed-unsupported-ak",
+    "method":  "POST",
+    "url":  "https://afterbuy.vercel.app/v1/target-price-check",
+    "request_body":  "{\"purchase_channel\":\"target_online\",\"purchase_price\":24.99,\"purchase_date\":\"2026-07-05\",\"currency\":\"USD\",\"region\":\"AK\",\"country\":\"US\",\"model_number\":\"WDG-100\",\"target_product_url\":\"https://www.target.com/p/example-widget\"}",
+    "http_status":  200,
+    "body":  "{\"status\":\"UNSUPPORTED_PURCHASE\",\"policy_id\":\"target-us-online-price-match-v1\",\"price_source_type\":\"THIRD_PARTY_SEARCH_OBSERVATION\",\"final_decision_by\":\"Target\",\"checked_at\":\"2026-07-13T16:44:47.065Z\",\"purchase_price\":24.99,\"currency\":\"USD\",\"provider\":\"SerpApi\",\"official_next_action\":{\"online_chat\":true,\"guest_services_phone\":\"1-800-591-3869\"},\"disclaimer\":\"Observed Target price is third-party data. Target must verify the lower price and makes the final decision. AfterBuy does not guarantee a refund.\"}",
+    "secret_leak":  false,
+    "https":  true
+}

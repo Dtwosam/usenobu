@@ -1,7 +1,8 @@
 # Lane 7 A2MCP local proof
 
 **Date:** 2026-07-13  
-**Status:** Implementation tested in-process; **public HTTPS external curl blocked**
+**Status:** Superseded for closeout by public HTTPS proof at `https://afterbuy.vercel.app`  
+See `docs/proof/a2mcp/external-https-closeout.md`.
 
 ## Endpoints (OpenAPI)
 

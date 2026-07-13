@@ -1,7 +1,7 @@
 # AfterBuy Current State
 
 **Date:** 2026-07-13  
-**Status:** LANE 7 BLOCKED — FREE A2MCP IMPLEMENTED LOCALLY / PUBLIC HTTPS CURL PENDING
+**Status:** LANE 7 COMPLETE / PUBLIC FREE A2MCP ENDPOINT PROVED
 
 ## Locked decisions
 
@@ -16,44 +16,38 @@
 
 - Source pack through consumer web flow (fixture-labelled E2E).
 
-## Lane 7 status
+## Lane 7 proof completed
 
-### Implemented (local / unit-tested)
+### Public HTTPS
 
-| Item | Status |
+| Item | Value |
 |---|---|
-| OpenAPI-aligned request/response schemas | Done (`src/a2mcp/schemas.ts`) |
-| `GET /health` | Done (`app/health/route.ts`) |
-| `POST /v1/target-price-check` | Done (`app/v1/target-price-check/route.ts`) |
-| Input validation (strict; sensitive fields rejected) | Done |
-| Rate limiting (in-process sliding window) | Done |
-| Reuses policy + matching engines | Done |
-| Server-side SerpApi client when key present | Done |
-| Safe audit log (no bodies/keys) | Done |
-| Unit tests (`tests/a2mcp/`) | **Pass** |
+| Base URL | **https://afterbuy.vercel.app** |
+| `GET /health` | **HTTP 200** JSON |
+| Valid OpenAPI `POST /v1/target-price-check` | **HTTP 503** structured `DATA_SOURCE_UNAVAILABLE` when live provider unavailable (no invented prices) |
+| Invalid input | **HTTP 400** |
+| Fail-closed (AK) | **HTTP 200** `UNSUPPORTED_PURCHASE` |
+| Ambiguous/weak path | **HTTP 200** `MATCH_REVIEW_REQUIRED` |
+| Rate limit | **HTTP 429** observed |
+| Secret leakage | **None** in archived curl bodies |
 
-### Blocked (full Lane 7 proof)
+Evidence: `docs/proof/a2mcp/external-https-closeout.md`, `docs/proof/a2mcp/external-curl-summary-latest.json`, redacted `curl-*.json` files.
 
-| Item | Status |
-|---|---|
-| Public HTTPS deployment | **Blocked** — no Vercel/Fly CLI or deploy token in environment |
-| External curl over HTTPS | **Not proven** |
-| Live SerpApi in production | Key not required for unit proof; required for live provider responses |
+### Implementation
 
-**Exact blockers:**
+- OpenAPI routes: `app/health/route.ts`, `app/v1/target-price-check/route.ts`
+- Service: `src/a2mcp/` (validation, rate limit, audit, policy+matching reuse)
+- Unit tests: `tests/a2mcp/a2mcp.test.ts` (includes 200 price-drop when offers injected)
 
-1. No production hosting credentials / CLI for public HTTPS URL.  
-2. External HTTPS curl cannot be produced until (1) is resolved.
+### Optional follow-up (not a Lane 7 blocker)
 
-Evidence notes: `docs/proof/a2mcp/local-endpoint-proof.md`
+- Configure `SERPAPI_API_KEY` on Vercel for live provider 200 price observations (never commit the key).
 
 ## Remaining later gates
 
-1. Deploy free A2MCP over public HTTPS; archive external curl (Lane 7 closeout).  
-2. OKX ASP registration/listing (Lane 8).  
-3. Demo and submission (Lane 9).
+1. OKX ASP registration and live listing (Lane 8).  
+2. Demo and submission closeout (Lane 9).
 
 ## Next active lane
 
-**Lane 7 (continue)** — complete public HTTPS deployment and external curl proof.  
-Then: **Lane 8 — OKX ASP registration and live listing.**
+**Lane 8 — OKX ASP registration and live listing.**

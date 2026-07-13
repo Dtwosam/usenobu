@@ -86,3 +86,6 @@ playwright/.cache/
 .tmp/
 tmp/
 local/
+
+# Vercel local project link (never commit tokens)
+.vercel/

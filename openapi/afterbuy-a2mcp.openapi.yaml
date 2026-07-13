@@ -7,10 +7,10 @@ info:
     Target online price and Target's current price-match policy. Target verifies
     the lower price and makes the final decision.
 servers:
-  - url: https://REPLACE_WITH_PUBLIC_DOMAIN
-    description: Public HTTPS base URL after Lane 7 deployment (not yet set)
+  - url: https://afterbuy.vercel.app
+    description: Public HTTPS free A2MCP (Lane 7 proved 2026-07-13)
   - url: http://127.0.0.1:3000
-    description: Local Next.js dev only — not Lane 7 external proof
+    description: Local Next.js dev only — not external proof
 paths:
   /v1/target-price-check:
     post:
