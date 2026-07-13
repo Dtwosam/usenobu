@@ -51,8 +51,8 @@ export default async function NewPurchasePage({
   return (
     <div className="n-screen n-screen--form">
       <PageHeader
-        title="Add your Target purchase"
-        description="Enter the details from a recent online purchase. Nobu will use them to look for the exact Target product."
+        title="Add your purchase"
+        description="Enter the details from a recent supported purchase. Nobu will use them to look for the exact product."
       />
 
       <Stepper
@@ -92,8 +92,23 @@ export default async function NewPurchasePage({
           noValidate={false}
         >
           <Field
+            id="retailer_display"
+            label="Retailer"
+            hint="Only the live supported retailer is available right now"
+          >
+            <Input
+              id="retailer_display"
+              value="Target — currently supported"
+              disabled
+              readOnly
+              aria-readonly="true"
+              data-testid="input-retailer"
+            />
+          </Field>
+
+          <Field
             id="target_product_url"
-            label="Target product URL"
+            label="Product URL"
             hint="Example: https://www.target.com/p/.../-/A-12345678"
             required
           >
@@ -168,7 +183,7 @@ export default async function NewPurchasePage({
             <Field
               id="purchase_channel_display"
               label="Purchase channel"
-              hint="MVP supports Target online only"
+              hint="Online purchases for the supported retailer"
             >
               <Input
                 id="purchase_channel_display"
@@ -271,15 +286,17 @@ export default async function NewPurchasePage({
 
         <aside className="n-support-panel" aria-label="Supported purchases">
           <Card subtle>
-            <h2 className="n-card-title">Supported purchases</h2>
+            <h2 className="n-card-title">Currently supported</h2>
             <ul className="n-list">
+              <li>Retailer: Target (first live integration)</li>
               <li>Target.com or Target app</li>
-              <li>Sold by Target</li>
-              <li>Within the supported window</li>
-              <li>No Target Plus</li>
+              <li>Sold by Target — not Target Plus</li>
+              <li>Within the monitoring window</li>
               <li>Alaska and Hawaii are unsupported</li>
             </ul>
-            <p className="muted">
+            <p className="muted" data-testid="unsupported-retailer-note">
+              This retailer isn’t supported yet for other stores. Nobu currently
+              supports eligible Target.com purchases.{" "}
               <a href="/notices">See how Nobu works</a>
             </p>
           </Card>

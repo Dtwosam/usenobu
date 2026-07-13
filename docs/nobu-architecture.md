@@ -15,6 +15,19 @@ The default implementation is:
 
 A different stack requires an ADR and must not weaken the contracts.
 
+## Platform concepts
+
+Nobu is structured as a multi-retailer-capable platform with retailer-specific connectors:
+
+- **Retailer** — merchant scope (only Target is live);
+- **Retailer connector** — fetch/normalize price observations for one retailer;
+- **Retailer policy** — eligibility and claim-route rules for one retailer;
+- **Supported retailer** — retailer with an approved live integration;
+- **Price observation** — third-party or authorized observed price with provenance;
+- **Purchase monitor** — bounded monitoring loop over a locked product fingerprint.
+
+Target-specific implementations remain named as Target-specific (Target policy engine, Target matching contract, Target policy data, `/v1/target-price-check`).
+
 ## Components
 
 ### 1. Web UI
@@ -24,7 +37,7 @@ A different stack requires an ADR and must not weaken the contracts.
 - monitoring status;
 - price history;
 - price-drop alert;
-- Target claim instructions;
+- retailer claim instructions (Target for the live integration);
 - privacy and supported-case notices.
 
 ### 2. Purchase service
@@ -32,7 +45,7 @@ A different stack requires an ADR and must not weaken the contracts.
 Stores:
 
 - user/account reference;
-- Target product URL;
+- product URL (Target product URL for the live retailer);
 - user-confirmed purchase price/date;
 - purchase channel and jurisdiction;
 - product fingerprint;

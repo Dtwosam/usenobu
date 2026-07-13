@@ -35,7 +35,8 @@ describe("status copy", () => {
 describe("error copy", () => {
   it("explains unsupported purchases in plain English", () => {
     const err = purchaseFormError("unsupported_or_ineligible");
-    expect(err.heading.toLowerCase()).toContain("supported");
+    expect(err.heading.toLowerCase()).toContain("isn’t supported yet");
+    expect(err.body.toLowerCase()).toContain("target.com");
     expect(err.nextAction.length).toBeGreaterThan(10);
     expect(err.code).toBe("unsupported_or_ineligible");
   });

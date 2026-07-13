@@ -1,15 +1,17 @@
 # Nobu
 
-**Status:** Lane 7.5C complete / UseNobu production  
+**Status:** Lane 7.5D complete / universal platform positioning  
 **Production:** https://usenobu.vercel.app (UseNobu; product Nobu; health `nobu-a2mcp`)  
 **Hackathon:** OKX.AI Genesis Hackathon  
-**MVP retailer:** Target.com (U.S., excluding Alaska and Hawaii)  
-**Price source:** SerpApi Google Shopping (third-party observation, not an official Target API)  
+**First live retailer:** Target.com / Target app (U.S., excluding Alaska and Hawaii)  
+**Price source (Target):** SerpApi Google Shopping (third-party observation, not an official Target API)  
 **Primary implementation agent:** Grok Build
 
-Nobu lets a user add a recent eligible Target.com purchase once. It checks a third-party shopping data source for a lower Target online price during Target's 14-day adjustment window and alerts the user when they may be able to request the difference.
+Nobu is a post-purchase price-monitoring platform that watches supported purchases for possible retailer price drops. The current live integration supports eligible Target.com purchases.
 
-Nobu does **not** guarantee a refund, submit a claim, log into Target, scrape Target, or claim observed prices are official Target API prices. Target verifies the price and makes the final decision.
+Add a supported purchase once. Nobu watches the retailer price during the applicable monitoring window and alerts you when there may be a difference to request.
+
+Nobu does **not** guarantee a refund, submit a claim, log into retailer accounts, scrape Target, or claim observed prices are official Target API prices. For Target purchases, Target verifies the price and makes the final decision. Other retailers remain unsupported until separately integrated.
 
 ## Start here
 

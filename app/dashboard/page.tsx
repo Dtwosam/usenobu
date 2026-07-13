@@ -16,7 +16,7 @@ export default function DashboardPage() {
     <div className="n-screen">
       <PageHeader
         title="Your purchases"
-        description="Purchases you’re watching for a lower observed Target price."
+        description="Purchases you’re watching for a lower observed retailer price."
         actions={
           purchases.length > 0 ? (
             <ButtonLink href="/purchases/new" size="sm">
@@ -30,7 +30,7 @@ export default function DashboardPage() {
         <p>
           <strong>Demo data</strong>
           <br />
-          This screen uses test fixtures, not a live current Target price.
+          This screen uses test fixtures, not a live current retailer price.
         </p>
       </DemoDataBanner>
 
@@ -38,7 +38,7 @@ export default function DashboardPage() {
         <Card>
           <EmptyState
             title="Nothing being watched yet"
-            description="Add a recent Target purchase and confirm the exact product to begin."
+            description="Add a recent supported purchase and confirm the exact product to begin. Currently: eligible Target.com purchases."
             action={
               <ButtonLink href="/purchases/new" data-testid="empty-dashboard-cta">
                 Track a purchase

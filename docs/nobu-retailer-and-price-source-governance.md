@@ -15,10 +15,12 @@ This document prevents Nobu from treating convenient data as authoritative or ex
 
 ## Current retailer registry
 
+Nobu is designed for retailer-specific connectors. Only one live retailer is active.
+
 | Retailer | Region/channel | Status | Price source | Policy source | Notes |
 |---|---|---|---|---|---|
-| Target | U.S. Target.com / app purchase | MVP_ACTIVE | SerpApi Google Shopping, seller Target | Official Target help policy | Exclude Target Plus, Alaska/Hawaii, store-only and excluded offers |
-| All others | Any | UNSUPPORTED | None | None | Do not implement before Target MVP closeout |
+| Target | U.S. Target.com / app purchase | MVP_ACTIVE (first live integration) | SerpApi Google Shopping, seller Target | Official Target help policy | Exclude Target Plus, Alaska/Hawaii, store-only and excluded offers |
+| All others | Any | UNSUPPORTED | None | None | Not live; do not imply availability in UI or listing copy |
 
 ## Current provider registry
 

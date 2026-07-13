@@ -1397,10 +1397,22 @@ main.legacy-main > .n-screen {
 }
 
 .n-hero__lead {
-  margin: 0 0 var(--space-6);
+  margin: 0 0 var(--space-4);
   font-size: 1.1rem;
   color: var(--text-secondary);
   max-width: 36rem;
+}
+
+.n-availability {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 var(--space-6);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--brand-soft);
+  color: var(--brand-active);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .n-hero__actions {

@@ -10,7 +10,7 @@
 
 ## Accurate listing description
 
-> Nobu checks a recent eligible Target.com purchase against a third-party observed Target online price and Target's current price-match rules. It returns a possible price drop, estimated difference, remaining request window, evidence provenance, and Target's official next step. Target verifies the lower price and makes the final decision.
+> Nobu is a post-purchase price-monitoring platform that watches supported purchases for possible retailer price drops. The current live integration supports eligible Target.com purchases. For those purchases, Nobu checks a third-party observed Target online price and Target's current price-match rules, then returns a possible price drop, estimated difference, remaining request window, evidence provenance, and Target's official next step. Target verifies the lower price and makes the final decision. Other retailers are not live.
 
 Do not claim:
 
@@ -18,7 +18,7 @@ Do not claim:
 - all Target products or locations;
 - automatic refunds;
 - guaranteed eligibility;
-- other retailers;
+- that other retailers are already live or available;
 - claim submission.
 
 ## Endpoint preflight

@@ -136,6 +136,15 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** case-insensitive prior-brand repository scan empty; production health and A2MCP checks on usenobu.vercel.app; proof under `docs/proof/usenobu-production/`.
 
+## Lane 7.5D — Universal product positioning
+
+- Position Nobu as a universal post-purchase price-monitoring platform.
+- Target remains the first and only live retailer integration.
+- Update consumer copy, metadata, and source-of-truth wording without changing Target logic or APIs.
+- No other retailers, fake options, or OKX registration.
+
+**Proof:** homepage/add-purchase/notices positioning tests; Target-only logic unchanged; unit/typecheck/build/e2e pass.
+
 ## Lane 8 — OKX ASP registration and live listing
 
 - Install/use Onchain OS according to current official instructions.

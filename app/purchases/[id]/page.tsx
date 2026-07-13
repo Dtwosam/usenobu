@@ -43,7 +43,7 @@ export default async function PurchaseDashboardPage({
   const productTitle =
     (fingerprint?.product_title as string | undefined) ||
     (latest?.product_title as string | undefined) ||
-    "Your Target purchase";
+    "Your purchase";
   const err = sp.error ? dashboardError(sp.error) : null;
 
   return (
@@ -51,14 +51,14 @@ export default async function PurchaseDashboardPage({
       <PageHeader
         eyebrow="Purchase"
         title={productTitle}
-        description="What Nobu is watching and the latest observed Target price."
+        description="What Nobu is watching and the latest observed price."
       />
 
       <DemoDataBanner data-testid="fixture-banner">
         <p>
           <strong>Demo data</strong>
           <br />
-          This screen uses test fixtures, not a live current Target price.
+          This screen uses test fixtures, not a live current retailer price.
         </p>
       </DemoDataBanner>
 
@@ -91,11 +91,15 @@ export default async function PurchaseDashboardPage({
 
         <dl className="n-kv n-kv--grid">
           <div>
-            <dt>You paid</dt>
+            <dt>Retailer</dt>
+            <dd data-testid="retailer-value">Target</dd>
+          </div>
+          <div>
+            <dt>Purchase price</dt>
             <dd>{formatUsd(String(purchase.purchase_price))}</dd>
           </div>
           <div>
-            <dt>Latest observed Target price</dt>
+            <dt>Latest observed price</dt>
             <dd>
               {latest?.observed_price != null
                 ? formatUsd(String(latest.observed_price))
@@ -103,8 +107,12 @@ export default async function PurchaseDashboardPage({
             </dd>
           </div>
           <div>
-            <dt>Days remaining</dt>
-            <dd>{remaining != null ? remaining : "—"}</dd>
+            <dt>Monitoring window</dt>
+            <dd>
+              {remaining != null
+                ? `${remaining} day${remaining === 1 ? "" : "s"} remaining`
+                : "—"}
+            </dd>
           </div>
           <div>
             <dt>Last checked</dt>

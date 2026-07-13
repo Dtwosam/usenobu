@@ -19,10 +19,15 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: /Bought it/i })).toBeVisible();
     await expect(page.getByTestId("home-fixture-notice")).toContainText("Demo data");
+    await expect(page.getByTestId("availability-label")).toContainText(
+      "Currently supports eligible Target.com purchases",
+    );
     await expect(page.getByTestId("cta-add-purchase")).toContainText(
-      "Track a Target purchase",
+      "Track a purchase",
     );
     await expect(page.getByTestId("cta-how-it-works")).toBeVisible();
+    const home = (await page.locator("body").innerText()).toLowerCase();
+    expect(home).not.toMatch(/walmart|amazon|best buy.*live|all retailers supported/);
     await page.screenshot({
       path: path.join(SCREEN_DIR, "desktop-home.png"),
       fullPage: true,
@@ -150,7 +155,10 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.getByTestId("submit-purchase").click();
     await expect(page.getByTestId("purchase-error")).toBeVisible();
     await expect(page.getByTestId("purchase-error")).toContainText(
-      "isn’t supported",
+      "isn’t supported yet",
+    );
+    await expect(page.getByTestId("purchase-error")).toContainText(
+      "Target.com",
     );
     await expect(page.getByTestId("purchase-error-code")).toHaveText(
       "unsupported_or_ineligible",
@@ -202,6 +210,12 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/notices");
     await expect(page.getByRole("heading", { name: /How Nobu works/i })).toBeVisible();
+    await expect(page.getByTestId("platform-positioning")).toContainText(
+      "retailer-specific monitoring integrations",
+    );
+    await expect(page.getByTestId("platform-positioning")).toContainText(
+      "Target.com and Target app purchases only",
+    );
     await expect(page.getByTestId("privacy-notice")).toContainText(
       "No Target passwords",
     );
@@ -216,6 +230,18 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
       path: path.join(SCREEN_DIR, "desktop-notices.png"),
       fullPage: true,
     });
+  });
+
+  test("add-purchase shows Target as current retailer only", async ({ page }) => {
+    await page.goto("/purchases/new");
+    await expect(page.getByRole("heading", { name: /Add your purchase/i })).toBeVisible();
+    await expect(page.getByTestId("input-retailer")).toHaveValue(
+      "Target — currently supported",
+    );
+    await expect(page.getByTestId("unsupported-retailer-note")).toContainText(
+      "isn’t supported yet",
+    );
+    await expect(page.locator('select[name="retailer"]')).toHaveCount(0);
   });
 
   test("no sensitive input fields on purchase form", async ({ page }) => {

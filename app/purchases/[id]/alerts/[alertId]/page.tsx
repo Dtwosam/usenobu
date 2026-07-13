@@ -34,33 +34,39 @@ export default async function AlertPage({
       <PageHeader
         eyebrow="Price update"
         title="Price drop found"
-        description="A lower observed Target price appeared while your window was open."
+        description="A lower observed retailer price appeared while your monitoring window was open."
       />
 
       <DemoDataBanner data-testid="fixture-banner">
         <p>
           <strong>Demo data</strong>
           <br />
-          This screen uses test fixtures, not a live current Target price.
+          This screen uses test fixtures, not a live current retailer price.
           <span className="visually-hidden"> DEMO FIXTURE DATA</span>
         </p>
       </DemoDataBanner>
 
       <Card className="n-result-card" data-testid="alert-summary">
-        <p className="n-result-card__kicker">Possible difference</p>
+        <p className="n-result-card__kicker">Potential difference</p>
         <p
           className="n-result-card__amount"
           data-testid="potential-recovery"
         >
           Potential recovery {formatUsd(String(alert.potential_recovery))}
         </p>
+        <p className="muted" data-testid="result-retailer">
+          Retailer: Target
+        </p>
         <PriceSummary
+          purchasePriceLabel="Purchase price"
           purchasePrice={formatUsd(String(alert.purchase_price))}
+          observedPriceLabel="Latest observed price"
           observedPrice={formatUsd(String(alert.observed_price))}
+          differenceLabel="Potential difference"
           difference={formatUsd(String(alert.potential_recovery))}
           note={
             remaining != null
-              ? `About ${remaining} day${remaining === 1 ? "" : "s"} remaining in the window.`
+              ? `Monitoring window: about ${remaining} day${remaining === 1 ? "" : "s"} remaining.`
               : undefined
           }
         />
@@ -75,8 +81,8 @@ export default async function AlertPage({
       <Card data-testid="target-official-actions">
         <h2 className="n-card-title">Request guidance</h2>
         <p className="muted">
-          Target must verify the current price and makes the final adjustment
-          decision. Nobu does not submit the request.
+          For this Target purchase, Target must verify the current price and makes the
+          final adjustment decision. Nobu does not submit the request.
         </p>
         <ol className="n-list n-list--numbered">
           <li>Keep receipt or purchase information ready.</li>
@@ -88,7 +94,7 @@ export default async function AlertPage({
           <li>Complete any steps Target requires.</li>
         </ol>
         <ButtonLink href="#request-anchor" className="n-btn--block">
-          View Target request steps
+          View retailer request steps
         </ButtonLink>
         <p id="request-anchor" className="muted">
           Guest Services: {claim_route.guest_services_phone}. Screenshots are not

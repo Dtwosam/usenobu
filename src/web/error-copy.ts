@@ -34,12 +34,12 @@ export function purchaseFormError(
     }
     return {
       code,
-      heading: "This purchase isn’t supported",
+      heading: "This retailer isn’t supported yet",
       body:
         status === "POLICY_EXCLUSION"
-          ? "Nobu can only watch eligible Target.com purchases sold by Target in supported U.S. locations."
-          : "Nobu can only watch Target.com / Target app purchases sold by Target in the contiguous U.S. (Alaska and Hawaii are unsupported). Target Plus is not supported.",
-      nextAction: "Use a different eligible purchase, or read how Nobu works for the full list.",
+          ? "Nobu currently supports eligible Target.com purchases sold by Target in supported U.S. locations."
+          : "Nobu currently supports eligible Target.com purchases. Alaska and Hawaii are unsupported for this Target integration. Target Plus is not supported.",
+      nextAction: "Track a Target purchase that meets the supported rules, or read how Nobu works.",
     };
   }
 

@@ -16,7 +16,7 @@
 
 | Method / path | Status | Notes |
 |---|---|---|
-| GET / | 200 | “Bought it?”, “Track a Target purchase” |
+| GET / | 200 | “Bought it?”, “Track a purchase”, Target currently supported |
 | GET /purchases/new | 200 | Add purchase |
 | GET /dashboard | 200 | Purchases list |
 | GET /notices | 200 | How Nobu works |

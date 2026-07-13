@@ -15,14 +15,15 @@ For dynamic external facts—OKX rules, Target policies, SerpApi pricing/terms, 
 
 Hard rules:
 
-- Keep the hackathon MVP limited to eligible Target.com purchases and a third-party Target price observation through SerpApi.
+- Position Nobu as a universal post-purchase price-monitoring platform; Target is the first and only live retailer.
+- Keep the live MVP limited to eligible Target.com purchases and a third-party Target price observation through SerpApi.
 - Never call SerpApi data an official Target API price.
 - Never guarantee a refund or claim that Target owes the user money.
 - Never scrape Target directly, log into user retailer accounts, submit claims, request payment-card details, or bypass platform eligibility requirements.
 - Product matching must fail closed. Do not accept a price unless the seller is Target and the exact product match is strong enough under the matching contract.
 - AI may parse or explain data but must not override deterministic policy and matching rules.
 - Prefer a stable free A2MCP endpoint and live OKX listing before paid x402 features or broad product polish.
-- Do not expand to other retailers until the Target connector, policy engine, monitoring loop, endpoint, and proof are complete.
+- Do not expand to other live retailers until the Target connector, policy engine, monitoring loop, endpoint, and proof are complete.
 - Do not invent live data, orders, refunds, reviews, users, transaction hashes, listings, approvals, or API responses.
 - Keep Grok Build implementation prompts concise, lane-scoped, phone-friendly, and explicit about mandatory files, hard locks, tests, proof, final report, and stopping on first failure. Use `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`.
 - Use regular Grok research only for current public discussion, competition, and external changes with `prompts/GROK_RESEARCH_VERIFICATION_PROMPT.md`. Official rules and retailer policies must come from official sources.

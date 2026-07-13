@@ -5,9 +5,11 @@ export function Footer() {
         <div>
           <div className="n-footer__brand">Nobu</div>
           <p className="n-footer__note">
-            Nobu watches for lower Target.com prices using third-party shopping
-            data. Target verifies the price and decides any adjustment. Nobu does
-            not guarantee a refund, log into Target, or submit claims.
+            Nobu is a post-purchase price-monitoring platform. The current live
+            integration supports eligible Target.com purchases. Third-party price
+            observations are not official Target API prices. Target verifies the
+            price and decides any adjustment. Nobu does not guarantee a refund, log
+            into Target, or submit claims.
           </p>
         </div>
         <nav className="n-footer__links" aria-label="Footer">

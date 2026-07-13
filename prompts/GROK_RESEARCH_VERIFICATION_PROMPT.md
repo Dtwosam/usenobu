@@ -1,6 +1,6 @@
 # Grok Research and Verification Prompt — Nobu
 
-Research current external facts for **Nobu**, a service that monitors recent eligible Target.com purchases for possible lower Target online prices during Target's price-adjustment window.
+Research current external facts for **Nobu**, a post-purchase price-monitoring platform whose first live retailer integration monitors eligible Target.com purchases for possible lower Target online prices during Target's price-adjustment window.
 
 This is an external research audit, not a product brainstorming exercise.
 

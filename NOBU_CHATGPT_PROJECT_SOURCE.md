@@ -14,13 +14,15 @@ This combined source mirrors the modular governing files. When the repository ex
 **Prepared:** 2026-07-13  
 **Project:** Nobu  
 **Hackathon:** OKX.AI Genesis Hackathon  
-**Current product decision:** Target.com price-drop monitoring through SerpApi, with a free A2MCP check endpoint and a small consumer web app.
+**Current product decision:** Universal post-purchase price-monitoring platform; first live retailer is Target.com (SerpApi third-party observation), free A2MCP check endpoint, small consumer web app.
 
 ## What Nobu is
 
-Nobu lets a user add a recent eligible Target.com purchase once. It checks a third-party shopping data source for a lower Target online price during Target's 14-day adjustment window and alerts the user when they may be able to request the difference.
+Nobu is a post-purchase price-monitoring platform that watches supported purchases for possible retailer price drops. The current live integration supports eligible Target.com purchases.
 
-Nobu does **not** guarantee a refund, submit a claim, log into Target, or claim its observed price is an official Target API price. Target verifies the price and makes the final decision.
+Add a supported purchase once. Nobu watches the retailer price during the applicable monitoring window and alerts you when there may be a difference to request.
+
+Nobu does **not** guarantee a refund, submit a claim, log into retailer accounts, or claim observed prices are official Target API prices. For Target purchases, Target verifies the price and makes the final decision. Other retailers remain unsupported until separately integrated.
 
 ## Mandatory source stack
 
@@ -163,15 +165,15 @@ AI may not:
 
 ## 1. Product definition
 
-Nobu is a consumer post-purchase price-protection service and OKX.AI A2MCP ASP.
+Nobu is a consumer post-purchase price-monitoring platform and OKX.AI A2MCP ASP. It is designed to support retailer-specific connectors, policy contracts and price-monitoring workflows. The current live version supports eligible Target.com and Target app purchases only.
 
-A user adds a recent eligible Target.com purchase once. Nobu identifies and locks the exact Target product, checks a third-party shopping data source for a lower Target online price while the purchase remains within Target's adjustment window, and alerts the user when a possible price-adjustment opportunity appears.
+A user adds a supported purchase once. For the Target integration, Nobu identifies and locks the exact Target product, checks a third-party shopping data source for a lower Target online price while the purchase remains within Target's adjustment window, and alerts the user when a possible price-adjustment opportunity appears.
 
-Nobu returns the observed price difference, remaining time, evidence provenance, policy conditions, and Target's official next step. Target verifies the price and makes the final decision.
+Nobu returns the observed price difference, remaining time, evidence provenance, policy conditions, and the retailer's official next step. For Target purchases, Target verifies the price and makes the final decision. Other retailers remain unsupported until separately integrated and governed.
 
 ## 2. Core user promise
 
-> Add a recent Target purchase once. Nobu watches the online price during the eligible window and alerts you when you may be able to request the difference.
+> Add a supported purchase once. Nobu watches the retailer price during the applicable monitoring window and alerts you when there may be a difference to request.
 
 ## 3. Problem
 

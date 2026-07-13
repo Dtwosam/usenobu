@@ -6,13 +6,23 @@ export default function NoticesPage() {
     <div className="n-screen n-screen--reading">
       <PageHeader
         title="How Nobu works"
-        description="Short answers about supported purchases, price data, privacy, and Target’s final decision."
+        description="Short answers about supported purchases, price data, privacy, and who makes the final decision."
       />
 
       <div className="n-stack">
+        <Card data-testid="platform-notice">
+          <h2 className="n-card-title">Platform scope</h2>
+          <p data-testid="platform-positioning">
+            Nobu is designed to support retailer-specific monitoring integrations. The
+            current live version supports eligible Target.com and Target app purchases
+            only.
+          </p>
+        </Card>
+
         <Card data-testid="supported-case-notice">
           <h2 className="n-card-title">1. Supported purchases</h2>
           <ul className="n-list">
+            <li>First live retailer: Target</li>
             <li>Target.com or Target app online purchases</li>
             <li>Sold by Target — not Target Plus</li>
             <li>U.S. locations excluding Alaska and Hawaii</li>
@@ -21,9 +31,9 @@ export default function NoticesPage() {
           </ul>
           <Disclosure title="More detail">
             <p>
-              Nobu does not support store-only purchases outside the online channel
-              lock, Target Plus marketplace offers, or purchases outside the supported
-              geography. Matching is fail-closed when identity is weak.
+              Other retailers remain unsupported until separately integrated and
+              governed. Target rules apply only to Target purchases. Matching is
+              fail-closed when identity is weak.
             </p>
           </Disclosure>
         </Card>
@@ -31,8 +41,8 @@ export default function NoticesPage() {
         <Card data-testid="provenance-notice">
           <h2 className="n-card-title">2. Price data</h2>
           <p>
-            Nobu uses third-party SerpApi shopping observations. This is not an
-            official Target API.
+            For Target purchases, Nobu uses third-party SerpApi shopping observations.
+            This is not an official Target API.
           </p>
           <p className="muted">{DEFAULT_POLICY_DISCLAIMER}</p>
           <Disclosure title="What “observed price” means">
@@ -63,10 +73,10 @@ export default function NoticesPage() {
         </Card>
 
         <Card data-testid="target-action-notice">
-          <h2 className="n-card-title">4. Target’s final decision</h2>
+          <h2 className="n-card-title">4. Retailer’s final decision</h2>
           <p>
-            Nobu does not log into Target or submit requests. Target verifies prices
-            and makes the final adjustment decision.
+            Nobu does not log into retailer accounts or submit requests. For Target
+            purchases, Target verifies prices and makes the final adjustment decision.
           </p>
           <Disclosure title="If you contact Target">
             <p>

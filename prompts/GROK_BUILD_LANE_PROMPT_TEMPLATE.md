@@ -37,7 +37,7 @@ Start with and maintain a todo/checklist.
 
 ## Hard locks
 
-- Target.com online purchases only.
+- First and only live retailer: Target.com online purchases only (do not add other live retailers).
 - Target seller only; no Target Plus.
 - U.S. MVP excluding Alaska and Hawaii.
 - SerpApi is third-party observed data, never an official Target API price.

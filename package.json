@@ -2,7 +2,7 @@
   "name": "nobu",
   "version": "0.1.0",
   "private": true,
-  "description": "Nobu — Target.com price-drop monitoring",
+  "description": "Nobu — post-purchase price-monitoring platform (live: Target.com)",
   "type": "module",
   "scripts": {
     "dev": "next dev",

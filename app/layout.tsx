@@ -12,9 +12,9 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Nobu — Target price-drop monitoring",
+  title: "Nobu — post-purchase price monitoring",
   description:
-    "Track recent Target.com purchases for possible price drops. Third-party observed prices; Target decides.",
+    "Nobu is a post-purchase price-monitoring platform that watches supported purchases for possible retailer price drops. The current live integration supports eligible Target.com purchases.",
 };
 
 export default function RootLayout({
