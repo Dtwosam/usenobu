@@ -1,0 +1,21 @@
+{
+  "note": "Prepared registration fields — NOT submitted (wallet not authenticated).",
+  "service_name": "Nobu",
+  "service_type": "A2MCP",
+  "price_per_call": "0",
+  "endpoint": "https://usenobu.vercel.app/v1/agent",
+  "primary_category": "Lifestyle Companion",
+  "secondary_category": "Software Utility",
+  "description": "Nobu is an AI agent that monitors supported purchases after checkout and alerts users when a lower retailer price may be available. Users can describe a purchase in natural language, review the details Nobu extracts, confirm the exact product, and start monitoring. AI understands the purchase information, while deterministic retailer rules and fail-closed exact-product matching control every monitoring decision. The current live integration supports eligible Target.com purchases using third-party SerpApi shopping observations. Target verifies prices and makes the final adjustment decision.",
+  "supported_actions": [
+    "UNDERSTAND_PURCHASE",
+    "CHECK_CONFIRMED_PURCHASE",
+    "CHECK_MONITORING_STATUS"
+  ],
+  "input_example": {
+    "action": "UNDERSTAND_PURCHASE",
+    "purchase_text": "I bought a 100-count bottle of up&up acetaminophen from Target online yesterday for $9.99."
+  },
+  "openapi": "openapi/nobu-a2mcp.openapi.yaml",
+  "submitted": false
+}

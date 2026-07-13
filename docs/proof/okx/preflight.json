@@ -1,0 +1,35 @@
+{
+  "at": "2026-07-13T23:28:06.840Z",
+  "base": "https://usenobu.vercel.app",
+  "checks": {
+    "health": {
+      "http_status": 200,
+      "status": "ok",
+      "service": "nobu-a2mcp",
+      "groq_configured": true,
+      "serpapi_configured": true,
+      "nobu_ai_model": "openai/gpt-oss-20b",
+      "no_secrets": true
+    },
+    "agent": {
+      "http_status": 200,
+      "provider": "groq",
+      "agent_state": "CONFIRMATION_REQUIRED",
+      "requires_user_action": true,
+      "next_action": "CONFIRM_PURCHASE_DETAILS",
+      "has_extracted": true,
+      "no_match_status": true,
+      "raw_text_absent": true,
+      "secrets_absent": true,
+      "purchase_price": null,
+      "model_number": null
+    },
+    "target_price_check": {
+      "http_status": 200,
+      "status": "MATCH_REVIEW_REQUIRED",
+      "final_decision_by": "Target",
+      "has_policy": true
+    }
+  },
+  "verdict": "NOBU_LANE_8_PREFLIGHT_PASS"
+}
