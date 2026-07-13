@@ -2,12 +2,16 @@
   "name": "afterbuy",
   "version": "0.1.0",
   "private": true,
-  "description": "AfterBuy — Target.com price-drop monitoring (domain contracts)",
+  "description": "AfterBuy — Target.com price-drop monitoring",
   "type": "module",
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "migrate:up": "tsx src/db/cli.ts up",
     "migrate:down": "tsx src/db/cli.ts down",
     "serpapi:live-audit": "tsx src/serpapi/run-live-audit.ts",
@@ -17,10 +21,16 @@
     "node": ">=22.5"
   },
   "dependencies": {
+    "next": "^15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.1",
     "@types/node": "^22.13.10",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "vitest": "^3.0.9"

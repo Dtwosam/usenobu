@@ -282,7 +282,7 @@ export class SerpApiShoppingClient {
 }
 
 export function createSerpApiClientFromEnv(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
   overrides: Partial<SerpApiClientOptions> = {},
 ): SerpApiShoppingClient | null {
   const key = env.SERPAPI_API_KEY?.trim();

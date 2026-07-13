@@ -18,12 +18,15 @@
 - `src/serpapi/` (SerpApi Google Shopping connector, redaction, live audit CLI)
 - `src/matching/` (fail-closed candidate matching, confirmation, fingerprint store)
 - `src/monitoring/` (active-window selection, budget guard, check runner, alerts)
+- `src/web/` (purchase service, fixture labels, server actions)
+- `app/` (Next.js consumer UI routes)
 - `tests/domain/`
 - `tests/db/`
 - `tests/policy/`
 - `tests/serpapi/`
 - `tests/matching/`
 - `tests/monitoring/`
+- `tests/e2e/` (Playwright consumer flow)
 - `tests/fixtures/serpapi/`
 - `docs/proof/serpapi/` (offline + live redacted capability proof; repair-audit-summary.json)
 - `data/retailer-policies/target-us-v1.yaml`
