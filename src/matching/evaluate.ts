@@ -90,11 +90,20 @@ export function scoreOfferAgainstPurchase(
     normalizeTargetProductUrl(offer.link);
 
   const purchaseModel = normalizeModel(purchase.model_number);
-  // Model may be extracted from title only when purchase provides model —
-  // offer.model_number if set; never invent from serpapi id
-  const offerModel =
-    normalizeModel(offer.model_number) ||
-    (purchaseModel ? extractModelFromTitle(offer.title, purchaseModel) : null);
+  // Structured model first; model-from-title only when title is highly similar
+  // to the purchase title (blocks accessory false positives).
+  const structuredModel = normalizeModel(offer.model_number);
+  const titleSimForModel = purchase.product_title
+    ? titleSimilarity(purchase.product_title, offer.title)
+    : 0;
+  const modelFromTitle =
+    !structuredModel &&
+    purchaseModel &&
+    purchase.product_title &&
+    titleSimForModel >= 0.72
+      ? extractModelFromTitle(offer.title, purchaseModel)
+      : null;
+  const offerModel = structuredModel || modelFromTitle;
 
   const purchaseUpc = normalizeUpc(purchase.upc_or_gtin);
   const offerUpc = normalizeUpc(offer.upc_or_gtin);
@@ -266,19 +275,38 @@ function detectVariantConflict(
 }
 
 /**
- * If the purchase model appears as a contiguous token in the offer title
- * (after normalization), treat as model signal. Does not invent models.
+ * If the purchase model appears as a whole title token, treat as model signal.
+ * Does not invent models. Callers must also gate on title similarity.
  */
 function extractModelFromTitle(
   title: string,
   purchaseModelNormalized: string,
 ): string | null {
-  const titleNorm = normalizeModel(title);
-  if (!titleNorm) return null;
-  if (titleNorm.includes(purchaseModelNormalized)) {
+  const tokens = title
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (tokens.includes(purchaseModelNormalized)) {
     return purchaseModelNormalized;
   }
   return null;
+}
+
+/** Prefer Target URL / TCIN, then higher title similarity, then lower price. */
+function pickBestStrongCandidate(strong: ScoredCandidate[]): ScoredCandidate {
+  const ranked = [...strong].sort((a, b) => {
+    const aUrl = a.tier === MatchTier.EXACT_TARGET_URL || a.tier === MatchTier.EXACT_TCIN ? 1 : 0;
+    const bUrl = b.tier === MatchTier.EXACT_TARGET_URL || b.tier === MatchTier.EXACT_TCIN ? 1 : 0;
+    if (bUrl !== aUrl) return bUrl - aUrl;
+    if (b.title_similarity !== a.title_similarity) {
+      return b.title_similarity - a.title_similarity;
+    }
+    const ap = a.offer.observed_price ?? Number.POSITIVE_INFINITY;
+    const bp = b.offer.observed_price ?? Number.POSITIVE_INFINITY;
+    return ap - bp;
+  });
+  return ranked[0]!;
 }
 
 /**
@@ -357,7 +385,19 @@ export function evaluateProductMatches(
         rejected,
       };
     }
-    // Same identity repeated — still treat as single exact candidate
+    // Same identity repeated — pick best single exact candidate
+    const exact = pickBestStrongCandidate(strong);
+    return {
+      match_rule_version: MATCH_RULE_VERSION,
+      decision: MatchDecision.EXACT_MATCH_CANDIDATE,
+      reasons: [
+        "single_strong_target_identity_among_duplicates",
+        ...exact.reasons,
+      ],
+      candidates: scored,
+      exact_candidate: exact,
+      rejected,
+    };
   }
 
   if (strong.length === 1) {

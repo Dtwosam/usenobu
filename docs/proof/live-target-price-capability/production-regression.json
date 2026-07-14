@@ -1,0 +1,25 @@
+{
+  "at": "2026-07-14T16:44:17.440Z",
+  "base": "https://afterbuy.vercel.app",
+  "airtag": {
+    "http": 200,
+    "status": "PRICE_DROP_DETECTED",
+    "observed": 29.99,
+    "matched": {
+      "title": "Apple AirTag",
+      "seller": "Target",
+      "seller_kind": "target",
+      "match_tier": "exact_model_variant",
+      "target_item_id": null,
+      "model_number": "AIRTAG",
+      "note": "SerpApi product_id is not Target TCIN"
+    },
+    "potential_recovery": 5.01
+  },
+  "conair": {
+    "http": 200,
+    "status": "MATCH_REVIEW_REQUIRED",
+    "observed": null
+  },
+  "agent_frozen": true
+}

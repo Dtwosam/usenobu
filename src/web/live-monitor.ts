@@ -14,11 +14,14 @@ import {
   type SerpApiShoppingClient,
   type SerpApiShoppingResult,
 } from "../serpapi/index.js";
+import { enrichOffersWithImmersiveTargetLinks } from "../serpapi/enrich-target-links.js";
+import { offerMatchesLockedFingerprint } from "../matching/confirm.js";
 import type { LockedProductFingerprint } from "../domain/product-fingerprint.js";
 
 /**
  * Deterministic live query from locked fingerprint.
  * Prefer strong identifiers in order: model → UPC → TCIN → title → brand → Target.
+ * When model is primary, include TCIN as a compact secondary disambiguator.
  * Never includes purchase chatter (price, date, "I bought", refund).
  */
 export function buildMonitorShoppingQuery(fp: LockedProductFingerprint): string {
@@ -36,6 +39,10 @@ export function buildMonitorShoppingQuery(fp: LockedProductFingerprint): string 
       parts.push(brand);
     }
     parts.push(model);
+    // Compact secondary: TCIN helps Shopping surface the exact SKU page
+    if (tcin && !parts.includes(tcin)) {
+      parts.push(tcin);
+    }
   } else if (upc) {
     parts.push(upc);
   } else if (tcin) {
@@ -57,11 +64,6 @@ export function buildMonitorShoppingQuery(fp: LockedProductFingerprint): string 
     } catch {
       parts.push("product");
     }
-  }
-
-  // Optional secondary disambiguators when primary was model (not already included)
-  if (model && upc && !parts.includes(upc)) {
-    // Keep query compact: model-first path does not always need UPC
   }
 
   parts.push("Target");
@@ -146,7 +148,38 @@ export function createLiveSerpApiObservationFetcher(deps?: {
         device: "desktop",
         timeout_ms: 20_000,
       });
-      return shoppingResultToObservation(shopping, query, observedAt);
+      let offers: MatchableOffer[] = (shopping.offers ?? []).map((o) =>
+        toMatchableOffer(o),
+      );
+
+      // If no offer already matches the locked fingerprint, try one immersive
+      // resolve to recover Target.com URL / TCIN (new Shopping layout gap).
+      const anyMatch = offers.some(
+        (o) => offerMatchesLockedFingerprint(fingerprint, o).match,
+      );
+      if (!anyMatch) {
+        try {
+          const enriched = await enrichOffersWithImmersiveTargetLinks({
+            client,
+            offers,
+            reference_title: fingerprint.product_title,
+            expected_tcin: fingerprint.target_item_id,
+            max_immersive_searches: 1,
+          });
+          offers = enriched.offers;
+        } catch {
+          // Immersive failure must not invent data — keep shopping offers.
+        }
+      }
+
+      return {
+        offers,
+        provider_status: shopping.provider_status,
+        observed_at: observedAt,
+        query,
+        raw_result_hash: hashOffers(offers),
+        consumed_search: true,
+      };
     } catch {
       return {
         offers: [],

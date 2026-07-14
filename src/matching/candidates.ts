@@ -63,6 +63,7 @@ export function toMatchableOffer(
     product_link,
     link,
     serpapi_product_id: o.product_id ?? null,
+    immersive_product_page_token: o.immersive_product_page_token ?? null,
     target_item_id: tcin,
     model_number: null,
     upc_or_gtin: null,

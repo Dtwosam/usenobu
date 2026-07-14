@@ -2,12 +2,13 @@
 
 **Date:** 2026-07-14  
 **Status:** LANE 8 PENDING REVIEW — ASP SUBMITTED TO OKX MARKETPLACE  
-**Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI)  
-**Review-Safe Sprint A.1:** **NOBU_REVIEW_SAFE_A_1_PASS** (live SerpApi manual check)  
+**Live Target price capability:** **SERPAPI_TARGET_PRICE_CAPABILITY_PROVEN** (Apple AirTag accepted live observation; Conair GS14 still fail-closed without inventing identity)  
+**Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)  
+**Review-Safe Sprint A.1:** **NOBU_REVIEW_SAFE_A_1_PASS** (live SerpApi manual check path — diagnostics / live wiring)  
 **Review-Safe Sprint B:** **NOBU_REVIEW_SAFE_B_PASS** (price-drop Action Center)  
 **Review-Safe Sprint C:** **NOBU_REVIEW_SAFE_C_PASS** (judge clarity + money-back story)  
-**Review-Safe Sprint A.2:** **NOBU_REVIEW_SAFE_A_2_PASS** (Conair GS14 live matching evidence repair)  
-**Review-Safe Sprint A.3:** **NOBU_REVIEW_SAFE_A_3_PASS** (policy freshness refresh + live Conair closeout)
+**Review-Safe Sprint A.2:** **NOBU_REVIEW_SAFE_A_2_PASS** (Conair GS14 matching evidence hierarchy repair)  
+**Review-Safe Sprint A.3:** **NOBU_REVIEW_SAFE_A_3_PASS** (policy freshness + live Conair closeout; no_match is fail-closed, not accepted price)
 
 ## Locked decisions
 
@@ -32,6 +33,15 @@
 | Sprint C judge clarity | **PASS** — retailer-neutral hero + money-back benefit; validation kit ready |
 | Sprint A.2 live matching | **PASS** — monitoring uses URL/TCIN/model hierarchy; Conair GS14 evidence path fixed |
 | Sprint A.3 policy + live closeout | **PASS** — policy verified 2026-07-14; Conair LIVE check not POLICY_STALE |
+| Live Target price capability | **PROVEN** — ≥1 accepted live Target observation (AirTag model_from_title); proof `docs/proof/live-target-price-capability/` |
+
+## Live price capability notes
+
+- SerpApi new Shopping layout often returns Target **source** + price with **Google-only** links (no TCIN on the offer).
+- Safe acceptance requires URL/TCIN/model/UPC hierarchy — not title-only.
+- AirTag: accepted via model token + title similarity 1.0 (accessories rejected).
+- Conair GS14: still no safe acceptance when title omits model and immersive recovers a **different** TCIN (fail closed).
+- Sprints A–A.3 do **not** claim universal live price acceptance; this capability audit does for ≥1 product.
 
 ## Lane 8 status
 

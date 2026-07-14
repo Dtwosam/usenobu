@@ -1,0 +1,10 @@
+{
+  "at": "2026-07-14T16:18:19.780Z",
+  "audit": "live-target-price-capability",
+  "key_configured": false,
+  "products": [],
+  "searches_consumed": 0,
+  "accepted": [],
+  "gate3_verdict": "PROVIDER_CONFIGURATION_BLOCKED",
+  "blocker": "SERPAPI_API_KEY not available in audit environment (empty or unset). Production health may still report configured if secrets are injected only at runtime without pullable values."
+}

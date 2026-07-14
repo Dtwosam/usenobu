@@ -11,7 +11,11 @@ import {
   normalizeModel,
   normalizeTargetProductUrl,
   normalizeUpc,
+  titleSimilarity,
 } from "./identity.js";
+
+/** Model extracted only from title must still look like the locked product. */
+const MIN_TITLE_SIM_FOR_MODEL_FROM_TITLE = 0.72;
 import { isStrongMatchTier, MATCH_RULE_VERSION } from "./rules.js";
 import type {
   MatchableOffer,
@@ -186,20 +190,30 @@ export function offerMatchesLockedFingerprint(
 
   const fpModel = normalizeModel(fingerprint.model_number);
   const offerModelRaw = normalizeModel(offer.model_number);
-  // Safe model-from-title: only when fingerprint model is present and appears as a token in title
-  const offerModelFromTitle =
-    fpModel &&
+  // Safe model-from-title: model appears as a token AND title is highly similar
+  // to the locked product title (blocks accessory false positives, e.g. AirTag case).
+  const modelTokenInTitle =
+    Boolean(fpModel) &&
     offer.title
       .toUpperCase()
       .replace(/[^A-Z0-9]+/g, " ")
       .split(/\s+/)
-      .includes(fpModel)
+      .includes(fpModel!);
+  const titleSim = fingerprint.product_title
+    ? titleSimilarity(fingerprint.product_title, offer.title)
+    : 0;
+  const offerModelFromTitle =
+    fpModel &&
+    modelTokenInTitle &&
+    fingerprint.product_title &&
+    titleSim >= MIN_TITLE_SIM_FOR_MODEL_FROM_TITLE
       ? fpModel
       : null;
   const offerModel = offerModelRaw || offerModelFromTitle;
 
   if (fpModel && offerModel && fpModel === offerModel) {
-    reasons.push("model");
+    reasons.push(offerModelRaw ? "model" : "model_from_title");
+    if (!offerModelRaw) reasons.push(`title_sim=${titleSim.toFixed(3)}`);
     return { match: true, reasons };
   }
   if (fpModel && offerModelRaw && fpModel !== offerModelRaw) {

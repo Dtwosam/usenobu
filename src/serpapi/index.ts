@@ -5,3 +5,5 @@ export * from "./utf8.js";
 export * from "./normalize.js";
 export * from "./client.js";
 export * from "./capability-audit.js";
+export * from "./immersive.js";
+export * from "./enrich-target-links.js";

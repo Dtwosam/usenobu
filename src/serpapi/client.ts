@@ -245,6 +245,107 @@ export class SerpApiShoppingClient {
     }
   }
 
+  /**
+   * Google Immersive Product — recover merchant store links for a product token.
+   * Counts as one SerpApi search. Returns raw JSON (callers parse/redact).
+   */
+  async searchImmersiveProduct(args: {
+    page_token: string;
+    timeout_ms?: number;
+  }): Promise<unknown> {
+    const token = args.page_token?.trim();
+    if (!token) {
+      throw new Error("Immersive product search requires page_token");
+    }
+    const timeoutMs = args.timeout_ms ?? this.defaultTimeoutMs;
+    const observedAt = this.now().toISOString();
+    const params = new URLSearchParams({
+      engine: "google_immersive_product",
+      page_token: token,
+      api_key: this.apiKey,
+    });
+    const url = `${this.baseUrl}?${params.toString()}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await this.fetchImpl(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json; charset=utf-8",
+          "Accept-Charset": "utf-8",
+          "User-Agent":
+            "Nobu/0.1 (server-side SerpApi connector; third-party observation)",
+        },
+        signal: controller.signal,
+      });
+      const buf = Buffer.from(await response.arrayBuffer());
+      const text = buf.toString("utf8");
+      let raw: unknown;
+      try {
+        raw = JSON.parse(text) as unknown;
+      } catch {
+        this.usage.record({
+          at: observedAt,
+          engine: "google_immersive_product",
+          query: "[immersive]",
+          live: true,
+          http_status: response.status,
+          provider_status: ProviderStatus.PROVIDER_ERROR,
+          error_class: "invalid_json",
+          shoprs_used: false,
+        });
+        throw new SerpApiError({
+          message: "Invalid JSON from SerpApi immersive product",
+          provider_status: ProviderStatus.PROVIDER_ERROR,
+          http_status: response.status,
+          redacted_detail: redactSecrets(text.slice(0, 200), this.apiKey),
+        });
+      }
+      this.usage.record({
+        at: observedAt,
+        engine: "google_immersive_product",
+        query: "[immersive]",
+        live: true,
+        http_status: response.status,
+        provider_status:
+          response.status >= 400
+            ? ProviderStatus.PROVIDER_ERROR
+            : ProviderStatus.LIVE_TARGET_MATCH,
+        shoprs_used: false,
+      });
+      if (response.status >= 400) {
+        const errMsg =
+          raw &&
+          typeof raw === "object" &&
+          typeof (raw as { error?: string }).error === "string"
+            ? (raw as { error: string }).error
+            : `HTTP ${response.status}`;
+        throw new SerpApiError({
+          message: "SerpApi immersive product error",
+          provider_status: ProviderStatus.PROVIDER_ERROR,
+          http_status: response.status,
+          redacted_detail: redactSecrets(errMsg, this.apiKey),
+        });
+      }
+      return raw;
+    } catch (e) {
+      if (e instanceof SerpApiError) throw e;
+      const aborted = e instanceof Error && e.name === "AbortError";
+      this.usage.record({
+        at: observedAt,
+        engine: "google_immersive_product",
+        query: "[immersive]",
+        live: true,
+        provider_status: ProviderStatus.PROVIDER_ERROR,
+        error_class: aborted ? "timeout" : "network",
+        shoprs_used: false,
+      });
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private resolveQuery(query: SerpApiShoppingQuery) {
     return {
       q: (query.q ?? "").trim(),

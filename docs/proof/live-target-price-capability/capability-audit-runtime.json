@@ -1,0 +1,897 @@
+{
+  "at": "2026-07-14T16:38:24.528Z",
+  "audit": "live-target-price-capability-runtime",
+  "key_configured": true,
+  "products": [
+    {
+      "product_id": "conair-gs14",
+      "title": "Conair ExtremeSteam Handheld Garment Steamer",
+      "tcin": "87470797",
+      "query_monitor": "Conair GS14 87470797 Target",
+      "query_a2mcp_style": "GS14 87470797 074108469755 Target",
+      "provider_status": "AMBIGUOUS_TARGET_RESULTS",
+      "result_count": 40,
+      "target_source_count": 31,
+      "target_shoprs_tokens": 0,
+      "immersive": {
+        "immersive_searches": 1,
+        "enriched_count": 1,
+        "selected_title": "Conair ExtremeSteam Handheld Fabric Steamer",
+        "target_link": "https://www.target.com/p/conair-extremesteam-1200-watt-handheld-fabric-steamer-in-blue/-/A-1011636045?TCID=OGS&AFID=goog",
+        "target_tcin": "1011636045"
+      },
+      "enrollment_decision": "MATCH_REVIEW_REQUIRED",
+      "enrollment_reasons": [
+        "title_only_insufficient"
+      ],
+      "enrollment_exact_tcin": null,
+      "enrollment_exact_price": null,
+      "candidates": [
+        {
+          "index": 0,
+          "title": "Conair Double Ceramic Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 29.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "115896270908",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 1,
+          "title": "Conair Turbo ExtremeSteam Handheld Fabric Steamer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 69.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "104817459047",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 2,
+          "title": "Conair Infiniti Pro Hair Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 42.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "529727212706",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 3,
+          "title": "Conair Protect and Shine Hair Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 19.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "128544073686",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 4,
+          "title": "Conair Double Ceramic Curling Iron",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 19.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "148162467848",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 5,
+          "title": "CONAIR 1875 Watt Mid Size Hair Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 19.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "159859670716",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 6,
+          "title": "Conair Infiniti Pro Salon Professional Hair Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 42.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "325983335198",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 7,
+          "title": "Conair InfinitiPro Thermal Brush",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 79.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "707544163394",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 8,
+          "title": "Conair Ionic Ceramic Cord-Keeper Hair Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 22.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "349365504892",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 9,
+          "title": "Conair INFINITI PRO LED Infrared Hair Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 79.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "314484076441",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 10,
+          "title": "Conair InfinitiPRO Performa Series Ionic Ceramic Hair Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 40.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "748133269518",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 11,
+          "title": "Infinitipro By Conair Tourmaline Ceramic Flat Iron",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 36.49,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "476760285407",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 12,
+          "title": "Conair InfinitiPRO The Knot Dr. All-in-One Smoothing Dryer Brush",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 52.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "812369459362",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 13,
+          "title": "Conair Radiance Boost Nano Quartz Hair Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 37.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "444565997004",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 14,
+          "title": "Conair Infiniti Pro Texture Dryer",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 52.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "271562840109",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        }
+      ],
+      "accepted_count": 0,
+      "payload_fingerprint": "be5f348d860c8ae9"
+    },
+    {
+      "product_id": "apple-airtag",
+      "title": "Apple AirTag",
+      "tcin": "54191097",
+      "query_monitor": "Apple AirTag 54191097 Target",
+      "query_a2mcp_style": "AirTag 54191097 194252096261 Target",
+      "provider_status": "AMBIGUOUS_TARGET_RESULTS",
+      "result_count": 32,
+      "target_source_count": 4,
+      "target_shoprs_tokens": 0,
+      "immersive": {
+        "immersive_searches": 0
+      },
+      "enrollment_decision": "EXACT_MATCH_CANDIDATE",
+      "enrollment_reasons": [
+        "single_strong_target_candidate",
+        "exact_model",
+        "variants_compatible"
+      ],
+      "enrollment_exact_tcin": null,
+      "enrollment_exact_price": 29.99,
+      "candidates": [
+        {
+          "index": 0,
+          "title": "Apple AirTag",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 29.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "130609449967",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": true,
+          "monitor_reasons": [
+            "model_from_title",
+            "title_sim=1.000"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 1,
+          "title": "Heyday AirTag Sticker Mount",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 12.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "688700751449",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 2,
+          "title": "4 Pack AirTag Silicone Keychains",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 16.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "141370990828",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 3,
+          "title": "Heyday Apple AirTag Silicone Keychain with Carabiner Clip",
+          "source": "Target",
+          "seller_kind": "target",
+          "is_target_plus": false,
+          "price": 9.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "153302085159",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "insufficient_identity_for_locked_fingerprint"
+          ],
+          "diagnostic_causes": [
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 4,
+          "title": "Apple AirTag FineWoven Key Ring",
+          "source": "Apple",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 35,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "120006994749",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 5,
+          "title": "Apple Airtag 4 Pack Key Ring Black/Blue Orange/Pink",
+          "source": "Best Buy",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 109.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "826618120110",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 6,
+          "title": "AirTag Kit",
+          "source": "NewUrtopia.com",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 49,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "391824208193",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 7,
+          "title": "Apple AirTag 4-Pack Bundle,Red",
+          "source": "QVC",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 149,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "128869587619",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 8,
+          "title": "Apple Airtag 4 Pack Key Ring Pink/Orange",
+          "source": "Best Buy",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 109.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "858036293843",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 9,
+          "title": "Apple AirTag 4-Pack with Software Suite and Starter Kit - Multi",
+          "source": "HSN",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 143.99,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "171603799281",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 10,
+          "title": "Apple AirTag 2nd Gen Tracker",
+          "source": "VXB.com Bearings",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 88.88,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "251762717389",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 11,
+          "title": "AirTag in Matte",
+          "source": "Case Station",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 17.68,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "124959119699",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 12,
+          "title": "Apple AirTag 4 Pack",
+          "source": "Audio Visual Electronics",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 149.95,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "870358868589",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 13,
+          "title": "Tech Impressions 5-Piece Apple AirTag Starter Kit",
+          "source": "Walmart - 6AVE Electronics",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 14.62,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "837463480446",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        },
+        {
+          "index": 14,
+          "title": "Apple Airtag",
+          "source": "Gingko Press",
+          "seller_kind": "other",
+          "is_target_plus": false,
+          "price": 72,
+          "merchant_link": null,
+          "link_host": "www.google.com",
+          "product_link_host": "www.google.com",
+          "product_link_present": true,
+          "google_product_id_prefix": "114532451378",
+          "tcin_extracted": null,
+          "model_structured": null,
+          "upc_structured": null,
+          "tcin_matches_expected": false,
+          "monitor_match": false,
+          "monitor_reasons": [
+            "seller_not_target"
+          ],
+          "diagnostic_causes": [
+            "seller_not_recognized_as_target",
+            "no_direct_target_url_google_only_link",
+            "tcin_missing_on_offer",
+            "model_missing_on_offer_structured",
+            "upc_missing_on_offer_structured"
+          ]
+        }
+      ],
+      "accepted_count": 1,
+      "payload_fingerprint": "b3f8f813c8901393"
+    }
+  ],
+  "searches_consumed": 3,
+  "accepted": [
+    {
+      "product_id": "apple-airtag",
+      "path": [
+        "model_from_title",
+        "title_sim=1.000"
+      ],
+      "price": 29.99,
+      "title": "Apple AirTag",
+      "source": "Target"
+    }
+  ],
+  "gate3_verdict": "SERPAPI_TARGET_PRICE_CAPABILITY_PROVEN"
+}

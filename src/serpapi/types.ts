@@ -106,7 +106,7 @@ export interface SerpApiClientOptions {
 
 export interface SearchUsageRecord {
   at: string;
-  engine: "google_shopping";
+  engine: "google_shopping" | "google_immersive_product";
   query: string;
   live: boolean;
   http_status?: number;

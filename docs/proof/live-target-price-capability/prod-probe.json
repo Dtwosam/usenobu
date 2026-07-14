@@ -1,0 +1,139 @@
+{
+  "at": "2026-07-14T16:15:28.730Z",
+  "audit": "live-target-price-capability-prod-probe",
+  "base": "https://usenobu.vercel.app",
+  "health": {
+    "status": 200,
+    "serpapi_configured": true,
+    "provider_ready": true,
+    "body_keys": [
+      "status",
+      "service",
+      "version",
+      "checked_at",
+      "price_source_type",
+      "provider",
+      "serpapi_configured",
+      "provider_ready",
+      "groq_configured",
+      "nobu_ai_model",
+      "note"
+    ]
+  },
+  "agent_regression": {
+    "status": 404,
+    "body_prefix": "{\"error\":\"not_found\",\"message\":\"No purchase found for that id.\"}",
+    "ok_frozen": true
+  },
+  "products": [
+    {
+      "product_id": "conair-gs14",
+      "tcin": "87470797",
+      "http_status": 200,
+      "elapsed_ms": 461,
+      "a2mcp_status": "MATCH_REVIEW_REQUIRED",
+      "observed_price": null,
+      "purchase_price": 39.99,
+      "potential_recovery": null,
+      "matched_product": null,
+      "raw_status_fields": {
+        "status": "MATCH_REVIEW_REQUIRED",
+        "days_remaining": 1,
+        "error": null
+      },
+      "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+      "provider": "SerpApi",
+      "has_disclaimer": true,
+      "secret_leak": false,
+      "limitation": "Production A2MCP returns decision status only; granular candidate fields require local SerpApi key audit."
+    },
+    {
+      "product_id": "dyson-v8",
+      "tcin": "85269288",
+      "http_status": 503,
+      "elapsed_ms": 20473,
+      "a2mcp_status": "DATA_SOURCE_UNAVAILABLE",
+      "observed_price": null,
+      "purchase_price": 399.99,
+      "potential_recovery": null,
+      "matched_product": null,
+      "raw_status_fields": {
+        "status": "DATA_SOURCE_UNAVAILABLE",
+        "days_remaining": null,
+        "error": null
+      },
+      "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+      "provider": "SerpApi",
+      "has_disclaimer": true,
+      "secret_leak": false,
+      "limitation": "Production A2MCP returns decision status only; granular candidate fields require local SerpApi key audit."
+    },
+    {
+      "product_id": "up-up-acetaminophen",
+      "tcin": "14714061",
+      "http_status": 200,
+      "elapsed_ms": 12936,
+      "a2mcp_status": "MATCH_REVIEW_REQUIRED",
+      "observed_price": null,
+      "purchase_price": 4.99,
+      "potential_recovery": null,
+      "matched_product": null,
+      "raw_status_fields": {
+        "status": "MATCH_REVIEW_REQUIRED",
+        "days_remaining": 1,
+        "error": null
+      },
+      "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+      "provider": "SerpApi",
+      "has_disclaimer": true,
+      "secret_leak": false,
+      "limitation": "Production A2MCP returns decision status only; granular candidate fields require local SerpApi key audit."
+    },
+    {
+      "product_id": "good-gather-pita",
+      "tcin": "54556324",
+      "http_status": 503,
+      "elapsed_ms": 20408,
+      "a2mcp_status": "DATA_SOURCE_UNAVAILABLE",
+      "observed_price": null,
+      "purchase_price": 2.99,
+      "potential_recovery": null,
+      "matched_product": null,
+      "raw_status_fields": {
+        "status": "DATA_SOURCE_UNAVAILABLE",
+        "days_remaining": null,
+        "error": null
+      },
+      "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+      "provider": "SerpApi",
+      "has_disclaimer": true,
+      "secret_leak": false,
+      "limitation": "Production A2MCP returns decision status only; granular candidate fields require local SerpApi key audit."
+    },
+    {
+      "product_id": "apple-airtag",
+      "tcin": "54191097",
+      "http_status": 200,
+      "elapsed_ms": 2123,
+      "a2mcp_status": "MATCH_REVIEW_REQUIRED",
+      "observed_price": null,
+      "purchase_price": 29,
+      "potential_recovery": null,
+      "matched_product": null,
+      "raw_status_fields": {
+        "status": "MATCH_REVIEW_REQUIRED",
+        "days_remaining": 1,
+        "error": null
+      },
+      "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+      "provider": "SerpApi",
+      "has_disclaimer": true,
+      "secret_leak": false,
+      "limitation": "Production A2MCP returns decision status only; granular candidate fields require local SerpApi key audit."
+    }
+  ],
+  "searches_note": "Each A2MCP call may consume one SerpApi search on production when configured.",
+  "accepted_live_price": [],
+  "gate3_verdict_from_a2mcp_only": "LIVE_PROVIDER_REACHABLE_BUT_NO_SAFE_ACCEPTANCE_VIA_A2MCP",
+  "note": "SerpApi is live on production (not 503 config missing). Exact match path still fails closed for these products — local key required for Gate 1 field capture."
+}

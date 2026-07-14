@@ -32,6 +32,11 @@ export interface MatchableOffer {
   link?: string | null;
   /** SerpApi/Google product id — never used as Target TCIN. */
   serpapi_product_id?: string | null;
+  /**
+   * SerpApi immersive product page token (when present).
+   * Used only to recover merchant Target.com links — never as TCIN.
+   */
+  immersive_product_page_token?: string | null;
   /** Target TCIN only when known from Target URL or user-confirmed data — not SerpApi id. */
   target_item_id?: string | null;
   model_number?: string | null;

@@ -20,6 +20,8 @@ import {
   type NormalizedShoppingOffer,
   type SerpApiShoppingClient,
 } from "../serpapi/index.js";
+import { enrichOffersWithImmersiveTargetLinks } from "../serpapi/enrich-target-links.js";
+import { toMatchableOffer } from "../matching/candidates.js";
 import { assertResponseHasNoSecrets } from "./audit.js";
 
 export interface A2mcpCheckDeps {
@@ -189,8 +191,41 @@ export async function runA2mcpTargetPriceCheck(
         return { http_status: 503, body };
       }
 
-      // Pass normalized offers through existing matching (TCIN only from Target URLs)
-      offers = shopping.offers;
+      // Normalize then optionally enrich Target merchant links via one immersive call
+      let matchable = shopping.offers.map((o) => toMatchableOffer(o));
+      const pre = evaluateProductMatches(
+        {
+          target_product_url: req.target_product_url,
+          target_item_id: req.target_item_id,
+          model_number: req.model_number,
+          upc_or_gtin: req.upc_or_gtin,
+        },
+        matchable,
+      );
+      if (pre.decision !== "EXACT_MATCH_CANDIDATE") {
+        let reference_title: string | undefined;
+        try {
+          const slug = new URL(req.target_product_url).pathname
+            .split("/")
+            .filter(Boolean)[1];
+          if (slug) reference_title = slug.replace(/-/g, " ");
+        } catch {
+          /* ignore */
+        }
+        try {
+          const enriched = await enrichOffersWithImmersiveTargetLinks({
+            client,
+            offers: matchable,
+            reference_title,
+            expected_tcin: req.target_item_id,
+            max_immersive_searches: 1,
+          });
+          matchable = enriched.offers;
+        } catch {
+          // Keep shopping-only offers on immersive failure
+        }
+      }
+      offers = matchable;
     } catch {
       const body = baseResponse("DATA_SOURCE_UNAVAILABLE", checkedAt, {
         purchase_price: req.purchase_price,
@@ -202,12 +237,26 @@ export async function runA2mcpTargetPriceCheck(
     }
   }
 
+  // Derive a soft title reference from the trusted Target URL slug when the
+  // free A2MCP request has no product_title field (schema does not include it).
+  // Used only for model-from-title similarity gates — never invents TCIN/UPC.
+  let titleFromUrl: string | undefined;
+  try {
+    const slug = new URL(req.target_product_url).pathname
+      .split("/")
+      .filter(Boolean)[1];
+    if (slug) titleFromUrl = slug.replace(/-/g, " ");
+  } catch {
+    /* ignore */
+  }
+
   const match = evaluateProductMatches(
     {
       target_product_url: req.target_product_url,
       target_item_id: req.target_item_id,
       model_number: req.model_number,
       upc_or_gtin: req.upc_or_gtin,
+      product_title: titleFromUrl,
     },
     offers,
   );
