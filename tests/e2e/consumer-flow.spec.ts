@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { openManualPurchaseForm } from "./helpers/open-manual-form";
 
 const SCREEN_DIR = path.join("docs", "proof", "ui", "screens");
 
@@ -61,8 +62,12 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
       fullPage: true,
     });
 
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("exact_match");
-    await page.getByTestId("submit-purchase").click();
+    await Promise.all([
+      page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),
+      page.getByTestId("submit-purchase").click(),
+    ]);
 
     await expect(page.getByTestId("match-decision")).toHaveAttribute(
       "data-decision",
@@ -87,10 +92,14 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     });
 
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.getByTestId("confirm-candidate").click();
+    await Promise.all([
+      page.waitForURL(/\/purchases\/[^/]+$/, { timeout: 45_000 }),
+      page.getByTestId("confirm-candidate").click(),
+    ]);
 
     await expect(page.getByTestId("status-pill")).toContainText(
       "Nobu is watching this purchase",
+      { timeout: 15_000 },
     );
     await expect(page.getByTestId("status-code")).toHaveText("MONITORING_ACTIVE");
     await expect(page.getByTestId("fingerprint-id")).toBeVisible();
@@ -154,6 +163,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/purchases/new");
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-region").fill("AK");
     await page.getByTestId("input-price").fill("12.34");
     await page.getByTestId("submit-purchase").click();
@@ -178,13 +188,17 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
   test("ambiguous fixture path cannot confirm", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/purchases/new");
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("ambiguous");
     await page.getByTestId("input-url").fill(
       "https://www.target.com/p/acetaminophen-demo",
     );
     await page.getByTestId("input-tcin").fill("");
     await page.getByTestId("input-model").fill("UPUP-ACET-500");
-    await page.getByTestId("submit-purchase").click();
+    await Promise.all([
+      page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),
+      page.getByTestId("submit-purchase").click(),
+    ]);
 
     await expect(page.getByTestId("match-decision")).toHaveAttribute(
       "data-decision",
@@ -203,6 +217,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
 
   test("no-price fixture path shows empty candidates", async ({ page }) => {
     await page.goto("/purchases/new");
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("no_price");
     await page.getByTestId("submit-purchase").click();
 
@@ -238,6 +253,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
 
   test("add-purchase shows Target as current retailer only", async ({ page }) => {
     await page.goto("/purchases/new");
+    await openManualPurchaseForm(page);
     await expect(page.getByRole("heading", { name: /Add your purchase/i })).toBeVisible();
     await expect(page.getByTestId("input-retailer")).toHaveValue(
       "Target — currently supported",
@@ -250,6 +266,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
 
   test("no sensitive input fields on purchase form", async ({ page }) => {
     await page.goto("/purchases/new");
+    await openManualPurchaseForm(page);
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
     await expect(page.locator('input[name*="card" i]')).toHaveCount(0);
     await expect(page.locator('input[name*="cvv" i]')).toHaveCount(0);

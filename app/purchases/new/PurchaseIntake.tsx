@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { submitPurchaseAction } from "@/web/actions";
 import { fillDetailsWithAiAction } from "@/web/ai-actions";
 import {
@@ -29,19 +29,30 @@ export type PurchaseDefaults = {
 
 type Props = {
   defaults: PurchaseDefaults;
-  serverError?: { heading: string; body: string; nextAction: string; code: string } | null;
+  serverError?: {
+    heading: string;
+    body: string;
+    nextAction: string;
+    code: string;
+  } | null;
   focusRegion?: boolean;
 };
 
+const MANUAL_FORM_ID = "purchase-manual-form";
+
 export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
   const [purchaseText, setPurchaseText] = useState("");
-  const [showManual, setShowManual] = useState(true);
+  // Collapsed by default; open when returning from validation error
+  const [showManual, setShowManual] = useState(
+    () => Boolean(serverError || focusRegion),
+  );
   const [aiPending, startAi] = useTransition();
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiNotice, setAiNotice] = useState<string | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
   const [uncertain, setUncertain] = useState<string[]>([]);
   const [reviewed, setReviewed] = useState(false);
+  const shouldFocusManual = useRef(false);
 
   const [url, setUrl] = useState(defaults.url);
   const [price, setPrice] = useState(defaults.price);
@@ -63,14 +74,42 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
     };
   }, [missing, uncertain]);
 
+  useEffect(() => {
+    if (showManual && shouldFocusManual.current) {
+      shouldFocusManual.current = false;
+      const target = document.getElementById(
+        focusRegion ? "region" : "target_product_url",
+      );
+      if (target instanceof HTMLElement) {
+        target.focus();
+      }
+    }
+  }, [showManual, focusRegion]);
+
+  function openManual(opts?: { focus?: boolean }) {
+    if (opts?.focus !== false) shouldFocusManual.current = true;
+    setShowManual(true);
+  }
+
+  function toggleManual() {
+    if (showManual) {
+      setShowManual(false);
+      return;
+    }
+    openManual({ focus: true });
+  }
+
   function onFillWithAi() {
     setAiError(null);
     setAiNotice(null);
     startAi(async () => {
       const result = await fillDetailsWithAiAction(purchaseText);
       if (!result.ok) {
-        setAiError(result.message);
-        setShowManual(true);
+        setAiError(
+          result.message ||
+            "AI assistance is temporarily unavailable. You can still enter the purchase details manually.",
+        );
+        openManual({ focus: true });
         return;
       }
       const e = result.data.extracted_purchase;
@@ -85,7 +124,7 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
       setMissing(result.data.missing_fields);
       setUncertain(result.data.uncertain_fields);
       setReviewed(true);
-      setShowManual(true);
+      openManual({ focus: true });
       setAiNotice(
         "Here’s what I understood. Review these details before Nobu starts looking for your product.",
       );
@@ -142,9 +181,11 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               type="button"
               variant="secondary"
               data-testid="btn-manual-entry"
-              onClick={() => setShowManual(true)}
+              aria-expanded={showManual}
+              aria-controls={MANUAL_FORM_ID}
+              onClick={toggleManual}
             >
-              Enter details manually
+              {showManual ? "Hide manual form" : "Enter details manually"}
             </Button>
           </div>
           {aiError ? (
@@ -155,7 +196,10 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
             </div>
           ) : null}
           {aiNotice ? (
-            <div style={{ marginTop: "var(--space-4)" }} data-testid="ai-confirmation-gate">
+            <div
+              style={{ marginTop: "var(--space-4)" }}
+              data-testid="ai-confirmation-gate"
+            >
               <InlineNotice tone="info">
                 <p>
                   <strong>Here’s what I understood</strong>
@@ -174,7 +218,10 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               </InlineNotice>
             </div>
           ) : null}
-          <p className="muted" style={{ marginTop: "var(--space-4)", fontSize: "0.9rem" }}>
+          <p
+            className="muted"
+            style={{ marginTop: "var(--space-4)", fontSize: "0.9rem" }}
+          >
             AI helps Nobu understand purchase information. Deterministic retailer rules
             and exact-product matching control every monitoring decision.
           </p>
@@ -182,6 +229,7 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
 
         {showManual ? (
           <form
+            id={MANUAL_FORM_ID}
             className="n-card n-form-card"
             action={submitPurchaseAction}
             data-testid="purchase-form"
@@ -320,7 +368,11 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
                   readOnly
                   aria-readonly="true"
                 />
-                <input type="hidden" name="purchase_channel" value="target_online" />
+                <input
+                  type="hidden"
+                  name="purchase_channel"
+                  value="target_online"
+                />
               </Field>
             </div>
 
@@ -417,7 +469,14 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               Find my product
             </Button>
           </form>
-        ) : null}
+        ) : (
+          <div
+            id={MANUAL_FORM_ID}
+            hidden
+            data-testid="purchase-form-collapsed"
+            aria-hidden="true"
+          />
+        )}
       </div>
 
       <aside className="n-support-panel" aria-label="Supported purchases">
@@ -447,7 +506,12 @@ export function PurchasePageChrome({
   serverError,
 }: {
   children: React.ReactNode;
-  serverError?: { heading: string; body: string; nextAction: string; code: string } | null;
+  serverError?: {
+    heading: string;
+    body: string;
+    nextAction: string;
+    code: string;
+  } | null;
 }) {
   return (
     <div className="n-screen n-screen--form">

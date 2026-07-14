@@ -5,6 +5,7 @@
 import { test, expect, chromium } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { openManualPurchaseForm } from "./helpers/open-manual-form";
 
 const PROD = process.env.PROD_BASE_URL ?? "https://usenobu.vercel.app";
 const PROOF = path.join(
@@ -38,6 +39,7 @@ test.describe("Production Find my product flow", () => {
       fullPage: true,
     });
 
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("exact_match");
     await page.getByTestId("submit-purchase").click();
 
@@ -88,6 +90,7 @@ test.describe("Production Find my product flow", () => {
     const browser = await chromium.launch();
     const page = await browser.newPage();
     await page.goto(`${PROD}/purchases/new`);
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-region").fill("AK");
     await page.getByTestId("submit-purchase").click();
     await expect(page.locator("body")).not.toContainText("Application error");

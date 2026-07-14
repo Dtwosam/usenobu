@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs";
 import path from "node:path";
+import { openManualPurchaseForm } from "./helpers/open-manual-form";
 
 const FINAL = path.join("docs", "proof", "ui", "final");
 
@@ -80,6 +81,7 @@ test.describe("Lane 7.5B3 final visual proof", () => {
     // Flow: exact match → review → dashboard → alert
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/purchases/new");
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("exact_match");
     await page.getByTestId("submit-purchase").click();
     await expect(page.getByTestId("match-decision-label")).toBeVisible();
@@ -151,6 +153,7 @@ test.describe("Lane 7.5B3 final visual proof", () => {
     // Ambiguous (same fixture inputs as consumer-flow)
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/purchases/new");
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("ambiguous");
     await page.getByTestId("input-url").fill(
       "https://www.target.com/p/acetaminophen-demo",
@@ -168,6 +171,7 @@ test.describe("Lane 7.5B3 final visual proof", () => {
 
     // Unsupported error
     await page.goto("/purchases/new");
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-region").fill("AK");
     await page.getByTestId("submit-purchase").click();
     await expect(page.getByTestId("purchase-error")).toBeVisible();
