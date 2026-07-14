@@ -18,6 +18,8 @@ type Snapshot = {
   alerts: Array<Record<string, unknown>>;
   monitor_runs: Array<Record<string, unknown>>;
   search_budget_ledger: Array<Record<string, unknown>>;
+  /** Enrollment discovery (live or fixture) for review/confirm. */
+  enrollment_discovery: Array<Record<string, unknown>>;
 };
 
 function emptySnapshot(): Snapshot {
@@ -29,6 +31,7 @@ function emptySnapshot(): Snapshot {
     alerts: [],
     monitor_runs: [],
     search_budget_ledger: [],
+    enrollment_discovery: [],
   };
 }
 
@@ -142,6 +145,46 @@ export function exportSnapshot(db: NobuDatabase): Snapshot {
       }),
     );
 
+  // Ensure discovery table exists so export does not throw
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS enrollment_discovery (
+        purchase_id TEXT PRIMARY KEY NOT NULL,
+        data_source TEXT NOT NULL,
+        query TEXT,
+        provider_status TEXT,
+        evaluation_json TEXT NOT NULL,
+        offers_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+  } catch {
+    /* ignore */
+  }
+
+  const discovery = tableRows(db, "enrollment_discovery")
+    .slice(-1)
+    .map((d) => {
+      // Truncate large JSON if needed for cookie limit
+      let evaluation_json = String(d.evaluation_json ?? "{}");
+      let offers_json = String(d.offers_json ?? "[]");
+      if (evaluation_json.length > 1800) {
+        evaluation_json = evaluation_json.slice(0, 1800);
+      }
+      if (offers_json.length > 800) {
+        offers_json = offers_json.slice(0, 800);
+      }
+      return slimRow({
+        purchase_id: d.purchase_id,
+        data_source: d.data_source,
+        query: d.query,
+        provider_status: d.provider_status,
+        evaluation_json,
+        offers_json,
+        created_at: d.created_at,
+      });
+    });
+
   return {
     purchases: tableRows(db, "purchases").slice(-2).map(slimRow),
     product_fingerprints: fingerprints,
@@ -167,6 +210,7 @@ export function exportSnapshot(db: NobuDatabase): Snapshot {
     search_budget_ledger: tableRows(db, "search_budget_ledger")
       .slice(-1)
       .map(slimRow),
+    enrollment_discovery: discovery,
   };
 }
 
@@ -218,6 +262,22 @@ export function importSnapshot(db: NobuDatabase, snapshot: Snapshot): void {
   insertRows(db, "alerts", snapshot.alerts ?? []);
   insertRows(db, "monitor_runs", snapshot.monitor_runs ?? []);
   insertRows(db, "search_budget_ledger", snapshot.search_budget_ledger ?? []);
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS enrollment_discovery (
+        purchase_id TEXT PRIMARY KEY NOT NULL,
+        data_source TEXT NOT NULL,
+        query TEXT,
+        provider_status TEXT,
+        evaluation_json TEXT NOT NULL,
+        offers_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+  } catch {
+    /* ignore */
+  }
+  insertRows(db, "enrollment_discovery", snapshot.enrollment_discovery ?? []);
 }
 
 /** Clear demo tables so cookie snapshot is authoritative across warm instances. */
@@ -231,6 +291,11 @@ export function clearDemoTables(db: NobuDatabase): void {
     DELETE FROM purchases;
     DELETE FROM search_budget_ledger;
   `);
+  try {
+    db.exec(`DELETE FROM enrollment_discovery;`);
+  } catch {
+    /* table may not exist yet */
+  }
 }
 
 /**

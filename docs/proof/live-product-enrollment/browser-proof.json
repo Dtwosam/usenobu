@@ -1,0 +1,53 @@
+{
+  "at": "2026-07-14T22:30:57.919Z",
+  "base": "https://usenobu.vercel.app",
+  "steps": {
+    "health": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "service": "nobu-a2mcp",
+        "version": "1.0.0",
+        "checked_at": "2026-07-14T22:30:58.430Z",
+        "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+        "provider": "SerpApi",
+        "serpapi_configured": true,
+        "provider_ready": true,
+        "groq_configured": true,
+        "nobu_ai_model": "openai/gpt-oss-20b",
+        "note": "Free A2MCP health. Not an official Target API. serpapi_configured and groq_configured are boolean only — no secrets."
+      }
+    },
+    "agent": {
+      "status": 404,
+      "body": "{\"error\":\"not_found\",\"message\":\"No purchase found for that id.\"}",
+      "frozen": true
+    },
+    "review": {
+      "url": "https://usenobu.vercel.app/purchases/pur_590c91d00a42/review?title=Apple+AirTag&source=LIVE",
+      "fixture_banner_visible": false,
+      "discovery_data_source": "LIVE",
+      "match_decision": "EXACT_MATCH_CANDIDATE",
+      "confirm_title": "Apple AirTag",
+      "no_candidates": false,
+      "candidate_count": 1,
+      "cannot_confirm": false,
+      "body_snippet": "Skip to content\nN\nNobu\nHome\nMy purchases\nNotices\nTrack a purchase\nConfirm the exact product\n\nNobu must confirm the exact item before it can watch the price.\n\n✓\nPurchase\n2\nProduct\n3\nWatch\n\nLIVE third-party observation\n\nYour purchase\nProduct link\nhttps://www.target.com/p/apple-airtag/-/A-54191097\nYou paid\n$35.00 on 2026-07-14\n\nStrong match ready to confirm\nEXACT_MATCH_CANDIDATE\n\nReasons: single_strong_target_candidate, exact_model, variants_compatible\n\nLIVE\n\nTarget product candidates\nApple AirTag\n"
+    },
+    "check": {
+      "elapsed_ms": 924,
+      "final_url": "https://usenobu.vercel.app/purchases/pur_590c91d00a42/alerts/alert_478ba4b7ffce4b29?outcome=price_drop&data_source=LIVE",
+      "outcome": "price_drop",
+      "data_source": "LIVE",
+      "error": null,
+      "on_alert": true
+    },
+    "refresh": {
+      "monitoring_visible": false,
+      "has_price_or_alert": true,
+      "no_fixture": true
+    }
+  },
+  "verdict": "NOBU_LIVE_ENROLLMENT_AND_CHECK_PASS",
+  "provider_calls_note": "At most one live discovery (Find my product) + one Check price now"
+}

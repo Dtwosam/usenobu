@@ -3,8 +3,8 @@ import { reviewError } from "@/web/error-copy";
 import { formatUsd, matchDecisionLabel } from "@/web/status-copy";
 import { getPurchaseDetail } from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
-import { buildFixtureOffers } from "@/web/fixtures";
-import { evaluateProductMatches } from "@/matching/index";
+import { getWebDatabase } from "@/web/db";
+import { loadEnrollmentDiscovery } from "@/web/discovery-store";
 import { notFound } from "next/navigation";
 import {
   Button,
@@ -31,39 +31,21 @@ export default async function ReviewPage({
   if (!detail) notFound();
 
   const purchase = detail.purchase;
-  const scenario = (sp.scenario ?? "exact_match") as
-    | "exact_match"
-    | "ambiguous"
-    | "no_price";
-  const title = sp.title || undefined;
+  const db = getWebDatabase();
+  const discovery = loadEnrollmentDiscovery(db, id);
 
-  const offers = buildFixtureOffers({
-    scenario,
-    target_product_url: String(purchase.target_product_url),
-    target_item_id: (purchase.target_item_id as string) || undefined,
-    model_number: (purchase.model_number as string) || undefined,
-    product_title: title,
-  });
-
-  const evaluation = evaluateProductMatches(
-    {
-      purchase_id: id,
-      target_product_url: String(purchase.target_product_url),
-      target_item_id: (purchase.target_item_id as string) || null,
-      model_number: (purchase.model_number as string) || null,
-      upc_or_gtin: (purchase.upc_or_gtin as string) || null,
-      product_title: title,
-    },
-    offers,
-  );
+  const evaluation = discovery?.evaluation;
+  const dataSource = discovery?.data_source ?? "LIVE";
+  const isFixture = dataSource === "FIXTURE";
 
   const canConfirm =
-    evaluation.decision === "EXACT_MATCH_CANDIDATE" &&
-    evaluation.exact_candidate &&
-    !evaluation.exact_candidate.title_only;
+    Boolean(evaluation) &&
+    evaluation!.decision === "EXACT_MATCH_CANDIDATE" &&
+    evaluation!.exact_candidate &&
+    !evaluation!.exact_candidate.title_only;
 
-  const isAmbiguous = evaluation.decision === "MATCH_REVIEW_REQUIRED";
-  const noCandidates = evaluation.candidates.length === 0;
+  const isAmbiguous = evaluation?.decision === "MATCH_REVIEW_REQUIRED";
+  const noCandidates = !evaluation || evaluation.candidates.length === 0;
   const err = sp.error ? reviewError(sp.error) : null;
 
   return (
@@ -81,14 +63,20 @@ export default async function ReviewPage({
         ]}
       />
 
-      <DemoDataBanner data-testid="fixture-banner">
-        <p>
-          <strong>Demo data</strong>
-          <br />
-          This screen uses test fixtures, not a live current Target price.
-          <span className="visually-hidden"> DEMO FIXTURE DATA</span>
+      {isFixture ? (
+        <DemoDataBanner data-testid="fixture-banner">
+          <p>
+            <strong>Demo data</strong>
+            <br />
+            This screen uses test fixtures, not a live current Target price.
+            <span className="visually-hidden"> DEMO FIXTURE DATA</span>
+          </p>
+        </DemoDataBanner>
+      ) : (
+        <p className="visually-hidden" data-testid="live-discovery-source">
+          LIVE third-party observation
         </p>
-      </DemoDataBanner>
+      )}
 
       {err ? (
         <FormError data-testid="review-error" title={err.heading}>
@@ -114,27 +102,31 @@ export default async function ReviewPage({
             </dd>
           </div>
         </dl>
-        <p>
-          <StatusBadge
-            label={matchDecisionLabel(evaluation.decision)}
-            tone={
-              evaluation.decision === "EXACT_MATCH_CANDIDATE"
-                ? "success"
-                : "warning"
-            }
-            data-testid="match-decision-label"
-          />
-          {/* Machine-readable decision for tests — not shown as primary copy */}
-          <span
-            className="visually-hidden"
-            data-testid="match-decision"
-            data-decision={evaluation.decision}
-          >
-            {evaluation.decision}
-          </span>
-        </p>
+        {evaluation ? (
+          <p>
+            <StatusBadge
+              label={matchDecisionLabel(evaluation.decision)}
+              tone={
+                evaluation.decision === "EXACT_MATCH_CANDIDATE"
+                  ? "success"
+                  : "warning"
+              }
+              data-testid="match-decision-label"
+            />
+            <span
+              className="visually-hidden"
+              data-testid="match-decision"
+              data-decision={evaluation.decision}
+            >
+              {evaluation.decision}
+            </span>
+          </p>
+        ) : null}
         <p className="muted visually-hidden" data-testid="match-reasons">
-          Reasons: {evaluation.reasons.join(", ")}
+          Reasons: {evaluation?.reasons?.join(", ") ?? "none"}
+        </p>
+        <p className="visually-hidden" data-testid="discovery-data-source">
+          {dataSource}
         </p>
       </Card>
 
@@ -155,19 +147,20 @@ export default async function ReviewPage({
         <h2 className="n-card-title">Target product candidates</h2>
         {noCandidates ? (
           <div data-testid="no-candidates">
-            <h3 className="n-empty-inline-title">No Target product found</h3>
+            <h3 className="n-empty-inline-title">
+              Nobu could not find a reliable Target product right now.
+            </h3>
             <p>
-              We couldn’t find a reliable Target candidate from this search. Monitoring
-              can’t start without a confirmed exact match.
+              Monitoring can’t start without a confirmed exact match.
             </p>
             <p>
-              <strong>Next:</strong> Double-check the product link, model, or TCIN and{" "}
-              <a href="/purchases/new">try again</a>.
+              <strong>Next:</strong> Double-check the product link, model, or TCIN
+              and <a href="/purchases/new">try again</a>.
             </p>
           </div>
         ) : (
           <ul className="n-candidate-list">
-            {evaluation.candidates.map((c) => (
+            {evaluation!.candidates.map((c) => (
               <li
                 key={c.candidate_id}
                 className="n-candidate"
@@ -176,10 +169,7 @@ export default async function ReviewPage({
               >
                 <div className="n-candidate__main">
                   <strong>{c.offer.title}</strong>
-                  <p className="muted">
-                    Seller: {c.offer.seller_text}
-                    {c.offer.is_target_plus ? " · Target Plus (not supported)" : ""}
-                  </p>
+                  <p className="muted">Seller: {c.offer.seller_text}</p>
                   <ul className="n-meta-list">
                     <li>
                       Observed price:{" "}
@@ -187,19 +177,35 @@ export default async function ReviewPage({
                         ? formatUsd(c.offer.observed_price)
                         : "—"}
                     </li>
-                    {c.offer.model_number ? (
-                      <li>Model: {c.offer.model_number}</li>
+                    {c.offer.model_number || c.matched_model ? (
+                      <li>
+                        Model: {c.matched_model || c.offer.model_number}
+                      </li>
                     ) : null}
                     {c.matched_tcin || c.offer.target_item_id ? (
                       <li>
                         TCIN: {c.matched_tcin || c.offer.target_item_id}
                       </li>
                     ) : null}
-                    {c.offer.upc_or_gtin ? (
-                      <li>UPC: {c.offer.upc_or_gtin}</li>
-                    ) : null}
-                    {c.title_only ? <li>Title-only match (cannot confirm)</li> : null}
                   </ul>
+                  <details className="n-disclosure">
+                    <summary className="n-disclosure__summary">
+                      View details
+                    </summary>
+                    <div className="n-disclosure__body muted">
+                      <p>
+                        Source: third-party shopping observation (SerpApi Google
+                        Shopping) — not an official Target API.
+                      </p>
+                      {c.offer.upc_or_gtin ? (
+                        <p>UPC: {c.offer.upc_or_gtin}</p>
+                      ) : null}
+                      {c.title_only ? (
+                        <p>Title-only match (cannot confirm)</p>
+                      ) : null}
+                      <p>Match: {c.reasons.join(", ")}</p>
+                    </div>
+                  </details>
                 </div>
                 <StatusBadge
                   label={
@@ -221,7 +227,7 @@ export default async function ReviewPage({
         )}
       </Card>
 
-      {canConfirm && evaluation.exact_candidate ? (
+      {canConfirm && evaluation?.exact_candidate ? (
         <form
           className="n-card n-confirm-card"
           action={confirmCandidateAction}
@@ -234,8 +240,8 @@ export default async function ReviewPage({
             </strong>
           </p>
           <p className="muted">
-            Confirming locks this product. Later checks use only that locked identity —
-            not a looser search.
+            Confirming locks this product. Later checks use only that locked
+            identity.
           </p>
           <input type="hidden" name="purchase_id" value={id} />
           <input
@@ -244,7 +250,7 @@ export default async function ReviewPage({
             value={JSON.stringify(evaluation.exact_candidate)}
           />
           <Button type="submit" block data-testid="confirm-candidate">
-            This is my product
+            Confirm product
           </Button>
         </form>
       ) : (
@@ -268,8 +274,8 @@ export default async function ReviewPage({
 
       <InlineNotice tone="info">
         <p>
-          Prices shown are third-party shopping observations (sample data in demo), not
-          official Target prices. Target makes the final adjustment decision.
+          Prices are third-party shopping observations, not official Target
+          prices. Target makes the final adjustment decision.
         </p>
       </InlineNotice>
     </div>

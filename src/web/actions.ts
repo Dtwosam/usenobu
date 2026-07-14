@@ -63,7 +63,7 @@ export async function submitPurchaseAction(formData: FormData) {
   try {
     const db = await prepareActionDb();
 
-    const result = createPurchaseFlow({
+    const result = await createPurchaseFlow({
       target_product_url: formString(formData, "target_product_url"),
       purchase_price: formString(formData, "purchase_price"),
       purchase_date: formString(formData, "purchase_date"),
@@ -88,11 +88,16 @@ export async function submitPurchaseAction(formData: FormData) {
 
     await persistDatabaseToCookie(db);
 
-    redirect(
-      `/purchases/${result.purchase_id}/review?scenario=${encodeURIComponent(
+    const qs = new URLSearchParams();
+    qs.set("title", formString(formData, "product_title"));
+    qs.set("source", result.data_source ?? "LIVE");
+    if (result.data_source === "FIXTURE") {
+      qs.set(
+        "scenario",
         formString(formData, "fixture_scenario") || "exact_match",
-      )}&title=${encodeURIComponent(formString(formData, "product_title"))}`,
-    );
+      );
+    }
+    redirect(`/purchases/${result.purchase_id}/review?${qs.toString()}`);
   } catch (err) {
     rethrowIfNavigation(err);
     console.error("submitPurchaseAction_failed", {

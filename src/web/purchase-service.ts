@@ -25,6 +25,11 @@ import {
   type ManualCheckDataSource,
 } from "./manual-check-mode.js";
 import { buildActionCenterModel } from "./action-center.js";
+import {
+  discoverLiveTargetCandidates,
+  resolveDiscoveryDataSource,
+} from "./live-discovery.js";
+import { saveEnrollmentDiscovery } from "./discovery-store.js";
 
 export interface CreatePurchaseInput {
   target_product_url: string;
@@ -35,7 +40,7 @@ export interface CreatePurchaseInput {
   target_item_id?: string;
   upc_or_gtin?: string;
   product_title?: string;
-  /** Demo fixture scenario — never live. */
+  /** Demo fixture scenario — only when fixture discovery gate is open. */
   fixture_scenario?: FixtureScenario;
 }
 
@@ -43,9 +48,15 @@ function newId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 }
 
-export function createPurchaseFlow(raw: CreatePurchaseInput) {
+/**
+ * Create purchase + discover Target product candidates.
+ * Production: live SerpApi (never silent fixtures).
+ * Tests/e2e with fixture gate: fixture offers only.
+ */
+export async function createPurchaseFlow(raw: CreatePurchaseInput) {
   const db = getWebDatabase();
   const scenario: FixtureScenario = raw.fixture_scenario ?? "exact_match";
+  const discoveryMode = resolveDiscoveryDataSource();
 
   const parsed = safeParsePurchaseInput({
     target_product_url: raw.target_product_url,
@@ -136,7 +147,6 @@ export function createPurchaseFlow(raw: CreatePurchaseInput) {
     now,
   );
 
-  // Optional title stored only in match evaluation context
   const ref: PurchaseMatchReference = {
     purchase_id: purchaseId,
     target_product_url: input.target_product_url,
@@ -146,25 +156,86 @@ export function createPurchaseFlow(raw: CreatePurchaseInput) {
     product_title: raw.product_title,
   };
 
-  const offers = buildFixtureOffers({
-    scenario,
-    target_product_url: input.target_product_url,
-    target_item_id: input.target_item_id,
-    model_number: input.model_number,
-    product_title: raw.product_title,
-  });
+  // --- Discovery: LIVE production vs FIXTURE test/e2e only ---
+  if (discoveryMode === "FIXTURE") {
+    const offers = buildFixtureOffers({
+      scenario,
+      target_product_url: input.target_product_url,
+      target_item_id: input.target_item_id,
+      model_number: input.model_number,
+      product_title: raw.product_title,
+    });
+    const evaluation: MatchEvaluationResult = evaluateProductMatches(
+      ref,
+      offers,
+    );
+    saveEnrollmentDiscovery(db, {
+      purchase_id: purchaseId,
+      data_source: "FIXTURE",
+      query: "fixture-discovery",
+      provider_status: "FIXTURE",
+      evaluation,
+      offers,
+      created_at: now,
+    });
+    return {
+      ok: true as const,
+      purchase_id: purchaseId,
+      purchase: input,
+      product_title: raw.product_title ?? null,
+      evaluation,
+      offers,
+      data_source: "FIXTURE" as const,
+      fixture_banner: FIXTURE_BANNER,
+      policy_window_deadline: deadline,
+    };
+  }
 
-  const evaluation: MatchEvaluationResult = evaluateProductMatches(ref, offers);
+  const live = await discoverLiveTargetCandidates(ref);
+  if (!live.ok) {
+    const emptyEval = evaluateProductMatches(ref, []);
+    saveEnrollmentDiscovery(db, {
+      purchase_id: purchaseId,
+      data_source: "LIVE",
+      query: live.query ?? null,
+      provider_status: live.provider_status ?? live.error,
+      evaluation: emptyEval,
+      offers: [],
+      created_at: now,
+    });
+    return {
+      ok: true as const,
+      purchase_id: purchaseId,
+      purchase: input,
+      product_title: raw.product_title ?? null,
+      evaluation: emptyEval,
+      offers: [],
+      data_source: "LIVE" as const,
+      discovery_error: live.error,
+      discovery_message: live.message,
+      policy_window_deadline: deadline,
+    };
+  }
+
+  saveEnrollmentDiscovery(db, {
+    purchase_id: purchaseId,
+    data_source: "LIVE",
+    query: live.query,
+    provider_status: live.provider_status,
+    evaluation: live.evaluation,
+    offers: live.offers,
+    created_at: now,
+  });
 
   return {
     ok: true as const,
     purchase_id: purchaseId,
     purchase: input,
     product_title: raw.product_title ?? null,
-    evaluation,
-    offers,
-    data_source: "FIXTURE" as const,
-    fixture_banner: FIXTURE_BANNER,
+    evaluation: live.evaluation,
+    offers: live.offers,
+    data_source: "LIVE" as const,
+    discovery_query: live.query,
     policy_window_deadline: deadline,
   };
 }
@@ -217,13 +288,13 @@ export function getPurchaseDetail(purchaseId: string) {
     alerts,
     runs,
     fixture_banner: FIXTURE_BANNER,
-    data_source: "FIXTURE" as const,
+    data_source: resolveDiscoveryDataSource(),
   };
 }
 
 export function confirmPurchaseCandidate(args: {
   purchase_id: string;
-  // Candidate payload from review form (fixture-backed)
+  /** Candidate payload from review form (live discovery or gated fixtures). */
   candidate_json: string;
 }) {
   const db = getWebDatabase();
