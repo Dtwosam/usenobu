@@ -8,16 +8,50 @@
 | Gate | Status |
 |---|---|
 | 1 Production preflight | **PASS** — `preflight.json` |
-| 2 Onchain OS install + auth | Skills + CLI installed; **wallet not logged in** — `onchainos-install.json`, `wallet-status.json` |
-| 3 Register A2MCP ASP | **Not started** (auth required) — fields prepared only |
-| 4 Marketplace list/activate | **Not started** |
+| 2 Onchain OS + wallet login | **PASS** — logged in (email mode); secrets redacted |
+| 3 Register free A2MCP ASP | **PASS** — ASP **#5541** name **Nobu** (A2MCP fee `0`, endpoint usenobu `/v1/agent`) |
+| 4 Marketplace list / activate | **BLOCKED** — A2A communication not ready (AI provider not bound) |
+
+## Registration (real)
+
+| Field | Value |
+|---|---|
+| Agent id | `5541` |
+| Name | Nobu |
+| Role | ASP |
+| Service | Post-checkout price watch |
+| Type | A2MCP |
+| Fee | `0` |
+| Endpoint | `https://usenobu.vercel.app/v1/agent` |
+| validate-listing | pass |
+| Avatar | uploaded (host `static.okx.com`) |
+
+## Marketplace submission (real)
+
+Activate failed before review submission:
+
+```
+A2A communication is not ready
+→ bind AI provider: codex | claude | hermes | openclaw
+→ okx-a2a doctor --fix until ready
+→ retry activate #5541
+```
+
+No public listing URL. No approval status. No invent.
 
 ## Human action required
 
-1. Log in to OKX Agentic Wallet with Onchain OS (`onchainos wallet login …`).
-2. Complete any email OTP, terms, age/eligibility, or identity steps **yourself** — do not paste codes or secrets into chat.
-3. Resume Lane 8 to run ASP registration (`role: asp`, price `0`, endpoint `https://usenobu.vercel.app/v1/agent`) and marketplace listing.
+1. Bind a supported AI provider for `okx-a2a` (this Grok session is not in the CLI’s provider enum).
+2. `okx-a2a doctor --fix` until `ready: true`.
+3. `onchainos agent activate --agent-id 5541 --preferred-language en-US`
+4. Capture real activate response → then PENDING_REVIEW or PASS as appropriate.
 
-## Not claimed
+## Key artifacts
 
-No ASP id, submission id, review status, listing URL, approval, or marketplace usage was invented or recorded as success.
+- `lane8-gate3-gate4-summary.json`
+- `gate3-validate-listing.json`
+- `gate3-create-redacted.json`
+- `gate3-my-agents-redacted.json`
+- `gate4-activate-raw-redacted.txt`
+- `gate4-a2a-doctor-redacted.json`
+- `preflight.json`

@@ -1,0 +1,24 @@
+{
+  "at": "2026-07-14T00:01:31.308Z",
+  "steps": [
+    {
+      "step": "upload",
+      "ok": true,
+      "urlHost": "static.okx.com"
+    },
+    {
+      "step": "validate-listing",
+      "pass": true,
+      "findingsCount": 0
+    },
+    {
+      "step": "create",
+      "ok": true,
+      "newAgentId": null,
+      "message": null
+    }
+  ],
+  "verdict": "NOBU_LANE_8_BLOCKED",
+  "blocker": "create_no_agent_id",
+  "create_stdout_redacted": "{\"ok\":true,\"data\":{\"newAgentId\":null,\"txHash\":\"0x40d7e3cef5ef270bad201229c9fd1f6f589b6ade9a977b35dc63849b3f78e51c\"}}"
+}

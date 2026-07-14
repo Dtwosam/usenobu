@@ -1,0 +1,12 @@
+{
+  "at": "2026-07-14T00:00:55.550Z",
+  "step": "precheck_after_consent",
+  "ok": true,
+  "canCreate": true,
+  "role": "asp",
+  "reason": null,
+  "hasConsent": false,
+  "existingSameRoleCount": 0,
+  "aspCount": 0,
+  "existingIds": []
+}

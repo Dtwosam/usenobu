@@ -1,0 +1,13 @@
+{
+  "at": "2026-07-14T00:05:56Z",
+  "ok": false,
+  "error": {
+    "class": "A2A_communication_not_ready",
+    "message": "A2A communication is not ready, so this operation was not executed. Bind AI provider (codex|claude|hermes|openclaw), run okx-a2a doctor --fix, then retry activate."
+  },
+  "agentId_attempted": "5541",
+  "preferred_language": "en-US",
+  "submitApproval": null,
+  "approvalStatus": null,
+  "public_listing_url": null
+}

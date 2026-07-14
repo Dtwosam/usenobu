@@ -1,0 +1,12 @@
+{
+  "at": "2026-07-13T23:55:11.882Z",
+  "ok": true,
+  "canCreate": false,
+  "role": "asp",
+  "reason": "You must accept the legal terms before registering an Agent.",
+  "hasConsent": true,
+  "consentHasTerms": true,
+  "existingSameRoleCount": 0,
+  "aspCount": null,
+  "existingIds": []
+}

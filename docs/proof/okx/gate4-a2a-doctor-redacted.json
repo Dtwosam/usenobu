@@ -1,0 +1,36 @@
+{
+  "at": "2026-07-14T00:05:11.764Z",
+  "ready": false,
+  "userMessage": "2 issue(s) found; 2 need manual action (see nextActions). 1 optional enhancement(s) available but not required (see nextActions with optional=true).",
+  "nextActions": [
+    {
+      "why": "No AI runtime detected and no default provider is bound. Run doctor from your AI environment (OpenClaw / Codex / Claude / Hermes), or bind one manually first.",
+      "command": "okx-a2a ai-provider set --provider <codex|claude|hermes|openclaw>",
+      "title": null
+    },
+    {
+      "why": "Optional: to start the A2A daemon automatically at every logon, run this once from an Administrator PowerShell. Skipping it is fine ΓÇö just run `okx-a2a daemon start` when you need the daemon.",
+      "command": "okx-a2a daemon autostart install",
+      "title": null
+    },
+    {
+      "why": "The daemon accepted the command but the refresh failed. Inspect the daemon log (logs/listener.log under the task home) and re-run okx-a2a doctor.",
+      "command": null,
+      "title": null
+    }
+  ],
+  "keys": [
+    "ok",
+    "ready",
+    "blockingFailures",
+    "state",
+    "platform",
+    "target",
+    "cliVersion",
+    "checks",
+    "summary",
+    "nextActions",
+    "fixesApplied",
+    "userMessage"
+  ]
+}

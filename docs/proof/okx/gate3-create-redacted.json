@@ -1,0 +1,14 @@
+{
+  "at": "2026-07-14T00:01:35.759Z",
+  "ok": true,
+  "code": null,
+  "message": null,
+  "newAgentId": null,
+  "hasTxHash": true,
+  "keys": [
+    "newAgentId",
+    "txHash"
+  ],
+  "status": 0,
+  "stderr_snip": null
+}

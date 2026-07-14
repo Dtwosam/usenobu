@@ -1,0 +1,52 @@
+{
+  "at": "2026-07-14T00:06:00Z",
+  "verdict": "NOBU_LANE_8_BLOCKED",
+  "registration": {
+    "status": "succeeded",
+    "agentId": "5541",
+    "name": "Nobu",
+    "role": "asp",
+    "agentStatus_from_list": 2,
+    "fields": {
+      "serviceName": "Post-checkout price watch",
+      "serviceType": "A2MCP",
+      "fee": "0",
+      "endpoint": "https://usenobu.vercel.app/v1/agent"
+    },
+    "validate_listing_pass": true,
+    "avatar_uploaded": true,
+    "avatar_host": "static.okx.com",
+    "create_tx_present": true,
+    "create_newAgentId_push": null,
+    "note": "create returned ok with txHash; newAgentId WS push null; agent recovered via get-my-agents as #5541"
+  },
+  "marketplace_listing_submit": {
+    "status": "not_executed",
+    "command": "onchainos agent activate --agent-id 5541 --preferred-language en-US",
+    "ok": false,
+    "error_class": "A2A_communication_not_ready",
+    "error_summary": "Activate requires okx-a2a readiness. No AI runtime/provider bound (codex|claude|hermes|openclaw). Daemon refresh also reported failure.",
+    "public_listing_url": null,
+    "approval_status": null,
+    "submit_approval": null
+  },
+  "a2a_doctor": {
+    "ready": false,
+    "blocking": [
+      "Bind AI provider: okx-a2a ai-provider set --provider <codex|claude|hermes|openclaw> (or run doctor from a supported AI environment)",
+      "Re-run okx-a2a doctor --fix after provider bind; fix daemon refresh if still failing"
+    ]
+  },
+  "human_action_required": [
+    "On a machine with a supported AI runtime (Claude / Codex / Hermes / OpenClaw), bind the provider: okx-a2a ai-provider set --provider <codex|claude|hermes|openclaw>",
+    "Run: okx-a2a doctor --fix until ready=true",
+    "Resume: onchainos agent activate --agent-id 5541 --preferred-language en-US",
+    "Do not invent listing URLs or approval until activate returns a real submitApproval / live listing response"
+  ],
+  "not_claimed": [
+    "marketplace approval",
+    "public listing URL",
+    "pending review acceptance by OKX reviewers",
+    "marketplace invocation"
+  ]
+}
