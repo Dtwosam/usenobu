@@ -1,0 +1,37 @@
+{
+  "at": "2026-07-14T00:54:38.521Z",
+  "base": "https://usenobu.vercel.app",
+  "checks": {
+    "initial": {
+      "form_count": 0,
+      "form_hidden": true,
+      "button_label": "Enter details manually",
+      "aria_expanded": "false",
+      "type": "button",
+      "aria_controls": "purchase-manual-form",
+      "fill_ai_visible": true,
+      "nl_visible": true
+    },
+    "open": {
+      "form_visible": true,
+      "button_label": "Hide manual form",
+      "aria_expanded": "true"
+    },
+    "preserve": {
+      "after_hide_label": "Enter details manually",
+      "price": "15.55",
+      "title": "Preserve me",
+      "price_ok": true,
+      "title_ok": true
+    },
+    "keyboard_enter": {
+      "form_visible": true
+    },
+    "overflow_320": {
+      "sw": 320,
+      "cw": 320,
+      "ok": true
+    }
+  },
+  "verdict": "NOBU_UI_HOTFIX_1_PASS"
+}
