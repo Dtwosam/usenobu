@@ -102,6 +102,11 @@ Vercel cookie snapshot re-hydrates every request (clear + import), keeps FK-safe
 **Live manual check repair** — production Check price now uses SerpApi (not fixtures).  
 Evidence: `docs/proof/ui/core-product-proof/live-manual-check/` — `NOBU_REVIEW_SAFE_A_1_PASS`.
 
+## Sprint B
+
+**Action Center** — safe next steps for accepted price differences.  
+Evidence: `docs/proof/ui/action-center/` — `NOBU_REVIEW_SAFE_B_PASS`.
+
 ## Next sprint
 
 Continue Lane 8 monitoring until public approval → Lane 9 closeout.

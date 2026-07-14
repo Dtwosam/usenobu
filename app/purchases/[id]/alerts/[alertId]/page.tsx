@@ -1,6 +1,10 @@
 import { getAlert } from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
 import { daysRemaining, formatUsd } from "@/web/status-copy";
+import {
+  ACTION_TRUST_NOTE,
+  FIXTURE_UI_LABEL,
+} from "@/web/action-center";
 import { DEFAULT_POLICY_DISCLAIMER } from "@/policy/target-us-policy";
 import { notFound } from "next/navigation";
 import {
@@ -8,10 +12,10 @@ import {
   Card,
   DemoDataBanner,
   Disclosure,
-  InlineNotice,
   PageHeader,
   PriceSummary,
 } from "@/ui";
+import { ActionCenter } from "./ActionCenter";
 
 export default async function AlertPage({
   params,
@@ -23,7 +27,8 @@ export default async function AlertPage({
   const data = getAlert(id, alertId);
   if (!data) notFound();
 
-  const { alert, purchase, claim_route } = data;
+  const { alert, purchase, observation, fingerprint, action, claim_route } =
+    data;
   const remaining = daysRemaining(
     purchase?.monitoring_deadline
       ? String(purchase.monitoring_deadline)
@@ -31,99 +36,171 @@ export default async function AlertPage({
   );
   const disclaimer = String(alert.disclaimer || DEFAULT_POLICY_DISCLAIMER);
 
+  if (!action.show) {
+    // Defensive: alert row without a valid lower-price recovery should not drive actions
+    return (
+      <div className="n-screen n-screen--reading">
+        <PageHeader
+          eyebrow="Price update"
+          title="No action needed"
+          description="This result is not a confirmed lower price."
+        />
+        <ButtonLink
+          href={`/purchases/${id}`}
+          variant="secondary"
+          data-testid="back-dashboard"
+        >
+          Back to this purchase
+        </ButtonLink>
+      </div>
+    );
+  }
+
   return (
     <div className="n-screen n-screen--reading">
       <PageHeader
         eyebrow="Price update"
-        title="Nobu found a possible price difference"
-        description="A lower observed retailer price appeared while your monitoring window was open."
+        title="Possible price difference"
+        description="A lower observed Target price appeared while monitoring was open."
       />
 
-      <DemoDataBanner data-testid="fixture-banner">
-        <p>
-          <strong>Demo data</strong>
-          <br />
-          This screen uses test fixtures, not a live current retailer price.
-          <span className="visually-hidden"> DEMO FIXTURE DATA</span>
-        </p>
-      </DemoDataBanner>
+      {action.is_fixture ? (
+        <DemoDataBanner data-testid="fixture-banner">
+          <p data-testid="fixture-label">
+            <strong>Demo data</strong>
+            <br />
+            {FIXTURE_UI_LABEL}
+            <span className="visually-hidden"> DEMO FIXTURE DATA</span>
+          </p>
+        </DemoDataBanner>
+      ) : null}
 
       <Card className="n-result-card" data-testid="alert-summary">
-        <p className="n-result-card__kicker">Potential difference</p>
-        <p
-          className="n-result-card__amount"
-          data-testid="potential-recovery"
-        >
+        <p className="visually-hidden" data-testid="action-center-heading">
+          Possible price difference
+        </p>
+        <p className="visually-hidden" data-testid="potential-recovery">
           Potential recovery {formatUsd(String(alert.potential_recovery))}
         </p>
-        <p className="muted" data-testid="result-retailer">
-          Retailer: Target
-        </p>
+
         <PriceSummary
           purchasePriceLabel="Purchase price"
           purchasePrice={formatUsd(String(alert.purchase_price))}
-          observedPriceLabel="Latest observed price"
+          observedPriceLabel="Observed price"
           observedPrice={formatUsd(String(alert.observed_price))}
           differenceLabel="Potential difference"
           difference={formatUsd(String(alert.potential_recovery))}
           note={
             remaining != null
-              ? `Monitoring window: about ${remaining} day${remaining === 1 ? "" : "s"} remaining.`
+              ? `${remaining} day${remaining === 1 ? "" : "s"} remaining`
               : undefined
           }
         />
-        <InlineNotice tone="info">
-          <p data-testid="alert-disclaimer">
-            Target must verify the current price and makes the final adjustment
-            decision. {disclaimer}
-          </p>
-        </InlineNotice>
-      </Card>
 
-      <Card data-testid="target-official-actions">
-        <h2 className="n-card-title">Request guidance</h2>
-        <p className="muted">
-          For this Target purchase, Target must verify the current price and makes the
-          final adjustment decision. Nobu does not submit the request.
+        <p className="muted n-trust-note" data-testid="trust-note">
+          {ACTION_TRUST_NOTE}
         </p>
-        <ol className="n-list n-list--numbered">
-          <li>Keep receipt or purchase information ready.</li>
-          <li>
-            Open Target’s official help route (online chat or Guest Services{" "}
-            {claim_route.guest_services_phone}).
-          </li>
-          <li>Ask Target to verify the current price.</li>
-          <li>Complete any steps Target requires.</li>
-        </ol>
-        <ButtonLink href="#request-anchor" className="n-btn--block">
-          View retailer request steps
-        </ButtonLink>
-        <p id="request-anchor" className="muted">
-          Guest Services: {claim_route.guest_services_phone}. Screenshots are not
-          accepted by Target as final proof.
+        <p className="visually-hidden" data-testid="alert-disclaimer">
+          {disclaimer}
+        </p>
+
+        <ActionCenter
+          trustedTargetUrl={action.trusted_target_url}
+          contactUrl={action.contact_url}
+          copyText={action.copy_text}
+        />
+
+        {/* Legacy test hook for Guest Services phone */}
+        <p className="visually-hidden" data-testid="target-official-actions">
+          Guest Services {claim_route.guest_services_phone}
         </p>
       </Card>
 
-      <Disclosure title="How this result was checked">
-        <ul className="n-list">
-          <li>
-            Provider: third-party SerpApi shopping observation (fixture in demo)
-          </li>
-          <li>Seller evidence: Target (from observation record)</li>
-          <li>
-            Match evidence: locked product fingerprint for this purchase only
-          </li>
-          <li>Policy version: target-us-online-price-match-v1</li>
-          <li>
-            Observed at: stored with the alert; not an official Target API price
-          </li>
-        </ul>
-        <p className="muted">
-          No secrets or raw provider payloads are shown. Purchase link:{" "}
-          <span className="n-break">
-            {String(purchase?.target_product_url ?? "")}
-          </span>
-        </p>
+      <Disclosure title="View details">
+        <dl className="n-kv" data-testid="action-details">
+          <div>
+            <dt>Exact product</dt>
+            <dd data-testid="detail-product">{action.product_title}</dd>
+          </div>
+          <div>
+            <dt>Matched identifiers</dt>
+            <dd data-testid="detail-ids">
+              {[
+                fingerprint?.target_item_id
+                  ? `TCIN ${String(fingerprint.target_item_id)}`
+                  : null,
+                fingerprint?.model_number
+                  ? `Model ${String(fingerprint.model_number)}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "Locked fingerprint on file"}
+            </dd>
+          </div>
+          <div>
+            <dt>Seller confirmation</dt>
+            <dd data-testid="detail-seller">
+              {observation?.seller_text
+                ? String(observation.seller_text)
+                : "Target"}
+            </dd>
+          </div>
+          <div>
+            <dt>Observation time</dt>
+            <dd data-testid="detail-observed-at">
+              {observation?.observed_at
+                ? String(observation.observed_at)
+                : String(alert.created_at)}
+            </dd>
+          </div>
+          <div>
+            <dt>Provider</dt>
+            <dd data-testid="detail-provider">
+              {action.data_source === "LIVE"
+                ? "SerpApi (third-party observation)"
+                : "Test fixture (not live)"}
+            </dd>
+          </div>
+          <div>
+            <dt>Engine</dt>
+            <dd data-testid="detail-engine">
+              {observation?.engine
+                ? String(observation.engine)
+                : "google_shopping"}
+            </dd>
+          </div>
+          <div>
+            <dt>Matching decision</dt>
+            <dd data-testid="detail-match">
+              Exact locked-fingerprint match accepted
+            </dd>
+          </div>
+          <div>
+            <dt>Policy</dt>
+            <dd data-testid="detail-policy">
+              target-us-online-price-match-v1 · Target verifies and decides
+            </dd>
+          </div>
+          <div>
+            <dt>Alert reason</dt>
+            <dd data-testid="detail-alert-reason">
+              Observed price lower than purchase price within monitoring window
+            </dd>
+          </div>
+          <div>
+            <dt>Provenance</dt>
+            <dd data-testid="detail-provenance">
+              Third-party search observation
+              {action.trusted_target_url
+                ? ` · ${action.trusted_target_url}`
+                : ""}
+            </dd>
+          </div>
+          <div>
+            <dt>Data source</dt>
+            <dd data-testid="detail-data-source">{action.data_source}</dd>
+          </div>
+        </dl>
       </Disclosure>
 
       <ButtonLink

@@ -24,6 +24,7 @@ import {
   isFixtureCheckAllowed,
   type ManualCheckDataSource,
 } from "./manual-check-mode.js";
+import { buildActionCenterModel } from "./action-center.js";
 
 export interface CreatePurchaseInput {
   target_product_url: string;
@@ -489,12 +490,73 @@ export function getAlert(purchaseId: string, alertId: string) {
   const purchase = db
     .prepare(`SELECT * FROM purchases WHERE id = ?`)
     .get(purchaseId) as Record<string, unknown> | undefined;
+
+  const observation = alert.observation_id
+    ? (db
+        .prepare(`SELECT * FROM price_observations WHERE id = ?`)
+        .get(String(alert.observation_id)) as
+        | Record<string, unknown>
+        | undefined)
+    : undefined;
+
+  const fingerprintId =
+    (alert.fingerprint_id as string | undefined) ||
+    (purchase?.fingerprint_id as string | undefined);
+  let fingerprint: Record<string, unknown> | null = null;
+  if (fingerprintId) {
+    const fpRow = db
+      .prepare(
+        `SELECT fingerprint_json, target_product_url, target_item_id, product_title, model_number
+         FROM product_fingerprints WHERE fingerprint_id = ?`,
+      )
+      .get(fingerprintId) as
+      | {
+          fingerprint_json: string;
+          target_product_url: string;
+          target_item_id: string | null;
+          product_title: string | null;
+          model_number: string | null;
+        }
+      | undefined;
+    if (fpRow) {
+      try {
+        fingerprint = {
+          ...JSON.parse(fpRow.fingerprint_json),
+          target_product_url: fpRow.target_product_url,
+          target_item_id: fpRow.target_item_id,
+          product_title: fpRow.product_title,
+          model_number: fpRow.model_number,
+        };
+      } catch {
+        fingerprint = {
+          target_product_url: fpRow.target_product_url,
+          target_item_id: fpRow.target_item_id,
+          product_title: fpRow.product_title,
+          model_number: fpRow.model_number,
+        };
+      }
+    }
+  }
+
+  const action = buildActionCenterModel({
+    alert,
+    purchase,
+    observation,
+    fingerprint,
+  });
+
   return {
     alert,
     purchase,
-    claim_route: TARGET_US_POLICY.claim_route,
-    fixture_banner: FIXTURE_BANNER,
-    data_source: "FIXTURE" as const,
-    final_decision_by: "Target",
+    observation: observation ?? null,
+    fingerprint,
+    action,
+    claim_route: {
+      ...TARGET_US_POLICY.claim_route,
+      contact_url: action.contact_url,
+    },
+    fixture_banner: action.is_fixture ? FIXTURE_BANNER : null,
+    data_source: action.data_source,
+    final_decision_by: "Target" as const,
   };
 }

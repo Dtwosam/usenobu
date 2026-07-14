@@ -1721,6 +1721,23 @@ main.legacy-main > .n-screen {
   font-size: 0.9rem;
 }
 
+.n-action-center {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.n-action-center__actions {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.n-action-center__copied {
+  margin: var(--space-3) 0 0;
+  font-weight: 600;
+  color: var(--success);
+}
+
 .n-history-list {
   list-style: none;
   margin: 0;

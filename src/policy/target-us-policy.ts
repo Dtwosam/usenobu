@@ -76,6 +76,8 @@ export const TARGET_US_POLICY = {
   claim_route: {
     online_chat: true,
     guest_services_phone: "1-800-591-3869",
+    /** Official Target Contact Us (reverified 2026-07-14). Does not auto-start chat. */
+    contact_url: "https://www.target.com/help/contact-us",
   },
   final_decision_by: "Target" as const,
   maximum_positive_language: "potentially_eligible" as const,

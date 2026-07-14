@@ -1,0 +1,22 @@
+{
+  "/": {
+    "seriousOrCritical": 0,
+    "violations": [],
+    "passes": 22
+  },
+  "/purchases/new": {
+    "seriousOrCritical": 0,
+    "violations": [],
+    "passes": 25
+  },
+  "/notices": {
+    "seriousOrCritical": 0,
+    "violations": [],
+    "passes": 22
+  },
+  "/dashboard": {
+    "seriousOrCritical": 0,
+    "violations": [],
+    "passes": 20
+  }
+}

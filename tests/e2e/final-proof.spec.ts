@@ -123,7 +123,7 @@ test.describe("Lane 7.5B3 final visual proof", () => {
     ]);
     await expect(
       page.getByRole("heading", {
-        name: /Nobu found a possible price difference|Price drop found/i,
+        name: /Possible price difference|Nobu found a possible price difference|Price drop found/i,
       }),
     ).toBeVisible();
     await page.screenshot({

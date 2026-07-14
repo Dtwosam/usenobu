@@ -132,9 +132,16 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     });
     await expect(
       page.getByRole("heading", {
-        name: /Nobu found a possible price difference|Price drop found/i,
+        name: /Possible price difference|Nobu found a possible price difference|Price drop found/i,
       }),
     ).toBeVisible();
+    await expect(page.getByTestId("action-center")).toBeVisible();
+    await expect(page.getByTestId("open-on-target")).toBeVisible();
+    await expect(page.getByTestId("contact-target")).toBeVisible();
+    await expect(page.getByTestId("copy-details")).toBeVisible();
+    await expect(page.getByTestId("trust-note")).toContainText(
+      "Target verifies and decides",
+    );
     await expect(page.getByTestId("potential-recovery")).toContainText(
       "Potential recovery",
     );
@@ -143,6 +150,9 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     );
     await expect(page.getByTestId("target-official-actions")).toContainText(
       "Guest Services",
+    );
+    await expect(page.getByTestId("fixture-banner")).toContainText(
+      "Test data — not a live current retailer price",
     );
     await expect(page.getByTestId("fixture-banner")).toContainText(
       "DEMO FIXTURE DATA",
