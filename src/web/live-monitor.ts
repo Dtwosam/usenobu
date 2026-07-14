@@ -16,22 +16,56 @@ import {
 } from "../serpapi/index.js";
 import type { LockedProductFingerprint } from "../domain/product-fingerprint.js";
 
+/**
+ * Deterministic live query from locked fingerprint.
+ * Prefer strong identifiers in order: model → UPC → TCIN → title → brand → Target.
+ * Never includes purchase chatter (price, date, "I bought", refund).
+ */
 export function buildMonitorShoppingQuery(fp: LockedProductFingerprint): string {
-  const parts = [
-    fp.model_number,
-    fp.target_item_id,
-    fp.upc_or_gtin,
-    fp.product_title,
-    "Target",
-  ].filter(Boolean);
-  if (parts.length >= 2) return parts.join(" ");
-  try {
-    const u = new URL(fp.target_product_url);
-    const slug = u.pathname.split("/").filter(Boolean)[1] ?? "product";
-    return `${slug.replace(/-/g, " ")} Target`;
-  } catch {
-    return "Target product";
+  const model = (fp.model_number ?? "").trim();
+  const upc = (fp.upc_or_gtin ?? "").trim();
+  const tcin = (fp.target_item_id ?? "").trim();
+  const title = (fp.product_title ?? "").trim();
+  const brand = (fp.brand ?? "").trim();
+
+  const parts: string[] = [];
+
+  // Primary identity: brand + model when model exists
+  if (model) {
+    if (brand && !model.toLowerCase().includes(brand.toLowerCase())) {
+      parts.push(brand);
+    }
+    parts.push(model);
+  } else if (upc) {
+    parts.push(upc);
+  } else if (tcin) {
+    parts.push(tcin);
+  } else if (title) {
+    // Collapse whitespace; drop noisy purchase language if it leaked into title
+    const cleanTitle = title
+      .replace(/\b(i bought|purchased|today|yesterday|refund|monitoring)\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (cleanTitle) parts.push(cleanTitle);
+  } else if (brand) {
+    parts.push(brand);
+  } else {
+    try {
+      const u = new URL(fp.target_product_url);
+      const slug = u.pathname.split("/").filter(Boolean)[1] ?? "product";
+      parts.push(slug.replace(/-/g, " "));
+    } catch {
+      parts.push("product");
+    }
   }
+
+  // Optional secondary disambiguators when primary was model (not already included)
+  if (model && upc && !parts.includes(upc)) {
+    // Keep query compact: model-first path does not always need UPC
+  }
+
+  parts.push("Target");
+  return parts.filter(Boolean).join(" ");
 }
 
 function hashOffers(offers: MatchableOffer[]): string {

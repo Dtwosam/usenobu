@@ -26,11 +26,11 @@ export function checkOutcomeMessage(code: CheckOutcomeCode): string {
     case "price_drop":
       return "Possible price difference found.";
     case "ambiguous":
-      return "More than one possible match was found, so Nobu made no price decision.";
+      return "More than one possible product was found.";
     case "no_match":
       return "Nobu could not confirm the exact product.";
     case "no_reliable_price":
-      return "No reliable Target price is available.";
+      return "No Target result was found.";
     case "provider_unavailable":
       return "The price source is temporarily unavailable.";
     case "window_ended":
@@ -40,7 +40,7 @@ export function checkOutcomeMessage(code: CheckOutcomeCode): string {
     case "budget":
       return "The price source is temporarily unavailable.";
     case "not_confirmed":
-      return "Confirm the exact product before checking.";
+      return "More product details are needed.";
     case "not_found":
       return "Purchase not found.";
     case "busy":
@@ -132,23 +132,55 @@ export function outcomeFromMonitorResult(args: {
 export function explainMatchReasons(reasons: string[]): string {
   const joined = reasons.join(" ").toLowerCase();
   if (joined.includes("ambiguous")) {
-    return "More than one possible match was found, so Nobu made no price decision.";
+    return "More than one possible product was found.";
   }
   if (joined.includes("seller") || joined.includes("non_target")) {
     return "Nobu rejected this offer because the seller was not confirmed as Target.";
   }
+  if (joined.includes("model_mismatch") || joined.includes("wrong_model")) {
+    return "The returned item had a different model.";
+  }
+  if (joined.includes("tcin_mismatch") || joined.includes("wrong_tcin")) {
+    return "The returned item had a different model.";
+  }
+  if (
+    joined.includes("insufficient_identity") ||
+    joined.includes("no_locked_fingerprint_match")
+  ) {
+    return "The price source did not provide enough details to verify this item.";
+  }
+  if (joined.includes("no_target") || joined.includes("no_reliable")) {
+    return "No Target result was found.";
+  }
   if (
     joined.includes("model") ||
     joined.includes("fingerprint") ||
-    joined.includes("no_locked") ||
     joined.includes("title")
   ) {
-    return "Nobu rejected this price because it could not confirm the exact product.";
+    return "Nobu could not confirm the exact product.";
   }
   if (joined.includes("window")) {
     return "This monitoring window has ended.";
   }
   return "No lower price found.";
+}
+
+/** Prefer specific short UI message from match reasons when available. */
+export function outcomeMessageFromReasons(
+  code: CheckOutcomeCode,
+  reasons?: string[] | null,
+): string {
+  if (reasons?.length) {
+    const specific = explainMatchReasons(reasons);
+    if (
+      code === "no_match" ||
+      code === "no_reliable_price" ||
+      code === "ambiguous"
+    ) {
+      return specific;
+    }
+  }
+  return checkOutcomeMessage(code);
 }
 
 /** Prefer short decision line for the latest check result banner. */

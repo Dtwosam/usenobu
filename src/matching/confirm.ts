@@ -9,6 +9,7 @@ import {
   extractTcinFromTargetUrl,
   isTargetComUrl,
   normalizeModel,
+  normalizeTargetProductUrl,
   normalizeUpc,
 } from "./identity.js";
 import { isStrongMatchTier, MATCH_RULE_VERSION } from "./rules.js";
@@ -153,11 +154,26 @@ export function offerMatchesLockedFingerprint(
     return { match: false, reasons: ["seller_not_target"] };
   }
 
-  const fpTcin = fingerprint.target_item_id ?? null;
+  // Hierarchy (same spirit as enrollment): URL → TCIN → model → UPC.
+  // Missing one identifier type is not an automatic reject when another
+  // contract-approved strong signal is present. Title-only never passes.
+  const fpUrl = normalizeTargetProductUrl(fingerprint.target_product_url);
+  const offerUrl =
+    normalizeTargetProductUrl(offer.merchant_link) ||
+    normalizeTargetProductUrl(offer.link) ||
+    normalizeTargetProductUrl(offer.product_link);
+  if (fpUrl && offerUrl && fpUrl === offerUrl) {
+    reasons.push("exact_target_url");
+    return { match: true, reasons };
+  }
+
+  const fpTcin = fingerprint.target_item_id?.trim() || null;
+  // TCIN only from explicit field or Target.com URL — never SerpApi product_id
   const offerTcin =
-    offer.target_item_id ||
+    offer.target_item_id?.trim() ||
     extractTcinFromTargetUrl(offer.merchant_link) ||
     extractTcinFromTargetUrl(offer.link) ||
+    extractTcinFromTargetUrl(offer.product_link) ||
     null;
 
   if (fpTcin && offerTcin && fpTcin === offerTcin) {
@@ -169,15 +185,24 @@ export function offerMatchesLockedFingerprint(
   }
 
   const fpModel = normalizeModel(fingerprint.model_number);
-  const offerModel =
-    normalizeModel(offer.model_number) ||
-    (fpModel ? (offer.title.toUpperCase().replace(/[\s\-_]/g, "").includes(fpModel) ? fpModel : null) : null);
+  const offerModelRaw = normalizeModel(offer.model_number);
+  // Safe model-from-title: only when fingerprint model is present and appears as a token in title
+  const offerModelFromTitle =
+    fpModel &&
+    offer.title
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, " ")
+      .split(/\s+/)
+      .includes(fpModel)
+      ? fpModel
+      : null;
+  const offerModel = offerModelRaw || offerModelFromTitle;
 
   if (fpModel && offerModel && fpModel === offerModel) {
     reasons.push("model");
     return { match: true, reasons };
   }
-  if (fpModel && offerModel && fpModel !== offerModel) {
+  if (fpModel && offerModelRaw && fpModel !== offerModelRaw) {
     return { match: false, reasons: ["model_mismatch"] };
   }
 
@@ -186,6 +211,9 @@ export function offerMatchesLockedFingerprint(
   if (fpUpc && offerUpc && fpUpc === offerUpc) {
     reasons.push("upc");
     return { match: true, reasons };
+  }
+  if (fpUpc && offerUpc && fpUpc !== offerUpc) {
+    return { match: false, reasons: ["upc_mismatch"] };
   }
 
   // Title-only never unlocks monitoring match

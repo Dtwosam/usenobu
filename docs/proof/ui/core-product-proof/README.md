@@ -107,6 +107,11 @@ Evidence: `docs/proof/ui/core-product-proof/live-manual-check/` — `NOBU_REVIEW
 **Action Center** — safe next steps for accepted price differences.  
 Evidence: `docs/proof/ui/action-center/` — `NOBU_REVIEW_SAFE_B_PASS`.
 
+## Sprint A.2
+
+**Live product matching evidence** — Conair GS14; monitoring URL hierarchy + query repair.  
+Evidence: `docs/proof/live-product-validation/conair-gs14/` — `NOBU_REVIEW_SAFE_A_2_PASS`.
+
 ## Next sprint
 
 Continue Lane 8 monitoring until public approval → Lane 9 closeout.

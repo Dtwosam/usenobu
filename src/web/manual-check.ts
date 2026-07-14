@@ -38,6 +38,7 @@ export type ManualCheckResult =
       batch: MonitorBatchResult;
       data_source: ManualCheckDataSource;
       provider_called: boolean;
+      match_reasons?: string[];
     }
   | {
       ok: false;
@@ -224,6 +225,7 @@ export async function runBoundedManualCheck(args: {
       batch: result.batch,
       data_source: result.data_source,
       provider_called: check.searches_consumed > 0,
+      match_reasons: check.match_reasons,
     };
   } finally {
     releaseCheckLock(args.purchase_id);

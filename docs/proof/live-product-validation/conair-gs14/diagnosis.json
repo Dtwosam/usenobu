@@ -1,0 +1,93 @@
+{
+  "at": "2026-07-14T13:59:04.056Z",
+  "product": "Conair ExtremeSteam Handheld Garment Steamer",
+  "sprint": "A.2",
+  "gate1_identifier_survival": {
+    "ai_extraction": {
+      "model_number": "GS14",
+      "target_item_id": "87470797",
+      "upc_or_gtin": "074108469755",
+      "product_url_has_tcin": true,
+      "retailer": "Target"
+    },
+    "enrollment": {
+      "decision": "EXACT_MATCH_CANDIDATE",
+      "has_exact_candidate": true
+    },
+    "locked_fingerprint": {
+      "fingerprint_id": "fp_5d0b0154fad18c860272727d",
+      "target_product_url": "https://www.target.com/p/conair-extremesteam-handheld-garment-steamer/-/A-87470797",
+      "target_item_id": "87470797",
+      "model_number": "GS14",
+      "upc_or_gtin": "074108469755",
+      "brand": "Conair",
+      "product_title": "Conair ExtremeSteam Handheld Garment Steamer",
+      "seller_kind": "target"
+    },
+    "survival_table": [
+      {
+        "field": "model",
+        "expected": "GS14",
+        "after_ai": "GS14",
+        "after_fingerprint": "GS14",
+        "ok": true
+      },
+      {
+        "field": "tcin",
+        "expected": "87470797",
+        "after_ai": "87470797",
+        "after_fingerprint": "87470797",
+        "ok": true
+      },
+      {
+        "field": "upc",
+        "expected": "074108469755",
+        "after_ai": "074108469755",
+        "after_fingerprint": "074108469755",
+        "ok": true
+      },
+      {
+        "field": "target_url",
+        "expected": "A-87470797",
+        "after_ai": "https://www.target.com/p/conair-extremesteam-handheld-garment-steamer/-/A-87470797",
+        "after_fingerprint": "https://www.target.com/p/conair-extremesteam-handheld-garment-steamer/-/A-87470797",
+        "ok": true
+      }
+    ]
+  },
+  "gate2_query": {
+    "q": "Conair GS14 Target",
+    "uses_model": true,
+    "uses_target": true,
+    "no_purchase_noise": true
+  },
+  "gate3_provider": {
+    "skipped": true,
+    "reason": "SERPAPI_API_KEY not available in this environment"
+  },
+  "gate4_root_cause": "MATCHER_FIELD_MAPPING_DEFECT",
+  "repair": {
+    "summary": "Locked-fingerprint monitoring now accepts exact Target URL (same hierarchy as enrollment). Query prefers brand+model. Specific insufficient-evidence messaging.",
+    "url_match_after_repair": {
+      "match": true,
+      "reasons": [
+        "exact_target_url"
+      ]
+    }
+  },
+  "live_after_repair": {
+    "offline_proof": "Unit tests prove URL/TCIN/model hierarchy; live call when key present."
+  },
+  "provider_calls_consumed": 0,
+  "failed_rule_before_repair": {
+    "scenario": "Target seller + title only (no URL/TCIN/model/UPC on offer)",
+    "match": false,
+    "reasons": [
+      "insufficient_identity_for_locked_fingerprint"
+    ],
+    "user_message": "The price source did not provide enough details to verify this item.",
+    "note": "Before repair, monitoring match also ignored exact Target URL when present — enrollment hierarchy was not applied to locked-fingerprint checks."
+  },
+  "gate4_notes": "Identifiers survived extraction→fingerprint. Pre-repair monitoring match ignored exact Target URL (enrollment hierarchy incomplete). Query improved to prefer brand+model.",
+  "verdict": "NOBU_REVIEW_SAFE_A_2_PASS"
+}

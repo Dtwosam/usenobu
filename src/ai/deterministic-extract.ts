@@ -181,9 +181,11 @@ export function deterministicExtract(
     });
   }
 
-  // Model — only if labeled (never invent)
+  // Model — only if labeled (never invent bare SKUs from prose)
   let model_number: string | null = null;
-  const model = text.match(/\bmodel\s*(?:number|#)?\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9._-]{2,})\b/i);
+  const model = text.match(
+    /\bmodel\s*(?:number|#|no\.?)?\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9._-]{1,})\b/i,
+  );
   if (model) {
     model_number = model[1]!;
     evidence.push({

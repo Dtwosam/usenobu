@@ -189,6 +189,8 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Review-Safe Sprint C (2026-07-14):** Homepage judge clarity — retailer-neutral hero, money-back benefit, current Target availability, user-testing kit. Evidence: `docs/proof/ui/judge-clarity/`, `docs/user-testing/`. Verdict: **NOBU_REVIEW_SAFE_C_PASS**.
 
+**Review-Safe Sprint A.2 (2026-07-14):** Live product matching evidence — Conair GS14 diagnosis; locked-fingerprint monitoring accepts exact Target URL; query prefers brand+model. Evidence: `docs/proof/live-product-validation/conair-gs14/`. Verdict: **NOBU_REVIEW_SAFE_A_2_PASS**.
+
 **Proof for PASS:** approved, live listing. Do not claim completion before this exists.
 
 ## Lane 9 — Demo and submission closeout

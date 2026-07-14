@@ -32,11 +32,14 @@ describe("decision explanations (fixture)", () => {
   it("explains seller and ambiguous rejections", () => {
     expect(explainMatchReasons(["non_target_seller"])).toMatch(/not confirmed as Target/);
     expect(explainMatchReasons(["ambiguous_candidates"])).toMatch(
-      /More than one possible match/,
+      /More than one possible product/,
     );
     expect(explainMatchReasons(["model_mismatch"])).toMatch(
-      /could not confirm the exact product/,
+      /different model/,
     );
+    expect(
+      explainMatchReasons(["insufficient_identity_for_locked_fingerprint"]),
+    ).toMatch(/enough details/);
   });
 
   it("decision banner prefers short outcomes", () => {
