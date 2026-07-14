@@ -13,7 +13,7 @@ export const TARGET_US_POLICY = {
   purchase_channel: "online",
   status: "active_freshness_sensitive",
   /** Last verified against official Target help page (ISO-8601). */
-  verified_at: "2026-07-13T00:00:00.000Z",
+  verified_at: "2026-07-14T20:00:00.000Z",
   source_url:
     "https://www.target.com/help/articles/policies-guidelines/price-match-guarantee",
   window: {

@@ -1,0 +1,55 @@
+{
+  "at": "2026-07-14T14:34:06.737Z",
+  "base": "https://usenobu.vercel.app",
+  "sprint": "A.3",
+  "product": "Conair ExtremeSteam Handheld Garment Steamer",
+  "checks": {
+    "health": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "service": "nobu-a2mcp",
+        "version": "1.0.0",
+        "checked_at": "2026-07-14T14:34:07.501Z",
+        "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+        "provider": "SerpApi",
+        "serpapi_configured": true,
+        "provider_ready": true,
+        "groq_configured": true,
+        "nobu_ai_model": "openai/gpt-oss-20b",
+        "note": "Free A2MCP health. Not an official Target API. serpapi_configured and groq_configured are boolean only — no secrets."
+      }
+    },
+    "agent": {
+      "status": 404,
+      "ok": true,
+      "body": "{\"error\":\"not_found\",\"message\":\"No purchase found for that id.\"}"
+    },
+    "a2mcp_one_shot": {
+      "status": 200,
+      "body_status": "MATCH_REVIEW_REQUIRED",
+      "not_policy_stale": true,
+      "data_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+      "provider": "SerpApi",
+      "has_disclaimer": true
+    },
+    "no_api_key": true,
+    "not_fixture": true
+  },
+  "live_check": {
+    "query_timestamp": "2026-07-14T14:34:14.862Z",
+    "elapsed_ms": 572,
+    "final_url": "https://usenobu.vercel.app/purchases/pur_83a406d73857?checked=1&outcome=no_match&data_source=LIVE",
+    "outcome": "no_match",
+    "data_source": "LIVE",
+    "error": null,
+    "on_alert": false
+  },
+  "policy": {
+    "source": "https://www.target.com/help/articles/policies-guidelines/price-match-guarantee",
+    "verified_at_intended": "2026-07-14T20:00:00.000Z",
+    "changes_found": "None material vs locked contract: 14-day window; identical item/brand/size/weight/color/quantity/model; Target verifies; AK/HI and Target Plus exclusions; Guest Services 1-800-591-3869; screenshots not accepted as final proof."
+  },
+  "verdict": "NOBU_REVIEW_SAFE_A_3_PASS",
+  "searches_consumed_note": "At most one manual check; completed_checks UI when available."
+}

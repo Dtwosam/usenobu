@@ -26,7 +26,7 @@ function baseSupported(
     observed_currency: "USD",
     observed_price_reliable: true,
     // Within freshness window relative to policy.verified_at
-    evaluated_at: "2026-07-13T12:00:00.000Z",
+    evaluated_at: "2026-07-14T21:00:00.000Z",
     ...overrides,
   };
 }
@@ -257,7 +257,7 @@ describe("Target policy fixture matrix", () => {
 
     const byAge = evaluateTargetPolicy(
       baseSupported({
-        evaluated_at: "2026-07-15T01:00:00.000Z", // >24h after verified_at
+        evaluated_at: "2026-07-16T21:00:00.000Z", // >24h after verified_at
       }),
     );
     expect(byAge.status).toBe("POLICY_STALE");

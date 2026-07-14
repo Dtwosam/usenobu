@@ -8,8 +8,8 @@
 | OKX-A2MCP | A2MCP Guide | OKX | https://web3.okx.com/onchainos/dev-docs/okxai/howtomcp | Free HTTP 200 or x402, public HTTPS, X Layer payment configuration | 2026-07-13 | CURRENT |
 | OKX-ASP | ASP Introduction | OKX | https://web3.okx.com/onchainos/dev-docs/okxai/asp-introduction | A2MCP suitability and review/listing flow | 2026-07-13 | CURRENT |
 | OKX-REGISTER | ASP Registration | OKX | https://web3.okx.com/onchainos/dev-docs/okxai/registerasp | Registration prompts/fields and 24-hour wording | 2026-07-13 | CURRENT |
-| TARGET-POLICY | Price Match Guarantee | Target | https://www.target.com/help/articles/policies-guidelines/price-match-guarantee | 14-day window, identical item, proof, exclusions, Alaska/Hawaii, Target Plus | 2026-07-13 | CURRENT |
-| TARGET-SUMMARY | Target price-match summary | Target | https://www.target.com/help/article/000062256 | Contact routes and summary | 2026-07-13 | CURRENT |
+| TARGET-POLICY | Price Match Guarantee | Target | https://www.target.com/help/articles/policies-guidelines/price-match-guarantee | 14-day window, identical item, proof, exclusions, Alaska/Hawaii, Target Plus; Target decides | 2026-07-14 | CURRENT |
+| TARGET-SUMMARY | Target price-match summary | Target | https://www.target.com/help/article/000062256 | Contact routes and summary | 2026-07-14 | CURRENT |
 | TARGET-CONTACT | Contact Us | Target | https://www.target.com/help/contact-us | Official help/contact entry (phone, chat options on Target’s site) | 2026-07-14 | CURRENT |
 | SERPAPI-PRICING | Plans and Pricing | SerpApi | https://serpapi.com/pricing | Free plan 250 searches/month | 2026-07-13 | CURRENT |
 | SERPAPI-SHOPPING | Google Shopping API | SerpApi | https://serpapi.com/google-shopping-api | Engine, endpoint, parameters, structured shopping results | 2026-07-13 | CURRENT |

@@ -112,6 +112,11 @@ Evidence: `docs/proof/ui/action-center/` — `NOBU_REVIEW_SAFE_B_PASS`.
 **Live product matching evidence** — Conair GS14; monitoring URL hierarchy + query repair.  
 Evidence: `docs/proof/live-product-validation/conair-gs14/` — `NOBU_REVIEW_SAFE_A_2_PASS`.
 
+## Sprint A.3
+
+**Policy freshness + live closeout** — verified 2026-07-14; Conair LIVE production check.  
+Evidence: `docs/proof/live-product-validation/conair-gs14/live-closeout/` — `NOBU_REVIEW_SAFE_A_3_PASS`.
+
 ## Next sprint
 
 Continue Lane 8 monitoring until public approval → Lane 9 closeout.

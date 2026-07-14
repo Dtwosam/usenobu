@@ -191,6 +191,8 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Review-Safe Sprint A.2 (2026-07-14):** Live product matching evidence — Conair GS14 diagnosis; locked-fingerprint monitoring accepts exact Target URL; query prefers brand+model. Evidence: `docs/proof/live-product-validation/conair-gs14/`. Verdict: **NOBU_REVIEW_SAFE_A_2_PASS**.
 
+**Review-Safe Sprint A.3 (2026-07-14):** Policy freshness re-verified to **2026-07-14**; production Conair LIVE closeout (no POLICY_STALE). Evidence: `docs/proof/live-product-validation/conair-gs14/live-closeout/`. Verdict: **NOBU_REVIEW_SAFE_A_3_PASS**.
+
 **Proof for PASS:** approved, live listing. Do not claim completion before this exists.
 
 ## Lane 9 — Demo and submission closeout

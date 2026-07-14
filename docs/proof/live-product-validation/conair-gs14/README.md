@@ -79,6 +79,11 @@ User message was generic: *Nobu could not confirm the exact product.*
 - `diagnosis.json` — full gate output  
 - `run-diagnosis.mjs` — reproducible harness  
 
+## A.3 closeout
+
+Policy freshness refreshed; live production check:  
+`docs/proof/live-product-validation/conair-gs14/live-closeout/` — **NOBU_REVIEW_SAFE_A_3_PASS**.
+
 ## Lane 8
 
 Unchanged: **NOBU_LANE_8_PENDING_REVIEW** (ASP #5541).

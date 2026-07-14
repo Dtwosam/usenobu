@@ -6,7 +6,8 @@
 **Review-Safe Sprint A.1:** **NOBU_REVIEW_SAFE_A_1_PASS** (live SerpApi manual check)  
 **Review-Safe Sprint B:** **NOBU_REVIEW_SAFE_B_PASS** (price-drop Action Center)  
 **Review-Safe Sprint C:** **NOBU_REVIEW_SAFE_C_PASS** (judge clarity + money-back story)  
-**Review-Safe Sprint A.2:** **NOBU_REVIEW_SAFE_A_2_PASS** (Conair GS14 live matching evidence repair)
+**Review-Safe Sprint A.2:** **NOBU_REVIEW_SAFE_A_2_PASS** (Conair GS14 live matching evidence repair)  
+**Review-Safe Sprint A.3:** **NOBU_REVIEW_SAFE_A_3_PASS** (policy freshness refresh + live Conair closeout)
 
 ## Locked decisions
 
@@ -30,6 +31,7 @@
 | Sprint B Action Center | **PASS** — Open on Target / Contact / Copy for accepted price drops |
 | Sprint C judge clarity | **PASS** — retailer-neutral hero + money-back benefit; validation kit ready |
 | Sprint A.2 live matching | **PASS** — monitoring uses URL/TCIN/model hierarchy; Conair GS14 evidence path fixed |
+| Sprint A.3 policy + live closeout | **PASS** — policy verified 2026-07-14; Conair LIVE check not POLICY_STALE |
 
 ## Lane 8 status
 

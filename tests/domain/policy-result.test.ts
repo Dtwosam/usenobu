@@ -5,7 +5,7 @@ const base = {
   status: "NO_PRICE_DROP",
   policy_id: "target-us-online-price-match-v1",
   policy_version: "v1",
-  policy_verified_at: "2026-07-13T00:00:00.000Z",
+  policy_verified_at: "2026-07-14T20:00:00.000Z",
   purchase_price: 30,
   observed_target_price: 30,
   potential_recovery: 0,
