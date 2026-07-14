@@ -5,6 +5,8 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   loading?: boolean;
+  /** Label shown while loading (defaults to “Working…”). */
+  loadingLabel?: string;
   block?: boolean;
   size?: "md" | "sm";
   children: ReactNode;
@@ -22,6 +24,7 @@ const variantClass: Record<ButtonVariant, string> = {
 export function Button({
   variant = "primary",
   loading = false,
+  loadingLabel = "Working…",
   block = false,
   size = "md",
   disabled,
@@ -54,7 +57,7 @@ export function Button({
       {...rest}
     >
       {loading ? <span className="n-btn__spinner" aria-hidden /> : null}
-      <span>{loading ? "Working…" : children}</span>
+      <span>{loading ? loadingLabel : children}</span>
     </button>
   );
 }

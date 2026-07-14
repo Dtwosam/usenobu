@@ -195,7 +195,8 @@ export function getPurchaseDetail(purchaseId: string) {
 
   const runs = db
     .prepare(
-      `SELECT id, mode, outcome, skip_reason, searches_consumed, match_result, notes, finished_at
+      `SELECT id, mode, outcome, skip_reason, searches_consumed, match_result, notes,
+              finished_at, started_at, provider_status, alert_id, observation_id
        FROM monitor_runs WHERE purchase_id = ? ORDER BY finished_at DESC LIMIT 20`,
     )
     .all(purchaseId) as Array<Record<string, unknown>>;

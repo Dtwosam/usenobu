@@ -5,13 +5,24 @@ import { isRedirectError } from "next/dist/client/components/redirect-error";
 import {
   confirmPurchaseCandidate,
   createPurchaseFlow,
-  runDemoPriceCheck,
 } from "./purchase-service.js";
-import { getWebDatabase } from "./db.js";
+import { getWebDatabase, markCookieHydrated } from "./db.js";
 import {
   hydrateDatabaseFromCookie,
   persistDatabaseToCookie,
 } from "./session-snapshot.js";
+import {
+  runBoundedManualCheck,
+  WEB_DEMO_USER_REF,
+} from "./manual-check.js";
+
+/** Cookie is source of truth on Vercel — re-hydrate each mutation request. */
+async function prepareActionDb() {
+  const db = getWebDatabase();
+  markCookieHydrated(false);
+  await hydrateDatabaseFromCookie(db);
+  return db;
+}
 
 function formString(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "");
@@ -50,8 +61,7 @@ function purchaseErrorRedirect(formData: FormData, error: string, status = "") {
 
 export async function submitPurchaseAction(formData: FormData) {
   try {
-    const db = getWebDatabase();
-    await hydrateDatabaseFromCookie(db);
+    const db = await prepareActionDb();
 
     const result = createPurchaseFlow({
       target_product_url: formString(formData, "target_product_url"),
@@ -96,8 +106,7 @@ export async function submitPurchaseAction(formData: FormData) {
 export async function confirmCandidateAction(formData: FormData) {
   const purchaseId = formString(formData, "purchase_id");
   try {
-    const db = getWebDatabase();
-    await hydrateDatabaseFromCookie(db);
+    const db = await prepareActionDb();
 
     const candidateJson = formString(formData, "candidate_json");
     const result = confirmPurchaseCandidate({
@@ -125,21 +134,29 @@ export async function confirmCandidateAction(formData: FormData) {
 export async function runCheckAction(formData: FormData) {
   const purchaseId = formString(formData, "purchase_id");
   try {
-    const db = getWebDatabase();
-    await hydrateDatabaseFromCookie(db);
+    const db = await prepareActionDb();
 
-    const result = await runDemoPriceCheck(purchaseId);
+    const result = await runBoundedManualCheck({
+      db,
+      purchase_id: purchaseId,
+      user_ref: WEB_DEMO_USER_REF,
+    });
     if (!result.ok) {
       redirect(
-        `/purchases/${purchaseId}?error=${encodeURIComponent(result.error)}`,
+        `/purchases/${purchaseId}?error=${encodeURIComponent(result.error)}&outcome=${encodeURIComponent(result.outcome)}`,
       );
     }
     await persistDatabaseToCookie(db);
-    const alertId = result.batch.results[0]?.alert_id;
+    const alertId = result.alert_id;
+    const outcome = result.outcome;
     if (alertId && result.batch.alerts_created > 0) {
-      redirect(`/purchases/${purchaseId}/alerts/${alertId}`);
+      redirect(
+        `/purchases/${purchaseId}/alerts/${alertId}?outcome=${encodeURIComponent(outcome)}`,
+      );
     }
-    redirect(`/purchases/${purchaseId}?checked=1`);
+    redirect(
+      `/purchases/${purchaseId}?checked=1&outcome=${encodeURIComponent(outcome)}`,
+    );
   } catch (err) {
     rethrowIfNavigation(err);
     console.error("runCheckAction_failed", {

@@ -1699,7 +1699,26 @@ main.legacy-main > .n-screen {
 }
 
 .n-status-card__head {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-3);
+}
+
+.n-proof-support {
+  margin: 0 0 var(--space-4);
+}
+
+.n-proof-action {
+  margin-top: var(--space-5);
+}
+
+.n-proof-diff {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.n-trust-note {
+  margin: var(--space-3) 0 0;
+  font-size: 0.9rem;
 }
 
 .n-history-list {

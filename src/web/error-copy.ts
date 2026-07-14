@@ -98,30 +98,52 @@ export function dashboardError(code: string): UserError {
     case "not_confirmed":
       return {
         code,
-        heading: "Confirm your product first",
-        body: "Price checks start only after you lock the exact Target item.",
-        nextAction: "Open candidate review and confirm the match.",
+        heading: "Confirm first",
+        body: "Checks start only after you lock the exact product.",
+        nextAction: "Confirm the product on the review screen.",
       };
     case "not_found":
       return {
         code,
         heading: "Purchase not found",
         body: "We couldn’t find that purchase.",
-        nextAction: "Return to your purchases list and pick one that is still listed.",
+        nextAction: "Return to your purchases list.",
+      };
+    case "cooldown":
+    case "busy":
+      return {
+        code,
+        heading: "Please wait",
+        body: "Please wait before checking again.",
+        nextAction: "Try again in a short moment.",
+      };
+    case "unauthorized":
+      return {
+        code,
+        heading: "Not available",
+        body: "You can’t check this purchase.",
+        nextAction: "Open a purchase you own.",
+      };
+    case "budget":
+      return {
+        code,
+        heading: "Source unavailable",
+        body: "The price source is temporarily unavailable.",
+        nextAction: "Try again later.",
       };
     case "server_error":
       return {
         code,
-        heading: "Price check didn’t finish",
-        body: "Something went wrong on our side while checking for a lower price.",
-        nextAction: "Try the check again. If it keeps failing, wait a few minutes.",
+        heading: "Check didn’t finish",
+        body: "Something went wrong while checking the price.",
+        nextAction: "Try again in a moment.",
       };
     default:
       return {
         code,
-        heading: "Price check didn’t finish",
-        body: "Something went wrong while checking for a lower price.",
-        nextAction: "Try the check again. If it keeps failing, wait a few minutes.",
+        heading: "Check didn’t finish",
+        body: "Something went wrong while checking the price.",
+        nextAction: "Try again in a moment.",
       };
   }
 }

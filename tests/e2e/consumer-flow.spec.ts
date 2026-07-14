@@ -102,7 +102,14 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
       { timeout: 15_000 },
     );
     await expect(page.getByTestId("status-code")).toHaveText("MONITORING_ACTIVE");
-    await expect(page.getByTestId("fingerprint-id")).toBeVisible();
+    await expect(page.getByTestId("fingerprint-id")).toBeAttached();
+    await expect(page.getByTestId("monitoring-proof")).toBeVisible();
+    await expect(page.getByTestId("proof-support")).toContainText(
+      "exact product you confirmed",
+    );
+    await expect(page.getByTestId("run-check")).toContainText("Check price now");
+    // Next check must not be invented
+    await expect(page.getByTestId("next-check")).toHaveCount(0);
     await page.screenshot({
       path: path.join(SCREEN_DIR, "desktop-dashboard.png"),
       fullPage: true,

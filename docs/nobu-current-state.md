@@ -1,7 +1,8 @@
 # Nobu Current State
 
 **Date:** 2026-07-14  
-**Status:** LANE 8 PENDING REVIEW — ASP SUBMITTED TO OKX MARKETPLACE
+**Status:** LANE 8 PENDING REVIEW — ASP SUBMITTED TO OKX MARKETPLACE  
+**Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI)
 
 ## Locked decisions
 
@@ -20,6 +21,7 @@
 | Agent endpoint | `/v1/agent` |
 | Lane 7.5E.2 | **PASS** (live Groq) |
 | Lane 8 preflight | **PASS** |
+| Sprint A core proof | **PASS** — bounded Check price now + Monitoring Proof panel |
 
 ## Lane 8 status
 
@@ -38,6 +40,7 @@
 - Create another ASP
 - Repeatedly resubmit activation while under review
 - Claim public live listing or Lane 9 closeout yet
+- Mark Lane 8 complete from Sprint A alone
 
 ### Monitor
 
@@ -47,6 +50,7 @@
 ## Next active lane
 
 **Lane 8** remains active until the listing is **approved and publicly accessible**.  
+Parallel review-safe UI/product proof may continue without ASP resubmit.  
 Then: **Lane 9 — Demo and submission closeout**.
 
-Evidence: `docs/proof/okx/`
+Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`
