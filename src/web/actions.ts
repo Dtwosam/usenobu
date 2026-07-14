@@ -136,26 +136,29 @@ export async function runCheckAction(formData: FormData) {
   try {
     const db = await prepareActionDb();
 
+    // Production: prefer_fixture omitted → LIVE SerpApi (fixture only if gate open, e.g. e2e).
     const result = await runBoundedManualCheck({
       db,
       purchase_id: purchaseId,
       user_ref: WEB_DEMO_USER_REF,
     });
     if (!result.ok) {
+      const ds = result.data_source ?? "";
       redirect(
-        `/purchases/${purchaseId}?error=${encodeURIComponent(result.error)}&outcome=${encodeURIComponent(result.outcome)}`,
+        `/purchases/${purchaseId}?error=${encodeURIComponent(result.error)}&outcome=${encodeURIComponent(result.outcome)}${ds ? `&data_source=${encodeURIComponent(ds)}` : ""}`,
       );
     }
     await persistDatabaseToCookie(db);
     const alertId = result.alert_id;
     const outcome = result.outcome;
+    const dataSource = result.data_source;
     if (alertId && result.batch.alerts_created > 0) {
       redirect(
-        `/purchases/${purchaseId}/alerts/${alertId}?outcome=${encodeURIComponent(outcome)}`,
+        `/purchases/${purchaseId}/alerts/${alertId}?outcome=${encodeURIComponent(outcome)}&data_source=${encodeURIComponent(dataSource)}`,
       );
     }
     redirect(
-      `/purchases/${purchaseId}?checked=1&outcome=${encodeURIComponent(outcome)}`,
+      `/purchases/${purchaseId}?checked=1&outcome=${encodeURIComponent(outcome)}&data_source=${encodeURIComponent(dataSource)}`,
     );
   } catch (err) {
     rethrowIfNavigation(err);

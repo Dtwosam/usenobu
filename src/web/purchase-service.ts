@@ -16,8 +16,14 @@ import {
   type PurchaseMatchReference,
 } from "../matching/index.js";
 import { runMonitoringPass } from "../monitoring/index.js";
+import type { ObservationFetcher } from "../monitoring/types.js";
 import { TARGET_US_POLICY } from "../policy/target-us-policy.js";
 import { addCalendarDays } from "../policy/dates.js";
+import { createLiveSerpApiObservationFetcher } from "./live-monitor.js";
+import {
+  isFixtureCheckAllowed,
+  type ManualCheckDataSource,
+} from "./manual-check-mode.js";
 
 export interface CreatePurchaseInput {
   target_product_url: string;
@@ -325,7 +331,22 @@ export function confirmPurchaseCandidate(args: {
   }
 }
 
-export async function runDemoPriceCheck(purchaseId: string) {
+/**
+ * Fixture-only manual check. Hard-gated — must not run on production path.
+ * Prefer runManualPriceCheck({ data_source: "FIXTURE" }) which enforces the gate.
+ */
+export async function runDemoPriceCheck(
+  purchaseId: string,
+  options?: { allow_fixture?: boolean },
+) {
+  if (!options?.allow_fixture && !isFixtureCheckAllowed()) {
+    return {
+      ok: false as const,
+      error: "fixture_path_denied",
+      data_source: "LIVE" as const,
+    };
+  }
+
   const db = getWebDatabase();
   const purchase = db
     .prepare(`SELECT * FROM purchases WHERE id = ?`)
@@ -382,6 +403,69 @@ export async function runDemoPriceCheck(purchaseId: string) {
     fixture_banner: FIXTURE_BANNER,
     data_source: "FIXTURE" as const,
   };
+}
+
+/**
+ * Live SerpApi manual check — production path.
+ * Uses locked fingerprint + runMonitoringPass + live observation fetcher.
+ */
+export async function runLivePriceCheck(
+  purchaseId: string,
+  options?: {
+    fetchObservation?: ObservationFetcher;
+    db?: ReturnType<typeof getWebDatabase>;
+  },
+) {
+  const db = options?.db ?? getWebDatabase();
+  const purchase = db
+    .prepare(`SELECT * FROM purchases WHERE id = ?`)
+    .get(purchaseId) as Record<string, unknown> | undefined;
+  if (!purchase) return { ok: false as const, error: "not_found" };
+  if (!purchase.fingerprint_id) {
+    return { ok: false as const, error: "not_confirmed" };
+  }
+
+  const fpRow = db
+    .prepare(
+      `SELECT fingerprint_json FROM product_fingerprints WHERE fingerprint_id = ?`,
+    )
+    .get(purchase.fingerprint_id as string) as
+    | { fingerprint_json: string }
+    | undefined;
+  if (!fpRow) return { ok: false as const, error: "missing_fingerprint" };
+
+  const fetchObservation =
+    options?.fetchObservation ?? createLiveSerpApiObservationFetcher();
+
+  const batch = await runMonitoringPass({
+    db,
+    mode: "manual",
+    as_of: new Date().toISOString(),
+    purchase_id: purchaseId,
+    fetchObservation,
+  });
+
+  return {
+    ok: true as const,
+    batch,
+    data_source: "LIVE" as const,
+  };
+}
+
+/** Route helper: LIVE or gated FIXTURE — never silent fixture in production. */
+export async function runManualPriceCheck(args: {
+  purchase_id: string;
+  data_source: ManualCheckDataSource;
+  fetchObservation?: ObservationFetcher;
+  db?: ReturnType<typeof getWebDatabase>;
+}) {
+  if (args.data_source === "FIXTURE") {
+    return runDemoPriceCheck(args.purchase_id, { allow_fixture: true });
+  }
+  return runLivePriceCheck(args.purchase_id, {
+    fetchObservation: args.fetchObservation,
+    db: args.db,
+  });
 }
 
 export function listPurchases() {

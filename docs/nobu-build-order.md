@@ -183,6 +183,8 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Review-Safe Sprint A (2026-07-14):** Core product proof — bounded **Check price now**, compact Monitoring Proof panel, short decision explanations. Evidence: `docs/proof/ui/core-product-proof/`. Verdict: **NOBU_REVIEW_SAFE_A_PASS**. Does **not** complete Lane 8.
 
+**Review-Safe Sprint A.1 (2026-07-14):** Production manual check uses **live SerpApi** (fixtures gated for tests/e2e only). Evidence: `docs/proof/ui/core-product-proof/live-manual-check/`. Verdict: **NOBU_REVIEW_SAFE_A_1_PASS**.
+
 **Proof for PASS:** approved, live listing. Do not claim completion before this exists.
 
 ## Lane 9 — Demo and submission closeout

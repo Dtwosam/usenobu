@@ -16,6 +16,8 @@ import {
   lastAttemptedCheckAt,
   lastSuccessfulCheckAt,
   monitoringStatusLabel,
+  shouldShowFixtureUiLabel,
+  FIXTURE_UI_LABEL,
 } from "@/web/manual-check";
 import {
   daysRemaining,
@@ -122,13 +124,15 @@ export default async function PurchaseDashboardPage({
         description="What Nobu is watching."
       />
 
-      <DemoDataBanner data-testid="fixture-banner">
-        <p>
-          <strong>Demo data</strong>
-          <br />
-          This screen uses test fixtures, not a live current retailer price.
-        </p>
-      </DemoDataBanner>
+      {shouldShowFixtureUiLabel() ? (
+        <DemoDataBanner data-testid="fixture-banner">
+          <p data-testid="fixture-label">
+            <strong>Demo data</strong>
+            <br />
+            {FIXTURE_UI_LABEL}
+          </p>
+        </DemoDataBanner>
+      ) : null}
 
       {outcomeMsg && !err ? (
         <InlineNotice
@@ -298,6 +302,16 @@ export default async function PurchaseDashboardPage({
                     : "—"}
               </dd>
             </div>
+            {sp.data_source === "LIVE" || sp.data_source === "FIXTURE" ? (
+              <div>
+                <dt>Price source</dt>
+                <dd data-testid="price-data-source">
+                  {sp.data_source === "LIVE"
+                    ? "Third-party SerpApi observation (live)"
+                    : "Test fixture (not live)"}
+                </dd>
+              </div>
+            ) : null}
             <div>
               <dt>Matching decision</dt>
               <dd data-testid="matching-decision">

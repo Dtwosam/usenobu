@@ -97,6 +97,11 @@ Vercel cookie snapshot re-hydrates every request (clear + import), keeps FK-safe
 
 **NOBU_LANE_8_PENDING_REVIEW** — still under marketplace review. Do not mark complete.
 
+## Sprint A.1 follow-up
+
+**Live manual check repair** — production Check price now uses SerpApi (not fixtures).  
+Evidence: `docs/proof/ui/core-product-proof/live-manual-check/` — `NOBU_REVIEW_SAFE_A_1_PASS`.
+
 ## Next sprint
 
-Review-Safe Sprint B (when defined) or continue Lane 8 monitoring until public approval → Lane 9 closeout.
+Continue Lane 8 monitoring until public approval → Lane 9 closeout.

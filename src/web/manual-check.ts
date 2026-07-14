@@ -1,6 +1,7 @@
 /**
- * Bounded manual "Check price now" — reuses runMonitoringPass via fixtures demo path.
- * Guards: owner, fingerprint, window, cooldown, concurrent lock, budget (in runner).
+ * Bounded manual "Check price now".
+ * Production: live SerpApi via runMonitoringPass.
+ * Fixtures: only with explicit gate (tests / NOBU_FIXTURE_MODE).
  */
 import type { NobuDatabase } from "../db/index.js";
 import {
@@ -8,11 +9,18 @@ import {
   loadSearchBudget,
   type MonitorBatchResult,
 } from "../monitoring/index.js";
-import { runDemoPriceCheck } from "./purchase-service.js";
+import type { ObservationFetcher } from "../monitoring/types.js";
+import {
+  runManualPriceCheck,
+} from "./purchase-service.js";
 import {
   outcomeFromMonitorResult,
   type CheckOutcomeCode,
 } from "./check-outcome.js";
+import {
+  resolveManualCheckDataSource,
+  type ManualCheckDataSource,
+} from "./manual-check-mode.js";
 
 /** Demo web session owner (matches createPurchaseFlow). */
 export const WEB_DEMO_USER_REF = "demo-user";
@@ -28,7 +36,7 @@ export type ManualCheckResult =
       outcome: CheckOutcomeCode;
       alert_id?: string;
       batch: MonitorBatchResult;
-      data_source: "FIXTURE";
+      data_source: ManualCheckDataSource;
       provider_called: boolean;
     }
   | {
@@ -36,6 +44,7 @@ export type ManualCheckResult =
       error: string;
       outcome: CheckOutcomeCode;
       provider_called: false;
+      data_source?: ManualCheckDataSource;
     };
 
 function lastManualRunAt(
@@ -86,6 +95,13 @@ export async function runBoundedManualCheck(args: {
   /** Caller-asserted owner (session user_ref). */
   user_ref: string;
   now?: Date;
+  /**
+   * Prefer fixture path (tests/e2e only). Production omits this → LIVE.
+   * Silently ignored when fixture gate is closed.
+   */
+  prefer_fixture?: boolean;
+  /** Inject live fetcher for unit tests (no network). */
+  fetchObservation?: ObservationFetcher;
 }): Promise<ManualCheckResult> {
   const purchase = args.db
     .prepare(`SELECT * FROM purchases WHERE id = ?`)
@@ -119,6 +135,16 @@ export async function runBoundedManualCheck(args: {
     };
   }
 
+  // Budget gate before any provider call (also enforced again in runner)
+  if (!hasSearchBudget(args.db, (args.now ?? new Date()).toISOString())) {
+    return {
+      ok: false,
+      error: "budget",
+      outcome: "budget",
+      provider_called: false,
+    };
+  }
+
   const now = args.now ?? new Date();
   if (isCooldownActive(args.db, args.purchase_id, now.getTime())) {
     return {
@@ -138,8 +164,18 @@ export async function runBoundedManualCheck(args: {
     };
   }
 
+  const data_source = resolveManualCheckDataSource({
+    prefer_fixture: args.prefer_fixture,
+  });
+
   try {
-    const result = await runDemoPriceCheck(args.purchase_id);
+    const result = await runManualPriceCheck({
+      purchase_id: args.purchase_id,
+      data_source,
+      fetchObservation: args.fetchObservation,
+      db: args.db,
+    });
+
     if (!result.ok) {
       return {
         ok: false,
@@ -149,8 +185,14 @@ export async function runBoundedManualCheck(args: {
             ? "not_confirmed"
             : result.error === "not_found"
               ? "not_found"
-              : "provider_unavailable",
+              : result.error === "fixture_path_denied"
+                ? "provider_unavailable"
+                : "provider_unavailable",
         provider_called: false,
+        data_source:
+          "data_source" in result
+            ? (result.data_source as ManualCheckDataSource)
+            : data_source,
       };
     }
 
@@ -160,7 +202,7 @@ export async function runBoundedManualCheck(args: {
         ok: true,
         outcome: "no_lower",
         batch: result.batch,
-        data_source: "FIXTURE",
+        data_source: result.data_source,
         provider_called: result.batch.searches_consumed > 0,
       };
     }
@@ -180,7 +222,7 @@ export async function runBoundedManualCheck(args: {
       outcome,
       alert_id: check.alert_id,
       batch: result.batch,
-      data_source: "FIXTURE",
+      data_source: result.data_source,
       provider_called: check.searches_consumed > 0,
     };
   } finally {
@@ -288,3 +330,10 @@ export function formatCheckedAt(iso: string | null | undefined): string {
   if (!Number.isFinite(d)) return String(iso);
   return new Date(d).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
 }
+
+export {
+  isFixtureCheckAllowed,
+  resolveManualCheckDataSource,
+  shouldShowFixtureUiLabel,
+  FIXTURE_UI_LABEL,
+} from "./manual-check-mode.js";
