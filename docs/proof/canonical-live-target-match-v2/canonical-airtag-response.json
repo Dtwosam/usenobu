@@ -1,0 +1,51 @@
+{
+  "at": "2026-07-14T22:22:42.297Z",
+  "base": "https://usenobu.vercel.app",
+  "http_status": 200,
+  "elapsed_ms": 721,
+  "content_type": "application/json",
+  "request": {
+    "target_product_url": "https://www.target.com/p/apple-airtag/-/A-54191097",
+    "purchase_price": 35,
+    "currency": "USD",
+    "purchase_date": "2026-07-01",
+    "country": "US",
+    "region": "TX",
+    "purchase_channel": "target_online",
+    "model_number": "AirTag",
+    "target_item_id": "54191097",
+    "upc_or_gtin": "194252096261"
+  },
+  "body": {
+    "status": "PRICE_DROP_DETECTED",
+    "policy_id": "target-us-online-price-match-v1",
+    "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+    "final_decision_by": "Target",
+    "checked_at": "2026-07-14T22:22:41.911Z",
+    "purchase_price": 35,
+    "observed_target_price": 29.99,
+    "potential_recovery": 5.01,
+    "currency": "USD",
+    "days_remaining": 1,
+    "matched_product": {
+      "title": "Apple AirTag",
+      "seller": "Target",
+      "seller_kind": "target",
+      "match_tier": "exact_model_variant",
+      "match_evidence": [
+        "model_from_title",
+        "title_sim=1.000"
+      ],
+      "target_item_id": null,
+      "model_number": null,
+      "note": "SerpApi product_id is not Target TCIN"
+    },
+    "provider": "SerpApi",
+    "official_next_action": {
+      "online_chat": true,
+      "guest_services_phone": "1-800-591-3869"
+    },
+    "disclaimer": "Observed Target price is third-party data. Target must verify the lower price and makes the final decision. Nobu does not guarantee a refund."
+  },
+  "secret_leak": false
+}

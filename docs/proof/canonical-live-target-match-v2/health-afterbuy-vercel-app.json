@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "body": {
+    "status": "ok",
+    "service": "nobu-a2mcp",
+    "version": "1.0.0",
+    "checked_at": "2026-07-14T22:22:41.423Z",
+    "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+    "provider": "SerpApi",
+    "serpapi_configured": true,
+    "provider_ready": true,
+    "groq_configured": true,
+    "nobu_ai_model": "openai/gpt-oss-20b",
+    "note": "Free A2MCP health. Not an official Target API. serpapi_configured and groq_configured are boolean only — no secrets."
+  }
+}

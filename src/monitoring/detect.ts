@@ -1,7 +1,7 @@
-import type { LockedProductFingerprint } from "../domain/product-fingerprint.js";
 import {
   generateTargetOnlyCandidates,
   offerMatchesLockedFingerprint,
+  type TargetMatchFingerprint,
 } from "../matching/index.js";
 import type { MatchableOffer } from "../matching/types.js";
 import { DEFAULT_POLICY_DISCLAIMER } from "../policy/target-us-policy.js";
@@ -21,7 +21,7 @@ export interface ObservationMatchResult {
  * Ambiguous multi-match and mismatches fail closed (no alert).
  */
 export function evaluateObservationAgainstFingerprint(args: {
-  fingerprint: LockedProductFingerprint;
+  fingerprint: TargetMatchFingerprint;
   offers: readonly MatchableOffer[];
   purchase_price: number;
 }): ObservationMatchResult {

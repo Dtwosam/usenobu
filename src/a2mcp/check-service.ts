@@ -11,10 +11,7 @@ import {
   TARGET_US_POLICY,
 } from "../policy/target-us-policy.js";
 import { POLICY_ID_TARGET_US_V1 } from "../domain/enums.js";
-import {
-  evaluateProductMatches,
-  type MatchableOffer,
-} from "../matching/index.js";
+import type { MatchableOffer, TargetMatchFingerprint } from "../matching/index.js";
 import {
   createSerpApiClientFromEnv,
   type NormalizedShoppingOffer,
@@ -23,6 +20,8 @@ import {
 import { enrichOffersWithImmersiveTargetLinks } from "../serpapi/enrich-target-links.js";
 import { toMatchableOffer } from "../matching/candidates.js";
 import { assertResponseHasNoSecrets } from "./audit.js";
+import { evaluateObservationAgainstFingerprint } from "../monitoring/detect.js";
+import { buildMonitorShoppingQuery } from "../web/live-monitor.js";
 
 export interface A2mcpCheckDeps {
   /** Inject SerpApi client; null forces fixture or unavailable. */
@@ -63,22 +62,58 @@ function baseResponse(
   return A2mcpResponseSchema.parse(body);
 }
 
-function buildQuery(req: A2mcpRequest): string {
-  const parts = [
-    req.model_number,
-    req.target_item_id,
-    req.upc_or_gtin,
-    "Target",
-  ].filter(Boolean);
-  if (parts.length >= 2) return parts.join(" ");
-  // Fall back to URL path slug + Target
+function titleFromTrustedTargetUrl(
+  targetProductUrl: string,
+  modelNumber?: string,
+): string | undefined {
   try {
-    const u = new URL(req.target_product_url);
+    const u = new URL(targetProductUrl);
     const slug = u.pathname.split("/").filter(Boolean)[1] ?? "product";
-    return `${slug.replace(/-/g, " ")} Target`;
+    return modelEquivalentTitleFromSlug(slug, modelNumber);
   } catch {
-    return "Target product";
+    return undefined;
   }
+}
+
+function modelEquivalentTitleFromSlug(
+  slug: string,
+  modelNumber?: string,
+): string {
+  const words = slug.replace(/-/g, " ").replace(/\s+/g, " ").trim().split(" ");
+  const normalizedModel = (modelNumber ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "");
+  if (!normalizedModel) return words.join(" ");
+
+  for (let start = 0; start < words.length; start += 1) {
+    let phrase = "";
+    for (let end = start; end < words.length; end += 1) {
+      phrase += words[end]!.toUpperCase().replace(/[^A-Z0-9]+/g, "");
+      if (phrase === normalizedModel) {
+        const leadingIdentity = start > 0 ? words[0] : undefined;
+        return [leadingIdentity, ...words.slice(start, end + 1)]
+          .filter(Boolean)
+          .join(" ");
+      }
+      if (phrase.length >= normalizedModel.length) break;
+    }
+  }
+  return words.join(" ");
+}
+
+export function canonicalRequestFingerprint(req: A2mcpRequest): TargetMatchFingerprint {
+  return {
+    target_product_url: req.target_product_url,
+    target_item_id: req.target_item_id,
+    model_number: req.model_number,
+    upc_or_gtin: req.upc_or_gtin,
+    product_title: titleFromTrustedTargetUrl(
+      req.target_product_url,
+      req.model_number,
+    ),
+    seller_kind: "target",
+    is_target_plus: false,
+  };
 }
 
 /**
@@ -105,6 +140,7 @@ export async function runA2mcpTargetPriceCheck(
   }
 
   const req = parsed.data;
+  const fingerprint = canonicalRequestFingerprint(req);
 
   // Policy first (channel, geography, window) — existing engine
   const policy = evaluateTargetPolicy(
@@ -170,7 +206,7 @@ export async function runA2mcpTargetPriceCheck(
 
     try {
       const shopping = await client.searchShopping({
-        q: buildQuery(req),
+        q: buildMonitorShoppingQuery(fingerprint),
         gl: "us",
         hl: "en",
         location: "Austin, Texas, United States",
@@ -193,16 +229,12 @@ export async function runA2mcpTargetPriceCheck(
 
       // Normalize then optionally enrich Target merchant links via one immersive call
       let matchable = shopping.offers.map((o) => toMatchableOffer(o));
-      const pre = evaluateProductMatches(
-        {
-          target_product_url: req.target_product_url,
-          target_item_id: req.target_item_id,
-          model_number: req.model_number,
-          upc_or_gtin: req.upc_or_gtin,
-        },
-        matchable,
-      );
-      if (pre.decision !== "EXACT_MATCH_CANDIDATE") {
+      const pre = evaluateObservationAgainstFingerprint({
+        fingerprint,
+        offers: matchable,
+        purchase_price: req.purchase_price,
+      });
+      if (!pre.match_ok) {
         let reference_title: string | undefined;
         try {
           const slug = new URL(req.target_product_url).pathname
@@ -240,28 +272,14 @@ export async function runA2mcpTargetPriceCheck(
   // Derive a soft title reference from the trusted Target URL slug when the
   // free A2MCP request has no product_title field (schema does not include it).
   // Used only for model-from-title similarity gates — never invents TCIN/UPC.
-  let titleFromUrl: string | undefined;
-  try {
-    const slug = new URL(req.target_product_url).pathname
-      .split("/")
-      .filter(Boolean)[1];
-    if (slug) titleFromUrl = slug.replace(/-/g, " ");
-  } catch {
-    /* ignore */
-  }
+  const matchableOffers = offers.map((offer) => toMatchableOffer(offer));
+  const match = evaluateObservationAgainstFingerprint({
+    fingerprint,
+    offers: matchableOffers,
+    purchase_price: req.purchase_price,
+  });
 
-  const match = evaluateProductMatches(
-    {
-      target_product_url: req.target_product_url,
-      target_item_id: req.target_item_id,
-      model_number: req.model_number,
-      upc_or_gtin: req.upc_or_gtin,
-      product_title: titleFromUrl,
-    },
-    offers,
-  );
-
-  if (match.decision === "MATCH_REVIEW_REQUIRED") {
+  if (match.ambiguous || !match.match_ok) {
     const body = baseResponse("MATCH_REVIEW_REQUIRED", checkedAt, {
       purchase_price: req.purchase_price,
       currency: req.currency,
@@ -271,7 +289,7 @@ export async function runA2mcpTargetPriceCheck(
     return { http_status: 200, body };
   }
 
-  if (match.decision === "REJECTED" || !match.exact_candidate) {
+  if (!match.matched_offer) {
     const body = baseResponse("NO_RELIABLE_PRICE", checkedAt, {
       purchase_price: req.purchase_price,
       currency: req.currency,
@@ -281,8 +299,8 @@ export async function runA2mcpTargetPriceCheck(
     return { http_status: 200, body };
   }
 
-  const candidate = match.exact_candidate;
-  const observed = candidate.offer.observed_price;
+  const candidate = match.matched_offer;
+  const observed = match.observed_price ?? candidate.observed_price;
 
   if (observed === undefined || observed === null || !(observed > 0)) {
     const body = baseResponse("NO_RELIABLE_PRICE", checkedAt, {
@@ -295,12 +313,13 @@ export async function runA2mcpTargetPriceCheck(
   }
 
   const matched_product = {
-    title: candidate.offer.title,
-    seller: candidate.offer.seller_text,
-    seller_kind: candidate.offer.seller_kind,
-    match_tier: candidate.tier,
-    target_item_id: candidate.matched_tcin ?? candidate.offer.target_item_id,
-    model_number: candidate.matched_model ?? candidate.offer.model_number,
+    title: candidate.title,
+    seller: candidate.seller_text,
+    seller_kind: candidate.seller_kind,
+    match_tier: matchTierFromReasons(match.match_reasons),
+    match_evidence: match.match_reasons,
+    target_item_id: candidate.target_item_id,
+    model_number: candidate.model_number,
     // Explicit: never expose raw secrets; product_id is Google id not TCIN
     note: "SerpApi product_id is not Target TCIN",
   };
@@ -333,4 +352,14 @@ export async function runA2mcpTargetPriceCheck(
   });
   assertResponseHasNoSecrets(body, apiKey);
   return { http_status: 200, body };
+}
+
+function matchTierFromReasons(reasons: readonly string[]): string {
+  if (reasons.includes("exact_target_url")) return "exact_target_url";
+  if (reasons.includes("tcin")) return "exact_tcin";
+  if (reasons.includes("model") || reasons.includes("model_from_title")) {
+    return "exact_model_variant";
+  }
+  if (reasons.includes("upc")) return "exact_upc";
+  return "none";
 }

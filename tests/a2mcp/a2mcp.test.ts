@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
   clearA2mcpAudit,
+  canonicalRequestFingerprint,
   defaultA2mcpRateLimiter,
   getA2mcpAuditEntries,
   runA2mcpTargetPriceCheck,
@@ -8,6 +9,7 @@ import {
   SlidingWindowRateLimiter,
 } from "../../src/a2mcp/index.js";
 import type { MatchableOffer } from "../../src/matching/types.js";
+import { buildMonitorShoppingQuery } from "../../src/web/live-monitor.js";
 
 const validRequest = {
   target_product_url: "https://www.target.com/p/example-widget/-/A-87654321",
@@ -19,6 +21,21 @@ const validRequest = {
   purchase_channel: "target_online",
   model_number: "WDG-100",
   target_item_id: "87654321",
+};
+
+const airTagRequest = {
+  target_product_url:
+    "https://www.target.com/p/apple-airtag-bluetooth-tracker-for-keys-suitcases-and-more-1-pack/-/A-54191097",
+  purchase_price: 35,
+  currency: "USD" as const,
+  purchase_date: "2026-07-14",
+  country: "US" as const,
+  region: "TX",
+  purchase_channel: "target_online" as const,
+  model_number: "AirTag",
+  target_item_id: "54191097",
+  upc_or_gtin: "194252096261",
+  user_confirmed_match_id: "confirmed-airtag-proof",
 };
 
 function exactOffer(price: number): MatchableOffer {
@@ -161,6 +178,69 @@ describe("A2MCP check service", () => {
       status: "NO_PRICE_DROP",
       potential_recovery: 0,
     });
+  });
+
+  it("uses the governed monitoring query for the canonical fingerprint", () => {
+    const canonical = canonicalRequestFingerprint(airTagRequest);
+    const persistedEquivalent = {
+      ...canonical,
+      fingerprint_id: "fp-airtag-proof",
+      confirmed_at: "2026-07-14T12:00:00.000Z",
+      confirmed_by_user: true as const,
+    };
+
+    expect(buildMonitorShoppingQuery(canonical)).toBe(
+      buildMonitorShoppingQuery(persistedEquivalent),
+    );
+    expect(buildMonitorShoppingQuery(canonical)).toBe("apple airtag Target");
+  });
+
+  it("accepts model-derived title evidence through the shared evaluator", async () => {
+    const result = await runA2mcpTargetPriceCheck(airTagRequest, {
+      skipPolicyFreshness: true,
+      offersOverride: [
+        {
+          title: "Apple AirTag",
+          seller_kind: "target",
+          seller_text: "Target",
+          is_target_plus: false,
+          link: "https://www.google.com/shopping/product/airtag-proof",
+          serpapi_product_id: "google-id-not-tcin",
+          observed_price: 29.99,
+          currency: "USD",
+        },
+      ],
+    });
+
+    expect(result.body).toMatchObject({
+      status: "PRICE_DROP_DETECTED",
+      observed_target_price: 29.99,
+      matched_product: {
+        match_tier: "exact_model_variant",
+        match_evidence: expect.arrayContaining(["model_from_title"]),
+      },
+    });
+  });
+
+  it("rejects an AirTag accessory through the canonical shared evaluator", async () => {
+    const result = await runA2mcpTargetPriceCheck(airTagRequest, {
+      skipPolicyFreshness: true,
+      offersOverride: [
+        {
+          title: "Apple AirTag Loop Case",
+          seller_kind: "target",
+          seller_text: "Target",
+          is_target_plus: false,
+          link: "https://www.google.com/shopping/product/accessory-proof",
+          serpapi_product_id: "54191097",
+          observed_price: 9.99,
+          currency: "USD",
+        },
+      ],
+    });
+
+    expect(result.body).toMatchObject({ status: "MATCH_REVIEW_REQUIRED" });
+    expect(result.body).not.toHaveProperty("observed_target_price");
   });
 });
 

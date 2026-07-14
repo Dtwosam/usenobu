@@ -1,0 +1,52 @@
+{
+  "at": "2026-07-14T22:22:38.883Z",
+  "product": "Apple AirTag",
+  "purchase_price": 35,
+  "tcin": "54191097",
+  "health": [
+    {
+      "base": "https://usenobu.vercel.app",
+      "status": 200,
+      "serpapi_configured": true,
+      "provider_ready": true
+    },
+    {
+      "base": "https://afterbuy.vercel.app",
+      "status": 200,
+      "serpapi_configured": true,
+      "provider_ready": true
+    }
+  ],
+  "canonical": {
+    "at": "2026-07-14T22:22:42.297Z",
+    "base": "https://usenobu.vercel.app",
+    "http_status": 200,
+    "status": "PRICE_DROP_DETECTED",
+    "observed_target_price": 29.99,
+    "potential_recovery": 5.01,
+    "matched_product": {
+      "title": "Apple AirTag",
+      "seller": "Target",
+      "seller_kind": "target",
+      "match_tier": "exact_model_variant",
+      "match_evidence": [
+        "model_from_title",
+        "title_sim=1.000"
+      ],
+      "target_item_id": null,
+      "model_number": null,
+      "note": "SerpApi product_id is not Target TCIN"
+    },
+    "provider": "SerpApi",
+    "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+    "days_remaining": 1,
+    "has_disclaimer": true,
+    "match_evidence": [
+      "model_from_title",
+      "title_sim=1.000"
+    ],
+    "secret_leak": false,
+    "accepted": true,
+    "provider_calls_note": "One POST /v1/target-price-check; server may use 1 shopping + 0–1 immersive"
+  }
+}

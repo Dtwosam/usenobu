@@ -16,7 +16,7 @@ import {
 } from "../serpapi/index.js";
 import { enrichOffersWithImmersiveTargetLinks } from "../serpapi/enrich-target-links.js";
 import { offerMatchesLockedFingerprint } from "../matching/confirm.js";
-import type { LockedProductFingerprint } from "../domain/product-fingerprint.js";
+import type { TargetMatchFingerprint } from "../matching/confirm.js";
 
 /**
  * Deterministic live query from locked fingerprint.
@@ -24,7 +24,7 @@ import type { LockedProductFingerprint } from "../domain/product-fingerprint.js"
  * When model is primary, include TCIN as a compact secondary disambiguator.
  * Never includes purchase chatter (price, date, "I bought", refund).
  */
-export function buildMonitorShoppingQuery(fp: LockedProductFingerprint): string {
+export function buildMonitorShoppingQuery(fp: TargetMatchFingerprint): string {
   const model = (fp.model_number ?? "").trim();
   const upc = (fp.upc_or_gtin ?? "").trim();
   const tcin = (fp.target_item_id ?? "").trim();
@@ -33,8 +33,25 @@ export function buildMonitorShoppingQuery(fp: LockedProductFingerprint): string 
 
   const parts: string[] = [];
 
+  const cleanTitle = title
+    .replace(/\b(i bought|purchased|today|yesterday|refund|monitoring)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const normalizedTitle = cleanTitle.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+  const normalizedModel = model.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+
+  // A confirmed title containing the complete model-equivalent is the least
+  // restrictive governed primary query. Matching still requires strong evidence.
+  if (
+    normalizedTitle &&
+    normalizedModel &&
+    ` ${normalizedTitle} `.includes(` ${normalizedModel} `)
+  ) {
+    parts.push(cleanTitle);
+  }
+
   // Primary identity: brand + model when model exists
-  if (model) {
+  if (parts.length === 0 && model) {
     if (brand && !model.toLowerCase().includes(brand.toLowerCase())) {
       parts.push(brand);
     }
@@ -43,20 +60,16 @@ export function buildMonitorShoppingQuery(fp: LockedProductFingerprint): string 
     if (tcin && !parts.includes(tcin)) {
       parts.push(tcin);
     }
-  } else if (upc) {
+  } else if (parts.length === 0 && upc) {
     parts.push(upc);
-  } else if (tcin) {
+  } else if (parts.length === 0 && tcin) {
     parts.push(tcin);
-  } else if (title) {
+  } else if (parts.length === 0 && title) {
     // Collapse whitespace; drop noisy purchase language if it leaked into title
-    const cleanTitle = title
-      .replace(/\b(i bought|purchased|today|yesterday|refund|monitoring)\b/gi, " ")
-      .replace(/\s+/g, " ")
-      .trim();
     if (cleanTitle) parts.push(cleanTitle);
-  } else if (brand) {
+  } else if (parts.length === 0 && brand) {
     parts.push(brand);
-  } else {
+  } else if (parts.length === 0) {
     try {
       const u = new URL(fp.target_product_url);
       const slug = u.pathname.split("/").filter(Boolean)[1] ?? "product";

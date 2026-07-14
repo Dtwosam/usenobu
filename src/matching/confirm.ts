@@ -11,11 +11,27 @@ import {
   normalizeModel,
   normalizeTargetProductUrl,
   normalizeUpc,
+  normalizeVariant,
   titleSimilarity,
 } from "./identity.js";
 
 /** Model extracted only from title must still look like the locked product. */
 const MIN_TITLE_SIM_FOR_MODEL_FROM_TITLE = 0.72;
+const ACCESSORY_MARKERS = [
+  "accessory",
+  "case",
+  "clip",
+  "cover",
+  "holder",
+  "key ring",
+  "keychain",
+  "keyring",
+  "loop",
+  "mount",
+  "protective skin",
+  "replacement",
+  "strap",
+] as const;
 import { isStrongMatchTier, MATCH_RULE_VERSION } from "./rules.js";
 import type {
   MatchableOffer,
@@ -38,6 +54,23 @@ export interface ConfirmMatchResult {
   match_tier: string;
   product_url: string;
 }
+
+/** Identity fields consumed by live matching; locked fingerprints are a superset. */
+export type TargetMatchFingerprint = Pick<
+  LockedProductFingerprint,
+  | "target_product_url"
+  | "target_item_id"
+  | "model_number"
+  | "upc_or_gtin"
+  | "brand"
+  | "size"
+  | "color"
+  | "weight"
+  | "quantity"
+  | "product_title"
+  | "seller_kind"
+  | "is_target_plus"
+>;
 
 /**
  * User confirmation of a single strong candidate creates a locked fingerprint.
@@ -150,12 +183,32 @@ export function confirmProductMatch(input: ConfirmMatchInput): ConfirmMatchResul
  * SerpApi product_id is never compared as TCIN.
  */
 export function offerMatchesLockedFingerprint(
-  fingerprint: LockedProductFingerprint,
+  fingerprint: TargetMatchFingerprint,
   offer: MatchableOffer,
 ): { match: boolean; reasons: string[] } {
   const reasons: string[] = [];
+  if (fingerprint.is_target_plus || fingerprint.seller_kind !== "target") {
+    return { match: false, reasons: ["fingerprint_seller_not_target"] };
+  }
   if (offer.is_target_plus || offer.seller_kind !== "target") {
     return { match: false, reasons: ["seller_not_target"] };
+  }
+
+  const variantConflict = lockedVariantConflict(fingerprint, offer);
+  if (variantConflict) {
+    return { match: false, reasons: ["variant_mismatch", variantConflict] };
+  }
+
+  if (
+    fingerprint.brand &&
+    offer.brand &&
+    normalizeWords(fingerprint.brand) !== normalizeWords(offer.brand)
+  ) {
+    return { match: false, reasons: ["brand_mismatch"] };
+  }
+
+  if (isAccessoryMismatch(fingerprint.product_title, offer.title)) {
+    return { match: false, reasons: ["accessory_mismatch"] };
   }
 
   // Hierarchy (same spirit as enrollment): URL → TCIN → model → UPC.
@@ -193,12 +246,7 @@ export function offerMatchesLockedFingerprint(
   // Safe model-from-title: model appears as a token AND title is highly similar
   // to the locked product title (blocks accessory false positives, e.g. AirTag case).
   const modelTokenInTitle =
-    Boolean(fpModel) &&
-    offer.title
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, " ")
-      .split(/\s+/)
-      .includes(fpModel!);
+    Boolean(fpModel) && titleContainsCompleteModel(offer.title, fpModel!);
   const titleSim = fingerprint.product_title
     ? titleSimilarity(fingerprint.product_title, offer.title)
     : 0;
@@ -233,6 +281,71 @@ export function offerMatchesLockedFingerprint(
   // Title-only never unlocks monitoring match
   reasons.push("insufficient_identity_for_locked_fingerprint");
   return { match: false, reasons };
+}
+
+function normalizeWords(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function lockedVariantConflict(
+  fingerprint: TargetMatchFingerprint,
+  offer: MatchableOffer,
+): string | null {
+  const pairs: Array<
+    [string, string | null | undefined, string | null | undefined]
+  > = [
+    ["size", fingerprint.size, offer.size],
+    ["color", fingerprint.color, offer.color],
+    ["weight", fingerprint.weight, offer.weight],
+    ["quantity", fingerprint.quantity, offer.quantity],
+  ];
+  for (const [name, locked, observed] of pairs) {
+    const normalizedLocked = normalizeVariant(locked);
+    const normalizedObserved = normalizeVariant(observed);
+    if (
+      normalizedLocked &&
+      normalizedObserved &&
+      normalizedLocked !== normalizedObserved
+    ) {
+      return `${name}:${normalizedLocked}!=${normalizedObserved}`;
+    }
+  }
+  return null;
+}
+
+function isAccessoryMismatch(
+  lockedTitle: string | null | undefined,
+  offerTitle: string,
+): boolean {
+  if (!lockedTitle) return false;
+  const locked = ` ${normalizeWords(lockedTitle)} `;
+  const observed = ` ${normalizeWords(offerTitle)} `;
+  return ACCESSORY_MARKERS.some((marker) => {
+    const normalizedMarker = ` ${normalizeWords(marker)} `;
+    return observed.includes(normalizedMarker) && !locked.includes(normalizedMarker);
+  });
+}
+
+function titleContainsCompleteModel(
+  title: string,
+  normalizedModel: string,
+): boolean {
+  const tokens = title
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  for (let start = 0; start < tokens.length; start += 1) {
+    let phrase = "";
+    for (let end = start; end < tokens.length; end += 1) {
+      phrase += tokens[end];
+      if (phrase === normalizedModel) return true;
+      if (phrase.length >= normalizedModel.length) break;
+    }
+  }
+  return false;
 }
 
 export function newMatchRowId(): string {
