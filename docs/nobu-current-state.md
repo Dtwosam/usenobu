@@ -2,7 +2,8 @@
 
 **Date:** 2026-07-14  
 **Status:** LANE 8 PENDING REVIEW — ASP SUBMITTED TO OKX MARKETPLACE  
-**Live Target price capability:** **NOT CURRENTLY REPRODUCIBLE THROUGH CANONICAL A2MCP** (the earlier AirTag acceptance was recorded by a temporary diagnostic path; canonical `/v1/target-price-check` returned `MATCH_REVIEW_REQUIRED`)  
+**Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher  
+**Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop  
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)  
 **Review-Safe Sprint A.1:** **NOBU_REVIEW_SAFE_A_1_PASS** (live SerpApi manual check path — diagnostics / live wiring)  
 **Review-Safe Sprint B:** **NOBU_REVIEW_SAFE_B_PASS** (price-drop Action Center)  
