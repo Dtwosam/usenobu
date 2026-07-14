@@ -4,7 +4,8 @@
 **Status:** LANE 8 PENDING REVIEW — ASP SUBMITTED TO OKX MARKETPLACE  
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI)  
 **Review-Safe Sprint A.1:** **NOBU_REVIEW_SAFE_A_1_PASS** (live SerpApi manual check)  
-**Review-Safe Sprint B:** **NOBU_REVIEW_SAFE_B_PASS** (price-drop Action Center)
+**Review-Safe Sprint B:** **NOBU_REVIEW_SAFE_B_PASS** (price-drop Action Center)  
+**Review-Safe Sprint C:** **NOBU_REVIEW_SAFE_C_PASS** (judge clarity + money-back story)
 
 ## Locked decisions
 
@@ -26,6 +27,7 @@
 | Sprint A core proof | **PASS** — bounded Check price now + Monitoring Proof panel |
 | Sprint A.1 live check | **PASS** — production manual check uses SerpApi (not silent fixtures) |
 | Sprint B Action Center | **PASS** — Open on Target / Contact / Copy for accepted price drops |
+| Sprint C judge clarity | **PASS** — retailer-neutral hero + money-back benefit; validation kit ready |
 
 ## Lane 8 status
 

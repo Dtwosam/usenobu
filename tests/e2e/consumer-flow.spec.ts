@@ -18,17 +18,31 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
   test("homepage navigation and primary CTA", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Bought it/i })).toBeVisible();
-    await expect(page.getByTestId("home-fixture-notice")).toContainText("Demo data");
+    await expect(
+      page.getByRole("heading", { name: /Nobu watches prices after you buy/i }),
+    ).toBeVisible();
+    await expect(page.getByTestId("hero-lead")).toContainText(
+      "request the difference back",
+    );
+    // Hero must be retailer-neutral
+    const hero = await page.locator(".n-hero").innerText();
+    expect(hero.toLowerCase()).not.toContain("target");
     await expect(page.getByTestId("availability-label")).toContainText(
       "Currently supports eligible Target.com purchases",
     );
     await expect(page.getByTestId("cta-add-purchase")).toContainText(
-      "Ask Nobu to watch a purchase",
+      "Add a purchase",
     );
-    await expect(page.getByTestId("cta-how-it-works")).toBeVisible();
+    await expect(page.getByTestId("cta-how-it-works")).toContainText(
+      "How it works",
+    );
+    await expect(page.getByTestId("current-availability")).toContainText(
+      "Eligible Target.com purchases",
+    );
     const home = (await page.locator("body").innerText()).toLowerCase();
     expect(home).not.toMatch(/walmart|amazon|best buy.*live|all retailers supported/);
+    expect(home).not.toMatch(/guaranteed refund|target owes you|automatic refund/);
+    expect(home).not.toMatch(/coming soon.*walmart|more retailers coming soon/);
     await page.screenshot({
       path: path.join(SCREEN_DIR, "desktop-home.png"),
       fullPage: true,
@@ -50,7 +64,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
   test("add → review → confirm → monitor → alert path", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/");
-    await expect(page.getByTestId("home-fixture-notice")).toBeVisible();
+    await expect(page.getByTestId("cta-add-purchase")).toBeVisible();
     await page.getByTestId("cta-add-purchase").click();
 
     await expect(page.getByTestId("fixture-banner")).toContainText("Demo data");

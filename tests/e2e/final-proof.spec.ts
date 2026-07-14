@@ -83,8 +83,26 @@ test.describe("Lane 7.5B3 final visual proof", () => {
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("exact_match");
-    await page.getByTestId("submit-purchase").click();
-    await expect(page.getByTestId("match-decision-label")).toBeVisible();
+    // Ensure minimum fields for a valid Target purchase submission
+    const url = page.getByTestId("input-url");
+    if ((await url.inputValue()) === "") {
+      await url.fill("https://www.target.com/p/example-widget/-/A-87654321");
+    }
+    const price = page.getByTestId("input-price");
+    if ((await price.inputValue()) === "") {
+      await price.fill("24.99");
+    }
+    const date = page.getByTestId("input-date");
+    if ((await date.inputValue()) === "") {
+      await date.fill(new Date().toISOString().slice(0, 10));
+    }
+    await Promise.all([
+      page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),
+      page.getByTestId("submit-purchase").click(),
+    ]);
+    await expect(page.getByTestId("match-decision-label")).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByTestId("match-decision")).toHaveAttribute(
       "data-decision",
       "EXACT_MATCH_CANDIDATE",

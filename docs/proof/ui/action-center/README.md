@@ -88,3 +88,7 @@ E2E screenshots (fixture-labelled): `desktop-action-center-fixture-e2e.png`, `mo
 ## Hard locks
 
 Agent **5541**, `POST /v1/agent`, matching/policy/monitoring unchanged. No ASP resubmit.
+
+## Related
+
+Sprint C homepage clarity: `docs/proof/ui/judge-clarity/`

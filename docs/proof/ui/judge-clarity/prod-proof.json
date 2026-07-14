@@ -1,0 +1,59 @@
+{
+  "at": "2026-07-14T13:30:59.589Z",
+  "base": "https://usenobu.vercel.app",
+  "sprint": "C",
+  "checks": {
+    "health": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "service": "nobu-a2mcp",
+        "version": "1.0.0",
+        "checked_at": "2026-07-14T13:31:00.682Z",
+        "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+        "provider": "SerpApi",
+        "serpapi_configured": true,
+        "provider_ready": true,
+        "groq_configured": true,
+        "nobu_ai_model": "openai/gpt-oss-20b",
+        "note": "Free A2MCP health. Not an official Target API. serpapi_configured and groq_configured are boolean only — no secrets."
+      }
+    },
+    "agent": {
+      "status": 404,
+      "ok": true
+    },
+    "homepage": {
+      "title": "Nobu watches prices after you buy.",
+      "lead": "Add a recent purchase once. Nobu monitors the exact product and alerts you when the price drops—so you can request the difference back.",
+      "hero_has_target": false,
+      "money_back": true,
+      "cta": "Add a purchase",
+      "how_it_works": "How it works",
+      "availability": true
+    },
+    "no_guarantee": true,
+    "no_fake_social": true,
+    "cta_to_intake": true,
+    "mobile_390": {
+      "sw": 390,
+      "cw": 390,
+      "ok": true
+    },
+    "mobile_320": {
+      "sw": 320,
+      "cw": 320,
+      "ok": true
+    },
+    "a11y": {
+      "pass": true,
+      "blocking": []
+    }
+  },
+  "verdict": "NOBU_REVIEW_SAFE_C_PASS",
+  "user_testing": {
+    "status": "READY_FOR_REAL_TESTERS",
+    "real_testers_completed": 0,
+    "fabricated": false
+  }
+}

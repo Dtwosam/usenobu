@@ -125,7 +125,9 @@ test.describe("Nobu design foundation (Lane 7.5B1)", () => {
   test("home shell still exposes E2E entry points", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("cta-add-purchase")).toBeVisible();
-    await expect(page.getByTestId("home-fixture-notice")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /Nobu watches prices after you buy/i }),
+    ).toBeVisible();
     await expect(page.getByTestId("app-header")).toBeVisible();
   });
 });
