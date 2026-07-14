@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-14  
 **Status:** LANE 8 PENDING REVIEW — ASP SUBMITTED TO OKX MARKETPLACE  
-**Live Target price capability:** **SERPAPI_TARGET_PRICE_CAPABILITY_PROVEN** (Apple AirTag accepted live observation; Conair GS14 still fail-closed without inventing identity)  
+**Live Target price capability:** **NOT CURRENTLY REPRODUCIBLE THROUGH CANONICAL A2MCP** (the earlier AirTag acceptance was recorded by a temporary diagnostic path; canonical `/v1/target-price-check` returned `MATCH_REVIEW_REQUIRED`)  
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)  
 **Review-Safe Sprint A.1:** **NOBU_REVIEW_SAFE_A_1_PASS** (live SerpApi manual check path — diagnostics / live wiring)  
 **Review-Safe Sprint B:** **NOBU_REVIEW_SAFE_B_PASS** (price-drop Action Center)  
@@ -33,13 +33,13 @@
 | Sprint C judge clarity | **PASS** — retailer-neutral hero + money-back benefit; validation kit ready |
 | Sprint A.2 live matching | **PASS** — monitoring uses URL/TCIN/model hierarchy; Conair GS14 evidence path fixed |
 | Sprint A.3 policy + live closeout | **PASS** — policy verified 2026-07-14; Conair LIVE check not POLICY_STALE |
-| Live Target price capability | **PROVEN** — ≥1 accepted live Target observation (AirTag model_from_title); proof `docs/proof/live-target-price-capability/` |
+| Live Target price capability | **BLOCKED** — no currently reproducible accepted observation through canonical `/v1/target-price-check`; see `docs/proof/live-price-reproducibility/` |
 
 ## Live price capability notes
 
 - SerpApi new Shopping layout often returns Target **source** + price with **Google-only** links (no TCIN on the offer).
 - Safe acceptance requires URL/TCIN/model/UPC hierarchy — not title-only.
-- AirTag: accepted via model token + title similarity 1.0 (accessories rejected).
+- The earlier AirTag acceptance used a temporary capability-audit route with a synthetic locked fingerprint and a monitoring query/matcher. It did not prove canonical A2MCP acceptance.
 - Conair GS14: still no safe acceptance when title omits model and immersive recovers a **different** TCIN (fail closed).
 - Sprints A–A.3 do **not** claim universal live price acceptance; this capability audit does for ≥1 product.
 
