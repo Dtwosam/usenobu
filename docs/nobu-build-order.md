@@ -170,21 +170,18 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `docs/proof/nobu-ai-agent/live-groq-provider/` — `NOBU_LANE_7_5E_2_PASS`.
 
-## Lane 8 — OKX ASP registration and live listing (**ACTIVE NEXT**)
+## Lane 8 — OKX ASP registration and live listing (**ACTIVE — PENDING REVIEW**)
 
 - Register free A2MCP ASP using **`https://usenobu.vercel.app/v1/agent`**.
-
-- Register free A2MCP ASP using **`https://usenobu.vercel.app/v1/agent`** (or structured Target path if required by listing form).
 - Accurate listing: AI agent + Target-only live integration.
-
 - Install/use Onchain OS according to current official instructions.
 - Register A2MCP ASP with price `0`.
-- Use an accurate listing description.
-- Submit for review.
-- Address reviewer feedback.
-- Record live listing evidence.
+- Submit for review; address reviewer feedback.
+- Record live listing evidence only when genuinely approved and public.
 
-**Proof:** approved, live listing. Do not claim completion before this exists.
+**Progress (2026-07-14):** ASP **#5541 Nobu** registered; marketplace **`submitApproval.success: true`**, **`approvalStatus: 2`** (under review). Not publicly live. Evidence: `docs/proof/okx/`. Verdict: **NOBU_LANE_8_PENDING_REVIEW**.
+
+**Proof for PASS:** approved, live listing. Do not claim completion before this exists.
 
 ## Lane 9 — Demo and submission closeout
 

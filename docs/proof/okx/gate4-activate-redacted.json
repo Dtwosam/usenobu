@@ -1,13 +1,23 @@
 {
-  "at": "2026-07-14T00:05:56Z",
-  "ok": false,
-  "error": {
-    "class": "A2A_communication_not_ready",
-    "message": "A2A communication is not ready, so this operation was not executed. Bind AI provider (codex|claude|hermes|openclaw), run okx-a2a doctor --fix, then retry activate."
+  "at": "2026-07-14T00:30:00Z",
+  "source": "user-provided real activation response (redacted; no secrets)",
+  "agentId": "5541",
+  "ok": true,
+  "submitApproval": {
+    "success": true,
+    "approvalStatus": 2
   },
-  "agentId_attempted": "5541",
-  "preferred_language": "en-US",
-  "submitApproval": null,
-  "approvalStatus": null,
-  "public_listing_url": null
+  "activate": {
+    "success": false,
+    "rejectReason": null
+  },
+  "interpretation": {
+    "marketplace_review_submitted": true,
+    "publicly_live": false,
+    "approvalStatus_meaning": "2 = under review / submitted for approval (per Onchain OS activate semantics)",
+    "activate_success_false_expected": "Listing is not yet published live; pending OKX review"
+  },
+  "public_listing_url": null,
+  "resubmitted": false,
+  "new_asp_created": false
 }

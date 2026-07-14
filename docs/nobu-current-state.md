@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-14  
-**Status:** LANE 8 BLOCKED — ASP REGISTERED; MARKETPLACE ACTIVATE NEEDS A2A
+**Status:** LANE 8 PENDING REVIEW — ASP SUBMITTED TO OKX MARKETPLACE
 
 ## Locked decisions
 
@@ -9,7 +9,7 @@
 - Deployment: **UseNobu** at **https://usenobu.vercel.app**
 - Live retailer: **Target only**
 - Agent API: `POST /v1/agent`
-- AI provider (extraction): **Groq**
+- AI extraction: **Groq**
 - Free A2MCP first; no x402
 
 ## Production
@@ -23,25 +23,30 @@
 
 ## Lane 8 status
 
-| Gate | Result |
+| Item | Result |
 |---|---|
-| Production preflight | PASS |
-| Wallet login | PASS |
-| ASP registration | **Done** — agent **#5541** **Nobu**, A2MCP fee **0**, endpoint **https://usenobu.vercel.app/v1/agent** |
-| Marketplace activate / list | **Blocked** — `okx-a2a` not ready (no bound AI provider: codex/claude/hermes/openclaw) |
-| Public listing URL | None |
-| Verdict | **NOBU_LANE_8_BLOCKED** |
+| ASP registration | **Done** — agent **#5541** **Nobu** |
+| Service | A2MCP, fee **0**, endpoint **https://usenobu.vercel.app/v1/agent** |
+| Marketplace submit | **`submitApproval.success: true`**, **`approvalStatus: 2`** |
+| `activate.success` | `false` (not live yet; under review) |
+| `rejectReason` | `null` |
+| Public listing URL | **None** — not claimed live |
+| Verdict | **NOBU_LANE_8_PENDING_REVIEW** |
 
-### Human action to finish Gate 4
+### Do not
 
-1. Bind supported AI provider: `okx-a2a ai-provider set --provider <codex|claude|hermes|openclaw>`
-2. `okx-a2a doctor --fix` until ready
-3. `onchainos agent activate --agent-id 5541 --preferred-language en-US`
-4. Resume Lane 8 closeout from activate response
+- Create another ASP
+- Repeatedly resubmit activation while under review
+- Claim public live listing or Lane 9 closeout yet
 
-Evidence: `docs/proof/okx/`
+### Monitor
+
+- Agentic Wallet email
+- Real ASP / approval status
 
 ## Next active lane
 
-**Lane 8** remains active until marketplace submit succeeds (then PENDING_REVIEW or PASS).  
-**Lane 9** not started.
+**Lane 8** remains active until the listing is **approved and publicly accessible**.  
+Then: **Lane 9 — Demo and submission closeout**.
+
+Evidence: `docs/proof/okx/`
