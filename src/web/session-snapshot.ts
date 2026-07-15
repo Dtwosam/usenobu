@@ -6,12 +6,17 @@ import { deflateSync, inflateSync } from "node:zlib";
 import { cookies } from "next/headers";
 import type { NobuDatabase } from "../db/index.js";
 import { isVercelRuntime, markCookieHydrated, wasCookieHydrated } from "./db.js";
+import {
+  migrateSnapshotPurchases,
+  SESSION_SNAPSHOT_VERSION,
+} from "./demo-defaults.js";
 
 const COOKIE_NAME = "nobu_demo_state_v1";
 /** Stay under typical 4KB browser cookie limits after encoding. */
 const MAX_COOKIE_CHARS = 3500;
 
 type Snapshot = {
+  snapshot_version?: number;
   purchases: Array<Record<string, unknown>>;
   product_fingerprints: Array<Record<string, unknown>>;
   product_matches: Array<Record<string, unknown>>;
@@ -25,6 +30,7 @@ type Snapshot = {
 
 function emptySnapshot(): Snapshot {
   return {
+    snapshot_version: SESSION_SNAPSHOT_VERSION,
     purchases: [],
     product_fingerprints: [],
     product_matches: [],
@@ -277,6 +283,7 @@ export function exportSnapshot(db: NobuDatabase): Snapshot {
   );
 
   return {
+    snapshot_version: SESSION_SNAPSHOT_VERSION,
     purchases: tableRows(db, "purchases").slice(-2).map(slimRow),
     product_fingerprints: fingerprints,
     product_matches: matches,
@@ -325,7 +332,15 @@ function decodeSnapshot(raw: string): Snapshot | null {
     }
     const parsed = JSON.parse(json) as Snapshot;
     if (!parsed || !Array.isArray(parsed.purchases)) return null;
-    return { ...emptySnapshot(), ...parsed };
+    const base = { ...emptySnapshot(), ...parsed };
+    // Drop unconfirmed pre-repair demo drafts (Example Widget / 87654321).
+    // Confirmed fingerprints are preserved.
+    const { snapshot: migrated } = migrateSnapshotPurchases(base);
+    return {
+      ...emptySnapshot(),
+      ...migrated,
+      snapshot_version: SESSION_SNAPSHOT_VERSION,
+    };
   } catch {
     return null;
   }

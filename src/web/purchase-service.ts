@@ -30,6 +30,10 @@ import {
   resolveDiscoveryDataSource,
 } from "./live-discovery.js";
 import { saveEnrollmentDiscovery } from "./discovery-store.js";
+import {
+  isUnusableAfterDemoScrub,
+  scrubDemoDefaults,
+} from "./demo-defaults.js";
 
 export interface CreatePurchaseInput {
   target_product_url: string;
@@ -58,17 +62,45 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
   const scenario: FixtureScenario = raw.fixture_scenario ?? "exact_match";
   const discoveryMode = resolveDiscoveryDataSource();
 
+  // Live enrollment: never let pre-repair Example Widget defaults ride through.
+  // Fixture gate still uses demo identity intentionally for e2e/demo scenarios.
+  let intake: CreatePurchaseInput = raw;
+  if (discoveryMode === "LIVE") {
+    const scrubbed = scrubDemoDefaults({
+      target_product_url: raw.target_product_url,
+      target_item_id: raw.target_item_id,
+      model_number: raw.model_number,
+      product_title: raw.product_title,
+      upc_or_gtin: raw.upc_or_gtin,
+    });
+    if (isUnusableAfterDemoScrub(scrubbed)) {
+      return {
+        ok: false as const,
+        error: "outdated_demo_draft",
+        fixture_banner: FIXTURE_BANNER,
+      };
+    }
+    intake = {
+      ...raw,
+      target_product_url: String(scrubbed.target_product_url ?? ""),
+      target_item_id: scrubbed.target_item_id,
+      model_number: scrubbed.model_number,
+      product_title: scrubbed.product_title,
+      upc_or_gtin: scrubbed.upc_or_gtin ?? raw.upc_or_gtin,
+    };
+  }
+
   const parsed = safeParsePurchaseInput({
-    target_product_url: raw.target_product_url,
-    purchase_price: Number(raw.purchase_price),
+    target_product_url: intake.target_product_url,
+    purchase_price: Number(intake.purchase_price),
     currency: "USD",
-    purchase_date: raw.purchase_date,
+    purchase_date: intake.purchase_date,
     country: "US",
-    region: raw.region || undefined,
+    region: intake.region || undefined,
     purchase_channel: "target_online",
-    model_number: raw.model_number || undefined,
-    target_item_id: raw.target_item_id || undefined,
-    upc_or_gtin: raw.upc_or_gtin || undefined,
+    model_number: intake.model_number || undefined,
+    target_item_id: intake.target_item_id || undefined,
+    upc_or_gtin: intake.upc_or_gtin || undefined,
     is_target_plus: false,
   });
 
@@ -147,13 +179,14 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     now,
   );
 
+  const productTitle = intake.product_title;
   const ref: PurchaseMatchReference = {
     purchase_id: purchaseId,
     target_product_url: input.target_product_url,
     target_item_id: input.target_item_id,
     model_number: input.model_number,
     upc_or_gtin: input.upc_or_gtin,
-    product_title: raw.product_title,
+    product_title: productTitle,
   };
 
   // --- Discovery: LIVE production vs FIXTURE test/e2e only ---
@@ -163,7 +196,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       target_product_url: input.target_product_url,
       target_item_id: input.target_item_id,
       model_number: input.model_number,
-      product_title: raw.product_title,
+      product_title: productTitle,
     });
     const evaluation: MatchEvaluationResult = evaluateProductMatches(
       ref,
@@ -182,7 +215,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       ok: true as const,
       purchase_id: purchaseId,
       purchase: input,
-      product_title: raw.product_title ?? null,
+      product_title: productTitle ?? null,
       evaluation,
       offers,
       data_source: "FIXTURE" as const,
@@ -207,7 +240,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       ok: true as const,
       purchase_id: purchaseId,
       purchase: input,
-      product_title: raw.product_title ?? null,
+      product_title: productTitle ?? null,
       evaluation: emptyEval,
       offers: [],
       data_source: "LIVE" as const,
@@ -231,7 +264,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     ok: true as const,
     purchase_id: purchaseId,
     purchase: input,
-    product_title: raw.product_title ?? null,
+    product_title: productTitle ?? null,
     evaluation: live.evaluation,
     offers: live.offers,
     data_source: "LIVE" as const,

@@ -79,6 +79,16 @@ export function purchaseFormError(
     };
   }
 
+  if (code === "outdated_demo_draft") {
+    return {
+      code,
+      heading: "Saved draft was outdated",
+      body: "Your saved draft was outdated. Please add the purchase again.",
+      nextAction:
+        "Enter your real Target product link, TCIN, or model and try again.",
+    };
+  }
+
   return {
     code,
     heading: "Something went wrong",
@@ -94,7 +104,8 @@ export function reviewError(code: string): UserError {
         code,
         heading: "We need a little more detail",
         body: "This match isn’t strong enough to lock yet.",
-        nextAction: "Add a model, TCIN, or UPC and try again so Nobu doesn’t pick the wrong item.",
+        nextAction:
+          "Edit the product link or identifiers and try again so Nobu doesn’t pick the wrong item.",
       };
     case "already_confirmed":
       return {

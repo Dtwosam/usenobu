@@ -277,17 +277,20 @@ export default async function ReviewPage({
         <div className="n-notice n-notice--warning" data-testid="cannot-confirm">
           <div>
             <strong>
-              {isAmbiguous
-                ? "We need a little more detail"
+              {isAmbiguous && ambiguityCopy
+                ? ambiguityCopy.heading
                 : noCandidates
                   ? "No product to confirm"
                   : "This match can’t be confirmed yet"}
             </strong>
-            <p>
-              {isAmbiguous
-                ? "We found more than one possible Target product. Add a model, TCIN or UPC so Nobu can avoid choosing the wrong item."
+            <p data-testid="cannot-confirm-body">
+              {isAmbiguous && ambiguityCopy
+                ? ambiguityCopy.body
                 : "Monitoring will not start until Nobu can lock one exact Target product."}
             </p>
+            {isAmbiguous && ambiguityCopy ? (
+              <p className="muted">{ambiguityCopy.nextAction}</p>
+            ) : null}
           </div>
         </div>
       )}

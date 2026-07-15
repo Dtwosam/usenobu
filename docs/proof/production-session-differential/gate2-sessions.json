@@ -1,0 +1,61 @@
+{
+  "at": "2026-07-15T10:53:12.245Z",
+  "base": "https://usenobu.vercel.app",
+  "clean": {
+    "mode": "clean",
+    "final_url": "https://usenobu.vercel.app/purchases/pur_952082b4823f/review?title=Apple+AirTag&source=LIVE",
+    "form": {
+      "url": "https://www.target.com/p/apple-airtag/-/A-54191097",
+      "tcin": "54191097",
+      "model": "AirTag",
+      "title": "Apple AirTag"
+    },
+    "decision": "EXACT_MATCH_CANDIDATE",
+    "candidate_count": 1,
+    "ambiguous_body": null,
+    "cannot_confirm_text": null,
+    "old_copy_visible": false,
+    "new_copy_visible": false,
+    "outdated_copy_visible": false,
+    "is_404": false,
+    "identifiers_survived": true,
+    "pass": true
+  },
+  "stale": {
+    "mode": "stale_defaults",
+    "final_url": "https://usenobu.vercel.app/purchases/new?error=outdated_demo_draft&status=&purchase_price=24.99&purchase_date=2026-07-15&region=TX&fixture_scenario=exact_match",
+    "form_before": {
+      "url": "https://www.target.com/p/example-widget/-/A-87654321",
+      "tcin": "87654321",
+      "model": "WDG-100",
+      "title": "Example Widget Blue"
+    },
+    "form_after": {
+      "url": "",
+      "tcin": "",
+      "title": ""
+    },
+    "decision": null,
+    "old_copy_visible": false,
+    "new_copy_visible": false,
+    "outdated_copy_visible": false,
+    "demo_not_on_review": true,
+    "pass": true
+  },
+  "migrated": {
+    "mode": "stale_then_fresh_airtag",
+    "final_url": "https://usenobu.vercel.app/purchases/pur_9b18aab99f72/review?title=Apple+AirTag&source=LIVE",
+    "form": {
+      "url": "https://www.target.com/p/apple-airtag/-/A-54191097",
+      "tcin": "54191097",
+      "title": "Apple AirTag"
+    },
+    "decision": "EXACT_MATCH_CANDIDATE",
+    "old_copy_visible": false,
+    "demo_contaminates": false,
+    "pass": true
+  },
+  "overall_pass": true,
+  "old_copy_string": "We found more than one possible Target product. Add a model, TCIN or UPC so Nobu can avoid choosing the wrong item.",
+  "new_copy_string": "Nobu found several different Target products and could not safely choose one."
+}

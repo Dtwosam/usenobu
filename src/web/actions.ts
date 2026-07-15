@@ -47,6 +47,18 @@ function rethrowIfNavigation(err: unknown): void {
 
 /** Preserve user-entered values on validation/policy failure (no secrets collected). */
 function purchaseErrorRedirect(formData: FormData, error: string, status = "") {
+  // Outdated demo drafts: clear identity fields so placeholders cannot re-submit.
+  if (error === "outdated_demo_draft") {
+    const q = new URLSearchParams({
+      error,
+      status,
+      purchase_price: formString(formData, "purchase_price"),
+      purchase_date: formString(formData, "purchase_date"),
+      region: formString(formData, "region"),
+      fixture_scenario: "exact_match",
+    });
+    redirect(`/purchases/new?${q.toString()}`);
+  }
   const q = new URLSearchParams({
     error,
     status,
@@ -85,6 +97,16 @@ export async function submitPurchaseAction(formData: FormData) {
     });
 
     if (!result.ok) {
+      // Structured diagnostics only — no secrets, no full cookies, no PII dumps.
+      console.info("submitPurchaseAction_result", {
+        ok: false,
+        error: result.error,
+        has_tcin: Boolean(formString(formData, "target_item_id")),
+        has_model: Boolean(formString(formData, "model_number")),
+        has_target_url: /target\.com/i.test(
+          formString(formData, "target_product_url"),
+        ),
+      });
       const status =
         "policy" in result && result.policy ? result.policy.status : "";
       purchaseErrorRedirect(formData, result.error, status);
@@ -93,6 +115,20 @@ export async function submitPurchaseAction(formData: FormData) {
 
     // No live Target candidates → stay on form (do not redirect to empty/invalid review)
     const candidateCount = result.evaluation?.candidates?.length ?? 0;
+    console.info("submitPurchaseAction_result", {
+      ok: true,
+      purchase_id: result.purchase_id,
+      data_source: result.data_source,
+      decision: result.evaluation?.decision ?? null,
+      reasons: result.evaluation?.reasons?.slice(0, 4) ?? [],
+      candidate_count: candidateCount,
+      has_tcin: Boolean(formString(formData, "target_item_id")),
+      has_model: Boolean(formString(formData, "model_number")),
+      has_target_url: /target\.com/i.test(
+        formString(formData, "target_product_url"),
+      ),
+      title_len: formString(formData, "product_title").length,
+    });
     if (
       result.data_source === "LIVE" &&
       candidateCount === 0
