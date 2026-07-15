@@ -83,19 +83,10 @@ test.describe("Lane 7.5B3 final visual proof", () => {
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("exact_match");
-    // Ensure minimum fields for a valid Target purchase submission
-    const url = page.getByTestId("input-url");
-    if ((await url.inputValue()) === "") {
-      await url.fill("https://www.target.com/p/example-widget/-/A-87654321");
-    }
-    const price = page.getByTestId("input-price");
-    if ((await price.inputValue()) === "") {
-      await price.fill("24.99");
-    }
-    const date = page.getByTestId("input-date");
-    if ((await date.inputValue()) === "") {
-      await date.fill(new Date().toISOString().slice(0, 10));
-    }
+    const { fillFixtureExactIdentity } = await import(
+      "./helpers/fill-fixture-identity"
+    );
+    await fillFixtureExactIdentity(page);
     await Promise.all([
       page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),
       page.getByTestId("submit-purchase").click(),
@@ -173,11 +164,17 @@ test.describe("Lane 7.5B3 final visual proof", () => {
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("ambiguous");
-    await page.getByTestId("input-url").fill(
-      "https://www.target.com/p/acetaminophen-demo",
-    );
-    await page.getByTestId("input-tcin").fill("");
-    await page.getByTestId("input-model").fill("UPUP-ACET-500");
+    {
+      const { fillFixtureExactIdentity } = await import(
+        "./helpers/fill-fixture-identity"
+      );
+      await fillFixtureExactIdentity(page, {
+        url: "https://www.target.com/p/acetaminophen-demo/-/A-12345678",
+        tcin: "12345678",
+        model: "UPUP-ACET-500",
+        title: "up&up Acetaminophen",
+      });
+    }
     await page.getByTestId("submit-purchase").click();
     await expect(page.getByTestId("cannot-confirm")).toContainText(
       "We need a little more detail",
@@ -190,7 +187,12 @@ test.describe("Lane 7.5B3 final visual proof", () => {
     // Unsupported error
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
-    await page.getByTestId("input-region").fill("AK");
+    {
+      const { fillFixtureExactIdentity } = await import(
+        "./helpers/fill-fixture-identity"
+      );
+      await fillFixtureExactIdentity(page, { region: "AK" });
+    }
     await page.getByTestId("submit-purchase").click();
     await expect(page.getByTestId("purchase-error")).toBeVisible();
     await page.screenshot({

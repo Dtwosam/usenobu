@@ -1721,6 +1721,25 @@ main.legacy-main > .n-screen {
   font-size: 0.9rem;
 }
 
+.n-exact-identity {
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-4, 1rem);
+  margin: var(--space-4, 1rem) 0;
+}
+
+.n-exact-identity legend {
+  padding: 0 var(--space-2, 0.5rem);
+}
+
+.n-action-center__summary {
+  margin-bottom: var(--space-4, 1rem);
+}
+
+.n-action-center__evidence {
+  margin-top: var(--space-4, 1rem);
+}
+
 .n-action-center {
   margin-top: var(--space-5);
   padding-top: var(--space-4);

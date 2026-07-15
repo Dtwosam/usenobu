@@ -34,6 +34,7 @@ import {
   isUnusableAfterDemoScrub,
   scrubDemoDefaults,
 } from "./demo-defaults.js";
+import { evaluateExactIdentity } from "./exact-identity.js";
 
 export interface CreatePurchaseInput {
   target_product_url: string;
@@ -88,6 +89,31 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       product_title: scrubbed.product_title,
       upc_or_gtin: scrubbed.upc_or_gtin ?? raw.upc_or_gtin,
     };
+  }
+
+  // Consumer Find my product: Target URL + TCIN + (model or UPC). Does not alter A2MCP.
+  const identity = evaluateExactIdentity({
+    target_product_url: intake.target_product_url,
+    target_item_id: intake.target_item_id,
+    model_number: intake.model_number,
+    upc_or_gtin: intake.upc_or_gtin,
+  });
+  if (!identity.ok) {
+    const status = identity.errors.model_or_upc
+      ? "model_or_upc"
+      : identity.errors.target_item_id
+        ? "tcin"
+        : "url";
+    return {
+      ok: false as const,
+      error: "missing_exact_identity",
+      status,
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+  // Prefer explicit TCIN; fill from trusted Target URL when user left TCIN blank.
+  if (!intake.target_item_id && identity.effective_tcin) {
+    intake = { ...intake, target_item_id: identity.effective_tcin };
   }
 
   const parsed = safeParsePurchaseInput({

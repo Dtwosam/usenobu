@@ -2,7 +2,7 @@
 
 **Policy ID:** `target-us-online-price-match-v1`  
 **Status:** ACTIVE, FRESHNESS-SENSITIVE  
-**Last verified:** 2026-07-13
+**Last verified:** 2026-07-15
 
 ## Supported case
 
@@ -28,10 +28,11 @@ Where applicable, identical means:
 ## Proof and claim route
 
 - Original receipt, digital receipt, or packing slip is required.
-- For Target.com/app purchases, the user contacts Target online chat or Guest Services phone.
+- For Target.com/app purchases, the user contacts Target online chat or Guest Services phone via the official Contact Us entry: `https://www.target.com/help/contact-us` (registry TARGET-CONTACT; rechecked 2026-07-15).
 - Target team members verify the lower price.
 - Screenshots or pictures are not accepted as the final proof by Target.
 - Nobu's observation is an alert and decision aid, not Target's verification.
+- Nobu guides the user through Target’s official request process but **never submits** the request, logs into Target, or guarantees a refund.
 
 ## MVP exclusions
 

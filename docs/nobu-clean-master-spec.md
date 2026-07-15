@@ -57,6 +57,7 @@ Initial user:
 - fail-closed product and seller matching;
 - price history for the monitored purchase;
 - price-drop detection;
+- Action Center that guides the user through Target’s official request process (Nobu never submits the request);
 - potential recovery calculation;
 - Target policy-window calculation;
 - in-app alert and optional email alert;
@@ -87,7 +88,7 @@ Initial user:
 
 1. User describes a purchase in natural language **or** enters structured fields manually.
 2. If NL: Nobu extracts candidate fields; user reviews, corrects, and confirms structured details. AI does not match or monitor.
-3. User selects **Find my product** with confirmed structured fields (Target.com URL, price, date, optional model/TCIN/UPC).
+3. User selects **Find my product** with confirmed structured fields. A valid Target URL and TCIN are required, plus at least one additional strong identifier such as model or UPC/GTIN, unless deterministic discovery already provides equivalent verified identity evidence. (Purchase price and date are also required.)
 4. Nobu queries SerpApi (or demo fixtures) for Target offers matching the product.
 5. Nobu returns one or more candidates with seller, product identifiers, URL, and observed price.
 6. The user confirms the exact product once.

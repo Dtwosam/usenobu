@@ -4,17 +4,18 @@
 import { describe, expect, it } from "vitest";
 import {
   ACTION_TRUST_NOTE,
+  buildActionHeading,
   buildCopyDetailsText,
   copyTextIsSafe,
   resolveStoredDataSource,
   shouldShowActionCenter,
   buildActionCenterModel,
   COPY_CLOSING,
+  TARGET_OFFICIAL_CONTACT_URL,
 } from "../../src/web/action-center.js";
 import {
   resolveTrustedTargetProductUrl,
   validateTrustedTargetProductUrl,
-  TARGET_OFFICIAL_CONTACT_URL,
   isOfficialTargetContactUrl,
 } from "../../src/web/target-url.js";
 
@@ -28,9 +29,7 @@ describe("Action Center target URL (fixture)", () => {
 
   it("rejects http, SerpApi, and unknown sellers", () => {
     expect(
-      validateTrustedTargetProductUrl(
-        "http://www.target.com/p/x/-/A-1",
-      ),
+      validateTrustedTargetProductUrl("http://www.target.com/p/x/-/A-1"),
     ).toBeNull();
     expect(
       validateTrustedTargetProductUrl("https://serpapi.com/search"),
@@ -50,7 +49,7 @@ describe("Action Center target URL (fixture)", () => {
     expect(u).toContain("111");
   });
 
-  it("uses official contact URL", () => {
+  it("uses official contact URL for request action", () => {
     expect(TARGET_OFFICIAL_CONTACT_URL).toBe(
       "https://www.target.com/help/contact-us",
     );
@@ -99,7 +98,7 @@ describe("Action Center visibility and copy (fixture)", () => {
     ).toBe("LIVE");
   });
 
-  it("copy details includes only approved fields", () => {
+  it("request summary includes required identity and decision statement", () => {
     const text = buildCopyDetailsText({
       product_title: "Example Widget",
       purchase_date: "2026-07-01",
@@ -109,17 +108,31 @@ describe("Action Center visibility and copy (fixture)", () => {
       observed_at: "2026-07-10T12:00:00.000Z",
       monitoring_deadline: "2026-07-15",
       target_product_url: "https://www.target.com/p/example/-/A-87654321",
+      target_item_id: "87654321",
+      model_number: "WDG-100",
+      upc_or_gtin: "012345678905",
     });
     expect(text).toContain("Example Widget");
     expect(text).toContain("Purchase price: $39.99");
-    expect(text).toContain("Observed price: $29.99");
+    expect(text).toContain("Observed Target price: $29.99");
     expect(text).toContain("Potential difference: $10.00");
+    expect(text).toContain("TCIN: 87654321");
+    expect(text).toContain("Model: WDG-100");
+    expect(text).toContain("UPC/GTIN: 012345678905");
+    expect(text).toContain("Target product link:");
     expect(text).toContain("third-party observation through SerpApi");
     expect(text).toContain(COPY_CLOSING);
     expect(text.toLowerCase()).not.toContain("password");
     expect(text.toLowerCase()).not.toContain("guarantee a refund");
     expect(text.toLowerCase()).not.toContain("target owes you");
+    expect(text.toLowerCase()).not.toContain("we submitted your claim");
     expect(copyTextIsSafe(text)).toBe(true);
+  });
+
+  it("heading uses may-be-able language with difference", () => {
+    expect(buildActionHeading(10)).toBe(
+      "You may be able to request $10.00 back",
+    );
   });
 
   it("trust note is compact", () => {
@@ -128,7 +141,7 @@ describe("Action Center visibility and copy (fixture)", () => {
     );
   });
 
-  it("buildActionCenterModel wires open URL and fixture flag", () => {
+  it("buildActionCenterModel wires official request URL and evidence", () => {
     const model = buildActionCenterModel({
       alert: {
         purchase_price: 40,
@@ -140,17 +153,21 @@ describe("Action Center visibility and copy (fixture)", () => {
         purchase_date: "2026-07-01",
         monitoring_deadline: "2026-07-15",
         target_product_url: "https://www.target.com/p/x/-/A-87654321",
+        target_item_id: "87654321",
+        model_number: "WDG-100",
       },
       observation: {
         query: "demo-fixture-monitor",
         provider: "SerpApi",
         observed_at: "2026-07-10T12:00:00.000Z",
         product_title: "Example Widget Blue",
+        seller_text: "Target",
       },
       fingerprint: {
         target_product_url: "https://www.target.com/p/x/-/A-87654321",
         product_title: "Example Widget Blue",
         target_item_id: "87654321",
+        model_number: "WDG-100",
       },
     });
     expect(model.show).toBe(true);
@@ -158,9 +175,13 @@ describe("Action Center visibility and copy (fixture)", () => {
     expect(model.trusted_target_url).toContain("target.com");
     expect(model.contact_url).toBe(TARGET_OFFICIAL_CONTACT_URL);
     expect(model.copy_text).toContain("Example Widget Blue");
+    expect(model.copy_text).toContain("TCIN: 87654321");
+    expect(model.heading).toBe("You may be able to request $10.00 back");
+    expect(model.evidence.provider_label).toMatch(/fixture|third-party/i);
+    expect(model.evidence.checklist.length).toBeGreaterThan(2);
   });
 
-  it("hides open action when no trusted URL", () => {
+  it("hides trusted product URL when not Target", () => {
     const model = buildActionCenterModel({
       alert: {
         purchase_price: 40,
@@ -172,5 +193,6 @@ describe("Action Center visibility and copy (fixture)", () => {
       fingerprint: { target_product_url: "https://serpapi.com/x" },
     });
     expect(model.trusted_target_url).toBeNull();
+    expect(model.contact_url).toBe(TARGET_OFFICIAL_CONTACT_URL);
   });
 });

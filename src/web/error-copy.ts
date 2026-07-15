@@ -89,6 +89,19 @@ export function purchaseFormError(
     };
   }
 
+  if (code === "missing_exact_identity") {
+    return {
+      code,
+      heading: "Exact product details needed",
+      body:
+        status === "model_or_upc"
+          ? "Add a model number or UPC to continue."
+          : "Add a Target product link, TCIN, and a model number or UPC so Nobu can confirm the exact item.",
+      nextAction:
+        "Complete Exact product details, then try Find my product again.",
+    };
+  }
+
   return {
     code,
     heading: "Something went wrong",

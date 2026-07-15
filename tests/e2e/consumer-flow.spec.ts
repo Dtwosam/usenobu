@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { openManualPurchaseForm } from "./helpers/open-manual-form";
+import { fillFixtureExactIdentity } from "./helpers/fill-fixture-identity";
 
 const SCREEN_DIR = path.join("docs", "proof", "ui", "screens");
 
@@ -78,6 +79,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
 
     await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("exact_match");
+    await fillFixtureExactIdentity(page);
     await Promise.all([
       page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),
       page.getByTestId("submit-purchase").click(),
@@ -150,9 +152,18 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
       }),
     ).toBeVisible();
     await expect(page.getByTestId("action-center")).toBeVisible();
-    await expect(page.getByTestId("open-on-target")).toBeVisible();
-    await expect(page.getByTestId("contact-target")).toBeVisible();
-    await expect(page.getByTestId("copy-details")).toBeVisible();
+    await expect(page.getByTestId("action-center-heading")).toContainText(
+      /You may be able to request/i,
+    );
+    await expect(page.getByTestId("request-from-target")).toBeVisible();
+    await expect(page.getByTestId("request-from-target")).toHaveAttribute(
+      "href",
+      "https://www.target.com/help/contact-us",
+    );
+    await expect(page.getByTestId("copy-details")).toContainText(
+      "Copy request details",
+    );
+    await expect(page.getByTestId("view-evidence")).toBeVisible();
     await expect(page.getByTestId("trust-note")).toContainText(
       "Target verifies and decides",
     );
@@ -195,8 +206,10 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
-    await page.getByTestId("input-region").fill("AK");
-    await page.getByTestId("input-price").fill("12.34");
+    await fillFixtureExactIdentity(page, {
+      region: "AK",
+      price: "12.34",
+    });
     await page.getByTestId("submit-purchase").click();
     await expect(page.getByTestId("purchase-error")).toBeVisible();
     await expect(page.getByTestId("purchase-error")).toContainText(
@@ -221,11 +234,12 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("ambiguous");
-    await page.getByTestId("input-url").fill(
-      "https://www.target.com/p/acetaminophen-demo",
-    );
-    await page.getByTestId("input-tcin").fill("");
-    await page.getByTestId("input-model").fill("UPUP-ACET-500");
+    await fillFixtureExactIdentity(page, {
+      url: "https://www.target.com/p/acetaminophen-demo/-/A-12345678",
+      tcin: "12345678",
+      model: "UPUP-ACET-500",
+      title: "up&up Acetaminophen",
+    });
     await Promise.all([
       page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),
       page.getByTestId("submit-purchase").click(),
@@ -250,10 +264,30 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("no_price");
+    await fillFixtureExactIdentity(page);
     await page.getByTestId("submit-purchase").click();
 
     await expect(page.getByTestId("no-candidates")).toBeVisible();
     await expect(page.getByTestId("cannot-confirm")).toBeVisible();
+  });
+
+  test("blocks Find my product without model and UPC", async ({ page }) => {
+    await page.goto("/purchases/new");
+    await openManualPurchaseForm(page);
+    await page
+      .getByTestId("input-url")
+      .fill("https://www.target.com/p/example-widget/-/A-87654321");
+    await page.getByTestId("input-tcin").fill("87654321");
+    await page.getByTestId("input-model").fill("");
+    await page.getByTestId("input-upc").fill("");
+    await page.getByTestId("input-price").fill("24.99");
+    await page
+      .getByTestId("input-date")
+      .fill(new Date().toISOString().slice(0, 10));
+    await expect(page.getByTestId("submit-purchase")).toBeDisabled();
+    await expect(page.getByTestId("identity-model-or-upc-error")).toContainText(
+      "Add a model number or UPC to continue.",
+    );
   });
 
   test("notices page documents privacy and provenance", async ({ page }) => {

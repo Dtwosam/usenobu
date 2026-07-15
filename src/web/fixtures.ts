@@ -34,6 +34,8 @@ export function buildFixtureOffers(args: {
     args.product_title || `Example Widget ${model} (demo fixture)`;
 
   if (args.scenario === "ambiguous") {
+    // Two strong model matches with distinct TCINs that do not equal the
+    // purchase TCIN — fail closed as multi-candidate (user still supplied TCIN).
     return [
       {
         offer_id: "fix-a",
@@ -41,8 +43,8 @@ export function buildFixtureOffers(args: {
         seller_kind: "target",
         seller_text: "Target",
         is_target_plus: false,
-        merchant_link: `https://www.target.com/p/demo-a/-/A-${tcin}`,
-        target_item_id: tcin,
+        merchant_link: `https://www.target.com/p/demo-a/-/A-11111111`,
+        target_item_id: "11111111",
         model_number: model,
         observed_price: 18.99,
         currency: "USD",

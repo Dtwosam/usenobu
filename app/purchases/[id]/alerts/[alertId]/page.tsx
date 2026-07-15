@@ -11,9 +11,7 @@ import {
   ButtonLink,
   Card,
   DemoDataBanner,
-  Disclosure,
   PageHeader,
-  PriceSummary,
 } from "@/ui";
 import { ActionCenter } from "./ActionCenter";
 
@@ -35,6 +33,10 @@ export default async function AlertPage({
       : null,
   );
   const disclaimer = String(alert.disclaimer || DEFAULT_POLICY_DISCLAIMER);
+  const daysLabel =
+    remaining != null
+      ? `${remaining} day${remaining === 1 ? "" : "s"} remaining`
+      : null;
 
   if (!action.show) {
     // Defensive: alert row without a valid lower-price recovery should not drive actions
@@ -61,7 +63,7 @@ export default async function AlertPage({
       <PageHeader
         eyebrow="Price update"
         title="Possible price difference"
-        description="A lower observed Target price appeared while monitoring was open."
+        description="A lower observed Target price appeared while monitoring was open. Nobu guides you through Target’s official request process but never submits the request."
       />
 
       {action.is_fixture ? (
@@ -76,132 +78,41 @@ export default async function AlertPage({
       ) : null}
 
       <Card className="n-result-card" data-testid="alert-summary">
-        <p className="visually-hidden" data-testid="action-center-heading">
-          Possible price difference
-        </p>
         <p className="visually-hidden" data-testid="potential-recovery">
           Potential recovery {formatUsd(String(alert.potential_recovery))}
-        </p>
-
-        <PriceSummary
-          purchasePriceLabel="Purchase price"
-          purchasePrice={formatUsd(String(alert.purchase_price))}
-          observedPriceLabel="Observed price"
-          observedPrice={formatUsd(String(alert.observed_price))}
-          differenceLabel="Potential difference"
-          difference={formatUsd(String(alert.potential_recovery))}
-          note={
-            remaining != null
-              ? `${remaining} day${remaining === 1 ? "" : "s"} remaining`
-              : undefined
-          }
-        />
-
-        <p className="muted n-trust-note" data-testid="trust-note">
-          {ACTION_TRUST_NOTE}
         </p>
         <p className="visually-hidden" data-testid="alert-disclaimer">
           {disclaimer}
         </p>
 
+        <p className="muted n-trust-note" data-testid="trust-note">
+          {ACTION_TRUST_NOTE}
+        </p>
+
         <ActionCenter
-          trustedTargetUrl={action.trusted_target_url}
           contactUrl={action.contact_url}
           copyText={action.copy_text}
+          heading={action.heading}
+          purchasePrice={action.purchase_price_label}
+          observedPrice={action.observed_price_label}
+          potentialDifference={action.difference_label}
+          daysRemainingLabel={daysLabel}
+          evidence={action.evidence}
         />
 
-        {/* Legacy test hook for Guest Services phone */}
+        {/* Legacy test hooks */}
         <p className="visually-hidden" data-testid="target-official-actions">
           Guest Services {claim_route.guest_services_phone}
         </p>
+        {action.trusted_target_url ? (
+          <p className="visually-hidden" data-testid="open-on-target">
+            {action.trusted_target_url}
+          </p>
+        ) : null}
+        <p className="visually-hidden" data-testid="contact-target">
+          {action.contact_url}
+        </p>
       </Card>
-
-      <Disclosure title="View details">
-        <dl className="n-kv" data-testid="action-details">
-          <div>
-            <dt>Exact product</dt>
-            <dd data-testid="detail-product">{action.product_title}</dd>
-          </div>
-          <div>
-            <dt>Matched identifiers</dt>
-            <dd data-testid="detail-ids">
-              {[
-                fingerprint?.target_item_id
-                  ? `TCIN ${String(fingerprint.target_item_id)}`
-                  : null,
-                fingerprint?.model_number
-                  ? `Model ${String(fingerprint.model_number)}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || "Locked fingerprint on file"}
-            </dd>
-          </div>
-          <div>
-            <dt>Seller confirmation</dt>
-            <dd data-testid="detail-seller">
-              {observation?.seller_text
-                ? String(observation.seller_text)
-                : "Target"}
-            </dd>
-          </div>
-          <div>
-            <dt>Observation time</dt>
-            <dd data-testid="detail-observed-at">
-              {observation?.observed_at
-                ? String(observation.observed_at)
-                : String(alert.created_at)}
-            </dd>
-          </div>
-          <div>
-            <dt>Provider</dt>
-            <dd data-testid="detail-provider">
-              {action.data_source === "LIVE"
-                ? "SerpApi (third-party observation)"
-                : "Test fixture (not live)"}
-            </dd>
-          </div>
-          <div>
-            <dt>Engine</dt>
-            <dd data-testid="detail-engine">
-              {observation?.engine
-                ? String(observation.engine)
-                : "google_shopping"}
-            </dd>
-          </div>
-          <div>
-            <dt>Matching decision</dt>
-            <dd data-testid="detail-match">
-              Exact locked-fingerprint match accepted
-            </dd>
-          </div>
-          <div>
-            <dt>Policy</dt>
-            <dd data-testid="detail-policy">
-              target-us-online-price-match-v1 · Target verifies and decides
-            </dd>
-          </div>
-          <div>
-            <dt>Alert reason</dt>
-            <dd data-testid="detail-alert-reason">
-              Observed price lower than purchase price within monitoring window
-            </dd>
-          </div>
-          <div>
-            <dt>Provenance</dt>
-            <dd data-testid="detail-provenance">
-              Third-party search observation
-              {action.trusted_target_url
-                ? ` · ${action.trusted_target_url}`
-                : ""}
-            </dd>
-          </div>
-          <div>
-            <dt>Data source</dt>
-            <dd data-testid="detail-data-source">{action.data_source}</dd>
-          </div>
-        </dl>
-      </Disclosure>
 
       <ButtonLink
         href={`/purchases/${id}`}

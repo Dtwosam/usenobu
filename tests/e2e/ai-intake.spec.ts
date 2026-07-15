@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { openManualPurchaseForm } from "./helpers/open-manual-form";
+import { fillFixtureExactIdentity } from "./helpers/fill-fixture-identity";
 
 test.describe("Natural language AI intake (deterministic path)", () => {
   test("Fill details with AI populates form and requires Find my product", async ({
@@ -7,7 +9,7 @@ test.describe("Natural language AI intake (deterministic path)", () => {
     await page.goto("/purchases/new");
     await expect(page.getByTestId("nl-intake-card")).toBeVisible();
     await page.getByTestId("input-purchase-text").fill(
-      "I bought up&up acetaminophen from Target online yesterday for $9.99. https://www.target.com/p/acetaminophen/-/A-12345678",
+      "I bought up&up acetaminophen from Target online yesterday for $9.99. https://www.target.com/p/acetaminophen/-/A-12345678 model UPUP-ACET-500",
     );
     await page.getByTestId("btn-fill-ai").click();
     await expect(page.getByTestId("ai-confirmation-gate")).toBeVisible({
@@ -18,19 +20,18 @@ test.describe("Natural language AI intake (deterministic path)", () => {
     );
     await expect(page.getByTestId("input-price")).not.toHaveValue("");
     await expect(page.getByTestId("input-url")).toHaveValue(/target\.com/);
-    // Must still use Find my product — AI does not auto-submit
+    // AI does not auto-submit; complete exact identity then Find my product
     await expect(page.getByTestId("submit-purchase")).toBeVisible();
+    await fillFixtureExactIdentity(page, {
+      url: "https://www.target.com/p/example-widget/-/A-87654321",
+      tcin: "87654321",
+      model: "WDG-100",
+      price: "8.50",
+      date: "2026-07-05",
+      region: "TX",
+      title: "Example Widget Blue",
+    });
     await expect(page.getByTestId("submit-purchase")).toBeEnabled();
-    await page.getByTestId("input-price").fill("8.50");
-    // Keep demo defaults stable for fixture matching after AI overwrite
-    await page
-      .getByTestId("input-url")
-      .fill("https://www.target.com/p/example-widget/-/A-87654321");
-    await page.getByTestId("input-tcin").fill("87654321");
-    await page.getByTestId("input-model").fill("WDG-100");
-    await page.getByTestId("input-title").fill("Example Widget Blue");
-    await page.getByTestId("input-date").fill("2026-07-05");
-    await page.getByTestId("input-region").fill("TX");
     await page.getByTestId("input-scenario").selectOption("exact_match");
 
     await Promise.all([
@@ -44,8 +45,9 @@ test.describe("Natural language AI intake (deterministic path)", () => {
 
   test("manual entry still works without AI", async ({ page }) => {
     await page.goto("/purchases/new");
-    await page.getByTestId("btn-manual-entry").click();
+    await openManualPurchaseForm(page);
     await page.getByTestId("input-scenario").selectOption("exact_match");
+    await fillFixtureExactIdentity(page);
     await Promise.all([
       page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),
       page.getByTestId("submit-purchase").click(),

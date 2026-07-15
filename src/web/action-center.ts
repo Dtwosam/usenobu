@@ -1,6 +1,7 @@
 /**
  * Action Center helpers — price-drop next steps only.
  * Deterministic copy from stored fields; no secrets or refund guarantees.
+ * Nobu guides the user to Target's official request route; never submits claims.
  */
 import { FIXTURE_UI_LABEL } from "./manual-check-mode.js";
 import { formatUsd } from "./status-copy.js";
@@ -15,7 +16,25 @@ export const ACTION_TRUST_NOTE =
   "Third-party observed price. Target verifies and decides.";
 
 export const COPY_CLOSING =
-  "Confirm the current price on Target.com. Target verifies the price and makes the final decision.";
+  "Target verifies eligibility and makes the final decision. Nobu does not submit the request for you.";
+
+/** Short checklist shown under View evidence. */
+export const REQUEST_CHECKLIST = [
+  "Have your Target receipt, digital receipt, or packing slip ready.",
+  "Open Target’s official contact or Guest Services route.",
+  "Share the product, prices, and TCIN from the copied request details.",
+  "Confirm the lower price is still shown for the same Target item.",
+  "Target verifies the lower price and decides whether to adjust.",
+];
+
+export type ActionCenterEvidence = {
+  provider_label: string;
+  seller: string;
+  match_evidence: string;
+  observed_at: string;
+  policy_deadline: string;
+  checklist: string[];
+};
 
 /** Detect fixture vs live from stored observation (not env alone). */
 export function resolveStoredDataSource(observation?: {
@@ -71,6 +90,10 @@ export function shouldShowActionCenter(alert: {
   return true;
 }
 
+export function buildActionHeading(potentialDifference: number | string): string {
+  return `You may be able to request ${formatUsd(potentialDifference)} back`;
+}
+
 export type CopyDetailsInput = {
   product_title?: string | null;
   purchase_date?: string | null;
@@ -81,6 +104,8 @@ export type CopyDetailsInput = {
   monitoring_deadline?: string | null;
   target_product_url?: string | null;
   target_item_id?: string | null;
+  model_number?: string | null;
+  upc_or_gtin?: string | null;
 };
 
 /** Plain-text clipboard summary — approved fields only. */
@@ -89,20 +114,29 @@ export function buildCopyDetailsText(input: CopyDetailsInput): string {
     `Product: ${input.product_title?.trim() || "Confirmed Target product"}`,
     `Purchase date: ${input.purchase_date || "—"}`,
     `Purchase price: ${formatUsd(input.purchase_price)}`,
-    `Observed price: ${formatUsd(input.observed_price)}`,
+    `Observed Target price: ${formatUsd(input.observed_price)}`,
     `Potential difference: ${formatUsd(input.potential_difference)}`,
     `Observation time: ${input.observed_at || "—"}`,
-    `Monitoring deadline: ${input.monitoring_deadline || "—"}`,
   ];
 
+  if (input.target_item_id) {
+    lines.push(`TCIN: ${input.target_item_id}`);
+  }
+  if (input.model_number) {
+    lines.push(`Model: ${input.model_number}`);
+  }
+  if (input.upc_or_gtin) {
+    lines.push(`UPC/GTIN: ${input.upc_or_gtin}`);
+  }
   if (input.target_product_url) {
-    lines.push(`Target product URL: ${input.target_product_url}`);
-  } else if (input.target_item_id) {
-    lines.push(`Target item ID: ${input.target_item_id}`);
+    lines.push(`Target product link: ${input.target_product_url}`);
+  }
+  if (input.monitoring_deadline) {
+    lines.push(`Policy deadline: ${input.monitoring_deadline}`);
   }
 
   lines.push(
-    "Price source: third-party observation through SerpApi",
+    "Price source: third-party observation through SerpApi (not an official Target API)",
     "",
     COPY_CLOSING,
   );
@@ -121,6 +155,8 @@ export const COPY_FORBIDDEN_PATTERNS = [
   /email@/i,
   /serpapi_api_key/i,
   /BEGIN (RSA |OPENSSH )?PRIVATE KEY/i,
+  /we submitted your claim/i,
+  /automatic refund/i,
 ];
 
 export function copyTextIsSafe(text: string): boolean {
@@ -169,32 +205,79 @@ export function buildActionCenterModel(args: {
     (args.observation?.product_title as string | undefined) ||
     "Confirmed Target product";
 
+  const tcin =
+    (args.fingerprint?.target_item_id as string | undefined) ||
+    (args.purchase?.target_item_id as string | undefined) ||
+    null;
+  const model =
+    (args.fingerprint?.model_number as string | undefined) ||
+    (args.purchase?.model_number as string | undefined) ||
+    null;
+  const upc =
+    (args.fingerprint?.upc_or_gtin as string | undefined) ||
+    (args.purchase?.upc_or_gtin as string | undefined) ||
+    null;
+
+  const observedAt =
+    (args.observation?.observed_at as string | undefined) ||
+    (args.alert.created_at as string | undefined) ||
+    "—";
+  const deadline =
+    (args.purchase?.monitoring_deadline as string | undefined) || "—";
+
   const copy_text = buildCopyDetailsText({
     product_title: productTitle,
     purchase_date: args.purchase?.purchase_date as string | undefined,
     purchase_price: String(args.alert.purchase_price),
     observed_price: String(args.alert.observed_price),
     potential_difference: String(args.alert.potential_recovery),
-    observed_at:
-      (args.observation?.observed_at as string | undefined) ||
-      (args.alert.created_at as string | undefined),
-    monitoring_deadline: args.purchase?.monitoring_deadline as
-      | string
-      | undefined,
+    observed_at: observedAt,
+    monitoring_deadline: deadline === "—" ? null : deadline,
     target_product_url: trustedUrl,
-    target_item_id:
-      (args.fingerprint?.target_item_id as string | undefined) ||
-      (args.purchase?.target_item_id as string | undefined),
+    target_item_id: tcin,
+    model_number: model,
+    upc_or_gtin: upc,
   });
+
+  const matchParts = [
+    tcin ? `TCIN ${tcin}` : null,
+    model ? `Model ${model}` : null,
+    upc ? `UPC ${upc}` : null,
+  ].filter(Boolean);
+
+  const evidence: ActionCenterEvidence = {
+    provider_label:
+      data_source === "LIVE"
+        ? "SerpApi — third-party shopping observation (not an official Target API)"
+        : "Test fixture (not a live current Target price)",
+    seller: args.observation?.seller_text
+      ? String(args.observation.seller_text)
+      : "Target",
+    match_evidence:
+      matchParts.length > 0
+        ? `Exact locked-fingerprint match · ${matchParts.join(" · ")}`
+        : "Exact locked-fingerprint match accepted",
+    observed_at: String(observedAt),
+    policy_deadline: String(deadline),
+    checklist: [...REQUEST_CHECKLIST],
+  };
+
+  const recovery = String(args.alert.potential_recovery);
 
   return {
     show,
     data_source,
     is_fixture: data_source === "FIXTURE",
     trusted_target_url: trustedUrl,
+    /** Official Target request/support entry — user contacts Target; Nobu does not submit. */
     contact_url: TARGET_OFFICIAL_CONTACT_URL,
     copy_text,
     product_title: productTitle,
     trust_note: ACTION_TRUST_NOTE,
+    heading: buildActionHeading(recovery),
+    purchase_price_label: formatUsd(String(args.alert.purchase_price)),
+    observed_price_label: formatUsd(String(args.alert.observed_price)),
+    difference_label: formatUsd(recovery),
+    evidence,
   };
 }

@@ -1,0 +1,54 @@
+{
+  "base": "https://usenobu.vercel.app",
+  "at": "2026-07-15T11:34:10.154Z",
+  "checks": {
+    "health": {
+      "ok": true,
+      "service": "nobu-a2mcp"
+    },
+    "agent_understand": {
+      "http_status": 200,
+      "agent_state": "CONFIRMATION_REQUIRED",
+      "ok": true
+    },
+    "missing_model_and_upc_blocks": {
+      "submit_disabled": true,
+      "error_visible": true,
+      "pass": true
+    },
+    "tcin_plus_model": {
+      "submit_enabled": true,
+      "pass": true
+    },
+    "tcin_plus_upc": {
+      "submit_enabled": true,
+      "pass": true
+    },
+    "airtag_full": {
+      "url": "https://usenobu.vercel.app/purchases/pur_ffcd7d99583c/review?title=Apple+AirTag&source=LIVE",
+      "decision": "EXACT_MATCH_CANDIDATE",
+      "old_copy": false,
+      "pass": true
+    },
+    "notices_identity_and_no_claim": {
+      "has_tcin_language": true,
+      "no_guarantee": true,
+      "pass": true
+    },
+    "official_target_route": {
+      "contact_url": "https://www.target.com/help/contact-us",
+      "policy_url": "https://www.target.com/help/articles/policies-guidelines/price-match-guarantee",
+      "verified_at": "2026-07-15",
+      "note": "TARGET-CONTACT remains production request route; live Target pages returned capacity busy during fetch — registry CURRENT unchanged.",
+      "pass": true
+    },
+    "a11y_sample": {
+      "submit_has_type": true,
+      "tcin_label": true,
+      "section_present": true,
+      "no_optional_on_tcin": true,
+      "pass": true
+    }
+  },
+  "overall_pass": true
+}

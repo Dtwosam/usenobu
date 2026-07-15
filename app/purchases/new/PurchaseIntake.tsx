@@ -4,6 +4,13 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { submitPurchaseAction } from "@/web/actions";
 import { fillDetailsWithAiAction } from "@/web/ai-actions";
 import {
+  evaluateExactIdentity,
+  EXACT_IDENTITY_MISSING_MODEL_OR_UPC,
+  EXACT_IDENTITY_SECTION_HEADING,
+  extractTcinFromTargetUrl,
+  isLikelyTcin,
+} from "@/web/exact-identity";
+import {
   Button,
   Card,
   DemoDataBanner,
@@ -63,6 +70,8 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
   const [title, setTitle] = useState(defaults.title);
   const [upc, setUpc] = useState(defaults.upc);
   const [scenario, setScenario] = useState(defaults.scenario);
+  /** When true, user typed TCIN manually — do not overwrite from URL. */
+  const tcinUserEdited = useRef(Boolean(defaults.tcin));
 
   const fieldMark = useMemo(() => {
     const m = new Set(missing);
@@ -73,6 +82,33 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
       return null;
     };
   }, [missing, uncertain]);
+
+  const identity = useMemo(
+    () =>
+      evaluateExactIdentity({
+        target_product_url: url,
+        target_item_id: tcin,
+        model_number: model,
+        upc_or_gtin: upc,
+      }),
+    [url, tcin, model, upc],
+  );
+
+  const canFindProduct =
+    identity.ok &&
+    Boolean(price.trim()) &&
+    Boolean(date.trim());
+
+  /** Auto-extract TCIN from trusted Target URL when TCIN empty / not user-owned. */
+  function onUrlChange(next: string) {
+    setUrl(next);
+    if (tcinUserEdited.current && isLikelyTcin(tcin)) return;
+    const extracted = extractTcinFromTargetUrl(next);
+    if (extracted) {
+      setTcin(extracted);
+      tcinUserEdited.current = false;
+    }
+  }
 
   useEffect(() => {
     if (showManual && shouldFocusManual.current) {
@@ -118,12 +154,24 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
       setTcin((t) => (t === "87654321" ? "" : t));
       setModel((m) => (m === "WDG-100" ? "" : m));
       setTitle((t) => (/example widget/i.test(t) ? "" : t));
-      // Apply extraction
-      if (e.product_url) setUrl(e.product_url);
+      // Fresh AI extraction overrides stale stored values (never silent demo insert)
+      if (e.product_url) {
+        setUrl(e.product_url);
+        const fromUrl = extractTcinFromTargetUrl(e.product_url);
+        if (e.target_item_id && isLikelyTcin(e.target_item_id)) {
+          setTcin(e.target_item_id);
+          tcinUserEdited.current = true;
+        } else if (fromUrl) {
+          setTcin(fromUrl);
+          tcinUserEdited.current = false;
+        }
+      } else if (e.target_item_id && isLikelyTcin(e.target_item_id)) {
+        setTcin(e.target_item_id);
+        tcinUserEdited.current = true;
+      }
       if (e.purchase_price != null) setPrice(String(e.purchase_price));
       if (e.purchase_date) setDate(e.purchase_date);
       if (e.region) setRegion(e.region);
-      if (e.target_item_id) setTcin(e.target_item_id);
       if (e.model_number) setModel(e.model_number);
       if (e.product_description) setTitle(e.product_description);
       if (e.upc_or_gtin) setUpc(e.upc_or_gtin);
@@ -269,7 +317,9 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               error={
                 fieldMark("product_url") === "missing"
                   ? "Add the Target product link so Nobu can find the exact item."
-                  : undefined
+                  : identity.errors.target_product_url && url.trim()
+                    ? identity.errors.target_product_url
+                    : undefined
               }
             >
               <Input
@@ -279,9 +329,12 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
                 data-testid="input-url"
                 placeholder="https://www.target.com/p/.../-/A-12345678"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => onUrlChange(e.target.value)}
                 autoComplete="off"
-                invalid={fieldMark("product_url") === "missing"}
+                invalid={
+                  fieldMark("product_url") === "missing" ||
+                  Boolean(identity.errors.target_product_url && url.trim())
+                }
               />
             </Field>
 
@@ -382,63 +435,115 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               </Field>
             </div>
 
-            <div className="grid-2">
-              <Field
-                id="target_item_id"
-                label={markLabel("TCIN (optional)", "target_item_id")}
-                hint="Target item number when you have it"
-              >
-                <Input
-                  id="target_item_id"
-                  name="target_item_id"
-                  data-testid="input-tcin"
-                  value={tcin}
-                  onChange={(e) => setTcin(e.target.value)}
-                />
-              </Field>
-              <Field
-                id="model_number"
-                label={markLabel("Model number (optional)", "model_number")}
-                hint="Helps confirm the exact product"
-              >
-                <Input
-                  id="model_number"
-                  name="model_number"
-                  data-testid="input-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                />
-              </Field>
-            </div>
+            <fieldset
+              className="n-exact-identity"
+              data-testid="exact-product-details"
+            >
+              <legend className="n-card-title">
+                {EXACT_IDENTITY_SECTION_HEADING}
+              </legend>
+              <p className="muted">
+                Nobu needs a Target link, TCIN, and a model number or UPC so it
+                does not watch the wrong item.
+              </p>
 
-            <div className="grid-2">
-              <Field
-                id="upc_or_gtin"
-                label="UPC or GTIN (optional)"
-                hint="Barcode number when available"
-              >
-                <Input
+              <div className="grid-2">
+                <Field
+                  id="target_item_id"
+                  label={markLabel("TCIN", "target_item_id")}
+                  hint="Target item number"
+                  required
+                  error={
+                    identity.errors.target_item_id && (url.trim() || tcin.trim())
+                      ? identity.errors.target_item_id
+                      : undefined
+                  }
+                >
+                  <Input
+                    id="target_item_id"
+                    name="target_item_id"
+                    required
+                    data-testid="input-tcin"
+                    value={tcin}
+                    onChange={(e) => {
+                      tcinUserEdited.current = true;
+                      setTcin(e.target.value);
+                    }}
+                    autoComplete="off"
+                    invalid={Boolean(
+                      identity.errors.target_item_id &&
+                        (url.trim() || tcin.trim()),
+                    )}
+                  />
+                </Field>
+                <Field
+                  id="model_number"
+                  label={markLabel("Model number", "model_number")}
+                  hint="Add a model number or UPC so Nobu can confirm the exact item."
+                >
+                  <Input
+                    id="model_number"
+                    name="model_number"
+                    data-testid="input-model"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    autoComplete="off"
+                  />
+                </Field>
+              </div>
+
+              <div className="grid-2">
+                <Field
                   id="upc_or_gtin"
-                  name="upc_or_gtin"
-                  data-testid="input-upc"
-                  value={upc}
-                  onChange={(e) => setUpc(e.target.value)}
-                />
-              </Field>
-              <Field
-                id="product_title"
-                label={markLabel("Product title (optional)", "product_description")}
-                hint="Name from your order"
-              >
-                <Input
+                  label="UPC or GTIN"
+                  hint="Add a model number or UPC so Nobu can confirm the exact item."
+                  error={
+                    identity.errors.model_or_upc &&
+                    (model.trim() || upc.trim() || tcin.trim())
+                      ? EXACT_IDENTITY_MISSING_MODEL_OR_UPC
+                      : undefined
+                  }
+                >
+                  <Input
+                    id="upc_or_gtin"
+                    name="upc_or_gtin"
+                    data-testid="input-upc"
+                    value={upc}
+                    onChange={(e) => setUpc(e.target.value)}
+                    autoComplete="off"
+                    invalid={Boolean(
+                      identity.errors.model_or_upc &&
+                        (model.trim() || upc.trim() || tcin.trim()),
+                    )}
+                  />
+                </Field>
+                <Field
                   id="product_title"
-                  name="product_title"
-                  data-testid="input-title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </Field>
-            </div>
+                  label={markLabel("Product title", "product_description")}
+                  hint="Name from your order"
+                >
+                  <Input
+                    id="product_title"
+                    name="product_title"
+                    data-testid="input-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </Field>
+              </div>
+
+              {identity.errors.model_or_upc &&
+              (url.trim() || tcin.trim()) &&
+              !identity.has_model_or_upc ? (
+                <p
+                  className="n-field__error"
+                  data-testid="identity-model-or-upc-error"
+                  role="alert"
+                >
+                  {EXACT_IDENTITY_MISSING_MODEL_OR_UPC}
+                </p>
+              ) : null}
+            </fieldset>
 
             <details className="n-disclosure n-demo-scenario" open>
               <summary className="n-disclosure__summary">
@@ -471,7 +576,21 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               confirm the exact item next.
             </p>
 
-            <Button type="submit" block data-testid="submit-purchase">
+            <Button
+              type="submit"
+              block
+              data-testid="submit-purchase"
+              disabled={!canFindProduct}
+              disabledReason={
+                !identity.has_model_or_upc
+                  ? EXACT_IDENTITY_MISSING_MODEL_OR_UPC
+                  : !identity.has_tcin
+                    ? "Add a TCIN or a Target product link that includes it."
+                    : !identity.has_target_url
+                      ? "Add a valid Target.com product link."
+                      : "Enter the price paid and purchase date."
+              }
+            >
               Find my product
             </Button>
           </form>

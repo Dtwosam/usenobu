@@ -108,7 +108,11 @@ export async function submitPurchaseAction(formData: FormData) {
         ),
       });
       const status =
-        "policy" in result && result.policy ? result.policy.status : "";
+        "status" in result && result.status
+          ? String(result.status)
+          : "policy" in result && result.policy
+            ? result.policy.status
+            : "";
       purchaseErrorRedirect(formData, result.error, status);
       return;
     }

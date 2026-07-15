@@ -2,7 +2,7 @@
   "/": {
     "seriousOrCritical": 0,
     "violations": [],
-    "passes": 22
+    "passes": 20
   },
   "/purchases/new": {
     "seriousOrCritical": 0,
