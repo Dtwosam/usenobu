@@ -5,7 +5,7 @@ import { getPurchaseDetail } from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
 import { getWebDatabase } from "@/web/db";
 import { loadEnrollmentDiscovery } from "@/web/discovery-store";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import {
   Button,
   Card,
@@ -28,21 +28,31 @@ export default async function ReviewPage({
   const sp = await searchParams;
   await prepareWebDatabase();
   const detail = getPurchaseDetail(id);
-  if (!detail) notFound();
+  // Missing purchase after redirect = session cookie not available (multi-instance).
+  // Never show a bare Next.js 404 for a broken navigation.
+  if (!detail) {
+    redirect("/purchases/new?error=session_lost");
+  }
 
   const purchase = detail.purchase;
   const db = getWebDatabase();
-  const discovery = loadEnrollmentDiscovery(db, id);
+  let discovery = null as ReturnType<typeof loadEnrollmentDiscovery>;
+  try {
+    discovery = loadEnrollmentDiscovery(db, id);
+  } catch {
+    discovery = null;
+  }
 
-  const evaluation = discovery?.evaluation;
+  const evaluation = discovery?.evaluation ?? null;
   const dataSource = discovery?.data_source ?? "LIVE";
   const isFixture = dataSource === "FIXTURE";
 
+  const exact = evaluation?.exact_candidate;
   const canConfirm =
     Boolean(evaluation) &&
     evaluation!.decision === "EXACT_MATCH_CANDIDATE" &&
-    evaluation!.exact_candidate &&
-    !evaluation!.exact_candidate.title_only;
+    Boolean(exact) &&
+    !exact!.title_only;
 
   const isAmbiguous = evaluation?.decision === "MATCH_REVIEW_REQUIRED";
   const noCandidates = !evaluation || evaluation.candidates.length === 0;

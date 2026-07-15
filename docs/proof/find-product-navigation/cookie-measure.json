@@ -1,0 +1,11 @@
+{
+  "purchases": 1,
+  "discovery_n": 1,
+  "evaluation_json_len": 1215,
+  "offers_json_len": 312,
+  "json_len": 2556,
+  "encoded_len": 3408,
+  "max": 3800,
+  "too_large": false,
+  "purchase_present": true
+}

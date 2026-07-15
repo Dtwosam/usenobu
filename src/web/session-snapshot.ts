@@ -2,13 +2,14 @@
  * Cookie-backed SQLite snapshot for Vercel multi-instance demos.
  * Ensures create → redirect → review works across serverless instances.
  */
+import { deflateSync, inflateSync } from "node:zlib";
 import { cookies } from "next/headers";
 import type { NobuDatabase } from "../db/index.js";
 import { isVercelRuntime, markCookieHydrated, wasCookieHydrated } from "./db.js";
 
 const COOKIE_NAME = "nobu_demo_state_v1";
-/** Stay under typical 4KB browser cookie limits after base64url. */
-const MAX_COOKIE_CHARS = 3800;
+/** Stay under typical 4KB browser cookie limits after encoding. */
+const MAX_COOKIE_CHARS = 3500;
 
 type Snapshot = {
   purchases: Array<Record<string, unknown>>;
@@ -67,6 +68,96 @@ function slimRow(row: Record<string, unknown>): Record<string, unknown> {
     out[k] = v;
   }
   return out;
+}
+
+/** Valid JSON-only discovery rows for cookie budget (never mid-string truncate). */
+function slimDiscoveryForCookie(
+  rows: Array<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  return rows.slice(-1).map((d) => {
+    let evaluation_json = String(d.evaluation_json ?? "{}");
+    let offers_json = "[]";
+    try {
+      const ev = JSON.parse(evaluation_json) as {
+        decision?: string;
+        reasons?: string[];
+        match_rule_version?: string;
+        exact_candidate?: {
+          candidate_id?: string;
+          tier?: string;
+          decision?: string;
+          title_only?: boolean;
+          reasons?: string[];
+          title_similarity?: number;
+          matched_tcin?: string;
+          matched_model?: string;
+          matched_upc?: string;
+          offer?: Record<string, unknown>;
+        } | null;
+        candidates?: unknown[];
+      };
+      const exact = ev.exact_candidate ?? null;
+      // Compact exact candidate offer fields only
+      let compactExact = exact;
+      if (exact?.offer) {
+        const o = exact.offer;
+        compactExact = {
+          candidate_id: exact.candidate_id,
+          tier: exact.tier,
+          decision: exact.decision,
+          title_only: exact.title_only ?? false,
+          reasons: (exact.reasons ?? []).slice(0, 4),
+          title_similarity: exact.title_similarity ?? 0,
+          matched_tcin: exact.matched_tcin,
+          matched_model: exact.matched_model,
+          matched_upc: exact.matched_upc,
+          offer: {
+            title: o.title,
+            seller_kind: o.seller_kind,
+            seller_text: o.seller_text,
+            is_target_plus: o.is_target_plus ?? false,
+            merchant_link: o.merchant_link,
+            link: o.link,
+            product_link: o.product_link,
+            target_item_id: o.target_item_id,
+            model_number: o.model_number,
+            upc_or_gtin: o.upc_or_gtin,
+            observed_price: o.observed_price,
+            currency: o.currency ?? "USD",
+            serpapi_product_id: o.serpapi_product_id,
+          },
+        };
+      }
+      evaluation_json = JSON.stringify({
+        match_rule_version: ev.match_rule_version ?? "match-v1",
+        decision: ev.decision,
+        reasons: (ev.reasons ?? []).slice(0, 4),
+        candidates: compactExact ? [compactExact] : [],
+        exact_candidate: compactExact,
+        rejected: [],
+      });
+      if (compactExact?.offer) {
+        offers_json = JSON.stringify([compactExact.offer]);
+      }
+    } catch {
+      evaluation_json = JSON.stringify({
+        match_rule_version: "match-v1",
+        decision: "MATCH_REVIEW_REQUIRED",
+        reasons: ["snapshot_compact_failed"],
+        candidates: [],
+        rejected: [],
+      });
+      offers_json = "[]";
+    }
+    return {
+      purchase_id: d.purchase_id,
+      data_source: d.data_source,
+      provider_status: d.provider_status,
+      evaluation_json,
+      offers_json,
+      created_at: d.created_at,
+    };
+  });
 }
 
 export function exportSnapshot(db: NobuDatabase): Snapshot {
@@ -162,28 +253,10 @@ export function exportSnapshot(db: NobuDatabase): Snapshot {
     /* ignore */
   }
 
-  const discovery = tableRows(db, "enrollment_discovery")
-    .slice(-1)
-    .map((d) => {
-      // Truncate large JSON if needed for cookie limit
-      let evaluation_json = String(d.evaluation_json ?? "{}");
-      let offers_json = String(d.offers_json ?? "[]");
-      if (evaluation_json.length > 1800) {
-        evaluation_json = evaluation_json.slice(0, 1800);
-      }
-      if (offers_json.length > 800) {
-        offers_json = offers_json.slice(0, 800);
-      }
-      return slimRow({
-        purchase_id: d.purchase_id,
-        data_source: d.data_source,
-        query: d.query,
-        provider_status: d.provider_status,
-        evaluation_json,
-        offers_json,
-        created_at: d.created_at,
-      });
-    });
+  // Re-slim discovery with valid JSON only (never blind-truncate mid-JSON)
+  const discovery = slimDiscoveryForCookie(
+    tableRows(db, "enrollment_discovery"),
+  );
 
   return {
     purchases: tableRows(db, "purchases").slice(-2).map(slimRow),
@@ -216,12 +289,22 @@ export function exportSnapshot(db: NobuDatabase): Snapshot {
 
 function encodeSnapshot(snapshot: Snapshot): string {
   const json = JSON.stringify(snapshot);
-  return Buffer.from(json, "utf8").toString("base64url");
+  // Compress to fit multi-instance session cookie under browser limits.
+  const deflated = deflateSync(Buffer.from(json, "utf8"), { level: 9 });
+  return `z.${deflated.toString("base64url")}`;
 }
 
 function decodeSnapshot(raw: string): Snapshot | null {
   try {
-    const json = Buffer.from(raw, "base64url").toString("utf8");
+    let json: string;
+    if (raw.startsWith("z.")) {
+      json = inflateSync(Buffer.from(raw.slice(2), "base64url")).toString(
+        "utf8",
+      );
+    } else {
+      // Legacy uncompressed base64url snapshots
+      json = Buffer.from(raw, "base64url").toString("utf8");
+    }
     const parsed = JSON.parse(json) as Snapshot;
     if (!parsed || !Array.isArray(parsed.purchases)) return null;
     return { ...emptySnapshot(), ...parsed };
@@ -329,77 +412,76 @@ export async function hydrateDatabaseFromCookie(
   markCookieHydrated(true);
 }
 
-/** Persist compact DB snapshot to cookie after mutations (Vercel only). */
-export async function persistDatabaseToCookie(db: NobuDatabase): Promise<void> {
-  if (!isVercelRuntime()) return;
+export type CookiePersistResult =
+  | { ok: true; length: number }
+  | { ok: false; reason: string; length?: number };
+
+/**
+ * Persist compact DB snapshot to cookie after mutations.
+ * Returns success/failure so callers never redirect without session state.
+ */
+export async function persistDatabaseToCookie(
+  db: NobuDatabase,
+): Promise<CookiePersistResult> {
+  // Multi-instance hosts have no shared SQLite — cookie is required.
   try {
-    const snapshot = exportSnapshot(db);
+    let snapshot = exportSnapshot(db);
+    snapshot.enrollment_discovery = slimDiscoveryForCookie(
+      snapshot.enrollment_discovery ?? [],
+    );
+    // Drop history aggressively for cookie budget
+    snapshot.monitor_runs = [];
+    snapshot.search_budget_ledger = [];
+    snapshot.product_matches = [];
+    if (snapshot.purchases.length > 1) {
+      snapshot.purchases = snapshot.purchases.slice(-1);
+    }
+    const keep = new Set(snapshot.purchases.map((p) => String(p.id)));
+    snapshot.product_fingerprints = snapshot.product_fingerprints.filter((f) =>
+      keep.has(String(f.purchase_id)),
+    );
+    snapshot.alerts = snapshot.alerts
+      .filter((a) => keep.has(String(a.purchase_id)))
+      .slice(-1);
+    snapshot.price_observations = snapshot.price_observations
+      .filter((o) => keep.has(String(o.purchase_id)))
+      .slice(-1);
+    snapshot.enrollment_discovery = snapshot.enrollment_discovery.filter((d) =>
+      keep.has(String(d.purchase_id)),
+    );
+
     let encoded = encodeSnapshot(snapshot);
-    // Trim older purchases if cookie would be too large
-    while (encoded.length > MAX_COOKIE_CHARS && snapshot.purchases.length > 1) {
-      const dropId = String(snapshot.purchases[0]!.id);
-      snapshot.purchases = snapshot.purchases.slice(1);
-      snapshot.product_fingerprints = snapshot.product_fingerprints.filter(
-        (r) => String(r.purchase_id) !== dropId,
-      );
-      snapshot.product_matches = snapshot.product_matches.filter(
-        (r) => String(r.purchase_id) !== dropId,
-      );
-      snapshot.price_observations = snapshot.price_observations.filter(
-        (r) => String(r.purchase_id) !== dropId,
-      );
-      snapshot.alerts = snapshot.alerts.filter(
-        (r) => String(r.purchase_id) !== dropId,
-      );
-      snapshot.monitor_runs = snapshot.monitor_runs.filter(
-        (r) => String(r.purchase_id) !== dropId,
-      );
+    if (encoded.length > MAX_COOKIE_CHARS) {
+      // Emergency: purchase + compact discovery only
+      snapshot = {
+        purchases: snapshot.purchases.slice(-1),
+        product_fingerprints: [],
+        product_matches: [],
+        price_observations: [],
+        alerts: [],
+        monitor_runs: [],
+        search_budget_ledger: [],
+        enrollment_discovery: slimDiscoveryForCookie(
+          snapshot.enrollment_discovery,
+        ),
+      };
       encoded = encodeSnapshot(snapshot);
     }
-    // Last resort: drop history first; keep purchase + fingerprint + one alert+obs when possible
-    while (encoded.length > MAX_COOKIE_CHARS) {
-      if (snapshot.monitor_runs.length > 0) {
-        snapshot.monitor_runs = [];
-      } else if (snapshot.search_budget_ledger.length > 0) {
-        snapshot.search_budget_ledger = [];
-      } else if (
-        snapshot.price_observations.length > 1 ||
-        snapshot.alerts.length > 1
-      ) {
-        snapshot.alerts = snapshot.alerts.slice(-1);
-        const keepObs = new Set(
-          snapshot.alerts.map((a) => String(a.observation_id ?? "")),
-        );
-        snapshot.price_observations = snapshot.price_observations.filter((o) =>
-          keepObs.has(String(o.id)),
-        );
-      } else if (
-        snapshot.alerts.length === 1 &&
-        snapshot.price_observations.length === 1 &&
-        encoded.length > MAX_COOKIE_CHARS
-      ) {
-        // Keep both alert + observation (FK) — slim disclaimer further
-        snapshot.alerts = snapshot.alerts.map((a) => ({
-          ...a,
-          disclaimer: String(a.disclaimer ?? "").slice(0, 80),
-        }));
-        encoded = encodeSnapshot(snapshot);
-        if (encoded.length > MAX_COOKIE_CHARS) {
-          // Drop alert+obs together so import does not break FKs
-          snapshot.alerts = [];
-          snapshot.price_observations = [];
-        }
-      } else {
-        break;
-      }
-      encoded = encodeSnapshot(snapshot);
-    }
+
     if (encoded.length > MAX_COOKIE_CHARS) {
       console.error("nobu_cookie_persist_too_large", {
         length: encoded.length,
         max: MAX_COOKIE_CHARS,
       });
-      return;
+      return {
+        ok: false,
+        reason: "cookie_too_large",
+        length: encoded.length,
+      };
+    }
+
+    if (!snapshot.purchases.length) {
+      return { ok: false, reason: "no_purchase_in_snapshot" };
     }
 
     const jar = await cookies();
@@ -407,12 +489,20 @@ export async function persistDatabaseToCookie(db: NobuDatabase): Promise<void> {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
-      secure: true,
+      secure: isVercelRuntime() || process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7,
     });
+    return { ok: true, length: encoded.length };
   } catch (err) {
     console.error("nobu_cookie_persist_failed", {
       message: err instanceof Error ? err.message : String(err),
     });
+    if (!isVercelRuntime()) {
+      return { ok: true, length: 0 };
+    }
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : "cookie_persist_failed",
+    };
   }
 }

@@ -117,13 +117,27 @@ export function loadEnrollmentDiscovery(
       }
     | undefined;
   if (!row) return null;
-  return {
-    purchase_id: row.purchase_id,
-    data_source: row.data_source as DiscoveryDataSource,
-    query: row.query,
-    provider_status: row.provider_status,
-    evaluation: JSON.parse(row.evaluation_json) as MatchEvaluationResult,
-    offers: JSON.parse(row.offers_json) as MatchableOffer[],
-    created_at: row.created_at,
-  };
+  try {
+    const evaluation = JSON.parse(row.evaluation_json) as MatchEvaluationResult;
+    let offers: MatchableOffer[] = [];
+    try {
+      offers = JSON.parse(row.offers_json || "[]") as MatchableOffer[];
+    } catch {
+      offers = evaluation.exact_candidate
+        ? [evaluation.exact_candidate.offer]
+        : (evaluation.candidates ?? []).map((c) => c.offer);
+    }
+    return {
+      purchase_id: row.purchase_id,
+      data_source: row.data_source as DiscoveryDataSource,
+      query: row.query,
+      provider_status: row.provider_status,
+      evaluation,
+      offers,
+      created_at: row.created_at,
+    };
+  } catch {
+    // Corrupt cookie snapshot — fail closed without crashing the page
+    return null;
+  }
 }

@@ -1,0 +1,11 @@
+{
+  "at": "2026-07-15T09:03:44.911Z",
+  "afterUrl": "https://usenobu.vercel.app/purchases/pur_55a545583911/review?title=Apple+AirTag&source=LIVE",
+  "sameContext404": false,
+  "sameContextConfirm": true,
+  "cookies": [],
+  "coldStatus": 200,
+  "cold404": false,
+  "coldSnippet": "Skip to content\nN\nNobu\nHome\nMy purchases\nNotices\nTrack a purchase\nConfirm the exact product\n\nNobu must confirm the exact item before it can watch the price.\n\n✓\nPurchase\n2\nProduct\n3\nWatch\n\nLIVE third-party observation\n\nYour purchase\nProduct link\nhttps://www.target.com/p/apple-airtag/-/A-54191097\nYou paid\n$35.00 on 2026-07-15\n\nStrong match ready to confirm\nEXACT_MATCH_CANDIDATE\n\nReasons: single_stro",
+  "root_cause_hypothesis": "SESSION_COOKIE_LOST_OR_NOT_SET"
+}

@@ -52,6 +52,33 @@ export function purchaseFormError(
     };
   }
 
+  if (code === "save_failed") {
+    return {
+      code,
+      heading: "Couldn’t save this purchase",
+      body: "Nobu could not save this purchase. Please try again.",
+      nextAction: "Your details are still here — try Find my product again.",
+    };
+  }
+
+  if (code === "no_reliable_target") {
+    return {
+      code,
+      heading: "No reliable Target product",
+      body: "Nobu could not find a reliable Target product right now.",
+      nextAction: "Check the product link, model, or TCIN and try again.",
+    };
+  }
+
+  if (code === "session_lost") {
+    return {
+      code,
+      heading: "Session expired",
+      body: "Nobu could not save this purchase. Please try again.",
+      nextAction: "Enter your purchase details again and click Find my product.",
+    };
+  }
+
   return {
     code,
     heading: "Something went wrong",

@@ -15,6 +15,10 @@ import {
   runBoundedManualCheck,
   WEB_DEMO_USER_REF,
 } from "./manual-check.js";
+import {
+  buildReviewRedirectPath,
+  isValidPurchaseId,
+} from "./navigation.js";
 
 /** Cookie is source of truth on Vercel — re-hydrate each mutation request. */
 async function prepareActionDb() {
@@ -84,9 +88,40 @@ export async function submitPurchaseAction(formData: FormData) {
       const status =
         "policy" in result && result.policy ? result.policy.status : "";
       purchaseErrorRedirect(formData, result.error, status);
+      return;
     }
 
-    await persistDatabaseToCookie(db);
+    // No live Target candidates → stay on form (do not redirect to empty/invalid review)
+    const candidateCount = result.evaluation?.candidates?.length ?? 0;
+    if (
+      result.data_source === "LIVE" &&
+      candidateCount === 0
+    ) {
+      purchaseErrorRedirect(formData, "no_reliable_target");
+      return;
+    }
+
+    if (!isValidPurchaseId(result.purchase_id)) {
+      purchaseErrorRedirect(
+        formData,
+        "save_failed",
+        `bad_id:${String(result.purchase_id ?? "").slice(0, 24)}`,
+      );
+      return;
+    }
+
+    const persisted = await persistDatabaseToCookie(db);
+    // On multi-instance hosts the cookie is the only shared session store.
+    // Never redirect to review without a successful session write.
+    if (!persisted.ok) {
+      console.error("submitPurchaseAction_persist_failed", persisted);
+      purchaseErrorRedirect(
+        formData,
+        "save_failed",
+        persisted.reason ?? "persist_failed",
+      );
+      return;
+    }
 
     const qs = new URLSearchParams();
     qs.set("title", formString(formData, "product_title"));
@@ -97,7 +132,12 @@ export async function submitPurchaseAction(formData: FormData) {
         formString(formData, "fixture_scenario") || "exact_match",
       );
     }
-    redirect(`/purchases/${result.purchase_id}/review?${qs.toString()}`);
+    const target = buildReviewRedirectPath(result.purchase_id, qs);
+    if (!target) {
+      purchaseErrorRedirect(formData, "save_failed", "bad_redirect_path");
+      return;
+    }
+    redirect(target);
   } catch (err) {
     rethrowIfNavigation(err);
     console.error("submitPurchaseAction_failed", {

@@ -1,0 +1,25 @@
+{
+  "at": "2026-07-15T09:22:50.789Z",
+  "base": "https://usenobu.vercel.app",
+  "before_url": "https://usenobu.vercel.app/purchases/new",
+  "after_url": "https://usenobu.vercel.app/purchases/new?error=save_failed&status=cookie_too_large&target_product_url=https%3A%2F%2Fwww.target.com%2Fp%2Fapple-airtag%2F-%2FA-54191097&purchase_price=35&purchase_date=2026-07-15&region=TX&model_number=AirTag&target_item_id=54191097&upc_or_gtin=194252096261&product_title=Apple+AirTag&fixture_scenario=exact_match",
+  "http_status": null,
+  "is_404": false,
+  "body_snippet": "Skip to content\nN\nNobu\nHome\nMy purchases\nNotices\nTrack a purchase\nNobu\n\nNobu is a post-purchase price-monitoring platform. The current live integration supports eligible Target.com purchases. Third-party price observations are not official Target API prices. Target verifies the price and decides any adjustment. Nobu does not guarantee a refund, log into Target, or submit claims.\n\nTrack a purchase\nMy purchases\nNotices & privacy",
+  "purchase_id_from_url": "new",
+  "route_exists_in_app": "app/purchases/[id]/review/page.tsx",
+  "cookies": [],
+  "console_errors": [],
+  "network_redirects": [
+    {
+      "url": "https://usenobu.vercel.app/purchases/new",
+      "status": 200
+    }
+  ],
+  "review_signals": {
+    "has_confirm": false,
+    "has_fixture": false,
+    "discovery_source": null,
+    "no_candidates": false
+  }
+}
