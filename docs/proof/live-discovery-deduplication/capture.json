@@ -1,0 +1,44 @@
+{
+  "at": "2026-07-15T09:55:57.044Z",
+  "base": "https://usenobu.vercel.app",
+  "gate1": {
+    "form": {
+      "tcin": "54191097",
+      "url": "https://www.target.com/p/apple-airtag/-/A-54191097",
+      "model": "AirTag",
+      "title": "Apple AirTag",
+      "upc": "194252096261",
+      "tcin_survives": true,
+      "url_has_tcin": true
+    },
+    "discovery": {
+      "after_url": "https://usenobu.vercel.app/purchases/pur_ff96c78aaaf4/review?title=Apple+AirTag&source=LIVE",
+      "data_source": "LIVE",
+      "match_decision": "EXACT_MATCH_CANDIDATE",
+      "match_reasons": "Reasons: single_strong_target_candidate, exact_model, variants_compatible",
+      "ambiguous_ui": false,
+      "ambiguous_copy": null,
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "index": 0,
+          "tier": "exact_model_variant",
+          "text": "Apple AirTag\n\nSeller: Target\n\nObserved price: $29.99\nModel: AIRTAG\nView details\nReady to confirm"
+        }
+      ],
+      "body_has_more_detail": false,
+      "body_asks_add_tcin": false
+    }
+  },
+  "gate2": {
+    "titles": [
+      "Apple AirTag"
+    ],
+    "same_title": true,
+    "accessory_present": false,
+    "all_airtag_core": true,
+    "form_tcin_present": true,
+    "classification_hypothesis": "NO_AMBIGUITY"
+  },
+  "classification": "NO_AMBIGUITY"
+}

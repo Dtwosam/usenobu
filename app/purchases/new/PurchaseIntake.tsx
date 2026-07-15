@@ -113,6 +113,12 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
         return;
       }
       const e = result.data.extracted_purchase;
+      // Drop known demo placeholders first so they never ride through AI fill
+      setUrl((u) => (/example-widget|A-87654321/i.test(u) ? "" : u));
+      setTcin((t) => (t === "87654321" ? "" : t));
+      setModel((m) => (m === "WDG-100" ? "" : m));
+      setTitle((t) => (/example widget/i.test(t) ? "" : t));
+      // Apply extraction
       if (e.product_url) setUrl(e.product_url);
       if (e.purchase_price != null) setPrice(String(e.purchase_price));
       if (e.purchase_date) setDate(e.purchase_date);

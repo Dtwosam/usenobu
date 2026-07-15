@@ -5,6 +5,7 @@ import { getPurchaseDetail } from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
 import { getWebDatabase } from "@/web/db";
 import { loadEnrollmentDiscovery } from "@/web/discovery-store";
+import { enrollmentAmbiguityCopy } from "@/web/ambiguity-copy";
 import { redirect } from "next/navigation";
 import {
   Button,
@@ -57,6 +58,18 @@ export default async function ReviewPage({
   const isAmbiguous = evaluation?.decision === "MATCH_REVIEW_REQUIRED";
   const noCandidates = !evaluation || evaluation.candidates.length === 0;
   const err = sp.error ? reviewError(sp.error) : null;
+  const ambiguityCopy = isAmbiguous
+    ? enrollmentAmbiguityCopy({
+        reasons: evaluation?.reasons ?? [],
+        has_tcin: Boolean(purchase.target_item_id),
+        has_model: Boolean(purchase.model_number),
+        has_upc: Boolean(purchase.upc_or_gtin),
+        has_target_url: /target\.com/i.test(
+          String(purchase.target_product_url ?? ""),
+        ),
+        candidate_count: evaluation?.candidates?.length ?? 0,
+      })
+    : null;
 
   return (
     <div className="n-screen n-screen--form">
@@ -140,13 +153,10 @@ export default async function ReviewPage({
         </p>
       </Card>
 
-      {isAmbiguous ? (
+      {isAmbiguous && ambiguityCopy ? (
         <InlineNotice tone="warning" data-testid="ambiguous-notice">
-          <h2 className="n-notice-heading">We need a little more detail</h2>
-          <p>
-            We found more than one possible Target product. Add a model, TCIN or
-            UPC so Nobu can avoid choosing the wrong item.
-          </p>
+          <h2 className="n-notice-heading">{ambiguityCopy.heading}</h2>
+          <p data-testid="ambiguous-body">{ambiguityCopy.body}</p>
           <p>
             <a href="/purchases/new">Edit purchase details</a>
           </p>

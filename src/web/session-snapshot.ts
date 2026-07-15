@@ -61,8 +61,26 @@ function slimRow(row: Record<string, unknown>): Record<string, unknown> {
       out[k] = v.slice(0, 120);
       continue;
     }
-    if (k === "fingerprint_json" && typeof v === "string" && v.length > 600) {
-      out[k] = v.slice(0, 600);
+    // Never mid-truncate fingerprint_json (must remain valid JSON for monitoring)
+    if (k === "fingerprint_json" && typeof v === "string" && v.length > 900) {
+      try {
+        const fp = JSON.parse(v) as Record<string, unknown>;
+        out[k] = JSON.stringify({
+          fingerprint_id: fp.fingerprint_id,
+          target_product_url: fp.target_product_url,
+          target_item_id: fp.target_item_id,
+          model_number: fp.model_number,
+          upc_or_gtin: fp.upc_or_gtin,
+          product_title: fp.product_title,
+          brand: fp.brand,
+          seller_kind: fp.seller_kind ?? "target",
+          is_target_plus: false,
+          confirmed_at: fp.confirmed_at,
+          confirmed_by_user: true,
+        });
+      } catch {
+        out[k] = v;
+      }
       continue;
     }
     out[k] = v;
@@ -432,13 +450,23 @@ export async function persistDatabaseToCookie(
     // Drop history aggressively for cookie budget
     snapshot.monitor_runs = [];
     snapshot.search_budget_ledger = [];
-    snapshot.product_matches = [];
     if (snapshot.purchases.length > 1) {
       snapshot.purchases = snapshot.purchases.slice(-1);
     }
     const keep = new Set(snapshot.purchases.map((p) => String(p.id)));
     snapshot.product_fingerprints = snapshot.product_fingerprints.filter((f) =>
       keep.has(String(f.purchase_id)),
+    );
+    // Preserve match rows required by fingerprint FKs
+    const matchIds = new Set(
+      snapshot.product_fingerprints
+        .map((f) =>
+          f.product_match_id != null ? String(f.product_match_id) : "",
+        )
+        .filter(Boolean),
+    );
+    snapshot.product_matches = snapshot.product_matches.filter((m) =>
+      matchIds.has(String(m.id)),
     );
     snapshot.alerts = snapshot.alerts
       .filter((a) => keep.has(String(a.purchase_id)))
@@ -452,13 +480,36 @@ export async function persistDatabaseToCookie(
 
     let encoded = encodeSnapshot(snapshot);
     if (encoded.length > MAX_COOKIE_CHARS) {
-      // Emergency: purchase + compact discovery only
+      // Emergency: keep purchase + fingerprints (monitoring) + compact discovery
+      const keepIds = new Set(snapshot.purchases.slice(-1).map((p) => String(p.id)));
       snapshot = {
         purchases: snapshot.purchases.slice(-1),
-        product_fingerprints: [],
-        product_matches: [],
-        price_observations: [],
-        alerts: [],
+        product_fingerprints: snapshot.product_fingerprints
+          .filter((f) => keepIds.has(String(f.purchase_id)))
+          .slice(-1)
+          .map((f) => slimRow(f)),
+        // Keep match rows referenced by fingerprints (FK product_match_id)
+        product_matches: (() => {
+          const fps = snapshot.product_fingerprints
+            .filter((f) => keepIds.has(String(f.purchase_id)))
+            .slice(-1);
+          const matchIds = new Set(
+            fps
+              .map((f) =>
+                f.product_match_id != null ? String(f.product_match_id) : "",
+              )
+              .filter(Boolean),
+          );
+          return snapshot.product_matches
+            .filter((m) => matchIds.has(String(m.id)))
+            .map((m) => slimRow(m));
+        })(),
+        price_observations: snapshot.price_observations
+          .filter((o) => keepIds.has(String(o.purchase_id)))
+          .slice(-1),
+        alerts: snapshot.alerts
+          .filter((a) => keepIds.has(String(a.purchase_id)))
+          .slice(-1),
         monitor_runs: [],
         search_budget_ledger: [],
         enrollment_discovery: slimDiscoveryForCookie(

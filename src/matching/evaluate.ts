@@ -309,6 +309,84 @@ function pickBestStrongCandidate(strong: ScoredCandidate[]): ScoredCandidate {
   return ranked[0]!;
 }
 
+function offerTcin(c: ScoredCandidate): string | null {
+  return (
+    c.matched_tcin?.trim() ||
+    c.offer.target_item_id?.trim() ||
+    null
+  );
+}
+
+function offerModelKey(c: ScoredCandidate): string | null {
+  return (
+    c.matched_model?.trim() ||
+    normalizeModel(c.offer.model_number) ||
+    null
+  );
+}
+
+function offerUpcKey(c: ScoredCandidate): string | null {
+  return c.matched_upc?.trim() || normalizeUpc(c.offer.upc_or_gtin) || null;
+}
+
+/** Accessory-like titles (cases, keychains) must not merge with the main SKU. */
+function titleLooksAccessory(title: string): boolean {
+  return /\b(case|loop|keychain|holder|strap|wallet|insert|band|cover|pouch|sleeve)\b/i.test(
+    title,
+  );
+}
+
+/**
+ * Two strong Target candidates are the same product when identifiers do not
+ * conflict and titles are compatible. Never uses Google product id as identity.
+ */
+export function strongCandidatesCompatible(
+  a: ScoredCandidate,
+  b: ScoredCandidate,
+): boolean {
+  const aT = offerTcin(a);
+  const bT = offerTcin(b);
+  if (aT && bT && aT !== bT) return false;
+
+  const aM = offerModelKey(a);
+  const bM = offerModelKey(b);
+  if (aM && bM && aM !== bM) return false;
+
+  const aU = offerUpcKey(a);
+  const bU = offerUpcKey(b);
+  if (aU && bU && aU !== bU) return false;
+
+  const aAcc = titleLooksAccessory(a.offer.title);
+  const bAcc = titleLooksAccessory(b.offer.title);
+  if (aAcc !== bAcc) return false;
+
+  // Same model (or same TCIN) with compatible accessory class → same product
+  if ((aT && bT && aT === bT) || (aM && bM && aM === bM)) {
+    return titleSimilarity(a.offer.title, b.offer.title) >= 0.45 || aT === bT;
+  }
+
+  return titleSimilarity(a.offer.title, b.offer.title) >= 0.72;
+}
+
+/** Group strong candidates into compatible identity clusters (dedupe same SKU). */
+export function groupCompatibleStrongCandidates(
+  strong: ScoredCandidate[],
+): ScoredCandidate[][] {
+  const groups: ScoredCandidate[][] = [];
+  for (const c of strong) {
+    let placed = false;
+    for (const g of groups) {
+      if (g.every((x) => strongCandidatesCompatible(x, c))) {
+        g.push(c);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) groups.push([c]);
+  }
+  return groups;
+}
+
 /**
  * Evaluate all offers: filter to Target-only, score, aggregate fail-closed decision.
  */
@@ -356,19 +434,11 @@ export function evaluateProductMatches(
   const rejected = all.filter((c) => c.decision === MatchDecision.REJECTED);
   const titleOnly = scored.filter((c) => c.title_only);
 
-  // Ambiguous: multiple strong candidates with differing identity keys
+  // Multiple strong: collapse compatible duplicates; fail closed only when
+  // groups are genuinely different products (never use Google product id).
   if (strong.length > 1) {
-    const identityKeys = new Set(
-      strong.map(
-        (c) =>
-          c.matched_tcin ||
-          c.matched_model ||
-          c.matched_upc ||
-          c.offer.serpapi_product_id ||
-          c.candidate_id,
-      ),
-    );
-    if (identityKeys.size > 1) {
+    const groups = groupCompatibleStrongCandidates(strong);
+    if (groups.length > 1) {
       return {
         match_rule_version: MATCH_RULE_VERSION,
         decision: MatchDecision.MATCH_REVIEW_REQUIRED,
@@ -385,8 +455,8 @@ export function evaluateProductMatches(
         rejected,
       };
     }
-    // Same identity repeated — pick best single exact candidate
-    const exact = pickBestStrongCandidate(strong);
+    // Same product / duplicate offers — one confirmable representative
+    const exact = pickBestStrongCandidate(groups[0]!);
     return {
       match_rule_version: MATCH_RULE_VERSION,
       decision: MatchDecision.EXACT_MATCH_CANDIDATE,
@@ -394,9 +464,19 @@ export function evaluateProductMatches(
         "single_strong_target_identity_among_duplicates",
         ...exact.reasons,
       ],
-      candidates: scored,
+      // Collapse UI to the representative; full scored list stays in rejected/provenance path
+      candidates: [exact],
       exact_candidate: exact,
-      rejected,
+      rejected: [
+        ...rejected,
+        ...strong
+          .filter((c) => c.candidate_id !== exact.candidate_id)
+          .map((c) => ({
+            ...c,
+            decision: MatchDecision.REJECTED,
+            reasons: [...c.reasons, "duplicate_offer_collapsed"],
+          })),
+      ],
     };
   }
 
@@ -406,7 +486,7 @@ export function evaluateProductMatches(
       match_rule_version: MATCH_RULE_VERSION,
       decision: MatchDecision.EXACT_MATCH_CANDIDATE,
       reasons: ["single_strong_target_candidate", ...exact.reasons],
-      candidates: scored,
+      candidates: [exact],
       exact_candidate: exact,
       rejected,
     };

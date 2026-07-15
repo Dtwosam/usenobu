@@ -1,0 +1,26 @@
+{
+  "form_before_submit_ai": {
+    "url": "https://www.target.com/p/example-widget/-/A-87654321",
+    "tcin": "87654321",
+    "model": "WDG-100",
+    "title": "Example Widget Blue",
+    "price": "24.99",
+    "date": "2026-07-05",
+    "upc": ""
+  },
+  "form_after_fill": {
+    "url": "https://www.target.com/p/example-widget/-/A-87654321",
+    "tcin": "87654321",
+    "model": "WDG-100",
+    "title": "Example Widget Blue"
+  },
+  "url": "https://usenobu.vercel.app/purchases/pur_f35e0f2d4f08/review?title=Example+Widget+Blue&source=LIVE",
+  "decision": "MATCH_REVIEW_REQUIRED",
+  "reasons": "Reasons: no_strong_match",
+  "ambiguous": true,
+  "ambiguous_text": "We need a little more detail\n\nWe found more than one possible Target product. Add a model, TCIN or UPC so Nobu can avoid choosing the wrong item.\n\nEdit purchase details",
+  "candidate_count": 0,
+  "titles": [],
+  "asks_add_tcin": true,
+  "has_more_detail": true
+}
