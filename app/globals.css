@@ -1560,6 +1560,41 @@ main.legacy-main > .n-screen {
   margin: 0 0 var(--space-4);
 }
 
+.n-product-entry-mode {
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 12px);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+.n-product-entry-mode legend {
+  padding: 0 var(--space-2);
+}
+
+.n-mode-toggle {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.n-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.n-mode-option input {
+  margin-top: 0.25rem;
+}
+
+.n-mode-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .n-support-panel .n-card {
   margin: 0;
   position: sticky;

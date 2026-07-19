@@ -121,18 +121,42 @@ export const AgentRequestSchema = z.discriminatedUnion("action", [
 
 export type AgentRequest = z.infer<typeof AgentRequestSchema>;
 
-/** Required fields for continuing to Find my product for Target live path. */
+/**
+ * Required fields for continuing to Find my product for Target live path.
+ * Exact identity is satisfied by a Target product URL **or** a valid TCIN
+ * (not both required). Uncertain-mode discovery can use product_description.
+ */
 export const REQUIRED_FOR_TARGET = [
-  "product_url",
+  "product_url_or_tcin",
   "purchase_price",
   "purchase_date",
 ] as const;
 
+/** Digits-only TCIN shape (never Google product ids). */
+function isLikelyTcinValue(value: string | null | undefined): boolean {
+  return /^\d{5,12}$/.test(String(value ?? "").trim());
+}
+
+/**
+ * Missing-field list for Fill with AI / UNDERSTAND_PURCHASE.
+ * - Valid Target URL **or** valid TCIN is sufficient exact identity.
+ * - Never demand a Target URL when a valid TCIN is present.
+ * - Reject only when neither usable exact identity nor a product description
+ *   is supplied (description alone supports uncertain-product discovery).
+ */
 export function computeMissingFields(
   extracted: ExtractedPurchase,
 ): string[] {
   const missing: string[] = [];
-  if (!extracted.product_url) missing.push("product_url");
+  const hasUrl = Boolean(String(extracted.product_url ?? "").trim());
+  const hasTcin = isLikelyTcinValue(extracted.target_item_id);
+  const hasDescription = Boolean(
+    String(extracted.product_description ?? "").trim(),
+  );
+  if (!hasUrl && !hasTcin && !hasDescription) {
+    // Identify the actual gap: neither exact identity nor discovery description.
+    missing.push("product_url_or_tcin_or_description");
+  }
   if (extracted.purchase_price == null) missing.push("purchase_price");
   if (!extracted.purchase_date) missing.push("purchase_date");
   return missing;

@@ -5,6 +5,7 @@ import {
   buildFixtureMonitorOffers,
   buildFixtureOffers,
   FIXTURE_BANNER,
+  resolveFixtureScenario,
   type FixtureScenario,
 } from "./fixtures.js";
 import { safeParsePurchaseInput } from "../domain/purchase-input.js";
@@ -12,8 +13,11 @@ import { evaluateTargetPolicy } from "../policy/evaluate-target-policy.js";
 import {
   confirmAndPersistLockedFingerprint,
   evaluateProductMatches,
+  evaluateUncertainProductDiscovery,
   isStrongMatchTier,
   MatchDecision,
+  offerHasStableIdentity,
+  preferredProductUrl,
   type MatchableOffer,
   type MatchEvaluationResult,
   type PurchaseMatchReference,
@@ -40,11 +44,22 @@ import {
   isUnusableAfterDemoScrub,
   scrubDemoDefaults,
 } from "./demo-defaults.js";
-import { evaluateExactIdentity } from "./exact-identity.js";
-import { parseTargetProductUrl } from "../matching/identity.js";
+import {
+  evaluateExactIdentity,
+  isLikelyTcin,
+  provisionalTitleFromTcin,
+  provisionalTitleFromTargetUrl,
+} from "./exact-identity.js";
+import {
+  isTargetComUrl,
+  parseTargetProductUrl,
+} from "../matching/identity.js";
+
+/** Product entry mode on the consumer form. */
+export type ProductEntryMode = "exact" | "find";
 
 export interface CreatePurchaseInput {
-  target_product_url: string;
+  target_product_url?: string;
   purchase_price: string | number;
   purchase_date: string;
   region?: string;
@@ -52,7 +67,21 @@ export interface CreatePurchaseInput {
   target_item_id?: string;
   upc_or_gtin?: string;
   product_title?: string;
-  /** Demo fixture scenario — only when fixture discovery gate is open. */
+  /** Uncertain-product free-text description (find mode). */
+  product_description?: string;
+  color?: string;
+  size?: string;
+  quantity?: string;
+  brand?: string;
+  /**
+   * exact = URL and/or TCIN identity.
+   * find = description-first multi-candidate discovery.
+   */
+  product_entry_mode?: ProductEntryMode;
+  /**
+   * Demo fixture scenario — only applied when fixture discovery gate is open.
+   * Production never depends on client-selected demo flags.
+   */
   fixture_scenario?: FixtureScenario;
 }
 
@@ -141,20 +170,76 @@ function preferUserProvidedIdentityWhenNeeded(args: {
   return buildUserProvidedIdentityEvaluation({ ref: args.ref, now: args.now });
 }
 
+/** True when purchase already carries exact Target identity (URL/TCIN). */
+function purchaseHasExactIdentity(ref: PurchaseMatchReference): boolean {
+  if (isLikelyTcin(ref.target_item_id)) return true;
+  const url = String(ref.target_product_url ?? "");
+  if (url.includes("pending-identity-discovery")) return false;
+  return parseTargetProductUrl(url).ok;
+}
+
+/**
+ * Improve product title from reliable third-party discovery when available.
+ * Never uses provider title as a price proof. Preserves link-derived fallback
+ * when enrichment is unavailable.
+ */
+function enrichProductTitle(args: {
+  current: string | null | undefined;
+  evaluation: MatchEvaluationResult;
+  provisional: string | null | undefined;
+}): string | null {
+  const current = String(args.current ?? "").trim() || null;
+  const provisional = String(args.provisional ?? "").trim() || null;
+  const exactTitle = args.evaluation.exact_candidate?.offer.title?.trim();
+  const strongTitle = args.evaluation.candidates.find(
+    (c) =>
+      c.decision === MatchDecision.EXACT_MATCH_CANDIDATE &&
+      !c.title_only &&
+      isStrongMatchTier(c.tier) &&
+      c.offer.title?.trim(),
+  )?.offer.title?.trim();
+  const providerTitle = exactTitle || strongTitle || null;
+
+  // Prefer reliable provider title over link-derived provisional
+  if (providerTitle) {
+    const isProvisional =
+      !current ||
+      current === provisional ||
+      /^Target item \d+$/i.test(current) ||
+      (provisional != null &&
+        current.toLowerCase() === provisional.toLowerCase());
+    if (isProvisional || !current) return providerTitle;
+  }
+  return current || provisional || providerTitle;
+}
+
+const PENDING_DISCOVERY_URL =
+  "https://www.target.com/p/pending-identity-discovery";
+
 /**
  * Create purchase + discover Target product candidates.
  * Production: live SerpApi (never silent fixtures).
  * Tests/e2e with fixture gate: fixture offers only.
+ *
+ * Exact mode: Target URL and/or TCIN.
+ * Find mode: description-first multi-candidate discovery.
  */
 export async function createPurchaseFlow(raw: CreatePurchaseInput) {
   const db = getWebDatabase();
-  const scenario: FixtureScenario = raw.fixture_scenario ?? "exact_match";
   const discoveryMode = resolveDiscoveryDataSource();
+  // Fixture scenario only when gate is open — never from production UI flags
+  const scenario: FixtureScenario =
+    discoveryMode === "FIXTURE"
+      ? resolveFixtureScenario(raw.fixture_scenario)
+      : "exact_match";
+
+  const entryMode: ProductEntryMode =
+    raw.product_entry_mode === "find" ? "find" : "exact";
 
   // Live enrollment: never let pre-repair Example Widget defaults ride through.
   // Fixture gate still uses demo identity intentionally for e2e/demo scenarios.
   let intake: CreatePurchaseInput = raw;
-  if (discoveryMode === "LIVE") {
+  if (discoveryMode === "LIVE" && entryMode === "exact") {
     const scrubbed = scrubDemoDefaults({
       target_product_url: raw.target_product_url,
       target_item_id: raw.target_item_id,
@@ -179,43 +264,100 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     };
   }
 
-  // Consumer Find my product: URL + price + date first. TCIN is derived from
-  // the supported Target URL; model/UPC are progressive fallback details.
-  const identity = evaluateExactIdentity({
-    target_product_url: intake.target_product_url,
-    target_item_id: intake.target_item_id,
-    model_number: intake.model_number,
-    upc_or_gtin: intake.upc_or_gtin,
-  });
-  if (!identity.ok) {
-    const status = identity.errors.target_item_id ? "tcin" : "url";
-    return {
-      ok: false as const,
-      error: "missing_exact_identity",
-      status,
-      fixture_banner: FIXTURE_BANNER,
+  let productTitle: string | null | undefined =
+    intake.product_title || intake.product_description || undefined;
+  let provisionalTitle: string | null = null;
+  let storedUrl: string;
+  let storedTcin: string | undefined;
+
+  if (entryMode === "exact") {
+    const identity = evaluateExactIdentity({
+      target_product_url: intake.target_product_url,
+      target_item_id: intake.target_item_id,
+      model_number: intake.model_number,
+      upc_or_gtin: intake.upc_or_gtin,
+    });
+    if (!identity.ok) {
+      const status = identity.errors.target_item_id
+        ? "tcin"
+        : identity.errors.target_product_url
+          ? identity.errors.target_product_url.includes("valid")
+            ? "INVALID_TARGET_URL"
+            : "url"
+          : "identity";
+      return {
+        ok: false as const,
+        error: "missing_exact_identity",
+        status,
+        identity_errors: identity.errors,
+        fixture_banner: FIXTURE_BANNER,
+      };
+    }
+    if (!identity.effective_url || !identity.effective_tcin) {
+      return {
+        ok: false as const,
+        error: "missing_exact_identity",
+        status: "identity",
+        fixture_banner: FIXTURE_BANNER,
+      };
+    }
+    storedUrl = identity.effective_url;
+    storedTcin = identity.effective_tcin;
+    provisionalTitle =
+      identity.provisional_title ||
+      provisionalTitleFromTargetUrl(intake.target_product_url) ||
+      provisionalTitleFromTcin(storedTcin);
+    // Link-derived provisional until third-party enrichment improves it
+    if (!productTitle) {
+      productTitle = provisionalTitle;
+    }
+    intake = {
+      ...intake,
+      target_product_url: storedUrl,
+      target_item_id: storedTcin,
+      product_title: productTitle || undefined,
+    };
+  } else {
+    // Uncertain / find mode — description required; exact URL/TCIN optional
+    const description = String(
+      intake.product_description || intake.product_title || "",
+    ).trim();
+    if (description.length < 3) {
+      return {
+        ok: false as const,
+        error: "missing_product_description",
+        status: "description",
+        fixture_banner: FIXTURE_BANNER,
+      };
+    }
+    productTitle = description;
+    provisionalTitle = description;
+
+    // If user also supplied exact identity in find mode, prefer it for matching
+    const identity = evaluateExactIdentity({
+      target_product_url: intake.target_product_url,
+      target_item_id: intake.target_item_id,
+      model_number: intake.model_number,
+      upc_or_gtin: intake.upc_or_gtin,
+    });
+    if (identity.ok && identity.effective_url && identity.effective_tcin) {
+      storedUrl = identity.effective_url;
+      storedTcin = identity.effective_tcin;
+    } else {
+      // Pending identity until user confirms a discovery candidate
+      storedUrl = PENDING_DISCOVERY_URL;
+      storedTcin = undefined;
+    }
+    intake = {
+      ...intake,
+      target_product_url: storedUrl,
+      target_item_id: storedTcin,
+      product_title: productTitle,
     };
   }
-  const parsedTargetUrl = parseTargetProductUrl(intake.target_product_url);
-  if (!parsedTargetUrl.ok) {
-    return {
-      ok: false as const,
-      error: "missing_exact_identity",
-      status: parsedTargetUrl.code,
-      fixture_banner: FIXTURE_BANNER,
-    };
-  }
-  // Preserve original user URL in the action redirect if needed, but store the
-  // normalized Target product URL and derived TCIN for deterministic matching.
-  intake = {
-    ...intake,
-    target_product_url: parsedTargetUrl.normalized_url,
-    target_item_id: intake.target_item_id || parsedTargetUrl.tcin,
-    product_title: intake.product_title || parsedTargetUrl.product_name || undefined,
-  };
 
   const parsed = safeParsePurchaseInput({
-    target_product_url: intake.target_product_url,
+    target_product_url: storedUrl,
     purchase_price: Number(intake.purchase_price),
     currency: "USD",
     purchase_date: intake.purchase_date,
@@ -223,7 +365,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     region: intake.region || undefined,
     purchase_channel: "target_online",
     model_number: intake.model_number || undefined,
-    target_item_id: intake.target_item_id || undefined,
+    target_item_id: storedTcin || undefined,
     upc_or_gtin: intake.upc_or_gtin || undefined,
     is_target_plus: false,
   });
@@ -303,7 +445,6 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     now,
   );
 
-  const productTitle = intake.product_title;
   const ref: PurchaseMatchReference = {
     purchase_id: purchaseId,
     target_product_url: input.target_product_url,
@@ -311,25 +452,43 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     model_number: input.model_number,
     upc_or_gtin: input.upc_or_gtin,
     product_title: productTitle,
+    brand: intake.brand || undefined,
+    color: intake.color || undefined,
+    size: intake.size || undefined,
+    quantity: intake.quantity || undefined,
   };
+
+  const useUncertainDiscovery =
+    entryMode === "find" && !purchaseHasExactIdentity(ref);
 
   // --- Discovery: LIVE production vs FIXTURE test/e2e only ---
   if (discoveryMode === "FIXTURE") {
+    // Prefer multi_candidate fixtures for uncertain find mode when not overridden
+    const fixtureScenario: FixtureScenario =
+      useUncertainDiscovery && scenario === "exact_match"
+        ? "multi_candidate"
+        : scenario;
     const offers = buildFixtureOffers({
-      scenario,
+      scenario: fixtureScenario,
       target_product_url: input.target_product_url,
       target_item_id: input.target_item_id,
       model_number: input.model_number,
-      product_title: productTitle,
+      product_title: productTitle || undefined,
     });
-    const evaluation: MatchEvaluationResult = evaluateProductMatches(
-      ref,
-      offers,
-    );
+    const evaluation: MatchEvaluationResult = useUncertainDiscovery
+      ? evaluateUncertainProductDiscovery(ref, offers)
+      : evaluateProductMatches(ref, offers);
+    const enrichedTitle = enrichProductTitle({
+      current: productTitle,
+      evaluation,
+      provisional: provisionalTitle,
+    });
     saveEnrollmentDiscovery(db, {
       purchase_id: purchaseId,
       data_source: "FIXTURE",
-      query: "fixture-discovery",
+      query: useUncertainDiscovery
+        ? "fixture-uncertain-discovery"
+        : "fixture-discovery",
       provider_status: "FIXTURE",
       evaluation,
       offers,
@@ -339,10 +498,11 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       ok: true as const,
       purchase_id: purchaseId,
       purchase: input,
-      product_title: productTitle ?? null,
+      product_title: enrichedTitle,
       evaluation,
       offers,
       data_source: "FIXTURE" as const,
+      entry_mode: entryMode,
       fixture_banner: FIXTURE_BANNER,
       policy_window_deadline: deadline,
     };
@@ -350,8 +510,42 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
 
   const live = await discoverLiveTargetCandidates(ref);
   if (!live.ok) {
+    if (useUncertainDiscovery) {
+      // Uncertain mode without provider results — empty multi-candidate list
+      const emptyEval = evaluateUncertainProductDiscovery(ref, []);
+      saveEnrollmentDiscovery(db, {
+        purchase_id: purchaseId,
+        data_source: "LIVE",
+        query: live.query ?? null,
+        provider_status: live.provider_status ?? live.error,
+        evaluation: emptyEval,
+        offers: [],
+        diagnostics: live.diagnostics ?? null,
+        created_at: now,
+      });
+      return {
+        ok: true as const,
+        purchase_id: purchaseId,
+        purchase: input,
+        product_title: productTitle ?? null,
+        evaluation: emptyEval,
+        offers: [] as MatchableOffer[],
+        data_source: "LIVE" as const,
+        entry_mode: entryMode,
+        discovery_error: live.error,
+        discovery_message: live.message,
+        policy_window_deadline: deadline,
+      };
+    }
+    // Exact mode: fall back to user-provided identity candidate
     const identityDiscovery = buildUserProvidedIdentityEvaluation({
-      ref,
+      ref: {
+        ...ref,
+        product_title:
+          productTitle ||
+          provisionalTitle ||
+          (storedTcin ? `Target item ${storedTcin}` : ref.product_title),
+      },
       now,
     });
     saveEnrollmentDiscovery(db, {
@@ -368,21 +562,66 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       ok: true as const,
       purchase_id: purchaseId,
       purchase: input,
-      product_title: productTitle ?? null,
+      // Preserve link-derived fallback when provider fails
+      product_title:
+        productTitle || provisionalTitle || null,
       evaluation: identityDiscovery.evaluation,
       offers: identityDiscovery.offers,
       data_source: "LIVE" as const,
+      entry_mode: entryMode,
       discovery_error: live.error,
       discovery_message: live.message,
       policy_window_deadline: deadline,
     };
   }
 
+  if (useUncertainDiscovery) {
+    const evaluation = evaluateUncertainProductDiscovery(ref, live.offers);
+    const enrichedTitle = enrichProductTitle({
+      current: productTitle,
+      evaluation,
+      provisional: provisionalTitle,
+    });
+    saveEnrollmentDiscovery(db, {
+      purchase_id: purchaseId,
+      data_source: "LIVE",
+      query: live.query,
+      provider_status: live.provider_status,
+      evaluation,
+      offers: live.offers,
+      diagnostics: live.diagnostics,
+      created_at: now,
+    });
+    return {
+      ok: true as const,
+      purchase_id: purchaseId,
+      purchase: input,
+      product_title: enrichedTitle,
+      evaluation,
+      offers: live.offers,
+      data_source: "LIVE" as const,
+      entry_mode: entryMode,
+      discovery_query: live.query,
+      policy_window_deadline: deadline,
+    };
+  }
+
   const discovery = preferUserProvidedIdentityWhenNeeded({
-    ref,
+    ref: {
+      ...ref,
+      product_title:
+        productTitle ||
+        provisionalTitle ||
+        (storedTcin ? `Target item ${storedTcin}` : ref.product_title),
+    },
     now,
     evaluation: live.evaluation,
     offers: live.offers,
+  });
+  const enrichedTitle = enrichProductTitle({
+    current: productTitle,
+    evaluation: discovery.evaluation,
+    provisional: provisionalTitle,
   });
 
   saveEnrollmentDiscovery(db, {
@@ -400,10 +639,11 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     ok: true as const,
     purchase_id: purchaseId,
     purchase: input,
-    product_title: productTitle ?? null,
+    product_title: enrichedTitle,
     evaluation: discovery.evaluation,
     offers: discovery.offers,
     data_source: "LIVE" as const,
+    entry_mode: entryMode,
     discovery_query: live.query,
     policy_window_deadline: deadline,
   };
@@ -503,7 +743,7 @@ export function confirmPurchaseCandidate(args: {
     };
   }
 
-  const ref: PurchaseMatchReference = {
+  const baseRef: PurchaseMatchReference = {
     purchase_id: args.purchase_id,
     target_product_url: String(purchase.target_product_url),
     target_item_id: (purchase.target_item_id as string) || null,
@@ -511,10 +751,90 @@ export function confirmPurchaseCandidate(args: {
     upc_or_gtin: (purchase.upc_or_gtin as string) || null,
   };
 
-  const revalidated = evaluateProductMatches(ref, discovery.offers);
-  const candidate = revalidated.candidates.find(
+  const hasExactPurchase = purchaseHasExactIdentity(baseRef);
+
+  // Prefer snapshot evaluation (preserves multi-candidate offer_ids), then
+  // revalidate the selected offer server-side.
+  const fromSnap = discovery.evaluation.candidates.find(
     (c) => c.candidate_id === candidateId,
   );
+  const offerFromSnap =
+    fromSnap?.offer ||
+    discovery.offers.find((o) => {
+      const oid = o.offer_id ? `cand_${o.offer_id}` : "";
+      return oid === candidateId;
+    });
+
+  if (!offerFromSnap) {
+    return {
+      ok: false as const,
+      error: "tampered_candidate",
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+
+  // Reject non-Target / Target Plus / weak before re-score
+  if (
+    offerFromSnap.is_target_plus ||
+    offerFromSnap.seller_kind !== "target"
+  ) {
+    return {
+      ok: false as const,
+      error: "cannot_confirm_weak_or_ambiguous",
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+
+  // Title-only or missing stable identity cannot lock
+  if (fromSnap?.title_only || !offerHasStableIdentity(offerFromSnap)) {
+    return {
+      ok: false as const,
+      error: "cannot_confirm_weak_or_ambiguous",
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+
+  // Build confirmation ref: exact purchase identity when present; otherwise
+  // bind to the selected offer's Target identity (uncertain mode).
+  const offerUrlRaw = preferredProductUrl(offerFromSnap);
+  const offerUrl = isTargetComUrl(offerUrlRaw) ? offerUrlRaw : null;
+  let resolvedOfferTcin: string | null =
+    String(offerFromSnap.target_item_id ?? "").trim() || null;
+  if (!resolvedOfferTcin && offerUrl) {
+    const p = parseTargetProductUrl(offerUrl);
+    if (p.ok) resolvedOfferTcin = p.tcin;
+  }
+
+  const confirmRef: PurchaseMatchReference = hasExactPurchase
+    ? baseRef
+    : {
+        ...baseRef,
+        target_product_url:
+          (offerUrl && isTargetComUrl(offerUrl)
+            ? offerUrl
+            : baseRef.target_product_url) || PENDING_DISCOVERY_URL,
+        target_item_id: resolvedOfferTcin || baseRef.target_item_id,
+        model_number:
+          offerFromSnap.model_number || baseRef.model_number || null,
+        upc_or_gtin: offerFromSnap.upc_or_gtin || baseRef.upc_or_gtin || null,
+        product_title: offerFromSnap.title || null,
+      };
+
+  // Revalidate selected offer only (fail closed if identity no longer strong)
+  const revalidated = hasExactPurchase
+    ? evaluateProductMatches(confirmRef, [offerFromSnap])
+    : evaluateUncertainProductDiscovery(confirmRef, [offerFromSnap]);
+
+  const candidate =
+    revalidated.candidates.find((c) => c.candidate_id === candidateId) ||
+    revalidated.exact_candidate ||
+    revalidated.candidates.find(
+      (c) =>
+        c.offer.offer_id &&
+        offerFromSnap.offer_id &&
+        c.offer.offer_id === offerFromSnap.offer_id,
+    );
+
   if (!candidate) {
     return {
       ok: false as const,
@@ -534,23 +854,72 @@ export function confirmPurchaseCandidate(args: {
     };
   }
 
-  const selectedOnly = evaluateProductMatches(ref, [candidate.offer]);
-  if (
-    selectedOnly.decision !== "EXACT_MATCH_CANDIDATE" ||
-    selectedOnly.exact_candidate?.candidate_id !== candidate.candidate_id
-  ) {
+  // For exact-mode multi-strong, ensure revalidation still yields a single exact
+  if (hasExactPurchase) {
+    const selectedOnly = evaluateProductMatches(confirmRef, [candidate.offer]);
+    if (
+      selectedOnly.decision !== "EXACT_MATCH_CANDIDATE" ||
+      !selectedOnly.exact_candidate
+    ) {
+      return {
+        ok: false as const,
+        error: "ambiguous_selection",
+        fixture_banner: FIXTURE_BANNER,
+      };
+    }
+  }
+
+  // Ensure Target.com URL for fingerprint lock (synthesize from TCIN if needed)
+  let lockUrl = preferredProductUrl(candidate.offer);
+  if (!isTargetComUrl(lockUrl) && resolvedOfferTcin) {
+    lockUrl = `https://www.target.com/p/-/A-${resolvedOfferTcin}`;
+  }
+  if (!isTargetComUrl(lockUrl) && isTargetComUrl(confirmRef.target_product_url)) {
+    lockUrl = confirmRef.target_product_url;
+  }
+  if (!isTargetComUrl(lockUrl)) {
     return {
       ok: false as const,
-      error: "ambiguous_selection",
+      error: "cannot_confirm_weak_or_ambiguous",
       fixture_banner: FIXTURE_BANNER,
     };
+  }
+
+  // Update purchase identity from confirmed candidate (uncertain mode)
+  if (!hasExactPurchase) {
+    db.prepare(
+      `UPDATE purchases SET target_product_url = ?, target_item_id = ?,
+       model_number = COALESCE(?, model_number),
+       upc_or_gtin = COALESCE(?, upc_or_gtin),
+       updated_at = ? WHERE id = ?`,
+    ).run(
+      lockUrl,
+      resolvedOfferTcin,
+      candidate.offer.model_number ?? null,
+      candidate.offer.upc_or_gtin ?? null,
+      (args.now ?? new Date()).toISOString(),
+      args.purchase_id,
+    );
   }
 
   try {
     const fp = confirmAndPersistLockedFingerprint({
       db,
-      purchase: { ...ref, purchase_id: args.purchase_id },
-      candidate,
+      purchase: {
+        ...confirmRef,
+        purchase_id: args.purchase_id,
+        target_product_url: lockUrl,
+        target_item_id: resolvedOfferTcin || confirmRef.target_item_id,
+      },
+      candidate: {
+        ...candidate,
+        offer: {
+          ...candidate.offer,
+          merchant_link: lockUrl,
+          target_item_id:
+            resolvedOfferTcin || candidate.offer.target_item_id,
+        },
+      },
       confirmed_at: (args.now ?? new Date()).toISOString(),
     });
 

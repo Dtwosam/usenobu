@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { openManualPurchaseForm } from "./helpers/open-manual-form";
 import { fillFixtureExactIdentity } from "./helpers/fill-fixture-identity";
+import { setFixtureScenario } from "./helpers/set-fixture-scenario";
 
 test.describe("Natural language AI intake (deterministic path)", () => {
   test("Fill details with AI populates form and requires Find my product", async ({
@@ -32,7 +33,7 @@ test.describe("Natural language AI intake (deterministic path)", () => {
       title: "Example Widget Blue",
     });
     await expect(page.getByTestId("submit-purchase")).toBeEnabled();
-    await page.getByTestId("input-scenario").selectOption("exact_match");
+    await setFixtureScenario(page, "exact_match");
 
     await Promise.all([
       page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),
@@ -46,7 +47,7 @@ test.describe("Natural language AI intake (deterministic path)", () => {
   test("manual entry still works without AI", async ({ page }) => {
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
-    await page.getByTestId("input-scenario").selectOption("exact_match");
+    await setFixtureScenario(page, "exact_match");
     await fillFixtureExactIdentity(page);
     await Promise.all([
       page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),

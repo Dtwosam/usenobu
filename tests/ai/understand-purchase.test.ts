@@ -134,7 +134,14 @@ describe("understandPurchase", () => {
     expect(result.body.requires_user_action).toBe(true);
     expect(result.body.next_action).toBe("CONFIRM_PURCHASE_DETAILS");
     expect(result.body.extracted_purchase.purchase_price).toBe(9.99);
-    expect(result.body.missing_fields).toContain("product_url");
+    // Description alone is enough for uncertain-product discovery; do not demand URL
+    // when product_description is present. Exact identity is optional.
+    expect(result.body.missing_fields).not.toContain("product_url");
+    if (!result.body.extracted_purchase.product_description) {
+      expect(result.body.missing_fields).toContain(
+        "product_url_or_tcin_or_description",
+      );
+    }
     expect(UnderstandPurchaseResponseSchema.safeParse(result.body).success).toBe(
       true,
     );

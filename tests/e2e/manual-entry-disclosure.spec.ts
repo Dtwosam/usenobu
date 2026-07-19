@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { openManualPurchaseForm } from "./helpers/open-manual-form";
+import { setFixtureScenario } from "./helpers/set-fixture-scenario";
 
 test.describe("Add purchase manual-entry disclosure", () => {
   test("manual form hidden initially; button toggles and preserves values", async ({
@@ -80,7 +81,7 @@ test.describe("Add purchase manual-entry disclosure", () => {
     await page.getByTestId("input-date").fill("2026-07-05");
     await page.getByTestId("input-region").fill("TX");
     await page.getByTestId("input-price").fill("8.50");
-    await page.getByTestId("input-scenario").selectOption("exact_match");
+    await setFixtureScenario(page, "exact_match");
 
     await Promise.all([
       page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),

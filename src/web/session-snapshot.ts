@@ -94,6 +94,22 @@ function slimRow(row: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
+/** Max candidates kept in cookie snapshot (matches discovery bound). */
+const COOKIE_DISCOVERY_CANDIDATE_MAX = 6;
+
+type CompactCandidate = {
+  candidate_id?: string;
+  tier?: string;
+  decision?: string;
+  title_only?: boolean;
+  reasons?: string[];
+  title_similarity?: number;
+  matched_tcin?: string;
+  matched_model?: string;
+  matched_upc?: string;
+  offer?: Record<string, unknown>;
+};
+
 /** Valid JSON-only discovery rows for cookie budget (never mid-string truncate). */
 function slimDiscoveryForCookie(
   rows: Array<Record<string, unknown>>,
@@ -106,23 +122,19 @@ function slimDiscoveryForCookie(
         decision?: string;
         reasons?: string[];
         match_rule_version?: string;
-        exact_candidate?: {
-          candidate_id?: string;
-          tier?: string;
-          decision?: string;
-          title_only?: boolean;
-          reasons?: string[];
-          title_similarity?: number;
-          matched_tcin?: string;
-          matched_model?: string;
-          matched_upc?: string;
-          offer?: Record<string, unknown>;
-        } | null;
-        candidates?: unknown[];
+        exact_candidate?: CompactCandidate | null;
+        candidates?: CompactCandidate[];
       };
-      const compactCandidate = (candidate: typeof ev.exact_candidate) => {
+      const compactCandidate = (candidate: CompactCandidate | null | undefined) => {
         if (!candidate?.offer) return null;
         const o = candidate.offer;
+        // offer_id is required for cand_<offer_id> revalidation across instances
+        const offer_id =
+          o.offer_id ||
+          (typeof candidate.candidate_id === "string" &&
+          candidate.candidate_id.startsWith("cand_")
+            ? candidate.candidate_id.slice(5)
+            : candidate.candidate_id);
         return {
           candidate_id: candidate.candidate_id,
           tier: candidate.tier,
@@ -134,7 +146,7 @@ function slimDiscoveryForCookie(
           matched_model: candidate.matched_model,
           matched_upc: candidate.matched_upc,
           offer: {
-            offer_id: o.offer_id,
+            offer_id,
             title: o.title,
             seller_kind: o.seller_kind,
             seller_text: o.seller_text,
@@ -145,24 +157,37 @@ function slimDiscoveryForCookie(
             target_item_id: o.target_item_id,
             model_number: o.model_number,
             upc_or_gtin: o.upc_or_gtin,
+            color: o.color,
+            size: o.size,
             observed_price: o.observed_price,
             currency: o.currency ?? "USD",
+            thumbnail: o.thumbnail,
             serpapi_product_id: o.serpapi_product_id,
           },
         };
       };
       const exact = ev.exact_candidate ?? null;
       const compactExact = compactCandidate(exact);
-      const compactCandidates = compactExact
-        ? [compactExact]
-        : (ev.candidates ?? [])
-            .map((candidate) =>
-              compactCandidate(
-                candidate as NonNullable<typeof ev.exact_candidate>,
-              ),
-            )
-            .filter((candidate) => candidate !== null)
-            .slice(0, 2);
+      // Multi-candidate: keep up to 6 with offer_id (uncertain product mode)
+      const fromList = (ev.candidates ?? [])
+        .map((candidate) => compactCandidate(candidate))
+        .filter((candidate) => candidate !== null)
+        .slice(0, COOKIE_DISCOVERY_CANDIDATE_MAX);
+      let compactCandidates = fromList;
+      if (
+        compactExact &&
+        !compactCandidates.some(
+          (c) => c.candidate_id === compactExact.candidate_id,
+        )
+      ) {
+        compactCandidates = [compactExact, ...compactCandidates].slice(
+          0,
+          COOKIE_DISCOVERY_CANDIDATE_MAX,
+        );
+      }
+      if (compactCandidates.length === 0 && compactExact) {
+        compactCandidates = [compactExact];
+      }
       evaluation_json = JSON.stringify({
         match_rule_version: ev.match_rule_version ?? "match-v1",
         decision: ev.decision,
@@ -190,7 +215,8 @@ function slimDiscoveryForCookie(
       provider_status: d.provider_status,
       evaluation_json,
       offers_json,
-      diagnostics_json: d.diagnostics_json,
+      // Drop heavy diagnostics from cookie to leave room for multi-candidate offers
+      diagnostics_json: null,
       created_at: d.created_at,
     };
   });

@@ -1,9 +1,11 @@
 /**
  * Persist enrollment discovery results for the review/confirm screen.
  * Cookie SQLite — table created on demand (no formal migration required for MVP).
+ * Multi-candidate: keep up to 6 candidates with stable offer_id through compact.
  */
 import type { NobuDatabase } from "../db/index.js";
 import type { MatchEvaluationResult, MatchableOffer } from "../matching/index.js";
+import { DISCOVERY_CANDIDATE_MAX } from "../matching/discovery-candidates.js";
 import type {
   DiscoveryDataSource,
   LiveDiscoveryDiagnostics,
@@ -40,32 +42,65 @@ export function ensureEnrollmentDiscoveryTable(db: NobuDatabase): void {
   }
 }
 
-/** Compact evaluation for cookie-backed sessions (keep confirmable candidate). */
+/**
+ * Compact evaluation for cookie-backed sessions.
+ * Keep all confirmable candidates (bounded) so multi-candidate review works
+ * across multi-instance hosts. Always preserve offer_id on each offer.
+ */
 function slimEvaluation(evaluation: MatchEvaluationResult): MatchEvaluationResult {
-  const candidates = evaluation.candidates
-    .filter(
-      (c) =>
-        c.decision === "EXACT_MATCH_CANDIDATE" ||
-        evaluation.exact_candidate?.candidate_id === c.candidate_id,
-    )
-    .slice(0, 3);
-  // Always include exact_candidate in candidates list if present
+  const max = DISCOVERY_CANDIDATE_MAX;
+  // Prefer exact/strong confirmable rows; fall back to full candidate list bound
+  const preferred = evaluation.candidates.filter(
+    (c) =>
+      c.decision === "EXACT_MATCH_CANDIDATE" ||
+      evaluation.exact_candidate?.candidate_id === c.candidate_id ||
+      c.title_only,
+  );
+  let candidates =
+    preferred.length > 0
+      ? preferred.slice(0, max)
+      : evaluation.candidates.slice(0, max);
+
   if (
     evaluation.exact_candidate &&
     !candidates.some(
       (c) => c.candidate_id === evaluation.exact_candidate!.candidate_id,
     )
   ) {
-    candidates.unshift(evaluation.exact_candidate);
+    candidates = [evaluation.exact_candidate, ...candidates].slice(0, max);
   }
+
+  // Ensure every candidate keeps offer_id (required for cand_ revalidation)
+  candidates = candidates.map((c) => ({
+    ...c,
+    offer: {
+      ...c.offer,
+      offer_id:
+        c.offer.offer_id ||
+        (c.candidate_id.startsWith("cand_")
+          ? c.candidate_id.slice(5)
+          : c.candidate_id),
+    },
+  }));
+
   return {
     match_rule_version: evaluation.match_rule_version,
     decision: evaluation.decision,
     reasons: evaluation.reasons.slice(0, 8),
-    candidates: candidates.length
-      ? candidates
-      : evaluation.candidates.slice(0, 2),
-    exact_candidate: evaluation.exact_candidate,
+    candidates,
+    exact_candidate: evaluation.exact_candidate
+      ? {
+          ...evaluation.exact_candidate,
+          offer: {
+            ...evaluation.exact_candidate.offer,
+            offer_id:
+              evaluation.exact_candidate.offer.offer_id ||
+              (evaluation.exact_candidate.candidate_id.startsWith("cand_")
+                ? evaluation.exact_candidate.candidate_id.slice(5)
+                : evaluation.exact_candidate.candidate_id),
+          },
+        }
+      : evaluation.exact_candidate,
     rejected: [],
   };
 }
@@ -76,11 +111,27 @@ export function saveEnrollmentDiscovery(
 ): void {
   ensureEnrollmentDiscoveryTable(db);
   const evaluation = slimEvaluation(snap.evaluation);
-  // Offers only for exact/strong candidates — cookie budget
-  const offers =
-    evaluation.exact_candidate != null
-      ? [evaluation.exact_candidate.offer]
-      : evaluation.candidates.slice(0, 2).map((c) => c.offer);
+  // Offers for every kept candidate — required for server-side revalidation
+  const offerById = new Map<string, MatchableOffer>();
+  for (const o of snap.offers) {
+    if (o.offer_id) offerById.set(String(o.offer_id), o);
+  }
+  const offers: MatchableOffer[] = evaluation.candidates.map((c) => {
+    const fromOffer = c.offer.offer_id
+      ? offerById.get(String(c.offer.offer_id))
+      : undefined;
+    const base = fromOffer ?? c.offer;
+    return {
+      ...base,
+      offer_id:
+        base.offer_id ||
+        c.offer.offer_id ||
+        (c.candidate_id.startsWith("cand_")
+          ? c.candidate_id.slice(5)
+          : c.candidate_id),
+    };
+  });
+
   db.prepare(
     `INSERT INTO enrollment_discovery (
       purchase_id, data_source, query, provider_status,

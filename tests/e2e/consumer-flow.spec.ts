@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { openManualPurchaseForm } from "./helpers/open-manual-form";
 import { fillFixtureExactIdentity } from "./helpers/fill-fixture-identity";
+import { setFixtureScenario } from "./helpers/set-fixture-scenario";
 
 const SCREEN_DIR = path.join("docs", "proof", "ui", "screens");
 
@@ -78,7 +79,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     });
 
     await openManualPurchaseForm(page);
-    await page.getByTestId("input-scenario").selectOption("exact_match");
+    await setFixtureScenario(page, "exact_match");
     await fillFixtureExactIdentity(page);
     await Promise.all([
       page.waitForURL(/\/purchases\/.+\/review/, { timeout: 45_000 }),
@@ -233,7 +234,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
-    await page.getByTestId("input-scenario").selectOption("ambiguous");
+    await setFixtureScenario(page, "ambiguous");
     await fillFixtureExactIdentity(page, {
       url: "https://www.target.com/p/acetaminophen-demo/-/A-12345678",
       tcin: "12345678",
@@ -263,7 +264,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
   test("no-price fixture path shows empty candidates", async ({ page }) => {
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
-    await page.getByTestId("input-scenario").selectOption("no_price");
+    await setFixtureScenario(page, "no_price");
     await fillFixtureExactIdentity(page);
     await page.getByTestId("submit-purchase").click();
 

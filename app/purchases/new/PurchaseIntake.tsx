@@ -8,6 +8,8 @@ import {
   EXACT_IDENTITY_SECTION_HEADING,
   extractTcinFromTargetUrl,
   isLikelyTcin,
+  provisionalTitleFromTargetUrl,
+  provisionalTitleFromTcin,
 } from "@/web/exact-identity";
 import {
   Button,
@@ -17,9 +19,10 @@ import {
   FormError,
   InlineNotice,
   Input,
-  Select,
   Stepper,
 } from "@/ui";
+
+export type ProductEntryMode = "exact" | "find";
 
 export type PurchaseDefaults = {
   url: string;
@@ -30,7 +33,13 @@ export type PurchaseDefaults = {
   model: string;
   title: string;
   upc: string;
-  scenario: string;
+  description: string;
+  brand: string;
+  color: string;
+  size: string;
+  quantity: string;
+  entryMode: ProductEntryMode;
+  showFixtureBanner: boolean;
 };
 
 type Props = {
@@ -46,6 +55,27 @@ type Props = {
 
 const MANUAL_FORM_ID = "purchase-manual-form";
 
+function humanMissingField(name: string): string {
+  switch (name) {
+    case "product_url":
+      return "Target product link (or enter a TCIN)";
+    case "product_url_or_tcin_or_description":
+      return "Target product link, TCIN, or product description";
+    case "product_url_or_tcin":
+      return "Target product link or TCIN";
+    case "purchase_price":
+      return "price paid";
+    case "purchase_date":
+      return "purchase date";
+    case "product_description":
+      return "product description";
+    case "target_item_id":
+      return "TCIN";
+    default:
+      return name.replace(/_/g, " ");
+  }
+}
+
 export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
   const [purchaseText, setPurchaseText] = useState("");
   // Collapsed by default; open when returning from validation error
@@ -60,6 +90,9 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
   const [reviewed, setReviewed] = useState(false);
   const shouldFocusManual = useRef(false);
 
+  const [entryMode, setEntryMode] = useState<ProductEntryMode>(
+    defaults.entryMode || "exact",
+  );
   const [url, setUrl] = useState(defaults.url);
   const [price, setPrice] = useState(defaults.price);
   const [date, setDate] = useState(defaults.date);
@@ -68,9 +101,20 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
   const [model, setModel] = useState(defaults.model);
   const [title, setTitle] = useState(defaults.title);
   const [upc, setUpc] = useState(defaults.upc);
-  const [scenario, setScenario] = useState(defaults.scenario);
+  const [description, setDescription] = useState(
+    defaults.description || defaults.title,
+  );
+  const [brand, setBrand] = useState(defaults.brand);
+  const [color, setColor] = useState(defaults.color);
+  const [size, setSize] = useState(defaults.size);
+  const [quantity, setQuantity] = useState(defaults.quantity);
   /** When true, user typed TCIN manually — do not overwrite from URL. */
   const tcinUserEdited = useRef(Boolean(defaults.tcin));
+  /** When true, user edited title — do not overwrite with link-derived provisional. */
+  const titleUserEdited = useRef(Boolean(defaults.title));
+  const [titleSource, setTitleSource] = useState<
+    "user" | "link" | "tcin" | "none"
+  >(defaults.title ? "user" : "none");
 
   const fieldMark = useMemo(() => {
     const m = new Set(missing);
@@ -93,19 +137,54 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
     [url, tcin, model, upc],
   );
 
-  const canFindProduct =
-    identity.ok &&
+  const canFindExact =
+    identity.ok && Boolean(price.trim()) && Boolean(date.trim());
+
+  const canFindUncertain =
+    Boolean(description.trim()) &&
     Boolean(price.trim()) &&
     Boolean(date.trim());
+
+  const canFindProduct =
+    entryMode === "exact" ? canFindExact : canFindUncertain;
+
+  function applyProvisionalTitleFromUrl(nextUrl: string) {
+    if (titleUserEdited.current && title.trim()) return;
+    const provisional = provisionalTitleFromTargetUrl(nextUrl);
+    if (provisional) {
+      setTitle(provisional);
+      setTitleSource("link");
+    }
+  }
+
+  function applyProvisionalTitleFromTcin(nextTcin: string) {
+    if (titleUserEdited.current && title.trim()) return;
+    if (url.trim() && provisionalTitleFromTargetUrl(url)) return;
+    const provisional = provisionalTitleFromTcin(nextTcin);
+    if (provisional) {
+      setTitle(provisional);
+      setTitleSource("tcin");
+    }
+  }
 
   /** Auto-extract TCIN from trusted Target URL when TCIN empty / not user-owned. */
   function onUrlChange(next: string) {
     setUrl(next);
-    if (tcinUserEdited.current && isLikelyTcin(tcin)) return;
-    const extracted = extractTcinFromTargetUrl(next);
-    if (extracted) {
-      setTcin(extracted);
-      tcinUserEdited.current = false;
+    if (!tcinUserEdited.current || !isLikelyTcin(tcin)) {
+      const extracted = extractTcinFromTargetUrl(next);
+      if (extracted) {
+        setTcin(extracted);
+        tcinUserEdited.current = false;
+      }
+    }
+    applyProvisionalTitleFromUrl(next);
+  }
+
+  function onTcinChange(next: string) {
+    tcinUserEdited.current = true;
+    setTcin(next);
+    if (isLikelyTcin(next)) {
+      applyProvisionalTitleFromTcin(next);
     }
   }
 
@@ -113,13 +192,17 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
     if (showManual && shouldFocusManual.current) {
       shouldFocusManual.current = false;
       const target = document.getElementById(
-        focusRegion ? "region" : "target_product_url",
+        focusRegion
+          ? "region"
+          : entryMode === "find"
+            ? "product_description"
+            : "target_product_url",
       );
       if (target instanceof HTMLElement) {
         target.focus();
       }
     }
-  }, [showManual, focusRegion]);
+  }, [showManual, focusRegion, entryMode]);
 
   function openManual(opts?: { focus?: boolean }) {
     if (opts?.focus !== false) shouldFocusManual.current = true;
@@ -164,15 +247,29 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
           setTcin(fromUrl);
           tcinUserEdited.current = false;
         }
+        applyProvisionalTitleFromUrl(e.product_url);
+        setEntryMode("exact");
       } else if (e.target_item_id && isLikelyTcin(e.target_item_id)) {
         setTcin(e.target_item_id);
         tcinUserEdited.current = true;
+        applyProvisionalTitleFromTcin(e.target_item_id);
+        setEntryMode("exact");
+      } else if (e.product_description) {
+        setDescription(e.product_description);
+        setTitle(e.product_description);
+        titleUserEdited.current = true;
+        setTitleSource("user");
+        setEntryMode("find");
       }
       if (e.purchase_price != null) setPrice(String(e.purchase_price));
       if (e.purchase_date) setDate(e.purchase_date);
       if (e.region) setRegion(e.region);
       if (e.model_number) setModel(e.model_number);
-      if (e.product_description) setTitle(e.product_description);
+      if (e.product_description && e.product_url) {
+        setTitle(e.product_description);
+        titleUserEdited.current = true;
+        setTitleSource("user");
+      }
       if (e.upc_or_gtin) setUpc(e.upc_or_gtin);
       setMissing(result.data.missing_fields);
       setUncertain(result.data.uncertain_fields);
@@ -189,6 +286,34 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
     if (m === "missing") return `${base} (needed)`;
     if (m === "uncertain") return `${base} (check this)`;
     return base;
+  }
+
+  function findDisabledReason(): string {
+    if (entryMode === "exact") {
+      if (identity.errors.target_item_id && (url.trim() || tcin.trim())) {
+        return identity.errors.target_item_id;
+      }
+      if (identity.errors.target_product_url && url.trim()) {
+        return identity.errors.target_product_url;
+      }
+      if (!identity.ok) {
+        return (
+          identity.errors.identity ||
+          "Add a Target product link or a TCIN. You do not need both."
+        );
+      }
+      if (!price.trim() || !date.trim()) {
+        return "Enter the price paid and purchase date.";
+      }
+      return "Enter the required purchase details.";
+    }
+    if (!description.trim()) {
+      return "Enter a product description so Nobu can search Target.";
+    }
+    if (!price.trim() || !date.trim()) {
+      return "Enter the price paid and purchase date.";
+    }
+    return "Enter the required purchase details.";
   }
 
   return (
@@ -261,10 +386,10 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
                 {(missing.length > 0 || uncertain.length > 0) && (
                   <p className="muted">
                     {missing.length > 0
-                      ? `Still needed: ${missing.join(", ")}. `
+                      ? `Still needed: ${missing.map(humanMissingField).join(", ")}. `
                       : ""}
                     {uncertain.length > 0
-                      ? `Please double-check: ${uncertain.join(", ")}.`
+                      ? `Please double-check: ${uncertain.map(humanMissingField).join(", ")}.`
                       : ""}
                   </p>
                 )}
@@ -308,34 +433,166 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               />
             </Field>
 
-            <Field
-              id="target_product_url"
-              label={markLabel("Product URL", "product_url")}
-              hint="Example: https://www.target.com/p/.../-/A-12345678"
-              required
-              error={
-                fieldMark("product_url") === "missing"
-                  ? "Add the Target product link so Nobu can find the exact item."
-                  : identity.errors.target_product_url && url.trim()
-                    ? identity.errors.target_product_url
-                    : undefined
-              }
+            <fieldset
+              className="n-product-entry-mode"
+              data-testid="product-entry-mode"
             >
-              <Input
-                id="target_product_url"
-                name="target_product_url"
+              <legend className="n-card-title">How do you want to identify the product?</legend>
+              <div className="n-mode-toggle" role="radiogroup" aria-label="Product entry mode">
+                <label className="n-mode-option">
+                  <input
+                    type="radio"
+                    name="product_entry_mode"
+                    value="exact"
+                    checked={entryMode === "exact"}
+                    onChange={() => setEntryMode("exact")}
+                    data-testid="mode-exact"
+                  />
+                  <span>
+                    <strong>Exact product</strong>
+                    <span className="muted"> — Target URL or TCIN</span>
+                  </span>
+                </label>
+                <label className="n-mode-option">
+                  <input
+                    type="radio"
+                    name="product_entry_mode"
+                    value="find"
+                    checked={entryMode === "find"}
+                    onChange={() => setEntryMode("find")}
+                    data-testid="mode-find"
+                  />
+                  <span>
+                    <strong>Help me find the product</strong>
+                    <span className="muted"> — describe it and pick from Target candidates</span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+            {entryMode === "exact" ? (
+              <>
+                <Field
+                  id="target_product_url"
+                  label={markLabel("Product URL", "product_url")}
+                  hint="Optional if you enter a TCIN. Example: https://www.target.com/p/.../-/A-12345678"
+                  error={
+                    fieldMark("product_url") === "missing" && !tcin.trim()
+                      ? "Add a Target product link, or enter a TCIN below."
+                      : identity.errors.target_product_url && url.trim()
+                        ? identity.errors.target_product_url
+                        : undefined
+                  }
+                >
+                  <Input
+                    id="target_product_url"
+                    name="target_product_url"
+                    data-testid="input-url"
+                    placeholder="https://www.target.com/p/.../-/A-12345678"
+                    value={url}
+                    onChange={(e) => onUrlChange(e.target.value)}
+                    autoComplete="off"
+                    invalid={
+                      (fieldMark("product_url") === "missing" && !tcin.trim()) ||
+                      Boolean(identity.errors.target_product_url && url.trim())
+                    }
+                  />
+                </Field>
+
+                <div className="grid-2">
+                  <Field
+                    id="target_item_id"
+                    label={markLabel("TCIN", "target_item_id")}
+                    hint="Optional if the Target product link includes A-TCIN"
+                    error={
+                      identity.errors.target_item_id &&
+                      (url.trim() || tcin.trim())
+                        ? identity.errors.target_item_id
+                        : !identity.ok &&
+                            !url.trim() &&
+                            !tcin.trim()
+                          ? identity.errors.identity
+                          : undefined
+                    }
+                  >
+                    <Input
+                      id="target_item_id"
+                      name="target_item_id"
+                      data-testid="input-tcin"
+                      value={tcin}
+                      onChange={(e) => onTcinChange(e.target.value)}
+                      autoComplete="off"
+                      invalid={Boolean(
+                        identity.errors.target_item_id &&
+                          (url.trim() || tcin.trim()),
+                      )}
+                    />
+                  </Field>
+                  <Field
+                    id="product_title"
+                    label={markLabel("Product title", "product_description")}
+                    hint={
+                      titleSource === "link"
+                        ? "Link-derived title — edit if needed (not a current price)"
+                        : titleSource === "tcin"
+                          ? "Placeholder until Nobu finds a better title"
+                          : "Name from your order (optional)"
+                    }
+                  >
+                    <Input
+                      id="product_title"
+                      name="product_title"
+                      data-testid="input-title"
+                      value={title}
+                      onChange={(e) => {
+                        titleUserEdited.current = true;
+                        setTitleSource("user");
+                        setTitle(e.target.value);
+                      }}
+                    />
+                    {titleSource === "link" ? (
+                      <p className="muted" data-testid="title-link-derived">
+                        Title derived from the product link. You can correct it before confirmation.
+                      </p>
+                    ) : null}
+                  </Field>
+                </div>
+              </>
+            ) : (
+              <Field
+                id="product_description"
+                label={markLabel("Product description", "product_description")}
+                hint='Example: "Apple AirPods" — Nobu will show Target candidates to choose from'
                 required
-                data-testid="input-url"
-                placeholder="https://www.target.com/p/.../-/A-12345678"
-                value={url}
-                onChange={(e) => onUrlChange(e.target.value)}
-                autoComplete="off"
-                invalid={
-                  fieldMark("product_url") === "missing" ||
-                  Boolean(identity.errors.target_product_url && url.trim())
+                error={
+                  fieldMark("product_description") === "missing" ||
+                  fieldMark("product_url_or_tcin_or_description") === "missing"
+                    ? "Describe the product so Nobu can search Target."
+                    : undefined
                 }
-              />
-            </Field>
+              >
+                <Input
+                  id="product_description"
+                  name="product_description"
+                  required
+                  data-testid="input-description"
+                  placeholder="Apple AirPods"
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (!titleUserEdited.current) {
+                      setTitle(e.target.value);
+                    }
+                  }}
+                  invalid={
+                    fieldMark("product_description") === "missing" ||
+                    fieldMark("product_url_or_tcin_or_description") === "missing"
+                  }
+                />
+                {/* Keep title in sync for server when find mode uses description */}
+                <input type="hidden" name="product_title" value={title || description} />
+              </Field>
+            )}
 
             <div className="grid-2">
               <Field
@@ -439,117 +696,141 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               data-testid="exact-product-details"
             >
               <legend className="n-card-title">
-                {EXACT_IDENTITY_SECTION_HEADING}
+                {entryMode === "exact"
+                  ? EXACT_IDENTITY_SECTION_HEADING
+                  : "Optional details"}
               </legend>
               <p className="muted">
-                Nobu extracts the TCIN from your Target link when it can. Add a
-                model number or UPC only if Nobu needs one to separate similar
-                Target items.
+                {entryMode === "exact"
+                  ? "Nobu extracts the TCIN from your Target link when it can. Add a model number or UPC only if Nobu needs one to separate similar Target items."
+                  : "Brand, model, color, or size help Nobu narrow Target candidates. You will still choose the exact product before monitoring starts."}
               </p>
 
               <div className="grid-2">
-                <Field
-                  id="target_item_id"
-                  label={markLabel("TCIN", "target_item_id")}
-                  hint="Optional when the Target product link includes A-TCIN"
-                  error={
-                    identity.errors.target_item_id && (url.trim() || tcin.trim())
-                      ? identity.errors.target_item_id
-                      : undefined
-                  }
-                >
+                {entryMode === "find" ? (
+                  <Field
+                    id="brand"
+                    label="Brand"
+                    hint="Optional"
+                  >
+                    <Input
+                      id="brand"
+                      name="brand"
+                      data-testid="input-brand"
+                      value={brand}
+                      onChange={(e) => setBrand(e.target.value)}
+                      autoComplete="off"
+                    />
+                  </Field>
+                ) : (
+                  <Field
+                    id="model_number"
+                    label={markLabel("Model number", "model_number")}
+                    hint="Optional unless Nobu asks for one after discovery."
+                  >
+                    <Input
+                      id="model_number"
+                      name="model_number"
+                      data-testid="input-model"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      autoComplete="off"
+                    />
+                  </Field>
+                )}
+                {entryMode === "exact" ? (
+                  <Field
+                    id="upc_or_gtin"
+                    label="UPC or GTIN"
+                    hint="Optional unless Nobu asks for one after discovery."
+                  >
+                    <Input
+                      id="upc_or_gtin"
+                      name="upc_or_gtin"
+                      data-testid="input-upc"
+                      value={upc}
+                      onChange={(e) => setUpc(e.target.value)}
+                      autoComplete="off"
+                    />
+                  </Field>
+                ) : (
+                  <Field
+                    id="model_number"
+                    label="Model number"
+                    hint="Optional"
+                  >
+                    <Input
+                      id="model_number"
+                      name="model_number"
+                      data-testid="input-model"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      autoComplete="off"
+                    />
+                  </Field>
+                )}
+              </div>
+
+              <div className="grid-2">
+                <Field id="color" label="Colour" hint="Optional">
                   <Input
-                    id="target_item_id"
-                    name="target_item_id"
-                    data-testid="input-tcin"
-                    value={tcin}
-                    onChange={(e) => {
-                      tcinUserEdited.current = true;
-                      setTcin(e.target.value);
-                    }}
+                    id="color"
+                    name="color"
+                    data-testid="input-color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
                     autoComplete="off"
-                    invalid={Boolean(
-                      identity.errors.target_item_id &&
-                        (url.trim() || tcin.trim()),
-                    )}
                   />
                 </Field>
-                <Field
-                  id="model_number"
-                  label={markLabel("Model number", "model_number")}
-                  hint="Optional unless Nobu asks for one after discovery."
-                >
+                <Field id="size" label="Size" hint="Optional">
                   <Input
-                    id="model_number"
-                    name="model_number"
-                    data-testid="input-model"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
+                    id="size"
+                    name="size"
+                    data-testid="input-size"
+                    value={size}
+                    onChange={(e) => setSize(e.target.value)}
                     autoComplete="off"
                   />
                 </Field>
               </div>
 
               <div className="grid-2">
-                <Field
-                  id="upc_or_gtin"
-                  label="UPC or GTIN"
-                  hint="Optional unless Nobu asks for one after discovery."
-                >
+                <Field id="quantity" label="Quantity" hint="Optional">
                   <Input
-                    id="upc_or_gtin"
-                    name="upc_or_gtin"
-                    data-testid="input-upc"
-                    value={upc}
-                    onChange={(e) => setUpc(e.target.value)}
+                    id="quantity"
+                    name="quantity"
+                    data-testid="input-quantity"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
                     autoComplete="off"
                   />
                 </Field>
-                <Field
-                  id="product_title"
-                  label={markLabel("Product title", "product_description")}
-                  hint="Name from your order"
-                >
-                  <Input
-                    id="product_title"
-                    name="product_title"
-                    data-testid="input-title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                  />
-                </Field>
+                {entryMode === "find" ? (
+                  <Field
+                    id="upc_or_gtin"
+                    label="UPC or GTIN"
+                    hint="Optional"
+                  >
+                    <Input
+                      id="upc_or_gtin"
+                      name="upc_or_gtin"
+                      data-testid="input-upc"
+                      value={upc}
+                      onChange={(e) => setUpc(e.target.value)}
+                      autoComplete="off"
+                    />
+                  </Field>
+                ) : (
+                  <span />
+                )}
               </div>
 
               <p className="muted" data-testid="identity-progressive-note">
-                If Nobu cannot confirm one exact Target item from the URL and
-                third-party Target evidence, it will ask for one extra detail.
+                {entryMode === "exact"
+                  ? "If Nobu cannot confirm one exact Target item from the URL/TCIN and third-party Target evidence, it will ask for one extra detail."
+                  : "Nobu will show a short list of Target candidates. Monitoring starts only after you confirm the exact product."}
               </p>
             </fieldset>
-
-            <details className="n-disclosure n-demo-scenario" open>
-              <summary className="n-disclosure__summary">
-                <span>Demo options (for testing only)</span>
-              </summary>
-              <div className="n-disclosure__body">
-                <Field
-                  id="fixture_scenario"
-                  label="Demo scenario"
-                  hint="Chooses sample candidates only — not live shopping data"
-                >
-                  <Select
-                    id="fixture_scenario"
-                    name="fixture_scenario"
-                    data-testid="input-scenario"
-                    value={scenario}
-                    onChange={(e) => setScenario(e.target.value)}
-                  >
-                    <option value="exact_match">Exact Target match (fixture)</option>
-                    <option value="ambiguous">Ambiguous multi-Target (fixture)</option>
-                    <option value="no_price">No Target price (fixture)</option>
-                  </Select>
-                </Field>
-              </div>
-            </details>
 
             <p className="muted n-form-note">
               Currency is USD. Nobu never asks for passwords, cards, bank details, or
@@ -562,13 +843,7 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               block
               data-testid="submit-purchase"
               disabled={!canFindProduct}
-              disabledReason={
-                !identity.has_tcin
-                    ? "Add a TCIN or a Target product link that includes it."
-                    : !identity.has_target_url
-                      ? "Add a valid Target.com product link."
-                      : "Enter the price paid and purchase date."
-              }
+              disabledReason={findDisabledReason()}
             >
               Find my product
             </Button>
@@ -608,6 +883,7 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
 export function PurchasePageChrome({
   children,
   serverError,
+  showFixtureBanner = false,
 }: {
   children: React.ReactNode;
   serverError?: {
@@ -616,6 +892,8 @@ export function PurchasePageChrome({
     nextAction: string;
     code: string;
   } | null;
+  /** Only when fixture discovery gate is open (tests/e2e) — never for production users. */
+  showFixtureBanner?: boolean;
 }) {
   return (
     <div className="n-screen n-screen--form">
@@ -635,14 +913,16 @@ export function PurchasePageChrome({
         ]}
       />
 
-      <DemoDataBanner data-testid="fixture-banner">
-        <p>
-          <strong>Demo data</strong>
-          <br />
-          This screen uses test fixtures, not a live current Target price.
-          <span className="visually-hidden"> demo fixtures</span>
-        </p>
-      </DemoDataBanner>
+      {showFixtureBanner ? (
+        <DemoDataBanner data-testid="fixture-banner">
+          <p>
+            <strong>Demo data</strong>
+            <br />
+            This screen uses test fixtures, not a live current Target price.
+            <span className="visually-hidden"> demo fixtures</span>
+          </p>
+        </DemoDataBanner>
+      ) : null}
 
       {serverError ? (
         <FormError data-testid="purchase-error" title={serverError.heading}>

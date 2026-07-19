@@ -19,6 +19,8 @@ import {
   buildReviewRedirectPath,
   isValidPurchaseId,
 } from "./navigation.js";
+import { isFixtureCheckAllowed } from "./manual-check-mode.js";
+import type { FixtureScenario } from "./fixtures.js";
 
 /** Cookie is source of truth on Vercel — re-hydrate each mutation request. */
 async function prepareActionDb() {
@@ -55,7 +57,6 @@ function purchaseErrorRedirect(formData: FormData, error: string, status = "") {
       purchase_price: formString(formData, "purchase_price"),
       purchase_date: formString(formData, "purchase_date"),
       region: formString(formData, "region"),
-      fixture_scenario: "exact_match",
     });
     redirect(`/purchases/new?${q.toString()}`);
   }
@@ -70,7 +71,13 @@ function purchaseErrorRedirect(formData: FormData, error: string, status = "") {
     target_item_id: formString(formData, "target_item_id"),
     upc_or_gtin: formString(formData, "upc_or_gtin"),
     product_title: formString(formData, "product_title"),
-    fixture_scenario: formString(formData, "fixture_scenario") || "exact_match",
+    product_description: formString(formData, "product_description"),
+    brand: formString(formData, "brand"),
+    color: formString(formData, "color"),
+    size: formString(formData, "size"),
+    quantity: formString(formData, "quantity"),
+    product_entry_mode:
+      formString(formData, "product_entry_mode") === "find" ? "find" : "exact",
   });
   redirect(`/purchases/new?${q.toString()}`);
 }
@@ -79,8 +86,18 @@ export async function submitPurchaseAction(formData: FormData) {
   try {
     const db = await prepareActionDb();
 
+    const entryMode =
+      formString(formData, "product_entry_mode") === "find" ? "find" : "exact";
+
+    // Fixture scenario is never shown in production UI. Only honor it when the
+    // server fixture gate is open (tests/e2e inject a hidden field or env).
+    const fixtureScenario = isFixtureCheckAllowed()
+      ? ((formString(formData, "fixture_scenario") ||
+          undefined) as FixtureScenario | undefined)
+      : undefined;
+
     const result = await createPurchaseFlow({
-      target_product_url: formString(formData, "target_product_url"),
+      target_product_url: formString(formData, "target_product_url") || undefined,
       purchase_price: formString(formData, "purchase_price"),
       purchase_date: formString(formData, "purchase_date"),
       region: formString(formData, "region") || undefined,
@@ -88,12 +105,14 @@ export async function submitPurchaseAction(formData: FormData) {
       target_item_id: formString(formData, "target_item_id") || undefined,
       upc_or_gtin: formString(formData, "upc_or_gtin") || undefined,
       product_title: formString(formData, "product_title") || undefined,
-      fixture_scenario: (formString(formData, "fixture_scenario") ||
-        "exact_match") as
-        | "exact_match"
-        | "ambiguous"
-        | "no_price"
-        | "unsupported",
+      product_description:
+        formString(formData, "product_description") || undefined,
+      brand: formString(formData, "brand") || undefined,
+      color: formString(formData, "color") || undefined,
+      size: formString(formData, "size") || undefined,
+      quantity: formString(formData, "quantity") || undefined,
+      product_entry_mode: entryMode,
+      fixture_scenario: fixtureScenario,
     });
 
     if (!result.ok) {
@@ -101,11 +120,13 @@ export async function submitPurchaseAction(formData: FormData) {
       console.info("submitPurchaseAction_result", {
         ok: false,
         error: result.error,
+        entry_mode: entryMode,
         has_tcin: Boolean(formString(formData, "target_item_id")),
         has_model: Boolean(formString(formData, "model_number")),
         has_target_url: /target\.com/i.test(
           formString(formData, "target_product_url"),
         ),
+        has_description: Boolean(formString(formData, "product_description")),
       });
       const status =
         "status" in result && result.status
@@ -125,6 +146,7 @@ export async function submitPurchaseAction(formData: FormData) {
       ok: true,
       purchase_id: result.purchase_id,
       data_source: result.data_source,
+      entry_mode: entryMode,
       decision: result.evaluation?.decision ?? null,
       reasons: result.evaluation?.reasons?.slice(0, 4) ?? [],
       candidate_count: candidateCount,
@@ -158,14 +180,13 @@ export async function submitPurchaseAction(formData: FormData) {
     }
 
     const qs = new URLSearchParams();
-    qs.set("title", formString(formData, "product_title"));
+    qs.set(
+      "title",
+      formString(formData, "product_title") ||
+        formString(formData, "product_description"),
+    );
     qs.set("source", result.data_source ?? "LIVE");
-    if (result.data_source === "FIXTURE") {
-      qs.set(
-        "scenario",
-        formString(formData, "fixture_scenario") || "exact_match",
-      );
-    }
+    qs.set("entry_mode", entryMode);
     const target = buildReviewRedirectPath(result.purchase_id, qs);
     if (!target) {
       purchaseErrorRedirect(formData, "save_failed", "bad_redirect_path");

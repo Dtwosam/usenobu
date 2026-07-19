@@ -113,6 +113,20 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** focused confirmation, matching, monitoring, live-discovery, SerpApi normalization/enrichment, manual-check, full unit suite, typecheck, build, and consumer Playwright path pass locally, and the unique Vercel production deployment proof (identity-only candidate, no price, required confirmation, server-side success, locked fingerprint, monitoring blocked/active, fail-closed live observation, no positive alert, Nobu identity, no secrets) also passed. Production proof surfaced and fixed a pre-existing cookie-snapshot `offer_id` bug that blocked confirmation on multi-instance Vercel. Evidence: `docs/proof/lane-7-2-exact-identity/`.
 
+## Lane 7.3A - Purchase intake UX repair + multi-candidate discovery COMPLETE
+
+- Two product-entry modes: exact (Target URL **or** TCIN) and help-me-find (description-first).
+- Fill with AI validation accepts URL or TCIN (never demands URL when TCIN is valid).
+- Link-derived provisional titles; third-party enrichment may improve them; provider failure preserves fallback.
+- Demo options removed from production `/purchases/new`.
+- Uncertain-product multi-candidate discovery (3–6 Target candidates, Target Plus excluded, deduped).
+- Never auto-confirms; title-only blocked; `offer_id` preserved through session-snapshot compaction.
+- Monitoring remains blocked until explicit confirmation and fingerprint lock.
+
+**Proof:** focused form/AI-fill, uncertain discovery, candidate-confirmation, session-snapshot, matching, monitoring, SerpApi normalization, full unit suite (317), typecheck, build, Playwright consumer-flow pass. Evidence: `docs/proof/lane-7-3a-purchase-intake/`.
+
+## Lane 7.3B — Consented email price-drop notifications (next)
+
 ## Lane 7.5A — Global Nobu rename
 
 - Rename active project identity to Nobu across UI, docs, package metadata, OpenAPI, prompts, env names, and source comments.

@@ -66,13 +66,16 @@ export function scrubDemoDefaults<T extends PurchaseIdentityFields>(
 
 /**
  * Live enrollment must not search with only demo identity.
- * After scrub, a missing Target URL means the draft was outdated demo state.
+ * After scrub, neither a Target URL nor a valid TCIN means the draft was
+ * outdated demo state (exact mode). Uncertain mode uses description separately.
  */
 export function isUnusableAfterDemoScrub(
   scrubbed: PurchaseIdentityFields,
 ): boolean {
   const url = String(scrubbed.target_product_url ?? "").trim();
-  return !url;
+  const tcin = String(scrubbed.target_item_id ?? "").trim();
+  const hasTcin = /^\d{5,12}$/.test(tcin);
+  return !url && !hasTcin;
 }
 
 /** Row-level check for cookie purchase drafts (unconfirmed). */

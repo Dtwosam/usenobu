@@ -94,24 +94,45 @@ export function purchaseFormError(
       return {
         code,
         heading: "Use a Target product link",
-        body: "Nobu needs a supported Target.com product URL before it can look for the exact item.",
-        nextAction: "Paste the Target product page URL and try again. Nobu will not follow shortened or unknown redirects.",
+        body: "That URL is not a supported Target.com product link.",
+        nextAction:
+          "Paste a Target product page URL, or enter a TCIN instead. You do not need both.",
       };
     }
-    if (status === "TARGET_IDENTIFIER_MISSING" || status === "tcin") {
+    if (status === "TARGET_IDENTIFIER_MISSING") {
       return {
         code,
         heading: "Target item number missing",
         body: "That Target link does not include an A-TCIN item number Nobu can use safely.",
-        nextAction: "Paste the canonical Target product URL that contains /A- followed by the TCIN.",
+        nextAction:
+          "Paste a Target product URL that contains /A- followed by the TCIN, or enter the TCIN alone.",
+      };
+    }
+    if (status === "tcin") {
+      return {
+        code,
+        heading: "Check the TCIN",
+        body: "The TCIN is missing, malformed, or does not match the Target product URL.",
+        nextAction:
+          "Enter a valid Target item number (5–12 digits), or use a matching Target product link.",
       };
     }
     return {
       code,
-      heading: "Target product link needed",
-      body: "Nobu needs a supported Target product link before it can find the exact item.",
+      heading: "Product identity needed",
+      body: "Nobu needs a Target product link or a TCIN (Target item number) for exact product mode. You do not need both.",
       nextAction:
-        "Check the Target product URL, then try Find my product again.",
+        "Add a Target.com product URL or TCIN, or switch to “Help me find the product” with a description.",
+    };
+  }
+
+  if (code === "missing_product_description") {
+    return {
+      code,
+      heading: "Describe the product",
+      body: "To help find your product, Nobu needs a short product description along with the price and purchase date.",
+      nextAction:
+        "Enter a description such as “Apple AirPods”, or switch to exact mode with a Target URL or TCIN.",
     };
   }
 

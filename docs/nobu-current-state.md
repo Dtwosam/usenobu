@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-19
-**Status:** LANE 7.2 PASS - EXACT IDENTITY CONFIRMATION SPLIT COMPLETE; LANE 8 REMAINS NEXT
+**Status:** LANE 7.3A PASS - PURCHASE INTAKE UX + MULTI-CANDIDATE DISCOVERY; NEXT LANE 7.3B
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)
@@ -11,6 +11,8 @@
 **Review-Safe Sprint C:** **NOBU_REVIEW_SAFE_C_PASS** (judge clarity + money-back story)
 **Review-Safe Sprint A.2:** **NOBU_REVIEW_SAFE_A_2_PASS** (Conair GS14 matching evidence hierarchy repair)
 **Review-Safe Sprint A.3:** **NOBU_REVIEW_SAFE_A_3_PASS** (policy freshness + live Conair closeout; no_match is fail-closed, not accepted price)
+
+**Lane 7.3A purchase intake UX + multi-candidate discovery:** **PASS** - exact mode accepts Target URL alone or TCIN alone; Fill with AI no longer demands a URL when TCIN is valid; link-derived provisional titles with SerpApi enrichment; Demo options removed from production form; uncertain-product mode returns bounded Target multi-candidates with offer_id preserved through cookie snapshot; monitoring remains confirmation-gated. Local proof: 317 unit tests, typecheck, build, Playwright consumer-flow. Evidence: `docs/proof/lane-7-3a-purchase-intake/`.
 
 ## Locked decisions
 
@@ -88,8 +90,7 @@ publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
 
 ## Next active lane
 
-**Lane 8** is the exact next lane. Do not begin Lane 8 from Lane 7.1 work; wait for explicit Lane 8 execution. Lane 8 remains active until the listing is **approved and publicly accessible**.
-Parallel review-safe UI/product proof may continue without ASP resubmit.
-Then: **Lane 9 — Demo and submission closeout**.
+**Lane 7.3B — consented email price-drop notifications** is the exact next product lane after 7.3A.
+**Lane 8** remains pending OKX ASP approval (do not resubmit while under review). Then: **Lane 9 — Demo and submission closeout**.
 
-Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`
+Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`, `docs/proof/lane-7-3a-purchase-intake/`

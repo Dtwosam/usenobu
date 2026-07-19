@@ -1,4 +1,5 @@
 import { purchaseFormError } from "@/web/error-copy";
+import { resolveDiscoveryDataSource } from "@/web/live-discovery";
 import { PurchaseIntake, PurchasePageChrome } from "./PurchaseIntake";
 
 function val(
@@ -20,6 +21,9 @@ export default async function NewPurchasePage({
     ? purchaseFormError(errorCode, sp.status)
     : null;
   const focusRegion = errorCode === "unsupported_or_ineligible";
+  const showFixtureBanner = resolveDiscoveryDataSource() === "FIXTURE";
+  const entryMode =
+    sp.product_entry_mode === "find" ? "find" : "exact";
 
   // Empty defaults — never seed demo Example Widget IDs into production discovery.
   // Error redirects may repopulate from query params via val().
@@ -32,11 +36,18 @@ export default async function NewPurchasePage({
     model: val(sp, "model_number", ""),
     title: val(sp, "product_title", ""),
     upc: val(sp, "upc_or_gtin", ""),
-    scenario: val(sp, "fixture_scenario", "exact_match"),
+    description: val(sp, "product_description", val(sp, "product_title", "")),
+    brand: val(sp, "brand", ""),
+    color: val(sp, "color", ""),
+    size: val(sp, "size", ""),
+    quantity: val(sp, "quantity", ""),
+    entryMode: entryMode as "exact" | "find",
+    showFixtureBanner,
   };
 
   return (
     <PurchasePageChrome
+      showFixtureBanner={showFixtureBanner}
       serverError={
         userError
           ? {

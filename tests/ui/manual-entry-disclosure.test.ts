@@ -33,4 +33,11 @@ describe("manual entry disclosure source contract", () => {
     expect(intake).not.toMatch(/id="model_number"[\s\S]{0,220}required/);
     expect(intake).not.toMatch(/id="upc_or_gtin"[\s\S]{0,220}required/);
   });
+
+  it("offers exact and find product-entry modes without Demo options", () => {
+    expect(intake).toContain('data-testid="mode-exact"');
+    expect(intake).toContain('data-testid="mode-find"');
+    expect(intake).not.toMatch(/Demo options/i);
+    expect(intake).not.toMatch(/input-scenario/);
+  });
 });
