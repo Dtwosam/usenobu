@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { evaluateProductMatches, type MatchableOffer } from "../../src/matching/index.js";
-import { runLivePriceCheck, confirmPurchaseCandidate } from "../../src/web/purchase-service.js";
+import { createPurchaseFlow, runLivePriceCheck, confirmPurchaseCandidate } from "../../src/web/purchase-service.js";
 import { getWebDatabase, resetWebDatabaseCache } from "../../src/web/db.js";
 import { saveEnrollmentDiscovery } from "../../src/web/discovery-store.js";
 
@@ -105,6 +105,85 @@ afterEach(() => {
 });
 
 describe("server-side candidate confirmation", () => {
+  it("locks user-provided exact Target identity when live discovery has no strong provider candidate", async () => {
+    const prevForce = process.env.NOBU_FORCE_LIVE_CHECKS;
+    const prevSerp = process.env.SERPAPI_API_KEY;
+    const prevSerpAlt = process.env.SERP_API_KEY;
+    process.env.NOBU_FORCE_LIVE_CHECKS = "1";
+    process.env.SERPAPI_API_KEY = "";
+    process.env.SERP_API_KEY = "";
+    try {
+      const created = await createPurchaseFlow({
+        target_product_url:
+          "https://www.target.com/p/apple-airtag-bluetooth-tracker/-/A-54191097",
+        target_item_id: "54191097",
+        purchase_price: "35",
+        purchase_date: "2026-07-18",
+        region: "TX",
+      });
+
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("purchase creation failed");
+      expect(created.evaluation.decision).toBe("EXACT_MATCH_CANDIDATE");
+      expect(created.evaluation.reasons).toContain(
+        "user_provided_purchase_identity",
+      );
+      expect(created.evaluation.exact_candidate?.offer.observed_price).toBeNull();
+      expect(created.evaluation.exact_candidate?.offer.seller_kind).toBe("target");
+
+      const before = await runLivePriceCheck(created.purchase_id, {
+        fetchObservation: async () => {
+          throw new Error("monitoring should not run before confirmation");
+        },
+        now: NOW,
+      });
+      expect(before).toMatchObject({ ok: false, error: "not_confirmed" });
+
+      const confirmNow = new Date(
+        created.evaluation.exact_candidate!.offer.observed_at!,
+      );
+      const confirmed = confirmPurchaseCandidate({
+        purchase_id: created.purchase_id,
+        candidate_id: created.evaluation.exact_candidate!.candidate_id,
+        now: confirmNow,
+      });
+      expect(confirmed.ok).toBe(true);
+
+      const after = await runLivePriceCheck(created.purchase_id, {
+        fetchObservation: async () => ({
+          offers: [
+            {
+              offer_id: "live-airtag",
+              title: "Apple AirTag Bluetooth Tracker",
+              seller_kind: "target",
+              seller_text: "Target",
+              is_target_plus: false,
+              merchant_link:
+                "https://www.target.com/p/apple-airtag-bluetooth-tracker/-/A-54191097",
+              target_item_id: "54191097",
+              observed_price: 29.99,
+              currency: "USD",
+            },
+          ],
+          provider_status: "LIVE_TARGET_MATCH",
+          consumed_search: true,
+        }),
+        now: NOW,
+      });
+      expect(after.ok).toBe(true);
+      if (after.ok) {
+        expect(after.batch.alerts_created).toBe(1);
+        expect(after.batch.results[0]?.observed_price).toBe(29.99);
+      }
+    } finally {
+      if (prevForce === undefined) delete process.env.NOBU_FORCE_LIVE_CHECKS;
+      else process.env.NOBU_FORCE_LIVE_CHECKS = prevForce;
+      if (prevSerp === undefined) delete process.env.SERPAPI_API_KEY;
+      else process.env.SERPAPI_API_KEY = prevSerp;
+      if (prevSerpAlt === undefined) delete process.env.SERP_API_KEY;
+      else process.env.SERP_API_KEY = prevSerpAlt;
+    }
+  });
   it("locks only a fresh server-stored exact Target candidate after explicit confirmation", async () => {
     seedPurchase();
     const evaluation = saveDiscovery([targetOffer()]);

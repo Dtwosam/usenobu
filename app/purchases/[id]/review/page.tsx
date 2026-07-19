@@ -1,7 +1,10 @@
 import { confirmCandidateAction } from "@/web/actions";
 import { reviewError } from "@/web/error-copy";
 import { formatUsd, matchDecisionLabel } from "@/web/status-copy";
-import { getPurchaseDetail } from "@/web/purchase-service";
+import {
+  getPurchaseDetail,
+  USER_PROVIDED_PURCHASE_IDENTITY_REASON,
+} from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
 import { getWebDatabase } from "@/web/db";
 import { loadEnrollmentDiscovery } from "@/web/discovery-store";
@@ -250,8 +253,9 @@ export default async function ReviewPage({
                     </summary>
                     <div className="n-disclosure__body muted">
                       <p>
-                        Source: third-party shopping observation (SerpApi Google
-                        Shopping) — not an official Target API.
+                        Source: {c.reasons.includes(USER_PROVIDED_PURCHASE_IDENTITY_REASON)
+                          ? "user-provided exact Target identity - no current price observed yet"
+                          : "third-party shopping observation (SerpApi Google Shopping) - not an official Target API"}
                       </p>
                       <p>Candidate id: {c.candidate_id}</p>
                       <p>Seller: {c.offer.seller_text}</p>
@@ -369,8 +373,7 @@ export default async function ReviewPage({
 
       <InlineNotice tone="info">
         <p>
-          Prices are third-party shopping observations, not official Target
-          prices. Target makes the final adjustment decision.
+          When shown, prices are third-party shopping observations, not official Target prices. Identity-only confirmations still require later price observations to match the locked fingerprint. Target makes the final adjustment decision.
         </p>
       </InlineNotice>
     </div>

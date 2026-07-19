@@ -13,6 +13,8 @@ import {
   confirmAndPersistLockedFingerprint,
   evaluateProductMatches,
   isStrongMatchTier,
+  MatchDecision,
+  type MatchableOffer,
   type MatchEvaluationResult,
   type PurchaseMatchReference,
 } from "../matching/index.js";
@@ -65,6 +67,78 @@ function isFreshEnrollmentCandidate(createdAt: string, now = new Date()): boolea
   if (!Number.isFinite(t)) return false;
   const age = now.getTime() - t;
   return age >= 0 && age <= ENROLLMENT_CANDIDATE_MAX_AGE_MS;
+}
+
+export const USER_PROVIDED_PURCHASE_IDENTITY_REASON =
+  "user_provided_purchase_identity";
+
+function hasConfirmableCandidate(evaluation: MatchEvaluationResult): boolean {
+  const exact = evaluation.exact_candidate;
+  return (
+    evaluation.decision === MatchDecision.EXACT_MATCH_CANDIDATE &&
+    Boolean(exact) &&
+    !exact?.title_only &&
+    Boolean(exact && isStrongMatchTier(exact.tier))
+  );
+}
+
+function buildUserProvidedIdentityEvaluation(args: {
+  ref: PurchaseMatchReference;
+  now: string;
+}): { evaluation: MatchEvaluationResult; offers: MatchableOffer[] } {
+  const offer: MatchableOffer = {
+    offer_id: `user_identity_${newId("offer").replace(/^offer_/, "")}`,
+    title:
+      args.ref.product_title ||
+      (args.ref.target_item_id
+        ? `Target item ${args.ref.target_item_id}`
+        : "User-confirmed Target product"),
+    seller_kind: "target",
+    seller_text: "Target (user-provided exact identity)",
+    is_target_plus: false,
+    merchant_link: args.ref.target_product_url,
+    product_link: args.ref.target_product_url,
+    link: args.ref.target_product_url,
+    target_item_id: args.ref.target_item_id ?? undefined,
+    model_number: args.ref.model_number ?? undefined,
+    upc_or_gtin: args.ref.upc_or_gtin ?? undefined,
+    observed_price: null,
+    currency: "USD",
+    observed_at: args.now,
+  };
+
+  const evaluated = evaluateProductMatches(args.ref, [offer]);
+  if (!hasConfirmableCandidate(evaluated)) {
+    return { evaluation: evaluated, offers: [offer] };
+  }
+  const exact = evaluated.exact_candidate!;
+  const exactWithSource = {
+    ...exact,
+    reasons: [USER_PROVIDED_PURCHASE_IDENTITY_REASON, ...exact.reasons],
+  };
+  return {
+    evaluation: {
+      ...evaluated,
+      reasons: [USER_PROVIDED_PURCHASE_IDENTITY_REASON, ...evaluated.reasons],
+      candidates: evaluated.candidates.map((c) =>
+        c.candidate_id === exact.candidate_id ? exactWithSource : c,
+      ),
+      exact_candidate: exactWithSource,
+    },
+    offers: [offer],
+  };
+}
+
+function preferUserProvidedIdentityWhenNeeded(args: {
+  ref: PurchaseMatchReference;
+  now: string;
+  evaluation: MatchEvaluationResult;
+  offers: MatchableOffer[];
+}): { evaluation: MatchEvaluationResult; offers: MatchableOffer[] } {
+  if (hasConfirmableCandidate(args.evaluation)) {
+    return { evaluation: args.evaluation, offers: args.offers };
+  }
+  return buildUserProvidedIdentityEvaluation({ ref: args.ref, now: args.now });
 }
 
 /**
@@ -276,14 +350,17 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
 
   const live = await discoverLiveTargetCandidates(ref);
   if (!live.ok) {
-    const emptyEval = evaluateProductMatches(ref, []);
+    const identityDiscovery = buildUserProvidedIdentityEvaluation({
+      ref,
+      now,
+    });
     saveEnrollmentDiscovery(db, {
       purchase_id: purchaseId,
       data_source: "LIVE",
       query: live.query ?? null,
       provider_status: live.provider_status ?? live.error,
-      evaluation: emptyEval,
-      offers: [],
+      evaluation: identityDiscovery.evaluation,
+      offers: identityDiscovery.offers,
       diagnostics: live.diagnostics ?? null,
       created_at: now,
     });
@@ -292,8 +369,8 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       purchase_id: purchaseId,
       purchase: input,
       product_title: productTitle ?? null,
-      evaluation: emptyEval,
-      offers: [],
+      evaluation: identityDiscovery.evaluation,
+      offers: identityDiscovery.offers,
       data_source: "LIVE" as const,
       discovery_error: live.error,
       discovery_message: live.message,
@@ -301,13 +378,20 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     };
   }
 
+  const discovery = preferUserProvidedIdentityWhenNeeded({
+    ref,
+    now,
+    evaluation: live.evaluation,
+    offers: live.offers,
+  });
+
   saveEnrollmentDiscovery(db, {
     purchase_id: purchaseId,
     data_source: "LIVE",
     query: live.query,
     provider_status: live.provider_status,
-    evaluation: live.evaluation,
-    offers: live.offers,
+    evaluation: discovery.evaluation,
+    offers: discovery.offers,
     diagnostics: live.diagnostics,
     created_at: now,
   });
@@ -317,8 +401,8 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     purchase_id: purchaseId,
     purchase: input,
     product_title: productTitle ?? null,
-    evaluation: live.evaluation,
-    offers: live.offers,
+    evaluation: discovery.evaluation,
+    offers: discovery.offers,
     data_source: "LIVE" as const,
     discovery_query: live.query,
     policy_window_deadline: deadline,
