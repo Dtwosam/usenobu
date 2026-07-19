@@ -1,0 +1,23 @@
+﻿{
+    "change":  "avatar_only",
+    "avatarUploadUrl":  "https://static.okx.com/cdn/web3/wallet/marketplace/headimages/agent/avatar/60657556-8076-4fa6-b5bc-4789c9983f64.png",
+    "agentId":  "5541",
+    "updateTxHash":  "0xf664d1417f4fc5cbf8a0d94f4655eb1b58a201c497f6556ad385de140870a51f",
+    "name":  "Nobu",
+    "preserved":  {
+                      "fee":  0,
+                      "endpoint":  "https://usenobu.vercel.app/v1/agent",
+                      "name":  "Nobu",
+                      "agentId":  "5541",
+                      "serviceType":  "A2MCP"
+                  },
+    "newAgentCreated":  false,
+    "submitApprovalSuccess":  true,
+    "verdict":  "NOBU_LANE_8_PENDING_REVIEW",
+    "submitApprovalStatus":  2,
+    "submitApprovalLabel":  "Listing under review",
+    "role":  "ASP",
+    "note":  "Prior reject reason appeared on activate.success=false payload; submitApproval.success=true with approvalStatus=2 indicates resubmission accepted for review.",
+    "date":  "2026-07-17",
+    "updateNewAgentId":  null
+}

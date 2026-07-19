@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "data": {
+    "activate": {
+      "approvalStatus": 5,
+      "rejectReason": "Prior rejection (avatar quality/dimensions) returned on activate object; superseded by submitApproval below.",
+      "success": false
+    },
+    "submitApproval": [
+      {
+        "approvalStatus": 2,
+        "success": true
+      }
+    ]
+  }
+}
