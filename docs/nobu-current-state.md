@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-19
-**Status:** LANE 7.3A PASS - PURCHASE INTAKE UX + MULTI-CANDIDATE DISCOVERY; NEXT LANE 7.3B
+**Status:** LANE 7.3A.1 PASS - ADAPTIVE PRODUCT DISCOVERY (NO MODE SELECTOR); NEXT LANE 8 REVIEWER MONITORING
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)
@@ -13,6 +13,8 @@
 **Review-Safe Sprint A.3:** **NOBU_REVIEW_SAFE_A_3_PASS** (policy freshness + live Conair closeout; no_match is fail-closed, not accepted price)
 
 **Lane 7.3A purchase intake UX + multi-candidate discovery:** **PASS** - exact mode accepts Target URL alone or TCIN alone; Fill with AI no longer demands a URL when TCIN is valid; link-derived provisional titles with SerpApi enrichment; Demo options removed from production form; uncertain-product mode returns bounded Target multi-candidates with offer_id preserved through cookie snapshot; monitoring remains confirmation-gated. Local proof: 317 unit tests, typecheck, build, Playwright consumer-flow. Evidence: `docs/proof/lane-7-3a-purchase-intake/`.
+
+**Lane 7.3A.1 adaptive product discovery:** **PASS** - mode selector removed; one product-details form; Find my product gated on usable product clue; adaptive single/multi/no-results review with radio selection UI; no auto-select or auto-confirm; monitoring still fingerprint-locked. Evidence: `docs/proof/lane-7-3a-1-adaptive/`.
 
 ## Locked decisions
 
@@ -90,7 +92,8 @@ publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
 
 ## Next active lane
 
-**Lane 7.3B — consented email price-drop notifications** is the exact next product lane after 7.3A.
-**Lane 8** remains pending OKX ASP approval (do not resubmit while under review). Then: **Lane 9 — Demo and submission closeout**.
+**Lane 8 — reviewer-status monitoring** is the exact next lane after 7.3A.1.
+**Lane 7.3B — consented email price-drop notifications** remains queued separately.
+Then: **Lane 9 — Demo and submission closeout**.
 
-Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`, `docs/proof/lane-7-3a-purchase-intake/`
+Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`, `docs/proof/lane-7-3a-purchase-intake/`, `docs/proof/lane-7-3a-1-adaptive/`

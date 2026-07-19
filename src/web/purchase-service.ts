@@ -51,11 +51,15 @@ import {
   provisionalTitleFromTargetUrl,
 } from "./exact-identity.js";
 import {
+  assessProductClues,
+  canSubmitFindProduct,
+} from "./product-clue.js";
+import {
   isTargetComUrl,
   parseTargetProductUrl,
 } from "../matching/identity.js";
 
-/** Product entry mode on the consumer form. */
+/** @deprecated Lane 7.3A.1 — adaptive flow; retained for test compatibility only. */
 export type ProductEntryMode = "exact" | "find";
 
 export interface CreatePurchaseInput {
@@ -67,16 +71,13 @@ export interface CreatePurchaseInput {
   target_item_id?: string;
   upc_or_gtin?: string;
   product_title?: string;
-  /** Uncertain-product free-text description (find mode). */
+  /** Free-text product title or description (adaptive discovery). */
   product_description?: string;
   color?: string;
   size?: string;
   quantity?: string;
   brand?: string;
-  /**
-   * exact = URL and/or TCIN identity.
-   * find = description-first multi-candidate discovery.
-   */
+  /** @deprecated Ignored — discovery is adaptive from supplied clues. */
   product_entry_mode?: ProductEntryMode;
   /**
    * Demo fixture scenario — only applied when fixture discovery gate is open.
@@ -217,12 +218,14 @@ const PENDING_DISCOVERY_URL =
   "https://www.target.com/p/pending-identity-discovery";
 
 /**
- * Create purchase + discover Target product candidates.
+ * Create purchase + discover Target product candidates (adaptive).
  * Production: live SerpApi (never silent fixtures).
  * Tests/e2e with fixture gate: fixture offers only.
  *
- * Exact mode: Target URL and/or TCIN.
- * Find mode: description-first multi-candidate discovery.
+ * User supplies whatever clues they have. Nobu resolves:
+ * - one high-confidence candidate (exact identity evidence),
+ * - several plausible Target candidates, or
+ * - insufficient / no useful results.
  */
 export async function createPurchaseFlow(raw: CreatePurchaseInput) {
   const db = getWebDatabase();
@@ -233,21 +236,29 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       ? resolveFixtureScenario(raw.fixture_scenario)
       : "exact_match";
 
-  const entryMode: ProductEntryMode =
-    raw.product_entry_mode === "find" ? "find" : "exact";
-
   // Live enrollment: never let pre-repair Example Widget defaults ride through.
   // Fixture gate still uses demo identity intentionally for e2e/demo scenarios.
   let intake: CreatePurchaseInput = raw;
-  if (discoveryMode === "LIVE" && entryMode === "exact") {
+  if (discoveryMode === "LIVE") {
     const scrubbed = scrubDemoDefaults({
       target_product_url: raw.target_product_url,
       target_item_id: raw.target_item_id,
       model_number: raw.model_number,
-      product_title: raw.product_title,
+      product_title: raw.product_title || raw.product_description,
       upc_or_gtin: raw.upc_or_gtin,
     });
-    if (isUnusableAfterDemoScrub(scrubbed)) {
+    // Only treat as outdated demo when the scrub left zero usable clues
+    const afterScrubClues = assessProductClues({
+      target_product_url: scrubbed.target_product_url,
+      target_item_id: scrubbed.target_item_id,
+      model_number: scrubbed.model_number,
+      product_title: scrubbed.product_title,
+      upc_or_gtin: scrubbed.upc_or_gtin,
+    });
+    if (
+      isUnusableAfterDemoScrub(scrubbed) &&
+      !afterScrubClues.has_usable_clue
+    ) {
       return {
         ok: false as const,
         error: "outdated_demo_draft",
@@ -264,40 +275,62 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     };
   }
 
+  // Server-side gate: price, date, and at least one usable product clue
+  const gate = canSubmitFindProduct({
+    purchase_price: intake.purchase_price,
+    purchase_date: intake.purchase_date,
+    region: intake.region,
+    clues: {
+      product_title: intake.product_title,
+      product_description: intake.product_description,
+      target_product_url: intake.target_product_url,
+      target_item_id: intake.target_item_id,
+      model_number: intake.model_number,
+      upc_or_gtin: intake.upc_or_gtin,
+    },
+  });
+  if (!gate.ok) {
+    return {
+      ok: false as const,
+      error: "insufficient_product_clue",
+      status: "clue",
+      message: gate.reason,
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+
+  const clues = assessProductClues({
+    product_title: intake.product_title,
+    product_description: intake.product_description,
+    target_product_url: intake.target_product_url,
+    target_item_id: intake.target_item_id,
+    model_number: intake.model_number,
+    upc_or_gtin: intake.upc_or_gtin,
+  });
+
   let productTitle: string | null | undefined =
-    intake.product_title || intake.product_description || undefined;
+    intake.product_title || intake.product_description || clues.description || undefined;
   let provisionalTitle: string | null = null;
   let storedUrl: string;
   let storedTcin: string | undefined;
 
-  if (entryMode === "exact") {
+  if (clues.has_exact_identity) {
     const identity = evaluateExactIdentity({
       target_product_url: intake.target_product_url,
       target_item_id: intake.target_item_id,
       model_number: intake.model_number,
       upc_or_gtin: intake.upc_or_gtin,
     });
-    if (!identity.ok) {
-      const status = identity.errors.target_item_id
-        ? "tcin"
-        : identity.errors.target_product_url
-          ? identity.errors.target_product_url.includes("valid")
+    if (!identity.ok || !identity.effective_url || !identity.effective_tcin) {
+      return {
+        ok: false as const,
+        error: "missing_exact_identity",
+        status: identity.errors.target_item_id
+          ? "tcin"
+          : identity.errors.target_product_url
             ? "INVALID_TARGET_URL"
-            : "url"
-          : "identity";
-      return {
-        ok: false as const,
-        error: "missing_exact_identity",
-        status,
+            : "identity",
         identity_errors: identity.errors,
-        fixture_banner: FIXTURE_BANNER,
-      };
-    }
-    if (!identity.effective_url || !identity.effective_tcin) {
-      return {
-        ok: false as const,
-        error: "missing_exact_identity",
-        status: "identity",
         fixture_banner: FIXTURE_BANNER,
       };
     }
@@ -307,10 +340,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       identity.provisional_title ||
       provisionalTitleFromTargetUrl(intake.target_product_url) ||
       provisionalTitleFromTcin(storedTcin);
-    // Link-derived provisional until third-party enrichment improves it
-    if (!productTitle) {
-      productTitle = provisionalTitle;
-    }
+    if (!productTitle) productTitle = provisionalTitle;
     intake = {
       ...intake,
       target_product_url: storedUrl,
@@ -318,41 +348,20 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       product_title: productTitle || undefined,
     };
   } else {
-    // Uncertain / find mode — description required; exact URL/TCIN optional
-    const description = String(
-      intake.product_description || intake.product_title || "",
-    ).trim();
-    if (description.length < 3) {
-      return {
-        ok: false as const,
-        error: "missing_product_description",
-        status: "description",
-        fixture_banner: FIXTURE_BANNER,
-      };
-    }
-    productTitle = description;
-    provisionalTitle = description;
-
-    // If user also supplied exact identity in find mode, prefer it for matching
-    const identity = evaluateExactIdentity({
-      target_product_url: intake.target_product_url,
-      target_item_id: intake.target_item_id,
-      model_number: intake.model_number,
-      upc_or_gtin: intake.upc_or_gtin,
-    });
-    if (identity.ok && identity.effective_url && identity.effective_tcin) {
-      storedUrl = identity.effective_url;
-      storedTcin = identity.effective_tcin;
-    } else {
-      // Pending identity until user confirms a discovery candidate
-      storedUrl = PENDING_DISCOVERY_URL;
-      storedTcin = undefined;
-    }
+    // Soft clues only (description / model / UPC) — pending URL until confirm
+    productTitle =
+      productTitle ||
+      clues.description ||
+      (intake.model_number ? `Model ${intake.model_number}` : undefined) ||
+      (intake.upc_or_gtin ? `UPC ${intake.upc_or_gtin}` : undefined);
+    provisionalTitle = productTitle || null;
+    storedUrl = PENDING_DISCOVERY_URL;
+    storedTcin = undefined;
     intake = {
       ...intake,
       target_product_url: storedUrl,
       target_item_id: storedTcin,
-      product_title: productTitle,
+      product_title: productTitle || undefined,
     };
   }
 
@@ -458,14 +467,14 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     quantity: intake.quantity || undefined,
   };
 
-  const useUncertainDiscovery =
-    entryMode === "find" && !purchaseHasExactIdentity(ref);
+  // Adaptive: multi-candidate presentation when no strong purchase identity
+  const useMultiCandidateDiscovery = !purchaseHasExactIdentity(ref);
 
   // --- Discovery: LIVE production vs FIXTURE test/e2e only ---
   if (discoveryMode === "FIXTURE") {
-    // Prefer multi_candidate fixtures for uncertain find mode when not overridden
+    // Prefer multi_candidate fixtures when identity is soft and scenario default
     const fixtureScenario: FixtureScenario =
-      useUncertainDiscovery && scenario === "exact_match"
+      useMultiCandidateDiscovery && scenario === "exact_match"
         ? "multi_candidate"
         : scenario;
     const offers = buildFixtureOffers({
@@ -475,7 +484,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       model_number: input.model_number,
       product_title: productTitle || undefined,
     });
-    const evaluation: MatchEvaluationResult = useUncertainDiscovery
+    const evaluation: MatchEvaluationResult = useMultiCandidateDiscovery
       ? evaluateUncertainProductDiscovery(ref, offers)
       : evaluateProductMatches(ref, offers);
     const enrichedTitle = enrichProductTitle({
@@ -486,8 +495,8 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     saveEnrollmentDiscovery(db, {
       purchase_id: purchaseId,
       data_source: "FIXTURE",
-      query: useUncertainDiscovery
-        ? "fixture-uncertain-discovery"
+      query: useMultiCandidateDiscovery
+        ? "fixture-adaptive-discovery"
         : "fixture-discovery",
       provider_status: "FIXTURE",
       evaluation,
@@ -502,7 +511,9 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       evaluation,
       offers,
       data_source: "FIXTURE" as const,
-      entry_mode: entryMode,
+      discovery_kind: useMultiCandidateDiscovery
+        ? ("multi_candidate" as const)
+        : ("exact_identity" as const),
       fixture_banner: FIXTURE_BANNER,
       policy_window_deadline: deadline,
     };
@@ -510,8 +521,8 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
 
   const live = await discoverLiveTargetCandidates(ref);
   if (!live.ok) {
-    if (useUncertainDiscovery) {
-      // Uncertain mode without provider results — empty multi-candidate list
+    if (useMultiCandidateDiscovery) {
+      // Soft clues without provider results — empty candidate list (no-results)
       const emptyEval = evaluateUncertainProductDiscovery(ref, []);
       saveEnrollmentDiscovery(db, {
         purchase_id: purchaseId,
@@ -531,13 +542,13 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
         evaluation: emptyEval,
         offers: [] as MatchableOffer[],
         data_source: "LIVE" as const,
-        entry_mode: entryMode,
+        discovery_kind: "no_results" as const,
         discovery_error: live.error,
         discovery_message: live.message,
         policy_window_deadline: deadline,
       };
     }
-    // Exact mode: fall back to user-provided identity candidate
+    // Strong user identity: fall back to user-provided identity candidate
     const identityDiscovery = buildUserProvidedIdentityEvaluation({
       ref: {
         ...ref,
@@ -562,20 +573,18 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       ok: true as const,
       purchase_id: purchaseId,
       purchase: input,
-      // Preserve link-derived fallback when provider fails
-      product_title:
-        productTitle || provisionalTitle || null,
+      product_title: productTitle || provisionalTitle || null,
       evaluation: identityDiscovery.evaluation,
       offers: identityDiscovery.offers,
       data_source: "LIVE" as const,
-      entry_mode: entryMode,
+      discovery_kind: "exact_identity" as const,
       discovery_error: live.error,
       discovery_message: live.message,
       policy_window_deadline: deadline,
     };
   }
 
-  if (useUncertainDiscovery) {
+  if (useMultiCandidateDiscovery) {
     const evaluation = evaluateUncertainProductDiscovery(ref, live.offers);
     const enrichedTitle = enrichProductTitle({
       current: productTitle,
@@ -600,7 +609,12 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       evaluation,
       offers: live.offers,
       data_source: "LIVE" as const,
-      entry_mode: entryMode,
+      discovery_kind:
+        evaluation.candidates.length === 0
+          ? ("no_results" as const)
+          : evaluation.exact_candidate
+            ? ("single" as const)
+            : ("multi_candidate" as const),
       discovery_query: live.query,
       policy_window_deadline: deadline,
     };
@@ -643,7 +657,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     evaluation: discovery.evaluation,
     offers: discovery.offers,
     data_source: "LIVE" as const,
-    entry_mode: entryMode,
+    discovery_kind: "exact_identity" as const,
     discovery_query: live.query,
     policy_window_deadline: deadline,
   };

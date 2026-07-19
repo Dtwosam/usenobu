@@ -250,11 +250,17 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
       "data-decision",
       "MATCH_REVIEW_REQUIRED",
     );
-    await expect(page.getByTestId("cannot-confirm")).toBeVisible();
-    await expect(page.getByTestId("cannot-confirm")).toContainText(
-      "We need a little more detail",
-    );
-    await expect(page.getByTestId("confirm-candidate")).toHaveCount(0);
+    // Adaptive multi-match: user must select — no auto-confirm
+    const multi = page.getByTestId("multi-result-stage");
+    const cannot = page.getByTestId("cannot-confirm");
+    if ((await multi.count()) > 0) {
+      await expect(multi).toBeVisible();
+      await expect(page.getByTestId("continue-selected")).toBeDisabled();
+      await expect(page.getByTestId("confirm-candidate")).toHaveCount(0);
+    } else {
+      await expect(cannot).toBeVisible();
+      await expect(page.getByTestId("confirm-candidate")).toHaveCount(0);
+    }
     await page.screenshot({
       path: path.join(SCREEN_DIR, "mobile-ambiguous.png"),
       fullPage: true,
@@ -287,7 +293,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
       .fill(new Date().toISOString().slice(0, 10));
     await expect(page.getByTestId("submit-purchase")).toBeEnabled();
     await expect(page.getByTestId("identity-progressive-note")).toContainText(
-      "it will ask for one extra detail",
+      "choose the exact one",
     );
   });
 

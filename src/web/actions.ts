@@ -76,8 +76,6 @@ function purchaseErrorRedirect(formData: FormData, error: string, status = "") {
     color: formString(formData, "color"),
     size: formString(formData, "size"),
     quantity: formString(formData, "quantity"),
-    product_entry_mode:
-      formString(formData, "product_entry_mode") === "find" ? "find" : "exact",
   });
   redirect(`/purchases/new?${q.toString()}`);
 }
@@ -85,9 +83,6 @@ function purchaseErrorRedirect(formData: FormData, error: string, status = "") {
 export async function submitPurchaseAction(formData: FormData) {
   try {
     const db = await prepareActionDb();
-
-    const entryMode =
-      formString(formData, "product_entry_mode") === "find" ? "find" : "exact";
 
     // Fixture scenario is never shown in production UI. Only honor it when the
     // server fixture gate is open (tests/e2e inject a hidden field or env).
@@ -106,12 +101,13 @@ export async function submitPurchaseAction(formData: FormData) {
       upc_or_gtin: formString(formData, "upc_or_gtin") || undefined,
       product_title: formString(formData, "product_title") || undefined,
       product_description:
-        formString(formData, "product_description") || undefined,
+        formString(formData, "product_description") ||
+        formString(formData, "product_title") ||
+        undefined,
       brand: formString(formData, "brand") || undefined,
       color: formString(formData, "color") || undefined,
       size: formString(formData, "size") || undefined,
       quantity: formString(formData, "quantity") || undefined,
-      product_entry_mode: entryMode,
       fixture_scenario: fixtureScenario,
     });
 
@@ -120,13 +116,15 @@ export async function submitPurchaseAction(formData: FormData) {
       console.info("submitPurchaseAction_result", {
         ok: false,
         error: result.error,
-        entry_mode: entryMode,
         has_tcin: Boolean(formString(formData, "target_item_id")),
         has_model: Boolean(formString(formData, "model_number")),
         has_target_url: /target\.com/i.test(
           formString(formData, "target_product_url"),
         ),
-        has_description: Boolean(formString(formData, "product_description")),
+        has_description: Boolean(
+          formString(formData, "product_description") ||
+            formString(formData, "product_title"),
+        ),
       });
       const status =
         "status" in result && result.status
@@ -146,7 +144,8 @@ export async function submitPurchaseAction(formData: FormData) {
       ok: true,
       purchase_id: result.purchase_id,
       data_source: result.data_source,
-      entry_mode: entryMode,
+      discovery_kind:
+        "discovery_kind" in result ? result.discovery_kind : null,
       decision: result.evaluation?.decision ?? null,
       reasons: result.evaluation?.reasons?.slice(0, 4) ?? [],
       candidate_count: candidateCount,
@@ -186,7 +185,9 @@ export async function submitPurchaseAction(formData: FormData) {
         formString(formData, "product_description"),
     );
     qs.set("source", result.data_source ?? "LIVE");
-    qs.set("entry_mode", entryMode);
+    if ("discovery_kind" in result && result.discovery_kind) {
+      qs.set("discovery_kind", String(result.discovery_kind));
+    }
     const target = buildReviewRedirectPath(result.purchase_id, qs);
     if (!target) {
       purchaseErrorRedirect(formData, "save_failed", "bad_redirect_path");

@@ -22,11 +22,7 @@ export default async function NewPurchasePage({
     : null;
   const focusRegion = errorCode === "unsupported_or_ineligible";
   const showFixtureBanner = resolveDiscoveryDataSource() === "FIXTURE";
-  const entryMode =
-    sp.product_entry_mode === "find" ? "find" : "exact";
 
-  // Empty defaults — never seed demo Example Widget IDs into production discovery.
-  // Error redirects may repopulate from query params via val().
   const defaults = {
     url: val(sp, "target_product_url", ""),
     price: val(sp, "purchase_price", ""),
@@ -41,7 +37,6 @@ export default async function NewPurchasePage({
     color: val(sp, "color", ""),
     size: val(sp, "size", ""),
     quantity: val(sp, "quantity", ""),
-    entryMode: entryMode as "exact" | "find",
     showFixtureBanner,
   };
 

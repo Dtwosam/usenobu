@@ -49,7 +49,6 @@ afterEach(() => {
 describe("uncertain multi-candidate discovery", () => {
   it("accepts description-only identity input in find mode", async () => {
     const created = await createPurchaseFlow({
-      product_entry_mode: "find",
       product_description: "Apple AirPods",
       purchase_price: "99.99",
       purchase_date: "2026-07-18",
@@ -109,7 +108,6 @@ describe("uncertain multi-candidate discovery", () => {
 
   it("does not auto-confirm any discovery candidate", async () => {
     const created = await createPurchaseFlow({
-      product_entry_mode: "find",
       product_description: "Apple AirPods",
       purchase_price: "99.99",
       purchase_date: "2026-07-18",
@@ -131,7 +129,6 @@ describe("uncertain multi-candidate discovery", () => {
 
   it("confirms a stable selected identity and blocks title-only", async () => {
     const created = await createPurchaseFlow({
-      product_entry_mode: "find",
       product_description: "Apple AirPods",
       purchase_price: "99.99",
       purchase_date: "2026-07-18",
@@ -185,7 +182,6 @@ describe("uncertain multi-candidate discovery", () => {
 
   it("preserves offer_id through cookie snapshot compaction for multi-candidate", async () => {
     const created = await createPurchaseFlow({
-      product_entry_mode: "find",
       product_description: "Apple AirPods",
       purchase_price: "99.99",
       purchase_date: "2026-07-18",
@@ -222,9 +218,8 @@ describe("uncertain multi-candidate discovery", () => {
     expect(confirmed.ok).toBe(true);
   });
 
-  it("exact mode still accepts URL alone and TCIN alone", async () => {
+  it("adaptive flow still accepts URL alone and TCIN alone", async () => {
     const urlOnly = await createPurchaseFlow({
-      product_entry_mode: "exact",
       target_product_url:
         "https://www.target.com/p/example-widget/-/A-87654321",
       purchase_price: "24.99",
@@ -235,7 +230,6 @@ describe("uncertain multi-candidate discovery", () => {
     expect(urlOnly.ok).toBe(true);
 
     const tcinOnly = await createPurchaseFlow({
-      product_entry_mode: "exact",
       target_item_id: "87654321",
       purchase_price: "24.99",
       purchase_date: "2026-07-18",
@@ -249,6 +243,18 @@ describe("uncertain multi-candidate discovery", () => {
     }
   });
 
+  it("server rejects submission with no usable product clue", async () => {
+    const created = await createPurchaseFlow({
+      purchase_price: "24.99",
+      purchase_date: "2026-07-18",
+      region: "TX",
+    });
+    expect(created.ok).toBe(false);
+    if (!created.ok) {
+      expect(created.error).toBe("insufficient_product_clue");
+    }
+  });
+
   it("provider failure does not erase link-derived title fallback on exact identity", async () => {
     const prevForce = process.env.NOBU_FORCE_LIVE_CHECKS;
     const prevSerp = process.env.SERPAPI_API_KEY;
@@ -258,7 +264,6 @@ describe("uncertain multi-candidate discovery", () => {
     delete process.env.NOBU_FIXTURE_MODE;
     try {
       const created = await createPurchaseFlow({
-        product_entry_mode: "exact",
         target_product_url:
           "https://www.target.com/p/apple-airtag-bluetooth-tracker/-/A-54191097",
         purchase_price: "35",
@@ -267,7 +272,6 @@ describe("uncertain multi-candidate discovery", () => {
       });
       expect(created.ok).toBe(true);
       if (!created.ok) throw new Error("create failed");
-      // Link-derived provisional title remains when provider is unavailable
       expect(String(created.product_title ?? "")).toMatch(/airtag|Target item/i);
       expect(created.evaluation.reasons).toContain(
         "user_provided_purchase_identity",
@@ -283,8 +287,8 @@ describe("uncertain multi-candidate discovery", () => {
   });
 });
 
-describe("production form has no demo options control", () => {
-  it("purchase form source does not render Demo options", () => {
+describe("production form has no demo options or mode selector", () => {
+  it("purchase form source does not render Demo options or mode controls", () => {
     const formPath = path.join(
       process.cwd(),
       "app",
@@ -296,7 +300,8 @@ describe("production form has no demo options control", () => {
     expect(src).not.toMatch(/Demo options/i);
     expect(src).not.toMatch(/input-scenario/);
     expect(src).not.toMatch(/fixture_scenario/);
-    expect(src).toMatch(/mode-exact/);
-    expect(src).toMatch(/mode-find/);
+    expect(src).not.toMatch(/mode-exact/);
+    expect(src).not.toMatch(/mode-find/);
+    expect(src).toMatch(/product-details-section/);
   });
 });

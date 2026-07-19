@@ -125,7 +125,20 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** focused form/AI-fill, uncertain discovery, candidate-confirmation, session-snapshot, matching, monitoring, SerpApi normalization, full unit suite (317), typecheck, build, Playwright consumer-flow pass. Evidence: `docs/proof/lane-7-3a-purchase-intake/`.
 
-## Lane 7.3B — Consented email price-drop notifications (next)
+## Lane 7.3A.1 - Adaptive product discovery (no mode selector) COMPLETE
+
+- Remove exact/find mode selector from `/purchases/new`.
+- One unified product-details section: title, URL, TCIN, model, UPC, colour, size, quantity, price, date, channel/location.
+- Find my product gated until price, date, and at least one usable product clue.
+- Adaptive discovery: one strong candidate, 3–5 multi-candidate selection, or insufficient/no-results.
+- Multi-candidate radio cards with sticky continue; final confirmation still required; no auto-select/confirm.
+- Monitoring remains fingerprint-locked and fail-closed.
+
+**Proof:** unit suite, adaptive Playwright, consumer-flow, typecheck, build, unique + canonical Vercel proof. Evidence: `docs/proof/lane-7-3a-1-adaptive/`.
+
+## Lane 7.3B — Consented email price-drop notifications (queued)
+
+## Return to Lane 8 — reviewer-status monitoring (next after 7.3A.1 PASS)
 
 ## Lane 7.5A — Global Nobu rename
 

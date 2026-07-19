@@ -25,9 +25,9 @@ import type {
 } from "./types.js";
 import type { NormalizedShoppingOffer } from "../serpapi/types.js";
 
-/** Bounded multi-candidate list for review (3–6 useful when available). */
+/** Bounded multi-candidate list for review (3–5 useful when available). */
 export const DISCOVERY_CANDIDATE_MIN = 3;
-export const DISCOVERY_CANDIDATE_MAX = 6;
+export const DISCOVERY_CANDIDATE_MAX = 5;
 
 function offerStableTcin(offer: MatchableOffer): string | null {
   return (

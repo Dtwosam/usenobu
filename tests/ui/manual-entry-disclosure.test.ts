@@ -27,16 +27,18 @@ describe("manual entry disclosure source contract", () => {
     expect(intake).toMatch(/setReviewed\(true\);\s*openManual/);
   });
 
-  it("keeps model and UPC as progressive fallback fields", () => {
-    expect(intake).toContain("Optional unless Nobu asks for one after discovery.");
+  it("keeps model and UPC optional in the adaptive product-details section", () => {
     expect(intake).toContain("identity-progressive-note");
+    expect(intake).toContain('hint="Optional"');
     expect(intake).not.toMatch(/id="model_number"[\s\S]{0,220}required/);
     expect(intake).not.toMatch(/id="upc_or_gtin"[\s\S]{0,220}required/);
   });
 
-  it("offers exact and find product-entry modes without Demo options", () => {
-    expect(intake).toContain('data-testid="mode-exact"');
-    expect(intake).toContain('data-testid="mode-find"');
+  it("uses one adaptive product-details section without mode selector or Demo options", () => {
+    expect(intake).toContain('data-testid="product-details-section"');
+    expect(intake).not.toMatch(/mode-exact/);
+    expect(intake).not.toMatch(/mode-find/);
+    expect(intake).not.toMatch(/How do you want to identify the product/i);
     expect(intake).not.toMatch(/Demo options/i);
     expect(intake).not.toMatch(/input-scenario/);
   });

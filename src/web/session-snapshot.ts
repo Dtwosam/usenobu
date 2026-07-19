@@ -95,7 +95,7 @@ function slimRow(row: Record<string, unknown>): Record<string, unknown> {
 }
 
 /** Max candidates kept in cookie snapshot (matches discovery bound). */
-const COOKIE_DISCOVERY_CANDIDATE_MAX = 6;
+const COOKIE_DISCOVERY_CANDIDATE_MAX = 5;
 
 type CompactCandidate = {
   candidate_id?: string;

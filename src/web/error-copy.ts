@@ -126,13 +126,13 @@ export function purchaseFormError(
     };
   }
 
-  if (code === "missing_product_description") {
+  if (code === "missing_product_description" || code === "insufficient_product_clue") {
     return {
       code,
-      heading: "Describe the product",
-      body: "To help find your product, Nobu needs a short product description along with the price and purchase date.",
+      heading: "Add one more product detail",
+      body: "Enter the product name, Target link, TCIN, model or UPC so Nobu can search for the correct item.",
       nextAction:
-        "Enter a description such as “Apple AirPods”, or switch to exact mode with a Target URL or TCIN.",
+        "Add at least one usable product detail, then try Find my product again.",
     };
   }
 
