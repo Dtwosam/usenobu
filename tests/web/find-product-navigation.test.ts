@@ -46,7 +46,7 @@ describe("purchase form navigation errors", () => {
   it("no_reliable_target uses the locked one-line discovery message", () => {
     const e = purchaseFormError("no_reliable_target");
     expect(e.body).toBe(
-      "Nobu could not find a reliable Target product right now.",
+      "Nobu could not confirm a current Target-sold offer from the third-party shopping results.",
     );
   });
 });

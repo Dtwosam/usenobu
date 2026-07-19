@@ -35,6 +35,23 @@ export function enrollmentAmbiguityCopy(input: AmbiguityCopyInput): AmbiguityCop
     };
   }
 
+  if (reasons.includes("title_only_insufficient")) {
+    if (!input.has_model) {
+      return {
+        heading: "Model number needed",
+        body: "Nobu found a likely Target result, but title similarity alone is not safe enough to confirm.",
+        nextAction: "Add the model number from your order or package, then try again.",
+      };
+    }
+    if (!input.has_upc) {
+      return {
+        heading: "UPC needed",
+        body: "Nobu found a likely Target result, but it still needs barcode identity to avoid the wrong item.",
+        nextAction: "Add the UPC or GTIN from your order or package, then try again.",
+      };
+    }
+  }
+
   // Has strong ids already but still no safe match
   const hasStrongId =
     Boolean(input.has_tcin) ||
@@ -45,8 +62,10 @@ export function enrollmentAmbiguityCopy(input: AmbiguityCopyInput): AmbiguityCop
   if (hasStrongId) {
     return {
       heading: "We need a little more detail",
-      body: "Nobu found several different Target products and could not safely choose one.",
-      nextAction: "Edit the product link or identifiers and try again.",
+      body: "Nobu found Target evidence, but it was not strong enough to lock one exact item.",
+      nextAction: input.has_model
+        ? "Add the UPC or GTIN if you have it, then try again."
+        : "Add the model number if you have it, then try again.",
     };
   }
 

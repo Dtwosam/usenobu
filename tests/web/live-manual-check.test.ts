@@ -160,6 +160,7 @@ describe("live manual check path (injected, fixture-labelled)", () => {
         purchase_id: purchaseId,
         user_ref: WEB_DEMO_USER_REF,
         prefer_fixture: false,
+        now: new Date(AS_OF),
         fetchObservation,
       });
       expect(called).toBe(1);
@@ -190,6 +191,7 @@ describe("live manual check path (injected, fixture-labelled)", () => {
         db,
         purchase_id: purchaseId,
         user_ref: WEB_DEMO_USER_REF,
+        now: new Date(AS_OF),
         fetchObservation: createLiveSerpApiObservationFetcher({
           searchImpl: async () => emptyShopping("PROVIDER_ERROR"),
         }),
@@ -214,6 +216,7 @@ describe("live manual check path (injected, fixture-labelled)", () => {
         db,
         purchase_id: purchaseId,
         user_ref: WEB_DEMO_USER_REF,
+        now: new Date(AS_OF),
         fetchObservation: createLiveSerpApiObservationFetcher({
           searchImpl: async () => emptyShopping("NO_TARGET_RESULT"),
         }),
@@ -304,6 +307,7 @@ describe("live manual check path (injected, fixture-labelled)", () => {
         db,
         purchase_id: purchaseId,
         user_ref: WEB_DEMO_USER_REF,
+        now: new Date(AS_OF),
         fetchObservation: createLiveSerpApiObservationFetcher({
           searchImpl: async () => lowerOffer,
         }),
@@ -325,6 +329,7 @@ describe("live manual check path (injected, fixture-labelled)", () => {
         db,
         purchase_id: purchaseId,
         user_ref: WEB_DEMO_USER_REF,
+        now: new Date(AS_OF),
         fetchObservation: createLiveSerpApiObservationFetcher({
           searchImpl: async () => lowerOffer,
         }),

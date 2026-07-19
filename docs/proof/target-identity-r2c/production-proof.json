@@ -1,0 +1,105 @@
+{
+  "at": "2026-07-19T14:20:20.165Z",
+  "base": "https://usenobu-bev5dnb2q-dtwoflicks-2878s-projects.vercel.app",
+  "provider_search_budget": {
+    "max_new_serpapi_searches": 2,
+    "consumed_exact": 2,
+    "note": "Exact count is read from proof-safe server-side discovery diagnostics rendered on the review page. A Google Shopping request and an Immersive Product request each count as one provider call."
+  },
+  "diagnostic_classification": "IDENTITY_EVIDENCE_INSUFFICIENT",
+  "health": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "service": "nobu-a2mcp",
+      "version": "1.0.0",
+      "checked_at": "2026-07-19T14:20:21.871Z",
+      "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+      "provider": "SerpApi",
+      "serpapi_configured": true,
+      "provider_ready": true,
+      "groq_configured": true,
+      "nobu_ai_model": "openai/gpt-oss-20b",
+      "policy_id": "target-us-online-price-match-v1",
+      "policy_version": "v1",
+      "policy_review_state": "CURRENT",
+      "policy_warning": null,
+      "policy_ops_store": "ok",
+      "policy_ops_store_kind": "postgres",
+      "note": "Free A2MCP health. Not an official Target API. serpapi_configured and groq_configured are boolean only — no secrets."
+    }
+  },
+  "agent_regression": {
+    "status": 404,
+    "body": {
+      "error": "not_found",
+      "message": "No purchase found for that id."
+    }
+  },
+  "fallback_retry": {
+    "url": "https://usenobu-bev5dnb2q-dtwoflicks-2878s-projects.vercel.app/purchases/new?error=unsupported_or_ineligible&status=UNSUPPORTED_PURCHASE&target_product_url=https%3A%2F%2Fwww.target.com%2Fp%2F-%2FA-85990992&purchase_price=35&purchase_date=2026-07-18&region=AK&model_number=&target_item_id=85990992&upc_or_gtin=&product_title=&fixture_scenario=exact_match",
+    "error_text": "This retailer isn’t supported yet\n\nNobu currently supports eligible Target.com purchases. Alaska and Hawaii are unsupported for this Target integration. Target Plus is not supported.\n\nNext: Track a Target purchase that meets the supported rules, or read how Nobu works.\n\nunsupported_or_ineligible",
+    "price_survived": true,
+    "date_survived": true,
+    "generic_product_not_found_removed": true,
+    "provider_searches_consumed": 0
+  },
+  "progressive_fallback_identity": {
+    "attempted": false,
+    "blocked_reason": "Provider-call budget was exhausted by URL-only discovery before UPC fallback.",
+    "identifier_type": "UPC",
+    "identifier_value_redacted": "195950******"
+  },
+  "target_url_tcin_resolution": {
+    "submitted_at": "2026-07-19T14:20:35.124Z",
+    "completed_at": "2026-07-19T14:21:10.095Z",
+    "target_url_contains_tcin": true,
+    "extracted_tcin": "85990992",
+    "input_required": [
+      "target_product_url",
+      "purchase_price",
+      "purchase_date"
+    ],
+    "model_supplied": false,
+    "upc_supplied": false,
+    "data_source": "LIVE",
+    "match_decision": "MATCH_REVIEW_REQUIRED",
+    "match_reasons": "Reasons: no_strong_match",
+    "diagnostics": {
+      "provider_calls_used": 2,
+      "shopping_results_count": 40,
+      "categorized_results_count": 0,
+      "target_source_results_count": 30,
+      "immersive_enrichment_used": true,
+      "immersive_offers_count": 0,
+      "target_offers_after_enrichment": 30,
+      "normalized_candidates_count": 30,
+      "strong_candidates_count": 0,
+      "rejection_reason_counts": {
+        "non_target_seller": 10
+      },
+      "final_discovery_reason": "no_strong_match",
+      "primary_cause": "IDENTITY_EVIDENCE_INSUFFICIENT",
+      "query_strategy_identifier": "tcin_primary"
+    },
+    "candidate_count": 0,
+    "confirm_title": null,
+    "confirm_visible": false,
+    "seller_evidence": null,
+    "identifiers_visible": {
+      "tcin": false,
+      "google_product_id_not_tcin_note": false
+    },
+    "immersive_enrichment_use": "used"
+  },
+  "upc_fallback_result": null,
+  "negative_fail_closed": {
+    "case": "non_target_domain",
+    "provider_searches_consumed": 0,
+    "blocked_before_submit": true,
+    "disabled_reason": "Add a TCIN or a Target product link that includes it.",
+    "clear_reason": true,
+    "generic_product_not_found_removed": true
+  },
+  "verdict": "BLOCKED"
+}

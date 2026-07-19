@@ -12,6 +12,7 @@ import { evaluateTargetPolicy } from "../policy/evaluate-target-policy.js";
 import {
   confirmAndPersistLockedFingerprint,
   evaluateProductMatches,
+  isStrongMatchTier,
   type MatchEvaluationResult,
   type PurchaseMatchReference,
 } from "../matching/index.js";
@@ -29,12 +30,16 @@ import {
   discoverLiveTargetCandidates,
   resolveDiscoveryDataSource,
 } from "./live-discovery.js";
-import { saveEnrollmentDiscovery } from "./discovery-store.js";
+import {
+  loadEnrollmentDiscovery,
+  saveEnrollmentDiscovery,
+} from "./discovery-store.js";
 import {
   isUnusableAfterDemoScrub,
   scrubDemoDefaults,
 } from "./demo-defaults.js";
 import { evaluateExactIdentity } from "./exact-identity.js";
+import { parseTargetProductUrl } from "../matching/identity.js";
 
 export interface CreatePurchaseInput {
   target_product_url: string;
@@ -51,6 +56,15 @@ export interface CreatePurchaseInput {
 
 function newId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+}
+
+export const ENROLLMENT_CANDIDATE_MAX_AGE_MS = 30 * 60 * 1000;
+
+function isFreshEnrollmentCandidate(createdAt: string, now = new Date()): boolean {
+  const t = Date.parse(createdAt);
+  if (!Number.isFinite(t)) return false;
+  const age = now.getTime() - t;
+  return age >= 0 && age <= ENROLLMENT_CANDIDATE_MAX_AGE_MS;
 }
 
 /**
@@ -91,7 +105,8 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     };
   }
 
-  // Consumer Find my product: Target URL + TCIN + (model or UPC). Does not alter A2MCP.
+  // Consumer Find my product: URL + price + date first. TCIN is derived from
+  // the supported Target URL; model/UPC are progressive fallback details.
   const identity = evaluateExactIdentity({
     target_product_url: intake.target_product_url,
     target_item_id: intake.target_item_id,
@@ -99,11 +114,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     upc_or_gtin: intake.upc_or_gtin,
   });
   if (!identity.ok) {
-    const status = identity.errors.model_or_upc
-      ? "model_or_upc"
-      : identity.errors.target_item_id
-        ? "tcin"
-        : "url";
+    const status = identity.errors.target_item_id ? "tcin" : "url";
     return {
       ok: false as const,
       error: "missing_exact_identity",
@@ -111,10 +122,23 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       fixture_banner: FIXTURE_BANNER,
     };
   }
-  // Prefer explicit TCIN; fill from trusted Target URL when user left TCIN blank.
-  if (!intake.target_item_id && identity.effective_tcin) {
-    intake = { ...intake, target_item_id: identity.effective_tcin };
+  const parsedTargetUrl = parseTargetProductUrl(intake.target_product_url);
+  if (!parsedTargetUrl.ok) {
+    return {
+      ok: false as const,
+      error: "missing_exact_identity",
+      status: parsedTargetUrl.code,
+      fixture_banner: FIXTURE_BANNER,
+    };
   }
+  // Preserve original user URL in the action redirect if needed, but store the
+  // normalized Target product URL and derived TCIN for deterministic matching.
+  intake = {
+    ...intake,
+    target_product_url: parsedTargetUrl.normalized_url,
+    target_item_id: intake.target_item_id || parsedTargetUrl.tcin,
+    product_title: intake.product_title || parsedTargetUrl.product_name || undefined,
+  };
 
   const parsed = safeParsePurchaseInput({
     target_product_url: intake.target_product_url,
@@ -260,6 +284,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
       provider_status: live.provider_status ?? live.error,
       evaluation: emptyEval,
       offers: [],
+      diagnostics: live.diagnostics ?? null,
       created_at: now,
     });
     return {
@@ -283,6 +308,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     provider_status: live.provider_status,
     evaluation: live.evaluation,
     offers: live.offers,
+    diagnostics: live.diagnostics,
     created_at: now,
   });
 
@@ -353,8 +379,9 @@ export function getPurchaseDetail(purchaseId: string) {
 
 export function confirmPurchaseCandidate(args: {
   purchase_id: string;
-  /** Candidate payload from review form (live discovery or gated fixtures). */
-  candidate_json: string;
+  /** Candidate id from the server-stored enrollment discovery snapshot. */
+  candidate_id: string;
+  now?: Date;
 }) {
   const db = getWebDatabase();
   const purchase = db
@@ -367,37 +394,27 @@ export function confirmPurchaseCandidate(args: {
     return { ok: false as const, error: "already_confirmed" };
   }
 
-  const candidate = JSON.parse(args.candidate_json) as {
-    candidate_id: string;
-    tier: string;
-    decision: string;
-    title_only: boolean;
-    reasons: string[];
-    offer: {
-      title: string;
-      seller_kind: string;
-      seller_text: string;
-      is_target_plus: boolean;
-      merchant_link?: string;
-      link?: string;
-      product_link?: string;
-      target_item_id?: string;
-      model_number?: string;
-      upc_or_gtin?: string;
-      observed_price?: number;
-      currency?: string;
-      serpapi_product_id?: string;
-    };
-    matched_tcin?: string;
-    matched_model?: string;
-    matched_upc?: string;
-    title_similarity: number;
-  };
-
-  if (candidate.decision !== "EXACT_MATCH_CANDIDATE" || candidate.title_only) {
+  const candidateId = String(args.candidate_id || "").trim();
+  if (!/^cand_[a-zA-Z0-9_-]{8,80}$/.test(candidateId)) {
     return {
       ok: false as const,
-      error: "cannot_confirm_weak_or_ambiguous",
+      error: "tampered_candidate",
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+
+  const discovery = loadEnrollmentDiscovery(db, args.purchase_id);
+  if (!discovery) {
+    return {
+      ok: false as const,
+      error: "missing_candidate_snapshot",
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+  if (!isFreshEnrollmentCandidate(discovery.created_at, args.now ?? new Date())) {
+    return {
+      ok: false as const,
+      error: "stale_candidate",
       fixture_banner: FIXTURE_BANNER,
     };
   }
@@ -410,41 +427,47 @@ export function confirmPurchaseCandidate(args: {
     upc_or_gtin: (purchase.upc_or_gtin as string) || null,
   };
 
+  const revalidated = evaluateProductMatches(ref, discovery.offers);
+  const candidate = revalidated.candidates.find(
+    (c) => c.candidate_id === candidateId,
+  );
+  if (!candidate) {
+    return {
+      ok: false as const,
+      error: "tampered_candidate",
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+  if (
+    candidate.decision !== "EXACT_MATCH_CANDIDATE" ||
+    candidate.title_only ||
+    !isStrongMatchTier(candidate.tier)
+  ) {
+    return {
+      ok: false as const,
+      error: "cannot_confirm_weak_or_ambiguous",
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+
+  const selectedOnly = evaluateProductMatches(ref, [candidate.offer]);
+  if (
+    selectedOnly.decision !== "EXACT_MATCH_CANDIDATE" ||
+    selectedOnly.exact_candidate?.candidate_id !== candidate.candidate_id
+  ) {
+    return {
+      ok: false as const,
+      error: "ambiguous_selection",
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+
   try {
     const fp = confirmAndPersistLockedFingerprint({
       db,
       purchase: { ...ref, purchase_id: args.purchase_id },
-      candidate: {
-        candidate_id: candidate.candidate_id,
-        offer: {
-          title: candidate.offer.title,
-          seller_kind: candidate.offer.seller_kind as "target",
-          seller_text: candidate.offer.seller_text,
-          is_target_plus: candidate.offer.is_target_plus,
-          merchant_link: candidate.offer.merchant_link,
-          link: candidate.offer.link,
-          product_link: candidate.offer.product_link,
-          target_item_id: candidate.offer.target_item_id,
-          model_number: candidate.offer.model_number,
-          upc_or_gtin: candidate.offer.upc_or_gtin,
-          observed_price: candidate.offer.observed_price,
-          currency: candidate.offer.currency as "USD" | undefined,
-          serpapi_product_id: candidate.offer.serpapi_product_id,
-        },
-        tier: candidate.tier as
-          | "exact_target_url"
-          | "exact_tcin"
-          | "exact_model_variant"
-          | "exact_upc",
-        decision: "EXACT_MATCH_CANDIDATE",
-        reasons: candidate.reasons,
-        title_similarity: candidate.title_similarity,
-        title_only: false,
-        matched_tcin: candidate.matched_tcin,
-        matched_model: candidate.matched_model,
-        matched_upc: candidate.matched_upc,
-      },
-      confirmed_at: new Date().toISOString(),
+      candidate,
+      confirmed_at: (args.now ?? new Date()).toISOString(),
     });
 
     return {
@@ -545,6 +568,7 @@ export async function runLivePriceCheck(
   options?: {
     fetchObservation?: ObservationFetcher;
     db?: ReturnType<typeof getWebDatabase>;
+    now?: Date;
   },
 ) {
   const db = options?.db ?? getWebDatabase();
@@ -571,7 +595,7 @@ export async function runLivePriceCheck(
   const batch = await runMonitoringPass({
     db,
     mode: "manual",
-    as_of: new Date().toISOString(),
+    as_of: (options?.now ?? new Date()).toISOString(),
     purchase_id: purchaseId,
     fetchObservation,
   });
@@ -589,6 +613,7 @@ export async function runManualPriceCheck(args: {
   data_source: ManualCheckDataSource;
   fetchObservation?: ObservationFetcher;
   db?: ReturnType<typeof getWebDatabase>;
+  now?: Date;
 }) {
   if (args.data_source === "FIXTURE") {
     return runDemoPriceCheck(args.purchase_id, { allow_fixture: true });
@@ -596,6 +621,7 @@ export async function runManualPriceCheck(args: {
   return runLivePriceCheck(args.purchase_id, {
     fetchObservation: args.fetchObservation,
     db: args.db,
+    now: args.now,
   });
 }
 

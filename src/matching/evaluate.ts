@@ -6,7 +6,11 @@ import {
   normalizeVariant,
   titleSimilarity,
 } from "./identity.js";
-import { generateTargetOnlyCandidates, newCandidateId } from "./candidates.js";
+import {
+  generateTargetOnlyCandidates,
+  newCandidateId,
+  toMatchableOffer,
+} from "./candidates.js";
 import {
   isStrongMatchTier,
   MATCH_RULE_VERSION,
@@ -30,7 +34,9 @@ export function scoreOfferAgainstPurchase(
   purchase: PurchaseMatchReference,
   offer: MatchableOffer,
 ): ScoredCandidate {
-  const candidate_id = newCandidateId();
+  const candidate_id = offer.offer_id
+    ? `cand_${offer.offer_id}`
+    : newCandidateId();
   const reasons: string[] = [];
   const sim = purchase.product_title
     ? titleSimilarity(purchase.product_title, offer.title)
@@ -108,8 +114,51 @@ export function scoreOfferAgainstPurchase(
   const purchaseUpc = normalizeUpc(purchase.upc_or_gtin);
   const offerUpc = normalizeUpc(offer.upc_or_gtin);
 
+  // Supplied structured identifiers must not be contradicted by the offer,
+  // even when URL/TCIN also match. Wrong variants/models fail closed.
+  if (purchaseModel && structuredModel && purchaseModel !== structuredModel) {
+    return {
+      candidate_id,
+      offer,
+      tier: MatchTier.NONE,
+      decision: MatchDecision.REJECTED,
+      reasons: [
+        "wrong_model",
+        "wrong_model_conflicts_with_supplied_identity",
+        `purchase=${purchaseModel}`,
+        `offer=${structuredModel}`,
+      ],
+      title_similarity: sim,
+      title_only: false,
+    };
+  }
+
+  if (purchaseUpc && offerUpc && purchaseUpc !== offerUpc) {
+    return {
+      candidate_id,
+      offer,
+      tier: MatchTier.NONE,
+      decision: MatchDecision.REJECTED,
+      reasons: ["wrong_upc_conflicts_with_supplied_identity"],
+      title_similarity: sim,
+      title_only: false,
+    };
+  }
+
   // Hierarchy: URL → TCIN → model+variant → UPC → title-only
   if (purchaseUrl && offerUrl && purchaseUrl === offerUrl) {
+    const conflict = detectStrongIdentifierTitleConflict(purchase, offer, sim);
+    if (conflict) {
+      return {
+        candidate_id,
+        offer,
+        tier: MatchTier.NONE,
+        decision: MatchDecision.REJECTED,
+        reasons: ["product_title_conflicts_with_identifier", conflict],
+        title_similarity: sim,
+        title_only: false,
+      };
+    }
     reasons.push("exact_target_url");
     return strongResult(
       candidate_id,
@@ -122,6 +171,18 @@ export function scoreOfferAgainstPurchase(
   }
 
   if (purchaseTcin && offerTcin && purchaseTcin === offerTcin) {
+    const conflict = detectStrongIdentifierTitleConflict(purchase, offer, sim);
+    if (conflict) {
+      return {
+        candidate_id,
+        offer,
+        tier: MatchTier.NONE,
+        decision: MatchDecision.REJECTED,
+        reasons: ["product_title_conflicts_with_identifier", conflict],
+        title_similarity: sim,
+        title_only: false,
+      };
+    }
     reasons.push("exact_tcin");
     // Guard: serpapi product_id must not equal tcin claim without Target URL
     if (
@@ -274,6 +335,53 @@ function detectVariantConflict(
   return null;
 }
 
+function detectStrongIdentifierTitleConflict(
+  purchase: PurchaseMatchReference,
+  offer: MatchableOffer,
+  sim: number,
+): string | null {
+  if (!purchase.product_title) return null;
+  const purchaseTitle = purchase.product_title.trim();
+  const offerTitle = offer.title.trim();
+  if (!purchaseTitle || !offerTitle) return null;
+
+  // Exact Target URL/TCIN remains strongest identity, but if the submitted or
+  // URL-derived product name clearly names a different item (e.g. AirTag vs
+  // AirPods), fail closed instead of confirming a contradictory product.
+  if (sim >= 0.2) return null;
+  const purchaseCore = coreProductTokens(purchaseTitle);
+  const offerCore = coreProductTokens(offerTitle);
+  if (purchaseCore.size === 0 || offerCore.size === 0) return null;
+  for (const token of purchaseCore) {
+    if (offerCore.has(token)) return null;
+  }
+  return `similarity=${sim.toFixed(3)}`;
+}
+
+function coreProductTokens(title: string): Set<string> {
+  const stop = new Set([
+    "apple",
+    "target",
+    "generation",
+    "gen",
+    "pack",
+    "2nd",
+    "1st",
+    "the",
+    "and",
+    "for",
+    "with",
+    "more",
+  ]);
+  return new Set(
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .split(/\s+/)
+      .filter((token) => token.length > 2 && !stop.has(token)),
+  );
+}
+
 /**
  * If the purchase model appears as a whole title token, treat as model signal.
  * Does not invent models. Callers must also gate on title similarity.
@@ -399,19 +507,9 @@ export function evaluateProductMatches(
 
   // Explicitly record non-Target / Plus as rejected for proof tests
   for (const raw of offers) {
-    const asMatchable: MatchableOffer =
-      "title_utf8_ok" in (raw as object)
-        ? {
-            title: (raw as NormalizedShoppingOffer).title,
-            seller_kind: (raw as NormalizedShoppingOffer).seller_kind,
-            seller_text: (raw as NormalizedShoppingOffer).source_text,
-            is_target_plus: (raw as NormalizedShoppingOffer).is_target_plus,
-            merchant_link: (raw as NormalizedShoppingOffer).merchant_link,
-            product_link: (raw as NormalizedShoppingOffer).product_link,
-            link: (raw as NormalizedShoppingOffer).link,
-            serpapi_product_id: (raw as NormalizedShoppingOffer).product_id,
-          }
-        : (raw as MatchableOffer);
+    const asMatchable: MatchableOffer = toMatchableOffer(
+      raw as NormalizedShoppingOffer | MatchableOffer,
+    );
 
     if (
       asMatchable.is_target_plus ||
@@ -447,7 +545,6 @@ export function evaluateProductMatches(
           isStrongMatchTier(c.tier)
             ? {
                 ...c,
-                decision: MatchDecision.MATCH_REVIEW_REQUIRED,
                 reasons: [...c.reasons, "ambiguous_group"],
               }
             : c,

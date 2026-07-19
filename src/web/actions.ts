@@ -117,7 +117,9 @@ export async function submitPurchaseAction(formData: FormData) {
       return;
     }
 
-    // No live Target candidates → stay on form (do not redirect to empty/invalid review)
+    // Live zero-candidate discovery is a valid fail-closed review state:
+    // preserve purchase details, show diagnostics/progressive fallback copy,
+    // and do not collapse into a premature generic form error.
     const candidateCount = result.evaluation?.candidates?.length ?? 0;
     console.info("submitPurchaseAction_result", {
       ok: true,
@@ -133,14 +135,6 @@ export async function submitPurchaseAction(formData: FormData) {
       ),
       title_len: formString(formData, "product_title").length,
     });
-    if (
-      result.data_source === "LIVE" &&
-      candidateCount === 0
-    ) {
-      purchaseErrorRedirect(formData, "no_reliable_target");
-      return;
-    }
-
     if (!isValidPurchaseId(result.purchase_id)) {
       purchaseErrorRedirect(
         formData,
@@ -193,10 +187,10 @@ export async function confirmCandidateAction(formData: FormData) {
   try {
     const db = await prepareActionDb();
 
-    const candidateJson = formString(formData, "candidate_json");
+    const candidateId = formString(formData, "candidate_id");
     const result = confirmPurchaseCandidate({
       purchase_id: purchaseId,
-      candidate_json: candidateJson,
+      candidate_id: candidateId,
     });
     if (!result.ok) {
       redirect(

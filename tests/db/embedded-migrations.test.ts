@@ -13,13 +13,19 @@ import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 
+const EXPECTED_EMBEDDED_MIGRATIONS = [
+  "0001_init",
+  "0002_matching",
+  "0003_monitoring",
+  "0004_policy_operations",
+  "0005_policy_operations_r2a",
+];
+
 describe("embedded migrations (production-safe)", () => {
   it("ships embedded SQL for 0001–0003", () => {
-    expect(EMBEDDED_MIGRATIONS.map((m) => m.id)).toEqual([
-      "0001_init",
-      "0002_matching",
-      "0003_monitoring",
-    ]);
+    expect(EMBEDDED_MIGRATIONS.map((m) => m.id)).toEqual(
+      EXPECTED_EMBEDDED_MIGRATIONS,
+    );
     for (const m of EMBEDDED_MIGRATIONS) {
       expect(m.up.length).toBeGreaterThan(50);
       expect(m.down.length).toBeGreaterThan(10);
@@ -33,25 +39,17 @@ describe("embedded migrations (production-safe)", () => {
       // Ensure dir does not exist
       fs.rmSync(missingDir, { recursive: true, force: true });
       const applied = migrateUp(db, missingDir);
-      expect(applied).toEqual([
-        "0001_init",
-        "0002_matching",
-        "0003_monitoring",
-      ]);
+      expect(applied).toEqual(EXPECTED_EMBEDDED_MIGRATIONS);
       for (const table of TABLE_NAMES) {
         expect(tableExists(db, table)).toBe(true);
       }
-      expect(listMigrationSql(missingDir).map((m) => m.id)).toEqual([
-        "0001_init",
-        "0002_matching",
-        "0003_monitoring",
-      ]);
+      expect(listMigrationSql(missingDir).map((m) => m.id)).toEqual(
+        EXPECTED_EMBEDDED_MIGRATIONS,
+      );
       // listMigrations should not throw when embedded exists
-      expect(listMigrations(missingDir).map((m) => m.id)).toEqual([
-        "0001_init",
-        "0002_matching",
-        "0003_monitoring",
-      ]);
+      expect(listMigrations(missingDir).map((m) => m.id)).toEqual(
+        EXPECTED_EMBEDDED_MIGRATIONS,
+      );
     } finally {
       db.close();
     }

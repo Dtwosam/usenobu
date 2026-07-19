@@ -5,7 +5,6 @@ import { submitPurchaseAction } from "@/web/actions";
 import { fillDetailsWithAiAction } from "@/web/ai-actions";
 import {
   evaluateExactIdentity,
-  EXACT_IDENTITY_MISSING_MODEL_OR_UPC,
   EXACT_IDENTITY_SECTION_HEADING,
   extractTcinFromTargetUrl,
   isLikelyTcin,
@@ -443,16 +442,16 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
                 {EXACT_IDENTITY_SECTION_HEADING}
               </legend>
               <p className="muted">
-                Nobu needs a Target link, TCIN, and a model number or UPC so it
-                does not watch the wrong item.
+                Nobu extracts the TCIN from your Target link when it can. Add a
+                model number or UPC only if Nobu needs one to separate similar
+                Target items.
               </p>
 
               <div className="grid-2">
                 <Field
                   id="target_item_id"
                   label={markLabel("TCIN", "target_item_id")}
-                  hint="Target item number"
-                  required
+                  hint="Optional when the Target product link includes A-TCIN"
                   error={
                     identity.errors.target_item_id && (url.trim() || tcin.trim())
                       ? identity.errors.target_item_id
@@ -462,7 +461,6 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
                   <Input
                     id="target_item_id"
                     name="target_item_id"
-                    required
                     data-testid="input-tcin"
                     value={tcin}
                     onChange={(e) => {
@@ -479,7 +477,7 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
                 <Field
                   id="model_number"
                   label={markLabel("Model number", "model_number")}
-                  hint="Add a model number or UPC so Nobu can confirm the exact item."
+                  hint="Optional unless Nobu asks for one after discovery."
                 >
                   <Input
                     id="model_number"
@@ -496,13 +494,7 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
                 <Field
                   id="upc_or_gtin"
                   label="UPC or GTIN"
-                  hint="Add a model number or UPC so Nobu can confirm the exact item."
-                  error={
-                    identity.errors.model_or_upc &&
-                    (model.trim() || upc.trim() || tcin.trim())
-                      ? EXACT_IDENTITY_MISSING_MODEL_OR_UPC
-                      : undefined
-                  }
+                  hint="Optional unless Nobu asks for one after discovery."
                 >
                   <Input
                     id="upc_or_gtin"
@@ -511,10 +503,6 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
                     value={upc}
                     onChange={(e) => setUpc(e.target.value)}
                     autoComplete="off"
-                    invalid={Boolean(
-                      identity.errors.model_or_upc &&
-                        (model.trim() || upc.trim() || tcin.trim()),
-                    )}
                   />
                 </Field>
                 <Field
@@ -532,17 +520,10 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
                 </Field>
               </div>
 
-              {identity.errors.model_or_upc &&
-              (url.trim() || tcin.trim()) &&
-              !identity.has_model_or_upc ? (
-                <p
-                  className="n-field__error"
-                  data-testid="identity-model-or-upc-error"
-                  role="alert"
-                >
-                  {EXACT_IDENTITY_MISSING_MODEL_OR_UPC}
-                </p>
-              ) : null}
+              <p className="muted" data-testid="identity-progressive-note">
+                If Nobu cannot confirm one exact Target item from the URL and
+                third-party Target evidence, it will ask for one extra detail.
+              </p>
             </fieldset>
 
             <details className="n-disclosure n-demo-scenario" open>
@@ -582,9 +563,7 @@ export function PurchaseIntake({ defaults, serverError, focusRegion }: Props) {
               data-testid="submit-purchase"
               disabled={!canFindProduct}
               disabledReason={
-                !identity.has_model_or_upc
-                  ? EXACT_IDENTITY_MISSING_MODEL_OR_UPC
-                  : !identity.has_tcin
+                !identity.has_tcin
                     ? "Add a TCIN or a Target product link that includes it."
                     : !identity.has_target_url
                       ? "Add a valid Target.com product link."

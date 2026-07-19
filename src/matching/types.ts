@@ -49,6 +49,7 @@ export interface MatchableOffer {
   observed_price?: number | null;
   currency?: string | null;
   observed_at?: string | null;
+  thumbnail?: string | null;
 }
 
 export interface ScoredCandidate {

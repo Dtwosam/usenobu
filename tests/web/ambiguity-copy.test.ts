@@ -12,7 +12,7 @@ describe("enrollmentAmbiguityCopy", () => {
       candidate_count: 0,
     });
     expect(c.body).not.toMatch(/Add a.*TCIN/i);
-    expect(c.body).toMatch(/several different Target products/i);
+    expect(c.body).toMatch(/not strong enough to lock one exact item/i);
   });
 
   it("asks only for missing identifiers when none supplied", () => {

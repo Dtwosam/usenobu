@@ -5,12 +5,12 @@
  */
 import {
   extractTcinFromTargetUrl,
-  isTargetComUrl,
   normalizeUpc,
+  parseTargetProductUrl,
 } from "../matching/identity.js";
 
 export const EXACT_IDENTITY_MISSING_MODEL_OR_UPC =
-  "Add a model number or UPC to continue.";
+  "Add a model number or UPC if Nobu asks for one.";
 
 export const EXACT_IDENTITY_SECTION_HEADING = "Exact product details";
 
@@ -50,10 +50,8 @@ export function resolveEffectiveTcin(input: ExactIdentityInput): string | null {
   const explicit = String(input.target_item_id ?? "").trim();
   if (isLikelyTcin(explicit)) return explicit;
 
-  const url = String(input.target_product_url ?? "").trim();
-  if (!url || !isTargetComUrl(url)) return null;
-  const fromUrl = extractTcinFromTargetUrl(url);
-  return fromUrl && isLikelyTcin(fromUrl) ? fromUrl : null;
+  const parsed = parseTargetProductUrl(input.target_product_url);
+  return parsed.ok && isLikelyTcin(parsed.tcin) ? parsed.tcin : null;
 }
 
 export function hasModelNumber(value: string | null | undefined): boolean {
@@ -66,15 +64,16 @@ export function hasUpcOrGtin(value: string | null | undefined): boolean {
 
 /**
  * Required for Find my product:
- * - Valid Target product URL
- * - TCIN (explicit or from Target URL)
- * - At least one of model number or UPC/GTIN
+ * - Supported Target product URL with TCIN
+ * - Purchase price and date are validated by the purchase schema.
+ * Model and UPC are progressive fallback details, not initial requirements.
  */
 export function evaluateExactIdentity(
   input: ExactIdentityInput,
 ): ExactIdentityResult {
   const url = String(input.target_product_url ?? "").trim();
-  const has_target_url = Boolean(url && isTargetComUrl(url));
+  const parsed = parseTargetProductUrl(url);
+  const has_target_url = parsed.ok;
   const effective_tcin = resolveEffectiveTcin(input);
   const has_tcin = Boolean(effective_tcin);
   const has_model = hasModelNumber(input.model_number);
@@ -82,20 +81,26 @@ export function evaluateExactIdentity(
   const has_model_or_upc = has_model || has_upc;
 
   const errors: ExactIdentityResult["errors"] = {};
-  if (!has_target_url) {
-    errors.target_product_url =
-      "Add a valid Target.com product link so Nobu can find the exact item.";
+  if (!parsed.ok) {
+    errors.target_product_url = parsed.message;
   }
-  if (!has_tcin) {
+  if (!has_tcin && parsed.ok) {
     errors.target_item_id =
       "Add the TCIN (Target item number) or a Target product link that includes it.";
   }
-  if (!has_model_or_upc) {
-    errors.model_or_upc = EXACT_IDENTITY_MISSING_MODEL_OR_UPC;
+  const explicit = String(input.target_item_id ?? "").trim();
+  if (
+    explicit &&
+    isLikelyTcin(explicit) &&
+    parsed.ok &&
+    explicit !== parsed.tcin
+  ) {
+    errors.target_item_id =
+      "The entered TCIN does not match the Target product URL.";
   }
 
   return {
-    ok: has_target_url && has_tcin && has_model_or_upc,
+    ok: has_target_url && has_tcin && !errors.target_item_id,
     effective_tcin,
     has_target_url,
     has_tcin,

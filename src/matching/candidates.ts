@@ -69,6 +69,8 @@ export function toMatchableOffer(
     upc_or_gtin: null,
     observed_price: o.extracted_price ?? null,
     currency: o.currency ?? null,
+    observed_at: null,
+    thumbnail: o.thumbnail ?? null,
   };
 }
 

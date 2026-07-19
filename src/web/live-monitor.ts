@@ -24,7 +24,14 @@ import type { TargetMatchFingerprint } from "../matching/confirm.js";
  * When model is primary, include TCIN as a compact secondary disambiguator.
  * Never includes purchase chatter (price, date, "I bought", refund).
  */
-export function buildMonitorShoppingQuery(fp: TargetMatchFingerprint): string {
+export interface MonitorShoppingQueryPlan {
+  query: string;
+  strategy: string;
+}
+
+export function buildMonitorShoppingQueryPlan(
+  fp: TargetMatchFingerprint,
+): MonitorShoppingQueryPlan {
   const model = (fp.model_number ?? "").trim();
   const upc = (fp.upc_or_gtin ?? "").trim();
   const tcin = (fp.target_item_id ?? "").trim();
@@ -48,6 +55,11 @@ export function buildMonitorShoppingQuery(fp: TargetMatchFingerprint): string {
     ` ${normalizedTitle} `.includes(` ${normalizedModel} `)
   ) {
     parts.push(cleanTitle);
+    parts.push("Target");
+    return {
+      query: parts.filter(Boolean).join(" "),
+      strategy: "title_contains_model",
+    };
   }
 
   // Primary identity: brand + model when model exists
@@ -60,15 +72,41 @@ export function buildMonitorShoppingQuery(fp: TargetMatchFingerprint): string {
     if (tcin && !parts.includes(tcin)) {
       parts.push(tcin);
     }
+    parts.push("Target");
+    return {
+      query: parts.filter(Boolean).join(" "),
+      strategy: "model_primary",
+    };
   } else if (parts.length === 0 && upc) {
     parts.push(upc);
-  } else if (parts.length === 0 && tcin) {
-    parts.push(tcin);
+    parts.push("Target");
+    return {
+      query: parts.filter(Boolean).join(" "),
+      strategy: "upc_primary",
+    };
   } else if (parts.length === 0 && title) {
     // Collapse whitespace; drop noisy purchase language if it leaked into title
     if (cleanTitle) parts.push(cleanTitle);
+    if (tcin && !parts.includes(tcin)) parts.push(tcin);
+    parts.push("Target");
+    return {
+      query: parts.filter(Boolean).join(" "),
+      strategy: "title_slug_primary",
+    };
+  } else if (parts.length === 0 && tcin) {
+    parts.push(tcin);
+    parts.push("Target");
+    return {
+      query: parts.filter(Boolean).join(" "),
+      strategy: "tcin_primary",
+    };
   } else if (parts.length === 0 && brand) {
     parts.push(brand);
+    parts.push("Target");
+    return {
+      query: parts.filter(Boolean).join(" "),
+      strategy: "brand_primary",
+    };
   } else if (parts.length === 0) {
     try {
       const u = new URL(fp.target_product_url);
@@ -80,7 +118,14 @@ export function buildMonitorShoppingQuery(fp: TargetMatchFingerprint): string {
   }
 
   parts.push("Target");
-  return parts.filter(Boolean).join(" ");
+  return {
+    query: parts.filter(Boolean).join(" "),
+    strategy: "url_slug_fallback",
+  };
+}
+
+export function buildMonitorShoppingQuery(fp: TargetMatchFingerprint): string {
+  return buildMonitorShoppingQueryPlan(fp).query;
 }
 
 function hashOffers(offers: MatchableOffer[]): string {

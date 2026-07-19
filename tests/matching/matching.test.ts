@@ -101,6 +101,34 @@ describe("Deterministic matching matrix", () => {
     expect(result.match_rule_version).toBe(MATCH_RULE_VERSION);
   });
 
+  it("fails closed when Target TCIN conflicts with product name", () => {
+    const result = evaluateProductMatches(
+      {
+        purchase_id: "pur-conflict",
+        target_product_url:
+          "https://www.target.com/p/apple-airtag-bluetooth-tracker/-/A-54191097",
+        target_item_id: "54191097",
+        product_title: "Apple AirTag Bluetooth Tracker",
+      },
+      [
+        targetOffer({
+          title: "Apple AirPods with Charging Case (2nd generation)",
+          merchant_link:
+            "https://www.target.com/p/apple-airpods-with-charging-case-2nd-generation/-/A-54191097",
+          target_item_id: "54191097",
+          model_number: null,
+          size: null,
+          color: null,
+        }),
+      ],
+    );
+    expect(result.decision).toBe(MatchDecision.MATCH_REVIEW_REQUIRED);
+    expect(result.exact_candidate).toBeUndefined();
+    expect(result.rejected[0]?.reasons).toContain(
+      "product_title_conflicts_with_identifier",
+    );
+  });
+
   it("exact model + compatible variants passes", () => {
     const result = evaluateProductMatches(
       {

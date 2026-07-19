@@ -271,7 +271,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await expect(page.getByTestId("cannot-confirm")).toBeVisible();
   });
 
-  test("blocks Find my product without model and UPC", async ({ page }) => {
+  test("allows URL-only identity before progressive fallback", async ({ page }) => {
     await page.goto("/purchases/new");
     await openManualPurchaseForm(page);
     await page
@@ -284,9 +284,9 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page
       .getByTestId("input-date")
       .fill(new Date().toISOString().slice(0, 10));
-    await expect(page.getByTestId("submit-purchase")).toBeDisabled();
-    await expect(page.getByTestId("identity-model-or-upc-error")).toContainText(
-      "Add a model number or UPC to continue.",
+    await expect(page.getByTestId("submit-purchase")).toBeEnabled();
+    await expect(page.getByTestId("identity-progressive-note")).toContainText(
+      "it will ask for one extra detail",
     );
   });
 

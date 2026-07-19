@@ -64,9 +64,9 @@ export function purchaseFormError(
   if (code === "no_reliable_target") {
     return {
       code,
-      heading: "No reliable Target product",
-      body: "Nobu could not find a reliable Target product right now.",
-      nextAction: "Check the product link, model, or TCIN and try again.",
+      heading: "Target listing not confirmed",
+      body: "Nobu could not confirm a current Target-sold offer from the third-party shopping results.",
+      nextAction: "Retry later, or add the one product detail Nobu asks for if the result needs more identity.",
     };
   }
 
@@ -90,15 +90,28 @@ export function purchaseFormError(
   }
 
   if (code === "missing_exact_identity") {
+    if (status === "INVALID_TARGET_URL") {
+      return {
+        code,
+        heading: "Use a Target product link",
+        body: "Nobu needs a supported Target.com product URL before it can look for the exact item.",
+        nextAction: "Paste the Target product page URL and try again. Nobu will not follow shortened or unknown redirects.",
+      };
+    }
+    if (status === "TARGET_IDENTIFIER_MISSING" || status === "tcin") {
+      return {
+        code,
+        heading: "Target item number missing",
+        body: "That Target link does not include an A-TCIN item number Nobu can use safely.",
+        nextAction: "Paste the canonical Target product URL that contains /A- followed by the TCIN.",
+      };
+    }
     return {
       code,
-      heading: "Exact product details needed",
-      body:
-        status === "model_or_upc"
-          ? "Add a model number or UPC to continue."
-          : "Add a Target product link, TCIN, and a model number or UPC so Nobu can confirm the exact item.",
+      heading: "Target product link needed",
+      body: "Nobu needs a supported Target product link before it can find the exact item.",
       nextAction:
-        "Complete Exact product details, then try Find my product again.",
+        "Check the Target product URL, then try Find my product again.",
     };
   }
 

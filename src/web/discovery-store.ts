@@ -4,7 +4,10 @@
  */
 import type { NobuDatabase } from "../db/index.js";
 import type { MatchEvaluationResult, MatchableOffer } from "../matching/index.js";
-import type { DiscoveryDataSource } from "./live-discovery.js";
+import type {
+  DiscoveryDataSource,
+  LiveDiscoveryDiagnostics,
+} from "./live-discovery.js";
 
 export interface EnrollmentDiscoverySnapshot {
   purchase_id: string;
@@ -13,6 +16,7 @@ export interface EnrollmentDiscoverySnapshot {
   provider_status: string | null;
   evaluation: MatchEvaluationResult;
   offers: MatchableOffer[];
+  diagnostics?: LiveDiscoveryDiagnostics | null;
   created_at: string;
 }
 
@@ -25,9 +29,15 @@ export function ensureEnrollmentDiscoveryTable(db: NobuDatabase): void {
       provider_status TEXT,
       evaluation_json TEXT NOT NULL,
       offers_json TEXT NOT NULL,
+      diagnostics_json TEXT,
       created_at TEXT NOT NULL
     );
   `);
+  try {
+    db.exec(`ALTER TABLE enrollment_discovery ADD COLUMN diagnostics_json TEXT;`);
+  } catch {
+    /* column already exists */
+  }
 }
 
 /** Compact evaluation for cookie-backed sessions (keep confirmable candidate). */
@@ -74,14 +84,15 @@ export function saveEnrollmentDiscovery(
   db.prepare(
     `INSERT INTO enrollment_discovery (
       purchase_id, data_source, query, provider_status,
-      evaluation_json, offers_json, created_at
-    ) VALUES (?,?,?,?,?,?,?)
+      evaluation_json, offers_json, diagnostics_json, created_at
+    ) VALUES (?,?,?,?,?,?,?,?)
     ON CONFLICT(purchase_id) DO UPDATE SET
       data_source = excluded.data_source,
       query = excluded.query,
       provider_status = excluded.provider_status,
       evaluation_json = excluded.evaluation_json,
       offers_json = excluded.offers_json,
+      diagnostics_json = excluded.diagnostics_json,
       created_at = excluded.created_at`,
   ).run(
     snap.purchase_id,
@@ -90,6 +101,7 @@ export function saveEnrollmentDiscovery(
     snap.provider_status,
     JSON.stringify(evaluation),
     JSON.stringify(offers),
+    snap.diagnostics ? JSON.stringify(snap.diagnostics) : null,
     snap.created_at,
   );
 }
@@ -102,7 +114,7 @@ export function loadEnrollmentDiscovery(
   const row = db
     .prepare(
       `SELECT purchase_id, data_source, query, provider_status,
-              evaluation_json, offers_json, created_at
+              evaluation_json, offers_json, diagnostics_json, created_at
        FROM enrollment_discovery WHERE purchase_id = ?`,
     )
     .get(purchaseId) as
@@ -113,6 +125,7 @@ export function loadEnrollmentDiscovery(
         provider_status: string | null;
         evaluation_json: string;
         offers_json: string;
+        diagnostics_json: string | null;
         created_at: string;
       }
     | undefined;
@@ -134,6 +147,9 @@ export function loadEnrollmentDiscovery(
       provider_status: row.provider_status,
       evaluation,
       offers,
+      diagnostics: row.diagnostics_json
+        ? (JSON.parse(row.diagnostics_json) as LiveDiscoveryDiagnostics)
+        : null,
       created_at: row.created_at,
     };
   } catch {

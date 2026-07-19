@@ -120,21 +120,19 @@ function slimDiscoveryForCookie(
         } | null;
         candidates?: unknown[];
       };
-      const exact = ev.exact_candidate ?? null;
-      // Compact exact candidate offer fields only
-      let compactExact = exact;
-      if (exact?.offer) {
-        const o = exact.offer;
-        compactExact = {
-          candidate_id: exact.candidate_id,
-          tier: exact.tier,
-          decision: exact.decision,
-          title_only: exact.title_only ?? false,
-          reasons: (exact.reasons ?? []).slice(0, 4),
-          title_similarity: exact.title_similarity ?? 0,
-          matched_tcin: exact.matched_tcin,
-          matched_model: exact.matched_model,
-          matched_upc: exact.matched_upc,
+      const compactCandidate = (candidate: typeof ev.exact_candidate) => {
+        if (!candidate?.offer) return null;
+        const o = candidate.offer;
+        return {
+          candidate_id: candidate.candidate_id,
+          tier: candidate.tier,
+          decision: candidate.decision,
+          title_only: candidate.title_only ?? false,
+          reasons: (candidate.reasons ?? []).slice(0, 4),
+          title_similarity: candidate.title_similarity ?? 0,
+          matched_tcin: candidate.matched_tcin,
+          matched_model: candidate.matched_model,
+          matched_upc: candidate.matched_upc,
           offer: {
             title: o.title,
             seller_kind: o.seller_kind,
@@ -151,17 +149,29 @@ function slimDiscoveryForCookie(
             serpapi_product_id: o.serpapi_product_id,
           },
         };
-      }
+      };
+      const exact = ev.exact_candidate ?? null;
+      const compactExact = compactCandidate(exact);
+      const compactCandidates = compactExact
+        ? [compactExact]
+        : (ev.candidates ?? [])
+            .map((candidate) =>
+              compactCandidate(
+                candidate as NonNullable<typeof ev.exact_candidate>,
+              ),
+            )
+            .filter((candidate) => candidate !== null)
+            .slice(0, 2);
       evaluation_json = JSON.stringify({
         match_rule_version: ev.match_rule_version ?? "match-v1",
         decision: ev.decision,
         reasons: (ev.reasons ?? []).slice(0, 4),
-        candidates: compactExact ? [compactExact] : [],
+        candidates: compactCandidates,
         exact_candidate: compactExact,
         rejected: [],
       });
-      if (compactExact?.offer) {
-        offers_json = JSON.stringify([compactExact.offer]);
+      if (compactCandidates.length > 0) {
+        offers_json = JSON.stringify(compactCandidates.map((c) => c.offer));
       }
     } catch {
       evaluation_json = JSON.stringify({
@@ -179,6 +189,7 @@ function slimDiscoveryForCookie(
       provider_status: d.provider_status,
       evaluation_json,
       offers_json,
+      diagnostics_json: d.diagnostics_json,
       created_at: d.created_at,
     };
   });
@@ -270,9 +281,15 @@ export function exportSnapshot(db: NobuDatabase): Snapshot {
         provider_status TEXT,
         evaluation_json TEXT NOT NULL,
         offers_json TEXT NOT NULL,
+        diagnostics_json TEXT,
         created_at TEXT NOT NULL
       );
     `);
+    try {
+      db.exec(`ALTER TABLE enrollment_discovery ADD COLUMN diagnostics_json TEXT;`);
+    } catch {
+      /* ignore */
+    }
   } catch {
     /* ignore */
   }
@@ -387,9 +404,15 @@ export function importSnapshot(db: NobuDatabase, snapshot: Snapshot): void {
         provider_status TEXT,
         evaluation_json TEXT NOT NULL,
         offers_json TEXT NOT NULL,
+        diagnostics_json TEXT,
         created_at TEXT NOT NULL
       );
     `);
+    try {
+      db.exec(`ALTER TABLE enrollment_discovery ADD COLUMN diagnostics_json TEXT;`);
+    } catch {
+      /* ignore */
+    }
   } catch {
     /* ignore */
   }

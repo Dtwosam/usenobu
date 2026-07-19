@@ -1,15 +1,15 @@
 # Nobu Current State
 
 **Date:** 2026-07-17
-**Status:** LANE 8 PENDING REVIEW — AVATAR RESUBMITTED AFTER REJECTION
-**Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher  
-**Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop  
-**Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)  
-**Review-Safe Sprint A.1:** **NOBU_REVIEW_SAFE_A_1_PASS** (live SerpApi manual check path — diagnostics / live wiring)  
-**Review-Safe Sprint B:** **NOBU_REVIEW_SAFE_B_PASS** (price-drop Action Center)  
-**Exact identity + Action Center UX (2026-07-15):** Target URL + TCIN + (model or UPC) required before Find my product; Action Center primary action opens Target Contact Us  
-**Review-Safe Sprint C:** **NOBU_REVIEW_SAFE_C_PASS** (judge clarity + money-back story)  
-**Review-Safe Sprint A.2:** **NOBU_REVIEW_SAFE_A_2_PASS** (Conair GS14 matching evidence hierarchy repair)  
+**Status:** LANE 7.1 PASS - PRODUCT SELECTION / LOCKED FINGERPRINT REPAIR COMPLETE; LANE 8 REMAINS NEXT
+**Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
+**Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
+**Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)
+**Review-Safe Sprint A.1:** **NOBU_REVIEW_SAFE_A_1_PASS** (live SerpApi manual check path — diagnostics / live wiring)
+**Review-Safe Sprint B:** **NOBU_REVIEW_SAFE_B_PASS** (price-drop Action Center)
+**Exact identity + Action Center UX (2026-07-15):** Target URL + TCIN + (model or UPC) required before Find my product; Action Center primary action opens Target Contact Us
+**Review-Safe Sprint C:** **NOBU_REVIEW_SAFE_C_PASS** (judge clarity + money-back story)
+**Review-Safe Sprint A.2:** **NOBU_REVIEW_SAFE_A_2_PASS** (Conair GS14 matching evidence hierarchy repair)
 **Review-Safe Sprint A.3:** **NOBU_REVIEW_SAFE_A_3_PASS** (policy freshness + live Conair closeout; no_match is fail-closed, not accepted price)
 
 ## Locked decisions
@@ -21,6 +21,8 @@
 - AI extraction: **Groq**
 - Free A2MCP first; no x402
 
+
+**Lane 7.1 product selection + locked fingerprint repair:** **PASS** - candidate confirmation now posts only a candidate id; server reloads the stored discovery snapshot, enforces a 30-minute freshness bound, revalidates the selected offer against the purchase, rejects tampered/stale/weak/title-only/non-Target/Target Plus/wrong-identity selections, and monitoring remains locked-fingerprint-only/fail-closed.
 ## Production
 
 | Item | Value |
@@ -71,8 +73,8 @@
 
 ## Next active lane
 
-**Lane 8** remains active until the listing is **approved and publicly accessible**.  
-Parallel review-safe UI/product proof may continue without ASP resubmit.  
+**Lane 8** is the exact next lane. Do not begin Lane 8 from Lane 7.1 work; wait for explicit Lane 8 execution. Lane 8 remains active until the listing is **approved and publicly accessible**.
+Parallel review-safe UI/product proof may continue without ASP resubmit.
 Then: **Lane 9 — Demo and submission closeout**.
 
 Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`

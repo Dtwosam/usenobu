@@ -76,6 +76,15 @@ export interface SerpApiShoppingResult {
   offers: NormalizedShoppingOffer[];
   /** Target-seller offers only (seller filter, not fingerprint match). */
   target_offers: NormalizedShoppingOffer[];
+  /** Proof-safe raw-to-normalized counts; contains no raw provider rows. */
+  result_counts?: {
+    shopping_results_count: number;
+    inline_shopping_results_count: number;
+    categorized_results_count: number;
+    organic_results_count: number;
+    normalized_offers_count: number;
+    target_offers_count: number;
+  };
   /** Filter groups including shoprs tokens when SerpApi returns them. */
   filters: ShoppingFilterGroup[];
   /** shoprs tokens whose text indicates Target store (not Plus). */

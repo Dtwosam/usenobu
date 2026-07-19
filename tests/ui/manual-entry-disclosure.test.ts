@@ -26,4 +26,11 @@ describe("manual entry disclosure source contract", () => {
     expect(intake).toMatch(/setAiError\([\s\S]*openManual/);
     expect(intake).toMatch(/setReviewed\(true\);\s*openManual/);
   });
+
+  it("keeps model and UPC as progressive fallback fields", () => {
+    expect(intake).toContain("Optional unless Nobu asks for one after discovery.");
+    expect(intake).toContain("identity-progressive-note");
+    expect(intake).not.toMatch(/id="model_number"[\s\S]{0,220}required/);
+    expect(intake).not.toMatch(/id="upc_or_gtin"[\s\S]{0,220}required/);
+  });
 });

@@ -1,21 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateExactIdentity,
-  EXACT_IDENTITY_MISSING_MODEL_OR_UPC,
   resolveEffectiveTcin,
 } from "../../src/web/exact-identity.js";
 import { hasAnyDemoDefault } from "../../src/web/demo-defaults.js";
+import { parseTargetProductUrl } from "../../src/matching/identity.js";
 
 describe("exact identity requirements", () => {
-  it("requires Target URL, TCIN, and model or UPC", () => {
-    const missing = evaluateExactIdentity({
+  it("requires only supported Target URL identity before discovery", () => {
+    const fromUrlOnly = evaluateExactIdentity({
       target_product_url: "https://www.target.com/p/x/-/A-54191097",
-      target_item_id: "54191097",
     });
-    expect(missing.ok).toBe(false);
-    expect(missing.errors.model_or_upc).toBe(
-      EXACT_IDENTITY_MISSING_MODEL_OR_UPC,
-    );
+    expect(fromUrlOnly.ok).toBe(true);
+    expect(fromUrlOnly.effective_tcin).toBe("54191097");
+    expect(fromUrlOnly.has_model_or_upc).toBe(false);
 
     const withModel = evaluateExactIdentity({
       target_product_url: "https://www.target.com/p/x/-/A-54191097",
@@ -73,6 +71,42 @@ describe("exact identity requirements", () => {
         target_item_id: "99999999",
       }),
     ).toBe("99999999");
+  });
+
+  it("parses and normalizes supported Target product URLs without network", () => {
+    const parsed = parseTargetProductUrl(
+      "https://www.target.com/p/apple-airtag-bluetooth-tracker/-/A-54191097?ref=tgt_adv#details",
+    );
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.original_url).toContain("?ref=tgt_adv#details");
+      expect(parsed.normalized_url).toBe(
+        "https://www.target.com/p/apple-airtag-bluetooth-tracker/-/a-54191097",
+      );
+      expect(parsed.tcin).toBe("54191097");
+      expect(parsed.slug_tokens).toEqual([
+        "apple",
+        "airtag",
+        "bluetooth",
+        "tracker",
+      ]);
+      expect(parsed.product_name).toBe("apple airtag bluetooth tracker");
+    }
+  });
+
+  it("rejects malformed, non-Target, and Target URLs without TCIN", () => {
+    expect(parseTargetProductUrl("not a url")).toMatchObject({
+      ok: false,
+      code: "INVALID_TARGET_URL",
+    });
+    expect(
+      parseTargetProductUrl("https://www.google.com/shopping?q=A-54191097"),
+    ).toMatchObject({ ok: false, code: "INVALID_TARGET_URL" });
+    expect(parseTargetProductUrl("https://www.target.com/s?searchTerm=airtag"))
+      .toMatchObject({
+        ok: false,
+        code: "TARGET_IDENTIFIER_MISSING",
+      });
   });
 
   it("never treats non-digit Google-style ids as TCIN", () => {

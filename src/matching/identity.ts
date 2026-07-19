@@ -3,6 +3,25 @@
  * Does not invent TCIN from SerpApi product_id.
  */
 
+export type TargetProductUrlParseResult =
+  | {
+      ok: true;
+      original_url: string;
+      normalized_url: string;
+      tcin: string;
+      slug_tokens: string[];
+      product_name: string | null;
+    }
+  | {
+      ok: false;
+      original_url: string;
+      code:
+        | "INVALID_TARGET_URL"
+        | "UNSUPPORTED_TARGET_URL"
+        | "TARGET_IDENTIFIER_MISSING";
+      message: string;
+    };
+
 /** Normalize model / SKU-like strings for exact compare. */
 export function normalizeModel(value: string | undefined | null): string | null {
   if (!value) return null;
@@ -87,6 +106,89 @@ export function normalizeTargetProductUrl(
   } catch {
     return null;
   }
+}
+
+function extractBoundedSlugTokens(pathname: string): string[] {
+  const parts = pathname.split("/").filter(Boolean);
+  const pIndex = parts.findIndex((part) => part.toLowerCase() === "p");
+  const slug = pIndex >= 0 ? parts[pIndex + 1] : undefined;
+  if (!slug || /^A-\d{5,12}$/i.test(slug)) return [];
+  return slug
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .split("-")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 1 && !/^\d+$/.test(part))
+    .slice(0, 12);
+}
+
+/**
+ * Deterministic parser for supported Target product URLs.
+ * It performs no network requests and never treats arbitrary URL text as identity.
+ */
+export function parseTargetProductUrl(
+  url: string | undefined | null,
+): TargetProductUrlParseResult {
+  const original = String(url ?? "").trim();
+  if (!original) {
+    return {
+      ok: false,
+      original_url: original,
+      code: "INVALID_TARGET_URL",
+      message: "Add a Target.com product URL.",
+    };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(original);
+  } catch {
+    return {
+      ok: false,
+      original_url: original,
+      code: "INVALID_TARGET_URL",
+      message: "Add a valid Target.com product URL.",
+    };
+  }
+
+  if (parsed.protocol !== "https:" || !isTargetComUrl(original)) {
+    return {
+      ok: false,
+      original_url: original,
+      code: "INVALID_TARGET_URL",
+      message: "Use a supported https://www.target.com product URL.",
+    };
+  }
+
+  const normalized = normalizeTargetProductUrl(original);
+  if (!normalized) {
+    return {
+      ok: false,
+      original_url: original,
+      code: "UNSUPPORTED_TARGET_URL",
+      message: "Use a supported Target product URL.",
+    };
+  }
+
+  const tcin = extractTcinFromTargetUrl(original);
+  if (!tcin) {
+    return {
+      ok: false,
+      original_url: original,
+      code: "TARGET_IDENTIFIER_MISSING",
+      message: "Use a Target product URL that includes an A-TCIN item number.",
+    };
+  }
+
+  const slug_tokens = extractBoundedSlugTokens(parsed.pathname);
+  return {
+    ok: true,
+    original_url: original,
+    normalized_url: normalized,
+    tcin,
+    slug_tokens,
+    product_name: slug_tokens.length > 0 ? slug_tokens.join(" ") : null,
+  };
 }
 
 export function tokenizeTitle(title: string): Set<string> {

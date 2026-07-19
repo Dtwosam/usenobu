@@ -55,6 +55,11 @@ export default async function ReviewPage({
     Boolean(exact) &&
     !exact!.title_only;
 
+  const hasSelectableCandidates = Boolean(
+    evaluation?.candidates.some(
+      (c) => c.decision === "EXACT_MATCH_CANDIDATE" && !c.title_only,
+    ),
+  );
   const isAmbiguous = evaluation?.decision === "MATCH_REVIEW_REQUIRED";
   const noCandidates = !evaluation || evaluation.candidates.length === 0;
   const err = sp.error ? reviewError(sp.error) : null;
@@ -70,6 +75,16 @@ export default async function ReviewPage({
         candidate_count: evaluation?.candidates?.length ?? 0,
       })
     : null;
+  const editParams = new URLSearchParams({
+    target_product_url: String(purchase.target_product_url ?? ""),
+    purchase_price: String(purchase.purchase_price ?? ""),
+    purchase_date: String(purchase.purchase_date ?? ""),
+    region: String(purchase.region ?? ""),
+    target_item_id: String(purchase.target_item_id ?? ""),
+    model_number: String(purchase.model_number ?? ""),
+    upc_or_gtin: String(purchase.upc_or_gtin ?? ""),
+  });
+  const editHref = `/purchases/new?${editParams.toString()}`;
 
   return (
     <div className="n-screen n-screen--form">
@@ -151,6 +166,14 @@ export default async function ReviewPage({
         <p className="visually-hidden" data-testid="discovery-data-source">
           {dataSource}
         </p>
+        {discovery?.diagnostics ? (
+          <pre
+            className="visually-hidden"
+            data-testid="discovery-diagnostics"
+          >
+            {JSON.stringify(discovery.diagnostics)}
+          </pre>
+        ) : null}
       </Card>
 
       {isAmbiguous && ambiguityCopy ? (
@@ -158,7 +181,7 @@ export default async function ReviewPage({
           <h2 className="n-notice-heading">{ambiguityCopy.heading}</h2>
           <p data-testid="ambiguous-body">{ambiguityCopy.body}</p>
           <p>
-            <a href="/purchases/new">Edit purchase details</a>
+            <a href={editHref}>Edit purchase details</a>
           </p>
         </InlineNotice>
       ) : null}
@@ -174,8 +197,8 @@ export default async function ReviewPage({
               Monitoring can’t start without a confirmed exact match.
             </p>
             <p>
-              <strong>Next:</strong> Double-check the product link, model, or TCIN
-              and <a href="/purchases/new">try again</a>.
+              <strong>Next:</strong> Retry later, or add the model number or UPC
+              if Nobu asks for one. <a href={editHref}>Edit purchase details</a>.
             </p>
           </div>
         ) : (
@@ -188,6 +211,19 @@ export default async function ReviewPage({
                 data-tier={c.tier}
               >
                 <div className="n-candidate__main">
+                  {c.offer.thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.offer.thumbnail}
+                      alt=""
+                      className="n-candidate__image"
+                      data-testid="candidate-image"
+                    />
+                  ) : (
+                    <p className="muted" data-testid="candidate-image-missing">
+                      Image unavailable
+                    </p>
+                  )}
                   <strong>{c.offer.title}</strong>
                   <p className="muted">Seller: {c.offer.seller_text}</p>
                   <ul className="n-meta-list">
@@ -217,6 +253,29 @@ export default async function ReviewPage({
                         Source: third-party shopping observation (SerpApi Google
                         Shopping) — not an official Target API.
                       </p>
+                      <p>Candidate id: {c.candidate_id}</p>
+                      <p>Seller: {c.offer.seller_text}</p>
+                      <p>Observed at: {c.offer.observed_at || discovery?.created_at || "unknown"}</p>
+                      <p>Data source: {dataSource}</p>
+                      <p>
+                        Target URL: {c.offer.merchant_link || c.offer.link || c.offer.product_link ? (
+                          <a
+                            href={c.offer.merchant_link || c.offer.link || c.offer.product_link || "#"}
+                            data-testid="candidate-url"
+                          >
+                            View observed offer
+                          </a>
+                        ) : (
+                          "unavailable"
+                        )}
+                      </p>
+                      {c.offer.size || c.offer.color || c.offer.weight || c.offer.quantity ? (
+                        <p>
+                          Variant: {[c.offer.size, c.offer.color, c.offer.weight, c.offer.quantity]
+                            .filter(Boolean)
+                            .join(" / ")}
+                        </p>
+                      ) : null}
                       {c.offer.upc_or_gtin ? (
                         <p>UPC: {c.offer.upc_or_gtin}</p>
                       ) : null}
@@ -227,6 +286,19 @@ export default async function ReviewPage({
                     </div>
                   </details>
                 </div>
+                {c.decision === "EXACT_MATCH_CANDIDATE" && !c.title_only ? (
+                  <form action={confirmCandidateAction} className="n-candidate__action">
+                    <input type="hidden" name="purchase_id" value={id} />
+                    <input
+                      type="hidden"
+                      name="candidate_id"
+                      value={c.candidate_id}
+                    />
+                    <Button type="submit" data-testid="confirm-candidate-row">
+                      Select this product
+                    </Button>
+                  </form>
+                ) : null}
                 <StatusBadge
                   label={
                     c.decision === "EXACT_MATCH_CANDIDATE" && !c.title_only
@@ -266,14 +338,14 @@ export default async function ReviewPage({
           <input type="hidden" name="purchase_id" value={id} />
           <input
             type="hidden"
-            name="candidate_json"
-            value={JSON.stringify(evaluation.exact_candidate)}
+            name="candidate_id"
+            value={evaluation.exact_candidate.candidate_id}
           />
           <Button type="submit" block data-testid="confirm-candidate">
             Confirm product
           </Button>
         </form>
-      ) : (
+      ) : hasSelectableCandidates ? null : (
         <div className="n-notice n-notice--warning" data-testid="cannot-confirm">
           <div>
             <strong>

@@ -211,6 +211,18 @@ export function offerMatchesLockedFingerprint(
     return { match: false, reasons: ["accessory_mismatch"] };
   }
 
+  const earlyFpModel = normalizeModel(fingerprint.model_number);
+  const earlyOfferModel = normalizeModel(offer.model_number);
+  if (earlyFpModel && earlyOfferModel && earlyFpModel !== earlyOfferModel) {
+    return { match: false, reasons: ["model_mismatch"] };
+  }
+
+  const earlyFpUpc = normalizeUpc(fingerprint.upc_or_gtin);
+  const earlyOfferUpc = normalizeUpc(offer.upc_or_gtin);
+  if (earlyFpUpc && earlyOfferUpc && earlyFpUpc !== earlyOfferUpc) {
+    return { match: false, reasons: ["upc_mismatch"] };
+  }
+
   // Hierarchy (same spirit as enrollment): URL → TCIN → model → UPC.
   // Missing one identifier type is not an automatic reject when another
   // contract-approved strong signal is present. Title-only never passes.

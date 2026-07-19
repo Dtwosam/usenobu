@@ -92,6 +92,17 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** external curl succeeds; ambiguous match fails closed; no sensitive data in output.
 
+## Lane 7.1 - Candidate product selection and locked-fingerprint repair COMPLETE
+
+- Return bounded Target-sold candidate lists when supplied purchase information cannot identify one exact product confidently.
+- Show differentiating candidate fields: image availability, title, model/TCIN/UPC, variant attributes, observed price, Target/observed URL, seller, and SerpApi Google Shopping provenance.
+- Require explicit user confirmation before creating a locked product fingerprint or starting monitoring.
+- Confirm by candidate id only; reload and revalidate the server-stored discovery snapshot before locking.
+- Reject non-Target sellers, Target Plus, title-only matches, wrong variants, wrong models, stale candidates, tampered candidate ids, and ambiguous/weak selections.
+- Later monitoring uses only the locked fingerprint and suppresses positive alerts on uncertainty.
+
+**Proof:** focused confirmation tests, matching tests, monitoring tests, SerpApi normalization tests, web integration tests, typecheck, and browser consumer-flow pass.
+
 ## Lane 7.5A — Global Nobu rename
 
 - Rename active project identity to Nobu across UI, docs, package metadata, OpenAPI, prompts, env names, and source comments.

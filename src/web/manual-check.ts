@@ -175,6 +175,7 @@ export async function runBoundedManualCheck(args: {
       data_source,
       fetchObservation: args.fetchObservation,
       db: args.db,
+      now,
     });
 
     if (!result.ok) {

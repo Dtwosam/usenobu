@@ -138,8 +138,21 @@ export function normalizeOffer(
   };
 }
 
-function collectShoppingRows(raw: Record<string, unknown>): unknown[] {
+function countArray(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function collectShoppingRows(raw: Record<string, unknown>): {
+  rows: unknown[];
+  counts: {
+    shopping_results_count: number;
+    inline_shopping_results_count: number;
+    categorized_results_count: number;
+    organic_results_count: number;
+  };
+} {
   const rows: unknown[] = [];
+  let categorized_results_count = 0;
   if (Array.isArray(raw.shopping_results)) {
     rows.push(...raw.shopping_results);
   }
@@ -150,19 +163,28 @@ function collectShoppingRows(raw: Record<string, unknown>): unknown[] {
     for (const cat of raw.categorized_shopping_results) {
       if (
         cat &&
-        typeof cat === "object" &&
-        Array.isArray((cat as { shopping_results?: unknown[] }).shopping_results)
-      ) {
-        rows.push(
-          ...((cat as { shopping_results: unknown[] }).shopping_results),
-        );
+          typeof cat === "object" &&
+          Array.isArray((cat as { shopping_results?: unknown[] }).shopping_results)
+        ) {
+        const categorizedRows = (cat as { shopping_results: unknown[] })
+          .shopping_results;
+        categorized_results_count += categorizedRows.length;
+        rows.push(...categorizedRows);
       }
     }
   }
   if (rows.length === 0 && Array.isArray(raw.organic_results)) {
     rows.push(...raw.organic_results);
   }
-  return rows;
+  return {
+    rows,
+    counts: {
+      shopping_results_count: countArray(raw.shopping_results),
+      inline_shopping_results_count: countArray(raw.inline_shopping_results),
+      categorized_results_count,
+      organic_results_count: countArray(raw.organic_results),
+    },
+  };
 }
 
 function extractFilterOptions(raw: unknown): ShoppingFilterOption[] {
@@ -278,7 +300,8 @@ export function normalizeShoppingResponse(args: {
         ? (raw.error as { message: string }).message
         : undefined;
 
-  const shopping = collectShoppingRows(raw);
+  const collected = collectShoppingRows(raw);
+  const shopping = collected.rows;
   const offers: NormalizedShoppingOffer[] = [];
   for (let i = 0; i < shopping.length; i++) {
     const offer = normalizeOffer(shopping[i], i);
@@ -315,6 +338,11 @@ export function normalizeShoppingResponse(args: {
     observed_at: args.observedAt,
     offers,
     target_offers: targetOffers,
+    result_counts: {
+      ...collected.counts,
+      normalized_offers_count: offers.length,
+      target_offers_count: targetOffers.length,
+    },
     filters,
     target_shoprs_tokens: [...new Set(target_shoprs_tokens)],
     search_metadata: meta
