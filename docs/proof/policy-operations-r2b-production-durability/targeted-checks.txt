@@ -1,0 +1,28 @@
+Lane 8-R2B targeted checks — 2026-07-19
+
+git rev-parse HEAD
+  67fc869746e9ac095f6c5f0faad44e87823b72c1
+
+git status --short
+  (pre-existing Lane 8 dirty files only; preserved)
+
+npx vercel env ls production
+  present: OWNER_OPS_SECRET, CRON_SECRET, SERPAPI_API_KEY, GROQ_API_KEY, NOBU_AI_MODEL
+  absent: POLICY_OPS_DATABASE_URL, DATABASE_URL
+
+npx vercel integration add neon --name nobu-policy-ops --environment production --non-interactive --format json
+  status: action_required
+  reason: integration_terms_acceptance_required
+  verification_uri: vercel.com/.../integrations/accept-terms/neon
+
+npx vitest run tests/policy/durable-store.test.ts
+  (with local Docker POLICY_OPS_TEST_DATABASE_URL, redacted)
+  → 8 passed | 1 skipped (or postgres branch pass)
+
+npx tsc --noEmit
+  → exit 0
+
+GET https://usenobu.vercel.app/health
+  → status=degraded, policy_ops_store=unavailable
+
+SerpApi searches: 0

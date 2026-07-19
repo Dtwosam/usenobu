@@ -1,0 +1,10 @@
+﻿{
+    "probe":  "baseline_health",
+    "policy_review_state":  null,
+    "policy_warning":  "Policy operations store is unavailable. Policy state is not assumed CURRENT.",
+    "policy_ops_store":  "unavailable",
+    "status":  "degraded",
+    "policy_ops_store_kind":  null,
+    "at":  "2026-07-19T10:49:29.018Z",
+    "note":  "Pre-provision baseline: store unavailable expected until POLICY_OPS_DATABASE_URL is set."
+}

@@ -1,0 +1,11 @@
+﻿{
+    "verification_uri_path":  "/dtwoflicks-2878s-projects/~/integrations/accept-terms/neon",
+    "note":  "CLI cannot accept marketplace terms non-interactively. Owner must open verification URI, accept Neon terms, then re-run install.",
+    "at":  "2026-07-19T10:49:29.3068466Z",
+    "serpapi_searches":  0,
+    "reason":  "integration_terms_acceptance_required",
+    "status":  "action_required",
+    "command":  "vercel integration add neon --name nobu-policy-ops --environment production --non-interactive",
+    "provider":  "Neon (Vercel Marketplace)",
+    "probe":  "neon_marketplace_provision_attempt"
+}

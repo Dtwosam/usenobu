@@ -1,0 +1,8 @@
+{
+  "probe": "local_docker_postgres_integration",
+  "at": "2026-07-19T10:49:00.000Z",
+  "result": "PASS",
+  "provider_classification": "local Docker PostgreSQL (not production)",
+  "tests": "durable-store.test.ts — postgres init + scheduler + UNCHANGED",
+  "note": "Connection string used only in local process env for tests; not recorded. Not a production durability claim."
+}
