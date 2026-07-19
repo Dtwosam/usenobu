@@ -36,6 +36,13 @@ git diff --check
 4. Response still includes honest Target-policy provenance and optional `policy_warning` / `policy_review_state`.
 5. Do not manufacture a price drop.
 
+## Production result (2026-07-19)
+
+- Deployed project `usenobu`; aliased `usenobu.vercel.app` to deployment `usenobu-e9x1qi35w-…`.
+- Health: `status: ok`, `policy_review_state: CURRENT`, `policy_warning: null` — see `prod-health-redacted.json`.
+- Canonical agent probe: `PRICE_DROP_DETECTED` (not `POLICY_STALE`), with `policy_version`, `policy_verified_at`, `policy_review_state: CURRENT`, Target final-decision provenance — see `prod-agent-probe-redacted.json`.
+- Observed AirTag price drop was live SerpApi data, not manufactured.
+
 ## Agent listing
 
 Agent `5541` and its under-review OKX listing were **not** modified in this lane.
