@@ -10,7 +10,7 @@ fs.mkdirSync(dir, { recursive: true });
 
 const bases = [
   "https://usenobu.vercel.app",
-  "https://afterbuy.vercel.app",
+  // Retired legacy alias intentionally omitted from current proof runs.
 ];
 
 const body = {

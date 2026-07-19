@@ -21,7 +21,7 @@ Secondary factors (not primary):
 | Pre-repair URL | `usenobu-csmixy8hi-dtwoflicks-2878s-projects.vercel.app` |
 | Post-repair public deployment ID | `dpl_J7qjuJNdFU8asHJ1BTugNNkHLkMW` |
 | Post-repair URL | `usenobu-r1li51clj-dtwoflicks-2878s-projects.vercel.app` |
-| Aliases after repair | `usenobu.vercel.app`, `afterbuy.vercel.app` → same deployment |
+| Aliases after repair | `usenobu.vercel.app`; retired legacy alias also reached the same deployment at the time of that historical audit |
 | Repo HEAD at audit start | `40e9e89` |
 | Old sentence still in source at start | Yes — `app/purchases/[id]/review/page.tsx` cannot-confirm hard-code |
 | Bundle static search for old/new | Server-rendered; not present in static HTML chunks (expected) |
