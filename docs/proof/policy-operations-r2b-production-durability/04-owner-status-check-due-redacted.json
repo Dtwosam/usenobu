@@ -1,0 +1,31 @@
+{
+  "probe": "owner_status_check_due",
+  "http_status": 200,
+  "body": {
+    "policy_id": "target-us-online-price-match-v1",
+    "policy_version": "v1",
+    "review_state": "CHECK_DUE",
+    "stored_review_state": "CHECK_DUE",
+    "approved_at": "2026-07-19T18:00:00.000Z",
+    "source_url": "https://www.target.com/help/articles/policies-guidelines/price-match-guarantee",
+    "source_last_checked_at": "2026-07-19T18:00:00.000Z",
+    "next_review_at": "2026-07-18T00:00:00.000Z",
+    "warning": "Policy owner review is due. Nobu continues using the last approved Target policy. Target makes the final decision.",
+    "owner_action_required": true,
+    "suppress_positive_eligibility": false,
+    "block_positive_service": false,
+    "active_owner_alerts": 1,
+    "pending_reviews": 0,
+    "store_kind": "postgres",
+    "alerts": [
+      {
+        "id": "poa_cfc74b506844489d",
+        "alert_type": "CHECK_DUE",
+        "status": "active",
+        "created_at": "2026-07-19T11:26:06.193Z"
+      }
+    ],
+    "checked_at": "2026-07-19T11:26:07.082Z",
+    "note": "Owner policy status. Official Target source is reviewed manually. No Target scrape."
+  }
+}

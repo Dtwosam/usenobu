@@ -1,0 +1,7 @@
+{
+  "probe": "owner_after_second_scheduler",
+  "active_owner_alerts": 1,
+  "review_state": "CHECK_DUE",
+  "alert_created_second": false,
+  "transitioned_second": false
+}

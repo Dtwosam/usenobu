@@ -1,0 +1,30 @@
+﻿{
+    "probe":  "post_redeploy_survival",
+    "new_deployment":  "https://usenobu-am8myke5z-dtwoflicks-2878s-projects.vercel.app",
+    "alias":  "https://usenobu.vercel.app",
+    "alias_health":  {
+                         "status":  "ok",
+                         "policy_ops_store":  "ok",
+                         "policy_review_state":  "CURRENT"
+                     },
+    "direct_health":  {
+                          "status":  "ok",
+                          "policy_ops_store":  "ok",
+                          "policy_review_state":  "CURRENT"
+                      },
+    "alias_owner":  {
+                        "review_state":  "CURRENT",
+                        "http":  200,
+                        "active_owner_alerts":  0
+                    },
+    "direct_owner":  {
+                         "review_state":  "CURRENT",
+                         "http":  200,
+                         "active_owner_alerts":  0
+                     },
+    "alias_a2mcp_policy_review_state":  "CURRENT",
+    "direct_a2mcp_policy_review_state":  "CURRENT",
+    "serpapi_searches":  0,
+    "note":  "A2MCP used AK early-exit; no SerpApi",
+    "ok":  true
+}

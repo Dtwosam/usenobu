@@ -1,0 +1,26 @@
+﻿{
+    "probe":  "post_redeploy_multi_request",
+    "results":  [
+                    {
+                        "owner_state":  "CURRENT",
+                        "owner_alerts":  0,
+                        "health_store":  "ok",
+                        "i":  1,
+                        "health_state":  "CURRENT"
+                    },
+                    {
+                        "owner_state":  "CURRENT",
+                        "owner_alerts":  0,
+                        "health_store":  "ok",
+                        "i":  2,
+                        "health_state":  "CURRENT"
+                    },
+                    {
+                        "owner_state":  "CURRENT",
+                        "owner_alerts":  0,
+                        "health_store":  "ok",
+                        "i":  3,
+                        "health_state":  "CURRENT"
+                    }
+                ]
+}

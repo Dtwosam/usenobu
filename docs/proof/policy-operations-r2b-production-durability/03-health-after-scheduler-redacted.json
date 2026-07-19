@@ -1,0 +1,8 @@
+{
+  "probe": "health_after_scheduler",
+  "http_status": 200,
+  "status": "ok",
+  "policy_ops_store": "ok",
+  "policy_review_state": "CHECK_DUE",
+  "policy_warning": "Policy owner review is due. Nobu continues using the last approved Target policy. Target makes the final decision."
+}

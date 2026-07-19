@@ -1,0 +1,10 @@
+{
+  "probe": "initial_health",
+  "http_status": 200,
+  "status": "ok",
+  "policy_ops_store": "ok",
+  "policy_ops_store_kind": "postgres",
+  "policy_review_state": "CURRENT",
+  "policy_warning": null,
+  "checked_at": "2026-07-19T11:25:42.804Z"
+}

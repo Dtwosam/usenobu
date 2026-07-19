@@ -1,0 +1,24 @@
+{
+  "probe": "security_and_commands",
+  "POLICY_OPS_DATABASE_URL": {
+    "production_only": true,
+    "server_only": true,
+    "not_next_public": true,
+    "present": true,
+    "value_printed": false,
+    "value_in_proof": false,
+    "cli_type_note": "Set as non-sensitive via Vercel CLI because --sensitive writes returned empty for this custom key; still not browser-exposed. Dashboard Sensitive toggle recommended."
+  },
+  "OWNER_OPS_SECRET": { "present_production": true, "value_in_proof": false },
+  "CRON_SECRET": { "present_production": true, "value_in_proof": false },
+  "commands": [
+    "git rev-parse HEAD",
+    "npx vercel env ls production (names only)",
+    "npx vercel --prod --yes",
+    "npx vercel alias set <deployment> usenobu.vercel.app",
+    "authenticated durability probes (secrets from temp file, never logged)",
+    "npx vitest run tests/policy/durable-store.test.ts",
+    "npx tsc --noEmit"
+  ],
+  "serpapi_searches": 0
+}

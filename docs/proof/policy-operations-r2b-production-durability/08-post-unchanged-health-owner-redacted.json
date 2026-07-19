@@ -1,0 +1,14 @@
+{
+  "probe": "post_unchanged_agreement",
+  "health": {
+    "status": "ok",
+    "policy_ops_store": "ok",
+    "policy_review_state": "CURRENT",
+    "policy_warning": null
+  },
+  "owner": {
+    "review_state": "CURRENT",
+    "active_owner_alerts": 0,
+    "stored_review_state": "CURRENT"
+  }
+}

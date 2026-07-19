@@ -1,75 +1,54 @@
-# Proof — Lane 8-R2B Production Postgres Provisioning and Durability Closeout
+# Proof — Lane 8-R2B / 8-R2B.1 Production Policy Durability
 
 | Field | Value |
 |---|---|
-| Lane | 8-R2B |
-| Baseline commit | `67fc869746e9ac095f6c5f0faad44e87823b72c1` |
-| Verdict | **`NOBU_LANE_8_R2B_BLOCKED_DATABASE_PROVISIONING`** |
-| SerpApi searches consumed | **0** |
+| Lane | **8-R2B.1 — Complete Production Policy Durability** |
+| Baseline commit | `e08102ee858fea31dda687754a0bc1a6557a3734` |
+| Verdict | **`NOBU_LANE_8_R2B_PASS`** |
+| Hosted DB | Neon Marketplace resource `nobu-policy-ops` (Vercel project `usenobu`, Production) |
+| SerpApi searches | **0** |
 
-## Summary
+## Infrastructure (names only)
 
-Lane 8-R2A code is deployed and fail-closed: production `/health` reports `policy_ops_store: unavailable` and does **not** invent `CURRENT`.
-
-`OWNER_OPS_SECRET` and `CRON_SECRET` are configured on Vercel Production.
-
-Hosted PostgreSQL could **not** be provisioned in this non-interactive agent environment. The preferred path (Vercel Marketplace **Neon**) requires **owner browser acceptance** of marketplace terms before install can finish.
-
-No connection string was created, printed, or committed.
-
-## Artifacts (redacted only)
-
-| File | Purpose |
+| Item | Status |
 |---|---|
-| `baseline-health-redacted.json` | Production health before Postgres |
-| `prod-env-names-redacted.json` | Env var **names** only |
-| `provision-attempt-redacted.json` | Neon marketplace install attempt + block reason |
-| `local-docker-postgres-still-pass-redacted.json` | Local Docker PG integration still PASS |
-| `targeted-checks.txt` | Commands run |
+| `POLICY_OPS_DATABASE_URL` | Production-only; server-only; not `NEXT_PUBLIC_*`; present; value never printed |
+| Sensitive marking | Neon-managed URLs encrypted; `POLICY_OPS_DATABASE_URL` set via CLI (non-sensitive type due to prior sensitive-write empty-value CLI issue; still server-only). Recommend dashboard “Sensitive” toggle. |
+| `OWNER_OPS_SECRET` | Production Encrypted; regenerated for this closeout (values not archived) |
+| `CRON_SECRET` | Production Encrypted; regenerated for this closeout (values not archived) |
 
-## Exact owner action required (unblock)
+## Deployments
 
-1. Open Vercel team marketplace terms for Neon and accept them:
-   - `https://vercel.com/dtwoflicks-2878s-projects/~/integrations/accept-terms/neon?source=cli`
-   - Or: Vercel Dashboard → Integrations → accept Neon marketplace terms  
-2. From the repo root (linked project `usenobu`), re-run:
-
-```text
-npx vercel integration add neon --name nobu-policy-ops --environment production
-```
-
-3. After Neon provisions a database URL (often `DATABASE_URL` or `POSTGRES_URL` / `POSTGRES_URL_NON_POOLING`):
-   - Copy the **server-side** connection string into a **new** Production env var named **only**:
-
-```text
-POLICY_OPS_DATABASE_URL
-```
-
-   - Prefer the non-pooling / direct connection if Neon provides both (compatible with the `pg` adapter).
-   - Do **not** put the URL in `NEXT_PUBLIC_*` or commit it.
-4. Redeploy production and alias `usenobu.vercel.app`.
-5. Re-run the durability checklist from this lane’s task (scheduler → CHECK_DUE → UNCHANGED → redeploy survival).
-
-Alternate owner path: create any hosted Postgres (Neon console, Supabase, Prisma Postgres, etc.), set `POLICY_OPS_DATABASE_URL` on Vercel Production only, redeploy, then re-run Lane 8-R2B proof steps.
-
-## What was verified without hosted Postgres
-
-| Check | Result |
+| Role | Deployment |
 |---|---|
-| Pre-existing secrets present | `OWNER_OPS_SECRET`, `CRON_SECRET` names listed in Vercel Production |
-| `POLICY_OPS_DATABASE_URL` | Absent |
-| Production health | `degraded` / `policy_ops_store: unavailable` (honest) |
-| Local Docker Postgres store tests | PASS (schema init + scheduler + UNCHANGED) |
-| No SerpApi | Confirmed (no price probes) |
-| Agent `5541` | Untouched |
+| Pre-redeploy proof | `usenobu-7gslesdzu-dtwoflicks-2878s-projects.vercel.app` |
+| Post-redeploy survival | `usenobu-am8myke5z-dtwoflicks-2878s-projects.vercel.app` |
+| Canonical alias | `https://usenobu.vercel.app` → post-redeploy deployment |
 
-## What was **not** completed
+## Proof sequence (all redacted JSON in this directory)
 
-- Hosted production Postgres provision  
-- Production schema init on hosted DB  
-- Production CHECK_DUE / UNCHANGED / cold-start / redeploy durability  
-- Shared-store agreement across production health / owner / A2MCP with store `ok`
+| Step | Result | Artifact |
+|---|---|---|
+| Initial health | `policy_ops_store: ok` | `01-initial-health-redacted.json` |
+| Force overdue `next_review_at` (test setup) | ok | `01b-force-overdue-redacted.json` |
+| Scheduler → `CHECK_DUE` | transitioned + alert | `02-scheduler-first-redacted.json` |
+| Health after scheduler | `CHECK_DUE` | `03-health-after-scheduler-redacted.json` |
+| Owner status | `CHECK_DUE`, ≥1 alert | `04-owner-status-check-due-redacted.json` |
+| Scheduler second call | no duplicate alert | `05` + `06` |
+| Owner `UNCHANGED` | `CURRENT`, alerts 0 | `07-owner-unchanged-redacted.json` |
+| Health/owner agree | both `CURRENT` | `08-post-unchanged-health-owner-redacted.json` |
+| A2MCP metadata (AK early-exit, no SerpApi) | `CURRENT` | `09-a2mcp-policy-metadata-no-serpapi-redacted.json` |
+| Cold-start multi-request | all `CURRENT`, store ok | `10-cold-start-multi-request-redacted.json` |
+| Unauthorized | 401 | `11-unauthorized-redacted.json` |
+| Review events persisted | `UNCHANGED` + scheduler events | `12-review-events-summary-redacted.json` |
+| Post-redeploy alias + direct | `CURRENT`, alerts 0, store ok | `14-post-redeploy-survival-redacted.json` |
+| Post-redeploy multi-request | consistent | `15-post-redeploy-multi-request-redacted.json` |
+
+## Failure behaviour (isolated)
+
+- `tests/policy/durable-store.test.ts`: production without Postgres URL does not silent-fallback; memory is test-only injection; `/tmp` forbidden for factory.
+- Runtime health when store missing: `degraded` / `policy_ops_store: unavailable` (proven earlier in R2A when URL absent).
 
 ## Agent listing
 
-Agent `5541` and its under-review OKX listing were **not** modified.
+Agent `5541` and under-review OKX listing were **not** modified.

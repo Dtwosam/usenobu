@@ -1,0 +1,11 @@
+{
+  "probe": "a2mcp_policy_metadata_ak_early_exit",
+  "http_status": 200,
+  "status": "UNSUPPORTED_PURCHASE",
+  "policy_review_state": "CURRENT",
+  "policy_version": "v1",
+  "policy_verified_at": "2026-07-19T11:26:08.594Z",
+  "policy_warning": null,
+  "final_decision_by": "Target",
+  "note": "AK unsupported exits before SerpApi; policy metadata only"
+}

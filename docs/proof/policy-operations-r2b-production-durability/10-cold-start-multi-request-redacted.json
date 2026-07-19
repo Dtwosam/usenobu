@@ -1,0 +1,26 @@
+{
+  "probe": "cold_start_multi_request",
+  "results": [
+    {
+      "i": 0,
+      "health_state": "CURRENT",
+      "health_store": "ok",
+      "owner_state": "CURRENT",
+      "owner_alerts": 0
+    },
+    {
+      "i": 1,
+      "health_state": "CURRENT",
+      "health_store": "ok",
+      "owner_state": "CURRENT",
+      "owner_alerts": 0
+    },
+    {
+      "i": 2,
+      "health_state": "CURRENT",
+      "health_store": "ok",
+      "owner_state": "CURRENT",
+      "owner_alerts": 0
+    }
+  ]
+}

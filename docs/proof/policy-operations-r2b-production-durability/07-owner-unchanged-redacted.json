@@ -1,0 +1,20 @@
+{
+  "probe": "owner_unchanged",
+  "http_status": 200,
+  "body": {
+    "ok": true,
+    "action": "UNCHANGED",
+    "record": {
+      "policy_id": "target-us-online-price-match-v1",
+      "policy_version": "v1",
+      "review_state": "CURRENT",
+      "source_last_checked_at": "2026-07-19T11:26:08.594Z",
+      "next_review_at": "2026-07-20T11:26:08.594Z",
+      "approved_at": "2026-07-19T18:00:00.000Z",
+      "review_note": "R2B.1 durability proof — official source reconfirmed unchanged"
+    },
+    "pending_review_id": null,
+    "store_kind": "postgres",
+    "note": "Owner review recorded. Eligibility rules are never auto-applied from material-change flags."
+  }
+}

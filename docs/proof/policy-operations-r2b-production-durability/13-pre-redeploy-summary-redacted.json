@@ -1,0 +1,61 @@
+{
+  "ok": true,
+  "phase": "pre_redeploy",
+  "deployment": "usenobu-7gslesdzu-dtwoflicks-2878s-projects.vercel.app",
+  "alias": "https://usenobu.vercel.app",
+  "serpapi_searches": 0,
+  "results": {
+    "serpapi_searches": 0,
+    "steps": [
+      {
+        "step": "initial_health",
+        "status": "ok",
+        "store": "ok",
+        "state": "CURRENT"
+      },
+      {
+        "step": "force_overdue",
+        "ok": true,
+        "review_state": "CURRENT",
+        "next_review_at": "2026-07-18T00:00:00.000Z",
+        "approved_at": "2026-07-19T18:00:00.000Z"
+      },
+      {
+        "step": "scheduler_1",
+        "http": 200,
+        "body": {
+          "ok": true,
+          "transitioned": true,
+          "alert_created": true,
+          "review_state": "CHECK_DUE",
+          "stored_review_state": "CHECK_DUE",
+          "warning": "Policy owner review is due. Nobu continues using the last approved Target policy. Target makes the final decision.",
+          "next_review_at": "2026-07-18T00:00:00.000Z",
+          "store_kind": "postgres",
+          "checked_at": "2026-07-19T11:26:06.193Z",
+          "note": "Idempotent policy review scheduler. No Target fetch. No auto-approval."
+        }
+      },
+      {
+        "step": "scheduler_idempotent",
+        "alert_count_first": 1,
+        "alert_count_second": 1,
+        "alert_created_second": false,
+        "transitioned_second": false
+      },
+      {
+        "step": "events",
+        "ok": true,
+        "review_state": "CURRENT",
+        "active_alerts": 0,
+        "event_count": 2,
+        "actions": [
+          "UNCHANGED",
+          "SCHEDULER_CHECK_DUE"
+        ],
+        "has_unchanged": true,
+        "has_scheduler": true
+      }
+    ]
+  }
+}

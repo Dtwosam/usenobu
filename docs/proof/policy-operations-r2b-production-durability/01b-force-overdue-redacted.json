@@ -1,0 +1,7 @@
+{
+  "probe": "force_overdue_next_review_at",
+  "ok": true,
+  "review_state": "CURRENT",
+  "next_review_at": "2026-07-18T00:00:00.000Z",
+  "approved_at": "2026-07-19T18:00:00.000Z"
+}

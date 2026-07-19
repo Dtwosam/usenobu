@@ -1,0 +1,16 @@
+{
+  "probe": "scheduler_second",
+  "http_status": 200,
+  "body": {
+    "ok": true,
+    "transitioned": false,
+    "alert_created": false,
+    "review_state": "CHECK_DUE",
+    "stored_review_state": "CHECK_DUE",
+    "warning": "Policy owner review is due. Nobu continues using the last approved Target policy. Target makes the final decision.",
+    "next_review_at": "2026-07-18T00:00:00.000Z",
+    "store_kind": "postgres",
+    "checked_at": "2026-07-19T11:26:07.483Z",
+    "note": "Idempotent policy review scheduler. No Target fetch. No auto-approval."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "probe": "review_events_persisted",
+  "ok": true,
+  "review_state": "CURRENT",
+  "active_alerts": 0,
+  "event_count": 2,
+  "actions": [
+    "UNCHANGED",
+    "SCHEDULER_CHECK_DUE"
+  ],
+  "has_unchanged": true,
+  "has_scheduler": true
+}
