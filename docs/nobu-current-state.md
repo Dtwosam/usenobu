@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-19
-**Status:** LANE 7.2 LOCAL PROOF PASS — UNIQUE PRODUCTION PROOF PENDING; LANE 8 REMAINS NEXT
+**Status:** LANE 7.2 PASS - EXACT IDENTITY CONFIRMATION SPLIT COMPLETE; LANE 8 REMAINS NEXT
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)
@@ -22,7 +22,7 @@
 - Free A2MCP first; no x402
 
 
-**Lane 7.2 exact identity confirmation split:** **LOCAL PROOF PASS — UNIQUE PRODUCTION PROOF PENDING** - user-provided exact Target URL/TCIN identity is now distinct from third-party SerpApi price observations; valid exact identity can be reviewed and confirmed even when live provider discovery has no strong candidate, while monitoring still requires locked-fingerprint matching against later observations and fails closed on uncertainty. Local unit/typecheck/build/e2e proof passed on commit; unique Vercel production deployment proof has not yet been produced. Evidence: `docs/proof/lane-7-2-exact-identity/`.
+**Lane 7.2 exact identity confirmation split:** **PASS** - user-provided exact Target URL/TCIN identity is now distinct from third-party SerpApi price observations; valid exact identity can be reviewed and confirmed even when live provider discovery has no strong candidate, while monitoring still requires locked-fingerprint matching against later observations and fails closed on uncertainty. Local proof passed (298 tests, typecheck, build, e2e), and a unique Vercel production deployment (`https://usenobu-hfviza4u4-dtwoflicks-2878s-projects.vercel.app`, not aliased to `usenobu.vercel.app`) proved the identity-only candidate, confirmation, locked fingerprint, monitoring gate, and fail-closed live observation behavior. Production proof also surfaced and fixed a pre-existing (Lane 7.1-era) cookie-snapshot bug that dropped `offer_id` and broke server-side confirmation on multi-instance Vercel. Evidence: `docs/proof/lane-7-2-exact-identity/`.
 
 **Lane 7.1 product selection + locked fingerprint repair:** **PASS** - candidate confirmation now posts only a candidate id; server reloads the stored discovery snapshot, enforces a 30-minute freshness bound, revalidates the selected offer against the purchase, rejects tampered/stale/weak/title-only/non-Target/Target Plus/wrong-identity selections, and monitoring remains locked-fingerprint-only/fail-closed.
 ## Production

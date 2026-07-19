@@ -103,7 +103,7 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** focused confirmation tests, matching tests, monitoring tests, SerpApi normalization tests, web integration tests, typecheck, and browser consumer-flow pass.
 
-## Lane 7.2 - Exact identity confirmation split — LANE 7.2 LOCAL PROOF PASS — UNIQUE PRODUCTION PROOF PENDING
+## Lane 7.2 - Exact identity confirmation split COMPLETE
 
 - Separate user-provided exact purchase identity from third-party SerpApi price observations.
 - Allow valid Target URL/TCIN identity to become a reviewable confirmation candidate even when live SerpApi discovery has no strong candidate or is unavailable.
@@ -111,7 +111,7 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 - Keep later monitoring locked-fingerprint-only; every third-party price observation must independently match the locked fingerprint and fail closed on ambiguity or mismatch.
 - Preserve Target-only MVP, Target Plus exclusion, no Target scraping, no official Target API price claim, and no guaranteed refund language.
 
-**Proof:** focused confirmation, matching, monitoring, live-discovery, SerpApi normalization/enrichment, manual-check, full unit suite, typecheck, build, and consumer Playwright path pass locally. Lane does not close until the unique Vercel production deployment proof (identity-only candidate, locked fingerprint, monitoring gate, fail-closed live observation) also passes. Evidence: `docs/proof/lane-7-2-exact-identity/`.
+**Proof:** focused confirmation, matching, monitoring, live-discovery, SerpApi normalization/enrichment, manual-check, full unit suite, typecheck, build, and consumer Playwright path pass locally, and the unique Vercel production deployment proof (identity-only candidate, no price, required confirmation, server-side success, locked fingerprint, monitoring blocked/active, fail-closed live observation, no positive alert, Nobu identity, no secrets) also passed. Production proof surfaced and fixed a pre-existing cookie-snapshot `offer_id` bug that blocked confirmation on multi-instance Vercel. Evidence: `docs/proof/lane-7-2-exact-identity/`.
 
 ## Lane 7.5A — Global Nobu rename
 

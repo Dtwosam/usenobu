@@ -3,9 +3,12 @@
 Date: 2026-07-19
 Starting HEAD: 847cf210298c0010da17d4b92608a2d7218e212c
 
-## Verdict under test
+## Verdict
 
-Local code proof passed before deployment.
+**NOBU_LANE_7_2_PASS.** Local code proof passed before deployment; the unique
+Vercel production deployment proof (see `production/README.md`) subsequently
+passed all 11 required checks after a pre-existing cookie-snapshot bug found
+during that proof was fixed (`909a3fd`).
 
 ## Architecture proven
 
@@ -87,4 +90,6 @@ Existing tests continue to reject:
 
 ## Production proof
 
-To be filled by the unique Vercel deployment proof after the committed source is pushed and deployed. The production proof must not promote `usenobu.vercel.app` or remove any legacy alias in Lane 7.2.
+See `production/README.md` and `production/production-proof.json`. The unique
+deployment (`https://usenobu-hfviza4u4-dtwoflicks-2878s-projects.vercel.app`)
+was never aliased to `usenobu.vercel.app`, and no legacy alias was touched.

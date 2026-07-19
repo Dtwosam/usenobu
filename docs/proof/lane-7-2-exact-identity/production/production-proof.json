@@ -1,0 +1,87 @@
+{
+  "at": "2026-07-19T20:40:24.984Z",
+  "base": "https://usenobu-hfviza4u4-dtwoflicks-2878s-projects.vercel.app",
+  "note": "Unique Vercel deployment (not aliased to usenobu.vercel.app in this lane).",
+  "checks": {
+    "health": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "service": "nobu-a2mcp",
+        "version": "1.0.0",
+        "checked_at": "2026-07-19T20:40:28.859Z",
+        "price_source_type": "THIRD_PARTY_SEARCH_OBSERVATION",
+        "provider": "SerpApi",
+        "serpapi_configured": true,
+        "provider_ready": true,
+        "groq_configured": true,
+        "nobu_ai_model": "openai/gpt-oss-20b",
+        "policy_id": "target-us-online-price-match-v1",
+        "policy_version": "v1",
+        "policy_review_state": "CURRENT",
+        "policy_warning": null,
+        "policy_ops_store": "ok",
+        "policy_ops_store_kind": "postgres",
+        "note": "Free A2MCP health. Not an official Target API. serpapi_configured and groq_configured are boolean only — no secrets."
+      }
+    },
+    "agent": {
+      "status": 404,
+      "is_not_found": true,
+      "body": "{\"error\":\"not_found\",\"message\":\"No purchase found for that id.\"}"
+    },
+    "homepage_title_is_nobu": true,
+    "no_api_key_in_body": true
+  },
+  "flow_a_identity_only": {
+    "purchase_id": "pur_a46d8a35418c",
+    "review": {
+      "url": "https://usenobu-hfviza4u4-dtwoflicks-2878s-projects.vercel.app/purchases/pur_a46d8a35418c/review?title=&source=LIVE",
+      "match_decision": "EXACT_MATCH_CANDIDATE",
+      "match_reasons": "Reasons: user_provided_purchase_identity, single_strong_target_candidate, exact_target_url",
+      "observed_price_line": "Observed price: —",
+      "is_identity_only_source": true,
+      "disclosure_excerpt": "Source: user-provided exact Target identity - no current price observed yet\n\nCandidate id: cand_user_identity_821d1a5ecfdc\n\nSeller: Target (user-provided exact identity)\n\nObserved at: 2026-07-19T20:40:37.095Z\n\nData source: LIVE\n\nTarget URL: View observed offer\n\nMatch: user_provided_purchase_identity, exact_target_url"
+    },
+    "before_confirm": {
+      "monitoring_status": "Confirm product",
+      "proof_support": "Confirm the exact product before watching.",
+      "run_check_visible": false,
+      "fingerprint_present": false
+    },
+    "after_confirm": {
+      "monitoring_status": "Watching",
+      "proof_support": "Nobu is watching the exact product you confirmed.",
+      "run_check_visible": true,
+      "fingerprint_present": true,
+      "fingerprint_text": "Locked product identity on file fp_92c277e799d5ccf4ff2aba72"
+    },
+    "live_check": {
+      "elapsed_ms": 1787,
+      "final_url": "https://usenobu-hfviza4u4-dtwoflicks-2878s-projects.vercel.app/purchases/pur_a46d8a35418c?checked=1&outcome=provider_unavailable&data_source=LIVE",
+      "outcome": "provider_unavailable",
+      "on_alert": false,
+      "provider_outcome": "",
+      "matching_decision": "",
+      "alert_action": "",
+      "check_outcome_text": "The price source is temporarily unavailable."
+    },
+    "no_positive_alert": true
+  },
+  "flow_b_real_product_live_check": {
+    "purchase_id": "pur_45d90479d886",
+    "enrollment_confirmable": true,
+    "live_check": {
+      "elapsed_ms": 527,
+      "final_url": "https://usenobu-hfviza4u4-dtwoflicks-2878s-projects.vercel.app/purchases/pur_45d90479d886?checked=1&outcome=no_match&data_source=LIVE",
+      "outcome": "no_match",
+      "on_alert": false,
+      "provider_outcome": "",
+      "matching_decision": "",
+      "alert_action": "",
+      "suppression_reason": null,
+      "check_outcome_text": "Nobu could not confirm the exact product."
+    },
+    "no_positive_alert": true
+  }
+}
