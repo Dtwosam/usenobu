@@ -134,6 +134,7 @@ function slimDiscoveryForCookie(
           matched_model: candidate.matched_model,
           matched_upc: candidate.matched_upc,
           offer: {
+            offer_id: o.offer_id,
             title: o.title,
             seller_kind: o.seller_kind,
             seller_text: o.seller_text,

@@ -124,4 +124,91 @@ describe("session snapshot includes purchase + discovery", () => {
       expect(r.ok).toBe(true);
     });
   });
+
+  it("preserves offer_id through cookie-snapshot compaction so re-validated candidate ids match the originally issued id", () => {
+    // Regression: multi-instance Vercel confirmation reloads discovery from
+    // the cookie snapshot, not the local ephemeral DB. If offer_id is
+    // stripped during compaction, re-scoring the offer on confirm produces
+    // a fresh random candidate_id and every confirmation fails closed as
+    // "tampered_candidate" even for a legitimate, unmodified selection.
+    const db = openDatabase(":memory:");
+    migrateUp(db);
+    const now = new Date().toISOString();
+    const purchaseId = "pur_offeridtest01";
+    db.prepare(
+      `INSERT INTO purchases (
+        id, user_ref, target_product_url, purchase_price, currency, purchase_date,
+        country, region, purchase_channel, model_number, upc_or_gtin, target_item_id,
+        is_target_plus, known_exclusion, status, fingerprint_id, monitoring_deadline,
+        created_at, updated_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    ).run(
+      purchaseId,
+      "demo-user",
+      "https://www.target.com/p/apple-airtag/-/A-54191097",
+      35,
+      "USD",
+      "2026-07-14",
+      "US",
+      "TX",
+      "target_online",
+      null,
+      null,
+      "54191097",
+      0,
+      null,
+      "MATCH_REVIEW_REQUIRED",
+      null,
+      "2026-07-28",
+      now,
+      now,
+    );
+    const purchaseRef = {
+      target_product_url:
+        "https://www.target.com/p/apple-airtag/-/A-54191097",
+      target_item_id: "54191097",
+    };
+    const offers = [
+      {
+        offer_id: "user_identity_deadbeefcafe",
+        title: "Target item 54191097",
+        seller_kind: "target" as const,
+        seller_text: "Target (user-provided exact identity)",
+        is_target_plus: false,
+        merchant_link:
+          "https://www.target.com/p/apple-airtag/-/A-54191097",
+        target_item_id: "54191097",
+        observed_price: null,
+        currency: "USD",
+      },
+    ];
+    const originalEvaluation = evaluateProductMatches(purchaseRef, offers);
+    const originalCandidateId = originalEvaluation.exact_candidate?.candidate_id;
+    expect(originalCandidateId).toBe("cand_user_identity_deadbeefcafe");
+
+    saveEnrollmentDiscovery(db, {
+      purchase_id: purchaseId,
+      data_source: "LIVE",
+      query: null,
+      provider_status: "NO_TARGET_RESULT",
+      evaluation: originalEvaluation,
+      offers,
+      created_at: now,
+    });
+
+    const snap = exportSnapshot(db);
+    const discoveryRow = snap.enrollment_discovery.find(
+      (d) => d.purchase_id === purchaseId,
+    ) as { offers_json: string } | undefined;
+    expect(discoveryRow).toBeTruthy();
+    const compactedOffers = JSON.parse(discoveryRow!.offers_json) as Array<{
+      offer_id?: string;
+    }>;
+    expect(compactedOffers[0]?.offer_id).toBe("user_identity_deadbeefcafe");
+
+    // Re-run the same revalidation confirmPurchaseCandidate performs, using
+    // the cookie-compacted offers, and confirm the candidate id is stable.
+    const revalidated = evaluateProductMatches(purchaseRef, compactedOffers as never);
+    expect(revalidated.exact_candidate?.candidate_id).toBe(originalCandidateId);
+  });
 });
