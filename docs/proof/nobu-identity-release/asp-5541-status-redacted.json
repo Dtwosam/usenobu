@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-07-19T21:10:00.000Z",
+  "purpose": "Read-only inspection before legacy alias retirement — no create/update/resubmit performed.",
+  "agentId": "5541",
+  "name": "Nobu",
+  "role": "ASP",
+  "ownerAddress_masked": "0xc07a…d938",
+  "status": 2,
+  "statusLabel": "not listed",
+  "approvalDisplayStatus": 2,
+  "approvalLabel": "Listing under review",
+  "approvalRemark_note": "Text shown is the reviewer feedback from the original avatar rejection cycle (dimensions/rounded corners); no new remark has been posted since the 2026-07-17 avatar-only resubmission — expected while status remains 'under review'.",
+  "profilePicture": "https://static.okx.com/cdn/web3/wallet/marketplace/headimages/agent/avatar/60657556-8076-4fa6-b5bc-4789c9983f64.png",
+  "service": {
+    "serviceName": "Post-checkout price watch",
+    "serviceType": "A2MCP",
+    "fee": "0",
+    "endpoint": "https://usenobu.vercel.app/v1/agent",
+    "endpoint_matches_canonical": true,
+    "endpoint_depends_on_legacy_alias": false
+  },
+  "createdAt": 1783987306325,
+  "updatedAt": 1784280236911,
+  "conclusion": "ASP #5541 is unchanged and still PENDING_REVIEW (approvalStatus 2, not publicly listed). Its registered endpoint already points at the canonical https://usenobu.vercel.app/v1/agent, not any legacy alias, so retiring the legacy afterbuy.vercel.app alias does not require any ASP edit. No edit, resubmission, or new ASP was performed."
+}

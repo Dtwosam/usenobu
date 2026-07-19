@@ -27,6 +27,19 @@
 **Lane 7.1 product selection + locked fingerprint repair:** **PASS** - candidate confirmation now posts only a candidate id; server reloads the stored discovery snapshot, enforces a 30-minute freshness bound, revalidates the selected offer against the purchase, rejects tampered/stale/weak/title-only/non-Target/Target Plus/wrong-identity selections, and monitoring remains locked-fingerprint-only/fail-closed.
 ## Production
 
+**Identity release (2026-07-19):** `https://usenobu.vercel.app` now points to
+the verified, unique Lane 7.2 deployment (`dpl_DQ9ULj9uukY1Kdtujxqkf8sppeUw`,
+built from clean final HEAD `e927b07`). Canonical production proof passed
+(identity-only candidate, confirmation, locked fingerprint, monitoring gate,
+fail-closed live observations, no secrets). Legacy alias `afterbuy.vercel.app`
+was retired (removed) after confirming ASP #5541's endpoint already used the
+canonical URL. `nobu-app.vercel.app`, `get-nobu.vercel.app`,
+`nobu-watch.vercel.app`, `nobu-price.vercel.app`, and `nobu-mvp.vercel.app`
+remain unchanged (still on the old `afterbuy-hvj2pbrmg-…` build). ASP #5541
+inspected read-only: still `PENDING_REVIEW` (`approvalStatus: 2`, not
+publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
+`docs/proof/nobu-identity-release/`.
+
 | Item | Value |
 |---|---|
 | URL | https://usenobu.vercel.app |
