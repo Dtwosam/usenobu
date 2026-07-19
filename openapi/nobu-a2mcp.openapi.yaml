@@ -168,6 +168,23 @@ components:
           const: Target
         disclaimer:
           type: string
+        policy_version:
+          type: string
+          description: Approved policy version (backward-compatible extension)
+        policy_verified_at:
+          type: string
+          format: date-time
+          description: Last approved source-check timestamp (backward-compatible extension)
+        policy_review_state:
+          type: string
+          description: Operational review state CURRENT|CHECK_DUE|SOURCE_UNAVAILABLE|CHANGE_DETECTED|REVIEW_REQUIRED|RETIRED
+        policy_warning:
+          type: string
+          nullable: true
+          description: Visible policy-review warning when review is due or blocked
+        eligibility_suppressed:
+          type: boolean
+          description: True when positive eligibility was suppressed pending policy owner review
     AgentRequest:
       oneOf:
         - type: object

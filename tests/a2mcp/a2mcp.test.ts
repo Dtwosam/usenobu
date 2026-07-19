@@ -10,6 +10,12 @@ import {
 } from "../../src/a2mcp/index.js";
 import type { MatchableOffer } from "../../src/matching/types.js";
 import { buildMonitorShoppingQuery } from "../../src/web/live-monitor.js";
+import {
+  buildDefaultPolicyOperationsRecord,
+  PolicyReviewState,
+  resetMemoryPolicyOps,
+  resolvePolicyRuntime,
+} from "../../src/policy/index.js";
 
 const validRequest = {
   target_product_url: "https://www.target.com/p/example-widget/-/A-87654321",
@@ -57,6 +63,7 @@ function exactOffer(price: number): MatchableOffer {
 beforeEach(() => {
   clearA2mcpAudit();
   defaultA2mcpRateLimiter.reset();
+  resetMemoryPolicyOps();
 });
 
 describe("A2MCP request validation", () => {
@@ -166,6 +173,71 @@ describe("A2MCP check service", () => {
     });
     expect(result.http_status).toBe(503);
     expect(result.body).toMatchObject({ status: "DATA_SOURCE_UNAVAILABLE" });
+  });
+
+  it("CHECK_DUE continues price comparison with policy warning (not empty POLICY_STALE)", async () => {
+    const record = {
+      ...buildDefaultPolicyOperationsRecord("2026-07-19T18:00:00.000Z"),
+      review_state: PolicyReviewState.CHECK_DUE,
+      next_review_at: "2026-07-19T18:00:00.000Z",
+    };
+    const runtime = resolvePolicyRuntime(record, "2026-07-21T12:00:00.000Z");
+    const result = await runA2mcpTargetPriceCheck(
+      {
+        ...validRequest,
+        purchase_date: "2026-07-15",
+        user_confirmed_match_id: "confirmed-1",
+      },
+      {
+        offersOverride: [exactOffer(18.0)],
+        policyRuntime: runtime,
+        now: () => new Date("2026-07-21T12:00:00.000Z"),
+      },
+    );
+    expect(result.http_status).toBe(200);
+    expect(result.body).toMatchObject({
+      status: "PRICE_DROP_DETECTED",
+      observed_target_price: 18,
+      policy_review_state: "CHECK_DUE",
+    });
+    if ("status" in result.body) {
+      expect(result.body.status).not.toBe("POLICY_STALE");
+      expect(result.body.policy_warning).toBeTruthy();
+      // Backward-compatible required fields still present
+      expect(result.body.policy_id).toBe("target-us-online-price-match-v1");
+      expect(result.body.final_decision_by).toBe("Target");
+      expect(result.body.price_source_type).toBe(
+        "THIRD_PARTY_SEARCH_OBSERVATION",
+      );
+    }
+  });
+
+  it("CHANGE_DETECTED suppresses eligibility while keeping observed prices", async () => {
+    const record = {
+      ...buildDefaultPolicyOperationsRecord("2026-07-19T18:00:00.000Z"),
+      review_state: PolicyReviewState.CHANGE_DETECTED,
+    };
+    const runtime = resolvePolicyRuntime(record, "2026-07-19T20:00:00.000Z");
+    const result = await runA2mcpTargetPriceCheck(
+      {
+        ...validRequest,
+        purchase_date: "2026-07-15",
+        user_confirmed_match_id: "confirmed-1",
+      },
+      {
+        offersOverride: [exactOffer(18.0)],
+        policyRuntime: runtime,
+        now: () => new Date("2026-07-19T20:00:00.000Z"),
+      },
+    );
+    expect(result.http_status).toBe(200);
+    if ("status" in result.body) {
+      expect(result.body.observed_target_price).toBe(18);
+      expect(result.body.potential_recovery).toBeCloseTo(6.99);
+      expect(result.body.eligibility_suppressed).toBe(true);
+      expect(result.body.policy_review_state).toBe("CHANGE_DETECTED");
+      expect(result.body.policy_warning).toBeTruthy();
+    }
   });
 
   it("returns NO_PRICE_DROP when observed price is not lower", async () => {

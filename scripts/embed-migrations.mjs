@@ -2,7 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 const dir = "src/db/migrations";
-const ids = ["0001_init", "0002_matching", "0003_monitoring"];
+const ids = [
+  "0001_init",
+  "0002_matching",
+  "0003_monitoring",
+  "0004_policy_operations",
+];
 const entries = ids.map((id) => ({
   id,
   up: fs.readFileSync(path.join(dir, `${id}.sql`), "utf8"),

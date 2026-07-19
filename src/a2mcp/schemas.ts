@@ -44,7 +44,9 @@ export const A2mcpStatusSchema = z.enum([
 
 export type A2mcpStatus = z.infer<typeof A2mcpStatusSchema>;
 
-/** OpenAPI TargetPriceCheckResponse required + optional fields. */
+/** OpenAPI TargetPriceCheckResponse required + optional fields.
+ * Lane 8-R1A adds backward-compatible policy operations extensions.
+ */
 export const A2mcpResponseSchema = z
   .object({
     status: A2mcpStatusSchema,
@@ -66,6 +68,16 @@ export const A2mcpResponseSchema = z
       })
       .optional(),
     disclaimer: z.string().optional(),
+    /** Approved policy version string (e.g. v1). */
+    policy_version: z.string().optional(),
+    /** Last approved/source-check timestamp for provenance. */
+    policy_verified_at: z.string().optional(),
+    /** Operational review state (CURRENT, CHECK_DUE, …). */
+    policy_review_state: z.string().optional(),
+    /** Visible policy-review warning when not fully CURRENT. */
+    policy_warning: z.string().nullable().optional(),
+    /** True when positive eligibility conclusion was suppressed. */
+    eligibility_suppressed: z.boolean().optional(),
   })
   .strict();
 

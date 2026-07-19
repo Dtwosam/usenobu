@@ -3,8 +3,12 @@ retailer_id: target
 jurisdiction: US
 purchase_channel: online
 status: active_freshness_sensitive
-verified_at: '2026-07-14T20:00:00Z'
+verified_at: '2026-07-19T18:00:00Z'
+approved_at: '2026-07-19T18:00:00Z'
 source_url: https://www.target.com/help/articles/policies-guidelines/price-match-guarantee
+source_fingerprint: target-pmg-14d-receipt-required-v1
+review_interval_hours: 24
+source_unavailable_grace_hours: 72
 window:
   type: calendar_days_after_purchase
   days: 14

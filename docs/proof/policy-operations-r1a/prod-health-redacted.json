@@ -1,0 +1,17 @@
+﻿{
+    "status":  "ok",
+    "service":  "nobu-a2mcp",
+    "version":  "1.0.0",
+    "checked_at":  "2026-07-19T01:47:16.873Z",
+    "price_source_type":  "THIRD_PARTY_SEARCH_OBSERVATION",
+    "provider":  "SerpApi",
+    "serpapi_configured":  true,
+    "provider_ready":  true,
+    "groq_configured":  true,
+    "nobu_ai_model":  "openai/gpt-oss-20b",
+    "policy_id":  "target-us-online-price-match-v1",
+    "policy_version":  "v1",
+    "policy_review_state":  "CURRENT",
+    "policy_warning":  null,
+    "note":  "Free A2MCP health. Not an official Target API. serpapi_configured and groq_configured are boolean only â no secrets."
+}

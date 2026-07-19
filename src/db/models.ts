@@ -17,6 +17,56 @@ export interface PolicyVersionRow {
   created_at: string;
 }
 
+/** Lane 8-R1A operational review metadata (separate from approved rule payload). */
+export interface PolicyOperationsRow {
+  policy_id: string;
+  policy_version: string;
+  approved_at: string;
+  source_url: string;
+  source_last_checked_at: string;
+  next_review_at: string;
+  review_state: string;
+  source_fingerprint: string | null;
+  last_owner_alert_at: string | null;
+  review_note: string | null;
+  retired_at: string | null;
+  updated_at: string;
+}
+
+export interface PolicyOwnerAlertRow {
+  id: string;
+  policy_id: string;
+  policy_version: string;
+  alert_key: string;
+  alert_type: string;
+  status: string;
+  message: string;
+  created_at: string;
+  cleared_at: string | null;
+  last_notified_at: string | null;
+}
+
+export interface PolicyPendingReviewRow {
+  id: string;
+  policy_id: string;
+  from_version: string;
+  status: string;
+  note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface PolicyReviewEventRow {
+  id: string;
+  policy_id: string;
+  policy_version: string;
+  action: string;
+  note: string | null;
+  actor: string;
+  created_at: string;
+  payload_json: string;
+}
+
 export interface PurchaseRow {
   id: string;
   user_ref: string | null;
@@ -171,6 +221,10 @@ export const TABLE_NAMES = [
   "search_budget_ledger",
   "monitor_runs",
   "alerts",
+  "policy_operations",
+  "policy_owner_alerts",
+  "policy_pending_reviews",
+  "policy_review_events",
 ] as const;
 
 export type TableName = (typeof TABLE_NAMES)[number];

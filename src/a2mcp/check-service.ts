@@ -10,6 +10,11 @@ import {
   DEFAULT_POLICY_DISCLAIMER,
   TARGET_US_POLICY,
 } from "../policy/target-us-policy.js";
+import {
+  getMemoryPolicyRuntime,
+  runMemoryPolicyReviewScheduler,
+  type PolicyRuntimeView,
+} from "../policy/operations/index.js";
 import { POLICY_ID_TARGET_US_V1 } from "../domain/enums.js";
 import type { MatchableOffer, TargetMatchFingerprint } from "../matching/index.js";
 import {
@@ -31,8 +36,10 @@ export interface A2mcpCheckDeps {
   /** Force provider failure for tests. */
   forceProviderError?: boolean;
   now?: () => Date;
-  /** Skip policy freshness for deterministic unit tests. */
+  /** Skip policy ops/review gates for deterministic unit tests. */
   skipPolicyFreshness?: boolean;
+  /** Inject policy runtime (tests). */
+  policyRuntime?: PolicyRuntimeView;
 }
 
 export interface A2mcpCheckResult {
@@ -40,11 +47,33 @@ export interface A2mcpCheckResult {
   body: A2mcpResponse | { error: string; details?: unknown };
 }
 
+function policyOpsFields(
+  runtime: PolicyRuntimeView | undefined,
+  eligibilitySuppressed?: boolean,
+): Partial<A2mcpResponse> {
+  if (!runtime) {
+    return {
+      policy_version: TARGET_US_POLICY.policy_version,
+      policy_verified_at: TARGET_US_POLICY.verified_at,
+    };
+  }
+  return {
+    policy_version: runtime.record.policy_version,
+    policy_verified_at: runtime.record.source_last_checked_at,
+    policy_review_state: runtime.effective_state,
+    policy_warning: runtime.warning,
+    eligibility_suppressed:
+      eligibilitySuppressed ?? runtime.suppress_positive_eligibility,
+  };
+}
+
 function baseResponse(
   status: A2mcpStatus,
   checkedAt: string,
   extra: Partial<A2mcpResponse> = {},
+  runtime?: PolicyRuntimeView,
 ): A2mcpResponse {
+  const warningSuffix = runtime?.warning ? ` ${runtime.warning}` : "";
   const body: A2mcpResponse = {
     status,
     policy_id: POLICY_ID_TARGET_US_V1,
@@ -52,11 +81,12 @@ function baseResponse(
     final_decision_by: "Target",
     checked_at: checkedAt,
     provider: "SerpApi",
-    disclaimer: DEFAULT_POLICY_DISCLAIMER,
+    disclaimer: `${DEFAULT_POLICY_DISCLAIMER}${warningSuffix}`,
     official_next_action: {
       online_chat: TARGET_US_POLICY.claim_route.online_chat,
       guest_services_phone: TARGET_US_POLICY.claim_route.guest_services_phone,
     },
+    ...policyOpsFields(runtime),
     ...extra,
   };
   return A2mcpResponseSchema.parse(body);
@@ -119,7 +149,7 @@ export function canonicalRequestFingerprint(req: A2mcpRequest): TargetMatchFinge
 /**
  * Free A2MCP one-time Target price check.
  * Reuses policy engine + matching engine — no duplicate business path.
- * Stateless: no SQLite / shared production persistence.
+ * Policy ops use in-process runtime (CHECK_DUE continues service; no 24h hard stop).
  */
 export async function runA2mcpTargetPriceCheck(
   rawBody: unknown,
@@ -142,7 +172,18 @@ export async function runA2mcpTargetPriceCheck(
   const req = parsed.data;
   const fingerprint = canonicalRequestFingerprint(req);
 
-  // Policy first (channel, geography, window) — existing engine
+  // Resolve policy ops (overdue → CHECK_DUE + at most one in-memory owner alert)
+  let runtime: PolicyRuntimeView | undefined;
+  if (deps.skipPolicyFreshness !== true) {
+    if (deps.policyRuntime) {
+      runtime = deps.policyRuntime;
+    } else {
+      runMemoryPolicyReviewScheduler(checkedAt);
+      runtime = getMemoryPolicyRuntime(checkedAt);
+    }
+  }
+
+  // Policy first (channel, geography, window) — existing engine + ops
   const policy = evaluateTargetPolicy(
     {
       purchase_channel: req.purchase_channel,
@@ -154,9 +195,11 @@ export async function runA2mcpTargetPriceCheck(
       has_receipt_or_packing_slip: true,
       has_locked_fingerprint: Boolean(req.user_confirmed_match_id),
       evaluated_at: checkedAt,
+      policy_runtime: runtime,
     },
     { skip_freshness_check: deps.skipPolicyFreshness === true },
   );
+  runtime = policy.policy_runtime ?? runtime;
 
   if (
     policy.status === "UNSUPPORTED_PURCHASE" ||
@@ -165,20 +208,31 @@ export async function runA2mcpTargetPriceCheck(
     policy.status === "POLICY_STALE"
   ) {
     const status = policy.status as A2mcpStatus;
-    const body = baseResponse(status, checkedAt, {
-      purchase_price: req.purchase_price,
-      currency: req.currency,
-      days_remaining: policy.days_remaining,
-    });
+    const body = baseResponse(
+      status,
+      checkedAt,
+      {
+        purchase_price: req.purchase_price,
+        currency: req.currency,
+        days_remaining: policy.days_remaining,
+        eligibility_suppressed: policy.eligibility_suppressed,
+      },
+      runtime,
+    );
     assertResponseHasNoSecrets(body, apiKey);
     return { http_status: 200, body };
   }
 
   if (deps.forceProviderError) {
-    const body = baseResponse("DATA_SOURCE_UNAVAILABLE", checkedAt, {
-      purchase_price: req.purchase_price,
-      currency: req.currency,
-    });
+    const body = baseResponse(
+      "DATA_SOURCE_UNAVAILABLE",
+      checkedAt,
+      {
+        purchase_price: req.purchase_price,
+        currency: req.currency,
+      },
+      runtime,
+    );
     assertResponseHasNoSecrets(body, apiKey);
     return { http_status: 503, body };
   }
@@ -195,11 +249,16 @@ export async function runA2mcpTargetPriceCheck(
     if (!client) {
       // No key and no injected offers → provider unavailable (not fake live data).
       // Root cause of production 503 when SERPAPI_API_KEY is missing/empty on host.
-      const body = baseResponse("DATA_SOURCE_UNAVAILABLE", checkedAt, {
-        purchase_price: req.purchase_price,
-        currency: req.currency,
-        disclaimer: `${DEFAULT_POLICY_DISCLAIMER} Provider configuration missing on server (SERPAPI_API_KEY not available to runtime).`,
-      });
+      const body = baseResponse(
+        "DATA_SOURCE_UNAVAILABLE",
+        checkedAt,
+        {
+          purchase_price: req.purchase_price,
+          currency: req.currency,
+          disclaimer: `${DEFAULT_POLICY_DISCLAIMER} Provider configuration missing on server (SERPAPI_API_KEY not available to runtime).`,
+        },
+        runtime,
+      );
       assertResponseHasNoSecrets(body, apiKey);
       return { http_status: 503, body };
     }
@@ -218,11 +277,16 @@ export async function runA2mcpTargetPriceCheck(
         shopping.provider_status === "PROVIDER_ERROR" ||
         shopping.provider_status === "PROVIDER_RATE_LIMITED"
       ) {
-        const body = baseResponse("DATA_SOURCE_UNAVAILABLE", checkedAt, {
-          purchase_price: req.purchase_price,
-          currency: req.currency,
-          disclaimer: `${DEFAULT_POLICY_DISCLAIMER} Third-party provider error or rate limit (not Target).`,
-        });
+        const body = baseResponse(
+          "DATA_SOURCE_UNAVAILABLE",
+          checkedAt,
+          {
+            purchase_price: req.purchase_price,
+            currency: req.currency,
+            disclaimer: `${DEFAULT_POLICY_DISCLAIMER} Third-party provider error or rate limit (not Target).`,
+          },
+          runtime,
+        );
         assertResponseHasNoSecrets(body, apiKey);
         return { http_status: 503, body };
       }
@@ -259,11 +323,16 @@ export async function runA2mcpTargetPriceCheck(
       }
       offers = matchable;
     } catch {
-      const body = baseResponse("DATA_SOURCE_UNAVAILABLE", checkedAt, {
-        purchase_price: req.purchase_price,
-        currency: req.currency,
-        disclaimer: `${DEFAULT_POLICY_DISCLAIMER} Third-party provider request failed (not Target).`,
-      });
+      const body = baseResponse(
+        "DATA_SOURCE_UNAVAILABLE",
+        checkedAt,
+        {
+          purchase_price: req.purchase_price,
+          currency: req.currency,
+          disclaimer: `${DEFAULT_POLICY_DISCLAIMER} Third-party provider request failed (not Target).`,
+        },
+        runtime,
+      );
       assertResponseHasNoSecrets(body, apiKey);
       return { http_status: 503, body };
     }
@@ -280,21 +349,31 @@ export async function runA2mcpTargetPriceCheck(
   });
 
   if (match.ambiguous || !match.match_ok) {
-    const body = baseResponse("MATCH_REVIEW_REQUIRED", checkedAt, {
-      purchase_price: req.purchase_price,
-      currency: req.currency,
-      days_remaining: policy.days_remaining,
-    });
+    const body = baseResponse(
+      "MATCH_REVIEW_REQUIRED",
+      checkedAt,
+      {
+        purchase_price: req.purchase_price,
+        currency: req.currency,
+        days_remaining: policy.days_remaining,
+      },
+      runtime,
+    );
     assertResponseHasNoSecrets(body, apiKey);
     return { http_status: 200, body };
   }
 
   if (!match.matched_offer) {
-    const body = baseResponse("NO_RELIABLE_PRICE", checkedAt, {
-      purchase_price: req.purchase_price,
-      currency: req.currency,
-      days_remaining: policy.days_remaining,
-    });
+    const body = baseResponse(
+      "NO_RELIABLE_PRICE",
+      checkedAt,
+      {
+        purchase_price: req.purchase_price,
+        currency: req.currency,
+        days_remaining: policy.days_remaining,
+      },
+      runtime,
+    );
     assertResponseHasNoSecrets(body, apiKey);
     return { http_status: 200, body };
   }
@@ -303,11 +382,16 @@ export async function runA2mcpTargetPriceCheck(
   const observed = match.observed_price ?? candidate.observed_price;
 
   if (observed === undefined || observed === null || !(observed > 0)) {
-    const body = baseResponse("NO_RELIABLE_PRICE", checkedAt, {
-      purchase_price: req.purchase_price,
-      currency: req.currency,
-      days_remaining: policy.days_remaining,
-    });
+    const body = baseResponse(
+      "NO_RELIABLE_PRICE",
+      checkedAt,
+      {
+        purchase_price: req.purchase_price,
+        currency: req.currency,
+        days_remaining: policy.days_remaining,
+      },
+      runtime,
+    );
     assertResponseHasNoSecrets(body, apiKey);
     return { http_status: 200, body };
   }
@@ -325,14 +409,19 @@ export async function runA2mcpTargetPriceCheck(
   };
 
   if (observed >= req.purchase_price) {
-    const body = baseResponse("NO_PRICE_DROP", checkedAt, {
-      purchase_price: req.purchase_price,
-      observed_target_price: observed,
-      potential_recovery: 0,
-      currency: req.currency,
-      days_remaining: policy.days_remaining,
-      matched_product,
-    });
+    const body = baseResponse(
+      "NO_PRICE_DROP",
+      checkedAt,
+      {
+        purchase_price: req.purchase_price,
+        observed_target_price: observed,
+        potential_recovery: 0,
+        currency: req.currency,
+        days_remaining: policy.days_remaining,
+        matched_product,
+      },
+      runtime,
+    );
     assertResponseHasNoSecrets(body, apiKey);
     return { http_status: 200, body };
   }
@@ -340,16 +429,49 @@ export async function runA2mcpTargetPriceCheck(
   const recovery =
     Math.round((req.purchase_price - observed) * 100) / 100;
 
-  // Positive path: OpenAPI allows both PRICE_DROP_DETECTED and POTENTIALLY_ELIGIBLE
-  // Use PRICE_DROP_DETECTED for lower observed price; disclaimer remains non-guaranteeing.
-  const body = baseResponse("PRICE_DROP_DETECTED", checkedAt, {
-    purchase_price: req.purchase_price,
-    observed_target_price: observed,
-    potential_recovery: recovery,
-    currency: req.currency,
-    days_remaining: policy.days_remaining,
-    matched_product,
-  });
+  // Re-evaluate with observed price so CHANGE_DETECTED / REVIEW_REQUIRED can
+  // suppress positive eligibility while preserving factual price fields.
+  const finalPolicy = evaluateTargetPolicy(
+    {
+      purchase_channel: req.purchase_channel,
+      country: req.country,
+      region: req.region,
+      purchase_date: req.purchase_date,
+      purchase_price: req.purchase_price,
+      currency: req.currency,
+      has_receipt_or_packing_slip: true,
+      has_locked_fingerprint: true,
+      observed_target_price: observed,
+      observed_currency: "USD",
+      observed_price_reliable: true,
+      evaluated_at: checkedAt,
+      policy_runtime: runtime,
+    },
+    { skip_freshness_check: deps.skipPolicyFreshness === true },
+  );
+  runtime = finalPolicy.policy_runtime ?? runtime;
+
+  const eligibilitySuppressed =
+    finalPolicy.eligibility_suppressed === true ||
+    runtime?.suppress_positive_eligibility === true;
+
+  // Factual lower price: PRICE_DROP_DETECTED remains observational when suppressed;
+  // eligibility_suppressed + policy_warning make the non-eligibility conclusion explicit.
+  // Never emit POTENTIALLY_ELIGIBLE as the top-level A2MCP status.
+  const body = baseResponse(
+    "PRICE_DROP_DETECTED",
+    checkedAt,
+    {
+      purchase_price: req.purchase_price,
+      observed_target_price: observed,
+      potential_recovery: recovery,
+      currency: req.currency,
+      days_remaining: finalPolicy.days_remaining ?? policy.days_remaining,
+      matched_product,
+      eligibility_suppressed: eligibilitySuppressed,
+    },
+    runtime,
+  );
   assertResponseHasNoSecrets(body, apiKey);
   return { http_status: 200, body };
 }

@@ -248,20 +248,23 @@ describe("Target policy fixture matrix", () => {
     expect(result.potential_recovery).toBe(0);
   });
 
-  it("stale policy → POLICY_STALE", () => {
+  it("retired/unusable policy → POLICY_STALE; overdue review is CHECK_DUE not STALE", () => {
     const forced = evaluateTargetPolicy(
       baseSupported({ force_policy_stale: true }),
     );
     expectBound(forced);
     expect(forced.status).toBe("POLICY_STALE");
+    expect(forced.reasons).toContain("policy_retired");
 
+    // 24h+ overdue is an operational review reminder, not a full service block.
     const byAge = evaluateTargetPolicy(
       baseSupported({
-        evaluated_at: "2026-07-16T21:00:00.000Z", // >24h after verified_at
+        evaluated_at: "2026-07-21T21:00:00.000Z", // >24h after verified_at
       }),
     );
-    expect(byAge.status).toBe("POLICY_STALE");
-    expect(byAge.reasons).toContain("policy_verification_stale");
+    expect(byAge.status).not.toBe("POLICY_STALE");
+    expect(byAge.policy_runtime?.effective_state).toBe("CHECK_DUE");
+    expect(byAge.policy_warning).toBeTruthy();
   });
 
   it("unknown exclusion label fails closed without inventing support", () => {

@@ -1,0 +1,25 @@
+Lane 8-R1A targeted tests — 2026-07-19
+Command:
+  npx vitest run tests/policy/freshness.test.ts tests/policy/policy-operations.test.ts tests/policy/target-policy-fixtures.test.ts tests/db/migration.test.ts tests/a2mcp/a2mcp.test.ts tests/serpapi/redact.test.ts
+
+Result: PASS
+  Test Files  6 passed (6)
+  Tests       63 passed (63)
+
+Coverage proven:
+  - CURRENT normal positive path
+  - 24h overdue → CHECK_DUE (not POLICY_STALE)
+  - CHECK_DUE continues price comparison with warning
+  - SOURCE_UNAVAILABLE grace vs post-grace block
+  - CHANGE_DETECTED / REVIEW_REQUIRED suppress POTENTIALLY_ELIGIBLE, keep prices
+  - RETIRED → POLICY_STALE
+  - UNCHANGED owner review restores CURRENT
+  - Owner alerts durable + idempotent (memory + sqlite)
+  - Unauthorized owner actions rejected
+  - Fail-closed matching unchanged under CHECK_DUE
+  - Secret redaction tests pass
+  - A2MCP backward-compatible extensions
+  - Migration 0004 applies cleanly
+
+Also: npx tsc --noEmit → exit 0
+git diff --check → only pre-existing Lane 8 dirty docs (not staged)

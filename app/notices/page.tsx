@@ -1,7 +1,10 @@
-import { Card, Disclosure, PageHeader } from "@/ui";
-import { DEFAULT_POLICY_DISCLAIMER } from "@/policy/target-us-policy";
+import { Card, Disclosure, InlineNotice, PageHeader } from "@/ui";
+import { DEFAULT_POLICY_DISCLAIMER, TARGET_US_POLICY } from "@/policy/target-us-policy";
+import { getMemoryPolicyRuntime } from "@/policy/operations/memory-store";
 
 export default function NoticesPage() {
+  const policyRuntime = getMemoryPolicyRuntime(new Date().toISOString());
+
   return (
     <div className="n-screen n-screen--reading">
       <PageHeader
@@ -10,6 +13,13 @@ export default function NoticesPage() {
       />
 
       <div className="n-stack">
+        {policyRuntime.warning && (
+          <InlineNotice tone="warning" data-testid="policy-review-warning">
+            {policyRuntime.warning} Policy version {TARGET_US_POLICY.policy_version}; last
+            checked {policyRuntime.record.source_last_checked_at}.
+          </InlineNotice>
+        )}
+
         <Card data-testid="platform-notice">
           <h2 className="n-card-title">Platform scope</h2>
           <p data-testid="platform-positioning">
