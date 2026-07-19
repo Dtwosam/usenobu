@@ -1,0 +1,9 @@
+﻿{
+    "probe":  "owner_policy_page",
+    "shows_review_state_current":  true,
+    "documents_secret_env_names":  true,
+    "at":  "2026-07-19T09:24:21.4634856Z",
+    "note":  "Env names in operator help text are not secret values.",
+    "exposes_bearer_token_value":  false,
+    "http_status":  200
+}

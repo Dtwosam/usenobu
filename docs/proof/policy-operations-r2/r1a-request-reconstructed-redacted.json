@@ -1,0 +1,25 @@
+﻿{
+    "url":  "https://usenobu.vercel.app/v1/agent",
+    "deployment_id":  "dpl_3TvMaGr1aWXFa5kUeEsTw4KFvFCm",
+    "note":  "Reconstructed from Lane 8-R1A session command; response archived in policy-operations-r1a/prod-agent-probe-redacted.json. No new SerpApi call in R2.",
+    "method":  "POST",
+    "deployment_url":  "https://usenobu-e9x1qi35w-dtwoflicks-2878s-projects.vercel.app",
+    "http_status":  200,
+    "deploy_note":  "Production files were deployed from local tree immediately before commit 24c59f5; probe response checked_at 2026-07-19T01:47:29.857Z",
+    "production_alias":  "https://usenobu.vercel.app",
+    "body":  {
+                 "currency":  "USD",
+                 "action":  "CHECK_CONFIRMED_PURCHASE",
+                 "model_number":  "AirTag",
+                 "region":  "TX",
+                 "target_item_id":  "54191097",
+                 "upc_or_gtin":  "194252096261",
+                 "purchase_date":  "2026-07-15",
+                 "purchase_channel":  "target_online",
+                 "target_product_url":  "https://www.target.com/p/apple-airtag-bluetooth-tracker-for-keys-suitcases-and-more-1-pack/-/A-54191097",
+                 "user_confirmed_match_id":  "confirmed-airtag-r1a",
+                 "purchase_price":  35,
+                 "country":  "US"
+             },
+    "source_commit_after_deploy":  "24c59f5517122adca3ec3961d410aa517e807f67"
+}

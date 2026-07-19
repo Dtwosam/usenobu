@@ -1,0 +1,9 @@
+﻿{
+    "probe":  "health_policy_ops_fields",
+    "policy_version":  "v1",
+    "note":  "health uses getMemoryPolicyRuntime (in-process seed), not durable owner store",
+    "policy_review_state":  "CURRENT",
+    "at":  "2026-07-19T09:24:21.909Z",
+    "policy_id":  "target-us-online-price-match-v1",
+    "policy_warning":  null
+}

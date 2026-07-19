@@ -1,0 +1,8 @@
+﻿{
+    "exception_message":  "The remote server returned an error: (503) Server Unavailable.",
+    "body":  {
+                 "error":  "owner_ops_secret_not_configured"
+             },
+    "probe":  "owner_policy_status_no_auth",
+    "http_status":  503
+}

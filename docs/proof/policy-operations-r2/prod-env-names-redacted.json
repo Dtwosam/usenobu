@@ -1,0 +1,15 @@
+﻿{
+    "absent_names":  [
+                         "OWNER_OPS_SECRET",
+                         "CRON_SECRET",
+                         "DATABASE_URL",
+                         "NOBU_DB_PATH"
+                     ],
+    "probe":  "vercel_production_env_names",
+    "note":  "Values never recorded. Owner secret and durable DB not configured in production.",
+    "names":  [
+                  "NOBU_AI_MODEL",
+                  "GROQ_API_KEY",
+                  "SERPAPI_API_KEY"
+              ]
+}

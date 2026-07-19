@@ -1,0 +1,7 @@
+﻿{
+    "body":  {
+                 "error":  "owner_ops_secret_not_configured"
+             },
+    "probe":  "owner_policy_scheduler_post_no_auth",
+    "http_status":  503
+}
