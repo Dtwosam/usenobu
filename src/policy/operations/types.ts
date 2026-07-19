@@ -52,6 +52,10 @@ export interface PolicyOperationsRecord {
   review_note: string | null;
   retired_at: string | null;
   updated_at: string;
+  /** Row creation time (ISO). */
+  created_at?: string;
+  /** Optimistic concurrency / update counter. */
+  state_version?: number;
 }
 
 export interface PolicyOwnerAlert {
@@ -75,6 +79,9 @@ export interface PolicyPendingReview {
   note: string | null;
   created_at: string;
   resolved_at: string | null;
+  previous_approved_state?: string | null;
+  detected_state?: string | null;
+  resolution?: string | null;
 }
 
 export interface PolicyReviewEvent {
@@ -86,6 +93,8 @@ export interface PolicyReviewEvent {
   actor: string;
   created_at: string;
   payload_json: string;
+  previous_state?: string | null;
+  resulting_state?: string | null;
 }
 
 /**

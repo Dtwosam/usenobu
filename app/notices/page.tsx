@@ -1,9 +1,25 @@
 import { Card, Disclosure, InlineNotice, PageHeader } from "@/ui";
 import { DEFAULT_POLICY_DISCLAIMER, TARGET_US_POLICY } from "@/policy/target-us-policy";
-import { getMemoryPolicyRuntime } from "@/policy/operations/memory-store";
+import { tryGetPolicyOperationsStore } from "@/policy/operations/factory";
+import { getPolicyRuntimeFromStore } from "@/policy/operations/service";
 
-export default function NoticesPage() {
-  const policyRuntime = getMemoryPolicyRuntime(new Date().toISOString());
+export default async function NoticesPage() {
+  let policyWarning: string | null = null;
+  let sourceChecked: string | null = null;
+  const storeResult = await tryGetPolicyOperationsStore();
+  if (storeResult.ok) {
+    try {
+      const runtime = await getPolicyRuntimeFromStore(
+        storeResult.store,
+        new Date().toISOString(),
+      );
+      policyWarning = runtime.warning;
+      sourceChecked = runtime.record.source_last_checked_at;
+    } catch {
+      policyWarning =
+        "Policy operations store is temporarily unavailable. Target remains the final decision-maker.";
+    }
+  }
 
   return (
     <div className="n-screen n-screen--reading">
@@ -13,10 +29,10 @@ export default function NoticesPage() {
       />
 
       <div className="n-stack">
-        {policyRuntime.warning && (
+        {policyWarning && (
           <InlineNotice tone="warning" data-testid="policy-review-warning">
-            {policyRuntime.warning} Policy version {TARGET_US_POLICY.policy_version}; last
-            checked {policyRuntime.record.source_last_checked_at}.
+            {policyWarning} Policy version {TARGET_US_POLICY.policy_version}
+            {sourceChecked ? `; last checked ${sourceChecked}` : ""}.
           </InlineNotice>
         )}
 

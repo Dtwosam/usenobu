@@ -1,0 +1,7 @@
+﻿{
+    "tests":  "durable-store.test.ts postgres init + scheduler + UNCHANGED",
+    "result":  "PASS",
+    "probe":  "local_docker_postgres_integration",
+    "note":  "POLICY_OPS_TEST_DATABASE_URL pointed at local Docker Postgres host port only; password and full URL not recorded.",
+    "at":  "2026-07-19T10:02:36.1511232Z"
+}

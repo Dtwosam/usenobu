@@ -1,116 +1,65 @@
 import { Card, InlineNotice, PageHeader } from "@/ui";
-import { getWebDatabase } from "@/web/db";
-import { policyStatusSnapshot } from "@/policy/operations/store";
-import { getOwnerOpsSecret } from "@/policy/operations/auth";
+import { getOwnerOpsSecret, getCronSecret } from "@/policy/operations/auth";
 
 /**
- * Minimal protected policy-status page.
- * Server-rendered snapshot for operators. Mutations require API bearer auth.
- * Does not expose secrets.
+ * Operator documentation page only — no unauthenticated policy-state dump.
+ * Live status and mutations require protected /v1/owner/* APIs with bearer secrets.
  */
 export default function OwnerPolicyPage() {
-  const secretConfigured = Boolean(getOwnerOpsSecret());
-  let snap: ReturnType<typeof policyStatusSnapshot> | null = null;
-  let loadError: string | null = null;
-
-  try {
-    const db = getWebDatabase();
-    snap = policyStatusSnapshot(db, new Date().toISOString());
-  } catch (err) {
-    loadError = err instanceof Error ? err.message : "load_failed";
-  }
+  const ownerConfigured = Boolean(getOwnerOpsSecret());
+  const cronConfigured = Boolean(getCronSecret());
 
   return (
     <div className="n-screen n-screen--reading">
       <PageHeader
         title="Policy operations"
-        description="Owner review status for the approved Target U.S. online price-match policy. Manual review of the official Target policy URL only — no scraping."
+        description="Protected Target U.S. price-match policy review. Manual official-source review only — no scraping. Live state is not exposed on this public page."
       />
 
       <div className="n-stack">
-        {!secretConfigured && (
+        <InlineNotice tone="info" data-testid="owner-policy-protected-notice">
+          Policy operations status is available only via authorized API routes. This
+          page does not load or display durable policy state without authentication.
+        </InlineNotice>
+
+        {(!ownerConfigured || !cronConfigured) && (
           <InlineNotice tone="warning" data-testid="owner-secret-missing">
-            Owner/cron secret is not configured on this runtime. Review mutations
-            via API will return 503 until OWNER_OPS_SECRET or CRON_SECRET is set.
-          </InlineNotice>
-        )}
-
-        {loadError && (
-          <InlineNotice tone="danger" data-testid="owner-policy-load-error">
-            Could not load policy operations: {loadError}
-          </InlineNotice>
-        )}
-
-        {snap && (
-          <>
-            {snap.runtime.warning && (
-              <InlineNotice tone="warning" data-testid="policy-review-warning">
-                {snap.runtime.warning}
-              </InlineNotice>
+            {!ownerConfigured && (
+              <span>
+                OWNER_OPS_SECRET is not configured for owner review/status.{" "}
+              </span>
             )}
-
-            <Card data-testid="owner-policy-status">
-              <h2 className="n-card-title">Current policy operations</h2>
-              <ul className="n-list">
-                <li>
-                  <strong>Policy ID:</strong> {snap.runtime.record.policy_id}
-                </li>
-                <li>
-                  <strong>Version:</strong> {snap.runtime.record.policy_version}
-                </li>
-                <li>
-                  <strong>Review state:</strong>{" "}
-                  <span data-testid="policy-review-state">
-                    {snap.runtime.effective_state}
-                  </span>
-                </li>
-                <li>
-                  <strong>Source last checked:</strong>{" "}
-                  {snap.runtime.record.source_last_checked_at}
-                </li>
-                <li>
-                  <strong>Next review at:</strong>{" "}
-                  {snap.runtime.record.next_review_at}
-                </li>
-                <li>
-                  <strong>Pending owner actions:</strong>{" "}
-                  <span data-testid="pending-action-count">
-                    {snap.active_owner_alerts}
-                  </span>
-                </li>
-                <li>
-                  <strong>Pending material-change reviews:</strong>{" "}
-                  {snap.pending_reviews}
-                </li>
-              </ul>
-              <p className="muted">
-                Official source (manual review only):{" "}
-                <a
-                  href={snap.runtime.record.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Target Price Match Guarantee
-                </a>
-              </p>
-            </Card>
-
-            <Card>
-              <h2 className="n-card-title">Owner API</h2>
-              <p>
-                Record reviews with{" "}
-                <code>POST /v1/owner/policy-review</code> (Bearer secret).
-                Actions: <code>UNCHANGED</code>,{" "}
-                <code>MATERIAL_CHANGE_DETECTED</code>,{" "}
-                <code>SOURCE_UNAVAILABLE</code>, <code>RETIRED</code>.
-              </p>
-              <p className="muted">
-                <code>UNCHANGED</code> restores CURRENT without a code change or
-                redeploy. Material changes never auto-apply new eligibility rules.
-              </p>
-            </Card>
-          </>
+            {!cronConfigured && (
+              <span>CRON_SECRET is not configured for the policy scheduler. </span>
+            )}
+            Configure secrets through the secure deployment environment workflow —
+            never in browser-exposed variables.
+          </InlineNotice>
         )}
+
+        <Card data-testid="owner-policy-api-docs">
+          <h2 className="n-card-title">Protected APIs</h2>
+          <ul className="n-list">
+            <li>
+              <code>GET /v1/owner/policy-status</code> — Bearer OWNER_OPS_SECRET or
+              CRON_SECRET
+            </li>
+            <li>
+              <code>POST /v1/owner/policy-review</code> — Bearer OWNER_OPS_SECRET;
+              actions: UNCHANGED, MATERIAL_CHANGE_DETECTED, SOURCE_UNAVAILABLE,
+              RETIRED
+            </li>
+            <li>
+              <code>POST /v1/owner/policy-scheduler</code> — Bearer CRON_SECRET;
+              idempotent CHECK_DUE transition
+            </li>
+          </ul>
+          <p className="muted">
+            UNCHANGED restores CURRENT without a code change or redeploy. Material
+            changes never auto-apply new eligibility rules. Target makes the final
+            decision.
+          </p>
+        </Card>
       </div>
     </div>
   );

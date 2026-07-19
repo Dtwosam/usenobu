@@ -38,5 +38,7 @@ export function buildDefaultPolicyOperationsRecord(
     review_note: null,
     retired_at: null,
     updated_at: updated,
+    created_at: approvedAt,
+    state_version: 1,
   };
 }

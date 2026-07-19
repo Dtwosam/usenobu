@@ -1,0 +1,6 @@
+﻿{
+    "body":  {
+                 "error":  "owner_ops_secret_not_configured"
+             },
+    "http_status":  503
+}

@@ -11,8 +11,12 @@ import {
   TARGET_US_POLICY,
 } from "../policy/target-us-policy.js";
 import {
-  getMemoryPolicyRuntime,
-  runMemoryPolicyReviewScheduler,
+  tryGetPolicyOperationsStore,
+  getPolicyRuntimeFromStore,
+  runPolicyReviewSchedulerOnStore,
+  PolicyReviewState,
+  resolvePolicyRuntime,
+  buildDefaultPolicyOperationsRecord,
   type PolicyRuntimeView,
 } from "../policy/operations/index.js";
 import { POLICY_ID_TARGET_US_V1 } from "../domain/enums.js";
@@ -172,14 +176,50 @@ export async function runA2mcpTargetPriceCheck(
   const req = parsed.data;
   const fingerprint = canonicalRequestFingerprint(req);
 
-  // Resolve policy ops (overdue → CHECK_DUE + at most one in-memory owner alert)
+  // Resolve policy ops from durable shared store (never invent CURRENT from memory).
   let runtime: PolicyRuntimeView | undefined;
+  let policyStoreUnavailable = false;
   if (deps.skipPolicyFreshness !== true) {
     if (deps.policyRuntime) {
       runtime = deps.policyRuntime;
     } else {
-      runMemoryPolicyReviewScheduler(checkedAt);
-      runtime = getMemoryPolicyRuntime(checkedAt);
+      const storeResult = await tryGetPolicyOperationsStore();
+      if (!storeResult.ok) {
+        policyStoreUnavailable = true;
+        // Fail closed for eligibility: do not convert store failure into CURRENT.
+        const blocked = buildDefaultPolicyOperationsRecord(checkedAt);
+        runtime = resolvePolicyRuntime(
+          {
+            ...blocked,
+            review_state: PolicyReviewState.RETIRED,
+            retired_at: checkedAt,
+            review_note: "policy_ops_store_unavailable",
+            updated_at: checkedAt,
+          },
+          checkedAt,
+        );
+      } else {
+        try {
+          await runPolicyReviewSchedulerOnStore(storeResult.store, checkedAt);
+          runtime = await getPolicyRuntimeFromStore(
+            storeResult.store,
+            checkedAt,
+          );
+        } catch {
+          policyStoreUnavailable = true;
+          const blocked = buildDefaultPolicyOperationsRecord(checkedAt);
+          runtime = resolvePolicyRuntime(
+            {
+              ...blocked,
+              review_state: PolicyReviewState.RETIRED,
+              retired_at: checkedAt,
+              review_note: "policy_ops_store_unavailable",
+              updated_at: checkedAt,
+            },
+            checkedAt,
+          );
+        }
+      }
     }
   }
 
@@ -200,6 +240,24 @@ export async function runA2mcpTargetPriceCheck(
     { skip_freshness_check: deps.skipPolicyFreshness === true },
   );
   runtime = policy.policy_runtime ?? runtime;
+
+  if (policyStoreUnavailable && policy.status === "POLICY_STALE") {
+    const body = baseResponse(
+      "POLICY_STALE",
+      checkedAt,
+      {
+        purchase_price: req.purchase_price,
+        currency: req.currency,
+        days_remaining: policy.days_remaining,
+        policy_warning:
+          "Policy operations store is unavailable. Positive eligibility is not assumed.",
+        eligibility_suppressed: true,
+      },
+      runtime,
+    );
+    assertResponseHasNoSecrets(body, apiKey);
+    return { http_status: 200, body };
+  }
 
   if (
     policy.status === "UNSUPPORTED_PURCHASE" ||

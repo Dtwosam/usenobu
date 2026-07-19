@@ -278,9 +278,7 @@ describe("owner review + durable alerts (sqlite)", () => {
 
   it("unauthorized owner request is rejected", () => {
     const prevOwner = process.env.OWNER_OPS_SECRET;
-    const prevCron = process.env.CRON_SECRET;
     process.env.OWNER_OPS_SECRET = "test-owner-secret-not-real";
-    delete process.env.CRON_SECRET;
 
     const bad = authorizeOwnerRequest(
       new Request("http://localhost/v1/owner/policy-review", {
@@ -299,15 +297,11 @@ describe("owner review + durable alerts (sqlite)", () => {
 
     if (prevOwner === undefined) delete process.env.OWNER_OPS_SECRET;
     else process.env.OWNER_OPS_SECRET = prevOwner;
-    if (prevCron === undefined) delete process.env.CRON_SECRET;
-    else process.env.CRON_SECRET = prevCron;
   });
 
   it("missing owner secret returns 503 configuration error", () => {
     const prevOwner = process.env.OWNER_OPS_SECRET;
-    const prevCron = process.env.CRON_SECRET;
     delete process.env.OWNER_OPS_SECRET;
-    delete process.env.CRON_SECRET;
     expect(getOwnerOpsSecret()).toBeNull();
     const res = authorizeOwnerRequest(
       new Request("http://localhost/v1/owner/policy-status", {
@@ -321,8 +315,6 @@ describe("owner review + durable alerts (sqlite)", () => {
     }
     if (prevOwner === undefined) delete process.env.OWNER_OPS_SECRET;
     else process.env.OWNER_OPS_SECRET = prevOwner;
-    if (prevCron === undefined) delete process.env.CRON_SECRET;
-    else process.env.CRON_SECRET = prevCron;
   });
 });
 

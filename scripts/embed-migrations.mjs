@@ -7,6 +7,7 @@ const ids = [
   "0002_matching",
   "0003_monitoring",
   "0004_policy_operations",
+  "0005_policy_operations_r2a",
 ];
 const entries = ids.map((id) => ({
   id,

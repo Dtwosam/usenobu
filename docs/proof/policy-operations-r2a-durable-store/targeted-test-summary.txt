@@ -1,0 +1,16 @@
+Lane 8-R2A targeted tests — 2026-07-19
+
+Commands:
+  npx vitest run tests/policy/durable-store.test.ts tests/policy/policy-operations.test.ts \
+    tests/policy/freshness.test.ts tests/db/migration.test.ts tests/a2mcp/a2mcp.test.ts
+  POLICY_OPS_TEST_DATABASE_URL=<local-docker-redacted> npx vitest run tests/policy/durable-store.test.ts -t postgres
+  npx tsc --noEmit
+
+Results:
+  - durable-store / policy-ops / freshness / migration / a2mcp: PASS
+  - Postgres adapter against local Docker: PASS
+  - Production: OWNER_OPS_SECRET + CRON_SECRET configured (values not recorded)
+  - Production: POLICY_OPS_DATABASE_URL / DATABASE_URL not provisioned
+  - Production health: status=degraded, policy_ops_store=unavailable (fail-closed, not fake CURRENT)
+  - Production owner/scheduler bad bearer: HTTP 401 unauthorized
+  - SerpApi queries: 0
