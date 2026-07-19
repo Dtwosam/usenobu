@@ -1,7 +1,7 @@
 # Nobu Current State
 
-**Date:** 2026-07-14  
-**Status:** LANE 8 PENDING REVIEW — ASP SUBMITTED TO OKX MARKETPLACE  
+**Date:** 2026-07-17
+**Status:** LANE 8 PENDING REVIEW — AVATAR RESUBMITTED AFTER REJECTION
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher  
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop  
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)  
@@ -49,11 +49,11 @@
 
 | Item | Result |
 |---|---|
-| ASP registration | **Done** — agent **#5541** **Nobu** |
+| ASP registration | **Done** — agent **#5541** **Nobu** (unchanged) |
 | Service | A2MCP, fee **0**, endpoint **https://usenobu.vercel.app/v1/agent** |
-| Marketplace submit | **`submitApproval.success: true`**, **`approvalStatus: 2`** |
-| `activate.success` | `false` (not live yet; under review) |
-| `rejectReason` | `null` |
+| 2026-07-14 submit | Under review, then **rejected** (avatar quality / dimensions) |
+| 2026-07-17 fix | **Avatar only** on **#5541** — `newAgentId: null`; polished 440×440 square avatar |
+| Resubmit | **`submitApproval.success: true`**, **`approvalStatus: 2`** (under review again) |
 | Public listing URL | **None** — not claimed live |
 | Verdict | **NOBU_LANE_8_PENDING_REVIEW** |
 

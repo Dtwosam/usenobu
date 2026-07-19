@@ -181,6 +181,8 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Progress (2026-07-14):** ASP **#5541 Nobu** registered; marketplace **`submitApproval.success: true`**, **`approvalStatus: 2`** (under review). Not publicly live. Evidence: `docs/proof/okx/`. Verdict: **NOBU_LANE_8_PENDING_REVIEW**.
 
+**Progress (2026-07-17):** Listing **rejected** for avatar quality/specs; same agent **#5541** updated avatar-only (440×440 square polished software shield); resubmitted — **`submitApproval.success: true`**, **`approvalStatus: 2`**. Evidence: `docs/proof/okx/lane8-avatar-resubmit-summary.json`. Still **NOBU_LANE_8_PENDING_REVIEW**.
+
 **Review-Safe Sprint A (2026-07-14):** Core product proof — bounded **Check price now**, compact Monitoring Proof panel, short decision explanations. Evidence: `docs/proof/ui/core-product-proof/`. Verdict: **NOBU_REVIEW_SAFE_A_PASS**. Does **not** complete Lane 8.
 
 **Review-Safe Sprint A.1 (2026-07-14):** Production manual check uses **live SerpApi** (fixtures gated for tests/e2e only). Evidence: `docs/proof/ui/core-product-proof/live-manual-check/`. Verdict: **NOBU_REVIEW_SAFE_A_1_PASS**.
