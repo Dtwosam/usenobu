@@ -111,13 +111,17 @@ Archive:
 
 Required cases once built (see `docs/nobu-okx-agent-native-paid-monitoring-architecture.md`):
 
-- email verification code: short-lived expiry, single-use, rate-limited, bound to one connection/email, wrong-code lockout, hashed-at-rest, unusable as a browser session token;
+- `DISCOVER_PRODUCT`/`CONFIRM_PRODUCT` succeed against a `discovery_session_id` with no connection present, and never create a durable owned purchase or expose private monitoring state before a verified connection exists;
+- email verification code: at least six digits, short-lived expiry, single-use, attempt-limited, rate-limited, bound to one connection/email, hashed-at-rest, unusable as a browser session token;
+- protected actions reject a request with a valid `connection_id` but a missing/wrong/expired `connection_token` (`ACTION_NOT_AUTHORIZED`), and a `connection_id` alone never authorizes anything;
 - `CONFIRM_PRODUCT` reload-and-revalidate matches the existing web confirmation guarantees (reject stale/tampered/non-Target/Target Plus/title-only);
-- `PREFLIGHT_MONITORING` never mints a quote for an unsupported/ambiguous/expired-window/missing-consent purchase;
+- `PREFLIGHT_MONITORING` never mints a quote for an unsupported/ambiguous/expired-window/missing-either-consent purchase, and returns `MONITORING_PAYMENT_READY` (not an HTTP 402) on pass;
 - quote expiry fails closed (no silent re-price or re-match on activation);
-- first valid paid replay creates exactly one monitor; duplicate settlement/replay returns `ALREADY_ACTIVE` with the same `monitor_id`, never a second row;
-- altered quote (mismatched purchase/fingerprint/price/idempotency key) is rejected, not repaired;
+- activation accepts no caller-supplied idempotency key; the server-derived `activation_key` (quote id + settlement reference + purchase + fingerprint) is the only identity source;
+- first valid paid replay creates exactly one monitor; a valid replay resolving to an already-activated quote returns `HTTP 200` with status `ALREADY_ACTIVE` and the same `monitor_id` — never `HTTP 409` and never a second row;
+- altered quote (mismatched purchase/fingerprint/price) is rejected, not repaired;
+- a settled-but-uncommitted activation (payment confirmed, activation transaction did not commit) is recovered by reconciliation against the recorded settlement reference, never by collecting a second payment;
 - revoking an agent connection does not delete or stop an already-activated monitor;
-- `STOP_MONITORING` never implies a refund;
+- `STOP_MONITORING` sets an explicit `monitoring_stopped_at`/`monitoring_stop_reason` state distinct from archive, is excluded from scheduler selection, and never implies a refund;
 - agent-originated monitors are indistinguishable from web-originated monitors to the scheduler and notification pipeline (no parallel implementation);
 - no live payment test runs fake/simulated settlement and calls it genuine.

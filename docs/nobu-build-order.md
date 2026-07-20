@@ -188,45 +188,60 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** focused email-alert unit tests, migration 0007, monitoring regression, Playwright preference UI (incl. 390px), typecheck, build. Evidence: `docs/proof/lane-7-3b-email-alerts/`.
 
-## Lane 7.4A — OKX agent-native paid monitoring research and architecture COMPLETE
+## Lane 7.4A — OKX agent-native paid monitoring research and architecture COMPLETE (repaired by 7.4A.1)
 
 - Research-and-documentation-only lane; no implementation, deployment, production API change, or ASP #5541 edit/resubmission.
-- Audit official OKX/Onchain OS/A2MCP/x402 capabilities; record confirmed, inferred, unknown, and blocked findings in `docs/external-source-registry.md`.
+- Audit official OKX/Onchain OS/A2MCP/x402 capabilities; record confirmed, unresolved, and blocked findings in `docs/external-source-registry.md`.
 - Select agent-native short-code email verification as Nobu's permanent identity architecture (not an OKX-proof-pending fallback).
-- Defer the paid-service marketplace topology decision (mixed endpoint vs. separate paid listing vs. second endpoint) pending Lane 7.4D's OKX capability re-check; document both viable options and the rejected alternative.
-- Design durable records, action contract, continuation statuses, and deterministic/idempotency boundaries for a `$0.99` one-time paid monitoring activation, reusing the existing matching/policy/scheduler/notification stack unmodified.
 
-**Proof:** `docs/nobu-okx-agent-native-paid-monitoring-architecture.md` and `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml` present and internally consistent; `docs/external-source-registry.md` records every material finding with source and status; live `openapi/nobu-a2mcp.openapi.yaml` unchanged; ASP #5541 unchanged. Verdict: `NOBU_LANE_7_4A_PASS`.
+**Proof:** `docs/nobu-okx-agent-native-paid-monitoring-architecture.md` and `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml` present and internally consistent; `docs/external-source-registry.md` records every material finding with source and status; live `openapi/nobu-a2mcp.openapi.yaml` unchanged; ASP #5541 unchanged. Verdict: `NOBU_LANE_7_4A_PASS`. **Note:** the original 7.4A pass cited non-OKX sources (x402.org, Cloudflare, a packaged environment skill, web search synthesis) to corroborate OKX-specific claims and drew a topology inference from them; Lane 7.4A.1 removed those citations from the Lane 7.4 authority chain and repaired the affected sections — see Lane 7.4A.1 below.
+
+## Lane 7.4A.1 — Official-OKX source cleanup and agent-monitoring contract repair COMPLETE
+
+- Documentation and proposed-contract repair only; no implementation, deployment, production API change, or ASP #5541 edit/resubmission.
+- Removed `x402.org`, Cloudflare, packaged Claude/Anthropic skills, WebSearch synthesis, Solana `SettlementCache`, and generic MCP/x402 precedent from the Lane 7.4 authority chain for OKX-specific claims; retained them only as a historical record of what was removed and why.
+- Adopted coordinator-provided official OKX findings: registration is one price per call per endpoint (price `0` = free); an endpoint is documented as free-direct-200 or x402-402-then-replay; seller flow is protected-request → 402 challenge → signed payment → replay; official X Layer example (`eip155:196`, USD₮0, `0x779ded0c9e1022225f8e0630b35a9b54be713736`, 6 decimals, `990000` base units = `$0.99`); OKX's reverse-proxy infrastructure can technically carry free and paid routes but this does not prove one A2MCP listing may mix them.
+- Repaired the agent flow order (discovery before identity, via an unauthenticated expiring `discovery_session_id`; no durable owned purchase or private monitoring state before a verified connection), the authorization model (`connection_id` handle + secret `connection_token`/`connection_token_hash`/`credential_expires_at`/`credential_rotated_at`/revocation), the consent contract (both `monitoring_consent` and `email_alert_consent` durable before a quote), the payment-ready status name (`MONITORING_PAYMENT_READY`, reserving real `402`/`PAYMENT-REQUIRED` for the OKX resource itself), payment idempotency (server-derived `activation_key`, no caller-supplied key, valid replay is `200 ALREADY_ACTIVE` never `409`), the reconciliation case for a settled-but-uncommitted activation, and the stop/archive split (`monitoring_stopped_at`/`monitoring_stop_reason`, distinct from archive, excluded from scheduler selection).
+- Removed the duplicated Option A/Option B topology description; replaced with three unresolved possibilities (mixed listing, separate listings, convert-and-relocate), none selected.
+- Inserted an explicit Lane 8 gate before Lane 7.4D: no paid marketplace modification before ASP #5541 is approved and genuinely live.
+
+**Proof:** `docs/nobu-okx-agent-native-paid-monitoring-architecture.md`, `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml`, and `docs/external-source-registry.md` repaired and internally consistent; non-OKX-source scan of all Lane 7.4 files clean; live `openapi/nobu-a2mcp.openapi.yaml` unchanged; ASP #5541 unchanged. Verdict: `NOBU_LANE_7_4A_1_PASS`.
 
 ## Lane 7.4B — Agent connection and conversational email verification
 
 - Durable `agent_connections` / `agent_email_codes` tables (same Postgres store as `auth_accounts`, not per-instance SQLite or the browser cookie snapshot).
-- `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, `REVOKE_AGENT_CONNECTION` actions: short-lived, single-use, rate-limited, hashed-at-rest codes; scoped credential that cannot authenticate the website and cannot read purchases beyond what the connection created.
+- `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, `REVOKE_AGENT_CONNECTION` actions: at-least-six-digit, short-lived, single-use, attempt-limited, rate-limited, hashed-at-rest codes; `connection_id` (non-secret handle) plus high-entropy `connection_token` (secret credential, returned once, stored only as `connection_token_hash`) with expiry and rotation; a connection cannot authenticate the website and cannot read purchases beyond what it created.
 - Does not require the Lane 7.4D payment-topology decision.
 
-**Proof:** focused auth-pattern unit tests, rate-limit/expiry/single-use tests, revocation tests, typecheck, build.
+**Proof:** focused auth-pattern unit tests, rate-limit/expiry/single-use/attempt-limit tests, token-vs-handle authorization tests, revocation/rotation tests, typecheck, build.
 
-## Lane 7.4C — Free agent-native purchase preflight
+## Lane 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight
 
-- `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT` (reusing `src/matching/discovery-candidates.ts` / `src/matching/confirm.ts`), monitoring + email-alert consent capture, `PREFLIGHT_MONITORING` deterministic eligibility check.
-- On full eligibility pass, mints a durable, expiring `monitoring_enrollment_quotes` row and returns `PAYMENT_REQUIRED`; unsupported/ambiguous purchases never reach a quote.
+- `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT` (reusing `src/matching/discovery-candidates.ts` / `src/matching/confirm.ts`) against an unauthenticated, expiring `discovery_session_id` — no connection required, no durable owned purchase created yet.
+- Durable `monitoring_consent` + `email_alert_consent` capture; `PREFLIGHT_MONITORING` materializes the connection-owned purchase from the confirmed discovery session, runs the deterministic eligibility check, and on full pass mints a durable, expiring `monitoring_enrollment_quotes` row and returns `MONITORING_PAYMENT_READY` (not `PAYMENT_REQUIRED` — that name is reserved for the real OKX `402` resource).
+- Unsupported/ambiguous purchases, or purchases missing either consent, never reach a quote.
 - Does not require the Lane 7.4D payment-topology decision.
 
-**Proof:** eligibility/quote-issuance unit tests (supported, unsupported, ambiguous, expired-window, missing-consent cases), typecheck, build.
+**Proof:** eligibility/quote-issuance unit tests (supported, unsupported, ambiguous, expired-window, missing-consent, pre-connection-discovery cases), typecheck, build.
 
-## Lane 7.4D — `$0.99` x402 monitoring activation
+## Lane 8 gate — ASP #5541 approval and genuine live-listing proof
 
-- **Opens with "OKX paid-service topology capability re-check"** before any payment code is written: confirm or rule out per-request free/paid branching under one endpoint, multi-listing/multi-price support, whether ASP #5541 may become paid while under review, and the X Layer settlement asset. If unresolved, return `NOBU_LANE_7_4D_BLOCKED`.
-- Once resolved: implement the selected topology (Option A or Option B, `docs/nobu-okx-agent-native-paid-monitoring-architecture.md` §4.1), `payment_attempts` / `monitor_activations` ledgers, `START_MONITORING`, exactly-once activation, replay-safe `ALREADY_ACTIVE`, fail-closed expired/altered-quote handling.
+- ASP #5541 must be approved and genuinely, publicly live (per the existing Lane 8 definition later in this document: "Proof for PASS: approved, live listing. Do not claim completion before this exists.") before any paid marketplace modification is attempted.
+- No paid marketplace modification of any kind — no listing edit, no new listing, no price change — before this gate passes.
 
-**Proof:** payment-challenge/settlement/idempotency unit tests, duplicate-replay test (exactly one monitor), expired/altered-quote fail-closed test, typecheck, build.
+## Lane 7.4D — Official OKX paid-topology re-check and `$0.99` activation
+
+- **Opens with "OKX paid-service topology capability re-check"**, using only official OKX documentation available at that time: resolve which (if any) of the three documented possibilities (mixed listing / separate listings / convert-and-relocate) is supported, whether ASP #5541 may change price under review, whether OKX forwards identity/email, and whether OKX forwards a reusable cross-call authorization credential. **If topology remains unresolved, return `NOBU_LANE_7_4D_BLOCKED`.**
+- Only once resolved: implement the confirmed topology, `payment_attempts` / `monitor_activations` ledgers, `START_MONITORING` with a server-derived `activation_key` (no caller-supplied idempotency key), exactly-once activation in one durable transaction, replay-safe `200 ALREADY_ACTIVE` (never `409` for a valid replay), fail-closed expired/altered-quote handling, and the settled-but-uncommitted reconciliation job.
+
+**Proof:** payment-challenge/settlement/idempotency unit tests, duplicate-replay test (exactly one monitor, `200 ALREADY_ACTIVE`), expired/altered-quote fail-closed test, reconciliation-job test, typecheck, build.
 
 ## Lane 7.4E — Agent-native monitor management
 
 - `LIST_ACTIVE_MONITORS`, `ENABLE_EMAIL_ALERTS`/`DISABLE_EMAIL_ALERTS`, `STOP_MONITORING`; `CHECK_MONITORING_STATUS` (already live) confirmed compatible.
-- No refund promises in any response text; reuses the existing Lane 7.3A.2B archive lifecycle for stop.
+- `STOP_MONITORING` sets an explicit `monitoring_stopped_at`/`monitoring_stop_reason = user_requested` state, distinct from the visibility-only Lane 7.3A.2B archive; scheduler selection excludes stopped purchases. No refund promises in any response text.
 
-**Proof:** owner-scope and lifecycle regression tests, typecheck, build.
+**Proof:** owner-scope, stop-vs-archive, and scheduler-exclusion regression tests, typecheck, build.
 
 ## Lane 7.4F — Scheduler and notification integration
 
@@ -240,7 +255,7 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** end-to-end evidence bundle covering every step above with no fake payments, users, revenue, transactions, or alerts.
 
-## Return to Lane 8 — reviewer-status monitoring (queued; ASP under review) after the applicable 7.4 proof
+Then **Lane 9 — Demo and submission closeout** (defined later in this document) after the applicable 7.4 proof.
 
 ## Lane 7.5A — Global Nobu rename
 

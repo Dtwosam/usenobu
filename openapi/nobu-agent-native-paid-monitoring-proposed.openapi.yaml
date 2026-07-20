@@ -1,34 +1,37 @@
 openapi: 3.1.0
 info:
   title: Nobu Agent-Native Paid Monitoring API (PROPOSED — NOT LIVE)
-  version: 0.1.0-proposed
+  version: 0.2.0-proposed
   description: >-
     PROPOSED, RESEARCH-STAGE CONTRACT ONLY. Nothing in this document is deployed.
     The only live, truthful Nobu A2MCP contract is `openapi/nobu-a2mcp.openapi.yaml`
     (free UNDERSTAND_PURCHASE / CHECK_CONFIRMED_PURCHASE / CHECK_MONITORING_STATUS).
 
-    This file is an internal design artifact for Lane 7.4A
+    This file is an internal design artifact for Lane 7.4A / 7.4A.1
     (`docs/nobu-okx-agent-native-paid-monitoring-architecture.md`). It shows the
-    *logical* shape of a proposed free agent-native preflight surface and a
-    proposed paid activation surface. It intentionally does NOT declare, imply,
-    or assume that both paths can be exposed through a single OKX A2MCP listing.
+    *logical* shape of a proposed free agent-native discovery/preflight surface
+    and a proposed paid activation surface. It intentionally does NOT declare,
+    imply, or assume that both paths can be exposed through a single OKX A2MCP
+    listing, or through more than one listing — that marketplace topology is
+    UNDECIDED (see `x-nobu-topology-status` on the paid path below).
 
-    Per coordinator-provided OKX findings (2026-07-20, recorded in
-    `docs/external-source-registry.md`), A2MCP registration is one fixed price
-    per call per endpoint, and a registered endpoint must be one of exactly two
-    compliant forms — free-200 or x402-paid — not a documented per-request
-    hybrid. Whether the free path below (`/v1/agent`, extended) and the paid
-    path below (`/v1/agent/start-monitoring`) end up as one ASP, two ASPs, or
-    two endpoints under one ASP identity is UNDECIDED and gated on Lane 7.4D's
-    "OKX paid-service topology capability re-check". Do not deploy either path
-    from this file without that decision having been made.
+    Source purity: every OKX-specific fact this file assumes (registration is
+    one price per call per endpoint; price 0 = free; an endpoint is either
+    free-200 or x402-402-then-replay; the seller flow is
+    protected-request -> 402 challenge -> signed payment -> replay; the
+    official X Layer settlement example) comes from official OKX documentation
+    or coordinator-provided official findings recorded in
+    `docs/external-source-registry.md`, under the Lane 7.4A / 7.4A.1 entries.
+    No non-OKX payment source (x402.org, Cloudflare, packaged environment
+    skills, web search synthesis, or generic MCP/x402 precedent) is used as
+    authority for any OKX-specific behavior in this file.
   contact:
     name: Nobu internal architecture — not a public support channel
 servers:
   - url: https://usenobu.vercel.app
     description: >-
       Placeholder only. Whether the paid path is served from this same host,
-      a different host, or a different ASP identity is undecided (see above).
+      a different host, or a different ASP identity is undecided (see below).
 paths:
   /v1/agent:
     post:
@@ -44,9 +47,21 @@ paths:
         DISCOVER_PRODUCT, CONFIRM_PRODUCT, BEGIN_EMAIL_VERIFICATION,
         VERIFY_EMAIL_CODE, PREFLIGHT_MONITORING, LIST_ACTIVE_MONITORS,
         ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS, STOP_MONITORING,
-        REVOKE_AGENT_CONNECTION. PREFLIGHT_MONITORING is the free/paid boundary:
-        on full eligibility pass it mints an enrollment quote and returns
-        PAYMENT_REQUIRED; it never itself takes payment.
+        REVOKE_AGENT_CONNECTION.
+
+        Ordering: DISCOVER_PRODUCT and CONFIRM_PRODUCT operate on an
+        unauthenticated, expiring discovery_session_id and require no
+        connection — discovery never requires prior email verification, and
+        no durable owned purchase or private monitoring state exists yet.
+        BEGIN_EMAIL_VERIFICATION / VERIFY_EMAIL_CODE establish a verified
+        connection_id + one-time connection_token. Every action after
+        VERIFY_EMAIL_CODE requires both connection_id (a non-secret handle)
+        and a valid connection_token (the secret credential) — the handle
+        alone never authorizes anything. PREFLIGHT_MONITORING is the free/paid
+        boundary: on full eligibility + consent pass it materializes the
+        purchase, mints an enrollment quote, and returns
+        MONITORING_PAYMENT_READY (a Nobu status in a 200 body, not an HTTP 402
+        itself); it never takes payment.
       requestBody:
         required: true
         content:
@@ -58,10 +73,10 @@ paths:
           description: Action result (status-bearing body; see ContinuationStatus)
         '400':
           description: Invalid input
+        '401':
+          description: Missing or invalid connection_token for a protected action (ACTION_NOT_AUTHORIZED)
         '404':
-          description: Purchase, connection, or quote not found
-        '409':
-          description: ALREADY_ACTIVE or state-conflict (e.g. quote already consumed)
+          description: Purchase, discovery session, connection, or quote not found
         '429':
           description: Rate limited
         '503':
@@ -70,30 +85,36 @@ paths:
     post:
       operationId: nobuAgentProposedPaidActivation
       summary: >-
-        PROPOSED, PAID activation only. Topology undecided — see the
-        x-nobu-topology-status extension below and Lane 7.4D in the
-        architecture document. Do not treat this path as reachable from the
-        live #5541 listing.
+        PROPOSED, PAID activation only. Marketplace topology undecided — see
+        x-nobu-topology-status below and Lane 7.4D in the architecture
+        document. Do not treat this path as reachable from the live #5541
+        listing.
       description: >-
-        Consumes a settled x402 payment against a previously issued, unexpired
-        `monitoring_enrollment_quotes` row (minted by a prior free
+        Consumes a settled OKX x402 payment against a previously issued,
+        unexpired monitoring_enrollment_quotes row (minted by a prior free
         PREFLIGHT_MONITORING call) and performs exactly-once monitor
-        activation. First valid paid replay creates exactly one monitor;
-        repeated activation against an already-consumed quote returns
-        ALREADY_ACTIVE with the existing monitor_id, never a duplicate.
-        Altered or expired quotes fail closed (CONNECTION_EXPIRED) and are
-        never re-priced or re-matched on the fly. This action never overrides
-        deterministic eligibility, matching, or consent — those were already
-        enforced by PREFLIGHT_MONITORING before the quote existed.
+        activation. Activation identity is derived entirely server-side from
+        the quote id, the OKX-verified settlement reference, the confirmed
+        purchase, and the locked fingerprint — this endpoint does not accept
+        or trust any caller-supplied idempotency key. First valid paid replay
+        creates exactly one monitor; a valid replay that resolves to an
+        already-consumed quote returns HTTP 200 with status ALREADY_ACTIVE and
+        the original monitor_id — never HTTP 409, and never a duplicate
+        monitor. Altered or expired quotes fail closed (CONNECTION_EXPIRED)
+        and are never re-priced or re-matched on the fly. This action never
+        overrides deterministic eligibility, matching, or consent — those were
+        already enforced by PREFLIGHT_MONITORING before the quote existed.
       x-nobu-topology-status: >-
-        UNDECIDED as of Lane 7.4A (2026-07-20). Deployment requires Lane 7.4D's
-        "OKX paid-service topology capability re-check" to resolve whether this
-        is (a) a second endpoint under the same ASP identity as the free path,
-        (b) a wholly separate paid ASP listing, or (c) a per-request-branching
-        addition to the existing free endpoint — the last of which is currently
-        REJECTED as unsupported per coordinator-provided OKX findings (see the
-        architecture document §4.2). If unresolved, Lane 7.4D returns
-        NOBU_LANE_7_4D_BLOCKED rather than guessing.
+        UNDECIDED as of Lane 7.4A.1 (2026-07-20). Three possibilities are
+        documented in the architecture document §5 and none is selected: (1)
+        one mixed free/paid A2MCP listing; (2) separate free and paid A2MCP
+        listings; (3) convert the current free service to paid and relocate
+        free preparation elsewhere. Selecting between them requires official
+        OKX confirmation, obtained only during Lane 7.4D's "OKX paid-service
+        topology capability re-check" — and only after the Lane 8 gate (ASP
+        #5541 approved and genuinely live) has passed. If still unresolved at
+        that point, Lane 7.4D returns NOBU_LANE_7_4D_BLOCKED rather than
+        guessing.
       requestBody:
         required: true
         content:
@@ -102,21 +123,30 @@ paths:
               $ref: '#/components/schemas/StartMonitoringRequest'
       responses:
         '200':
-          description: MONITORING_STARTED or ALREADY_ACTIVE
+          description: MONITORING_STARTED or ALREADY_ACTIVE (both HTTP 200 — a valid replay is never a 409)
         '400':
           description: Invalid input
         '402':
           description: >-
-            x402 Payment Required challenge. Exact accepts[] shape (network,
-            asset, amount) is undetermined pending Lane 7.4D — see
-            docs/external-source-registry.md "Unknown" items (settlement asset
-            on X Layer, chain 196).
+            OKX x402 Payment Required challenge for this protected resource.
+            Exact accepts[]/network/asset shape follows the official X Layer
+            example recorded in docs/external-source-registry.md
+            (OKX-XLAYER-EXAMPLE: eip155:196, USD₮0,
+            0x779ded0c9e1022225f8e0630b35a9b54be713736, 6 decimals, 990000
+            base units = $0.99) pending Lane 7.4D confirming this is the asset
+            Nobu's own listing will actually use.
         '404':
           description: Quote not found
         '409':
-          description: ALREADY_ACTIVE (quote already consumed) or CONNECTION_EXPIRED (quote altered/expired)
+          description: >-
+            Genuine conflict only — e.g. a request whose purchase_id,
+            fingerprint_id, or price do not match the stored quote at all.
+            Never used for a valid replay of an already-settled activation
+            (that is 200 ALREADY_ACTIVE — see description above).
         '422':
           description: Quote failed re-validation (eligibility no longer holds — fail closed, no silent re-check)
+        '423':
+          description: CONNECTION_EXPIRED — quote altered or expired; caller must re-run PREFLIGHT_MONITORING for a fresh quote
 components:
   schemas:
     ContinuationStatus:
@@ -129,7 +159,7 @@ components:
         - EMAIL_CODE_SENT
         - EMAIL_VERIFIED
         - CONSENT_REQUIRED
-        - PAYMENT_REQUIRED
+        - MONITORING_PAYMENT_READY
         - PAYMENT_PENDING
         - MONITORING_STARTED
         - MONITORING_ACTIVE
@@ -151,15 +181,12 @@ components:
         - $ref: '#/components/schemas/RevokeAgentConnectionRequest'
     DiscoverProductRequest:
       type: object
-      required: [action, connection_id, purchase_text]
+      required: [action, purchase_text]
       additionalProperties: false
       properties:
         action:
           type: string
           const: DISCOVER_PRODUCT
-        connection_id:
-          type: string
-          description: Verified agent connection (see EMAIL_VERIFIED). Discovery itself does not require prior payment.
         purchase_text:
           type: string
           maxLength: 2000
@@ -168,22 +195,49 @@ components:
           format: uri
         target_item_id:
           type: string
+      description: >-
+        No connection_id/connection_token required — discovery never requires
+        prior email verification and creates no durable owned purchase.
+    DiscoverProductResponse:
+      type: object
+      required: [agent_state, discovery_session_id, discovery_session_expires_at]
+      properties:
+        agent_state:
+          type: string
+          const: PRODUCT_DISCOVERY
+        discovery_session_id:
+          type: string
+          description: Expiring, server-issued handle for the candidate snapshot. Not a credential; not owned by any account.
+        discovery_session_expires_at:
+          type: string
+          format: date-time
+        candidates:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
     ConfirmProductRequest:
       type: object
-      required: [action, connection_id, candidate_id]
+      required: [action, discovery_session_id, candidate_id]
       additionalProperties: false
       properties:
         action:
           type: string
           const: CONFIRM_PRODUCT
-        connection_id:
+        discovery_session_id:
           type: string
+          description: From a prior DISCOVER_PRODUCT response.
         candidate_id:
           type: string
           description: >-
-            Server-issued candidate id from a prior DISCOVER_PRODUCT response.
+            Server-issued candidate id from that same discovery session.
             Never a client-asserted product payload — reuses the existing
-            reload-and-revalidate confirmation pattern from src/matching/confirm.ts.
+            reload-and-revalidate confirmation pattern from
+            src/matching/confirm.ts, scoped to the discovery session rather
+            than an account.
+      description: >-
+        No connection_id/connection_token required. Locks a fingerprint
+        against the discovery session only; still no durable owned purchase.
     BeginEmailVerificationRequest:
       type: object
       required: [action, email]
@@ -205,14 +259,32 @@ components:
           const: VERIFY_EMAIL_CODE
         connection_id:
           type: string
+          description: From a prior BEGIN_EMAIL_VERIFICATION response.
         code:
           type: string
-          minLength: 4
-          maxLength: 10
-          description: Short-lived, single-use, rate-limited numeric code delivered by email.
+          minLength: 6
+          description: At least six numeric digits. Short-lived, single-use, rate-limited, attempt-limited, delivered by email and entered in the agent conversation.
+    VerifyEmailCodeResponse:
+      type: object
+      required: [agent_state, status, connection_id, connection_token, credential_expires_at]
+      properties:
+        agent_state:
+          type: string
+          const: EMAIL_VERIFICATION
+        status:
+          $ref: '#/components/schemas/ContinuationStatus'
+        connection_id:
+          type: string
+          description: Non-secret handle. Never sufficient alone to authorize a protected action.
+        connection_token:
+          type: string
+          description: High-entropy secret credential, returned exactly once. The caller must retain it; Nobu stores only its hash.
+        credential_expires_at:
+          type: string
+          format: date-time
     PreflightMonitoringRequest:
       type: object
-      required: [action, connection_id, purchase_id, monitoring_consent, email_alert_consent]
+      required: [action, connection_id, connection_token, discovery_session_id, monitoring_consent, email_alert_consent]
       additionalProperties: false
       properties:
         action:
@@ -220,59 +292,18 @@ components:
           const: PREFLIGHT_MONITORING
         connection_id:
           type: string
-        purchase_id:
+        connection_token:
           type: string
-          description: Purchase row with a locked fingerprint from a prior CONFIRM_PRODUCT.
+          description: Required secret credential — connection_id alone is not authorization.
+        discovery_session_id:
+          type: string
+          description: Must be in a confirmed state from a prior CONFIRM_PRODUCT call. Materialized into a durable, connection-owned purchase only by this call.
         monitoring_consent:
           type: boolean
           const: true
         email_alert_consent:
           type: boolean
-          description: Optional independently of monitoring_consent; alerts can be enabled/disabled later via ENABLE_EMAIL_ALERTS/DISABLE_EMAIL_ALERTS.
-    ListActiveMonitorsRequest:
-      type: object
-      required: [action, connection_id]
-      additionalProperties: false
-      properties:
-        action:
-          type: string
-          const: LIST_ACTIVE_MONITORS
-        connection_id:
-          type: string
-    SetEmailAlertsRequest:
-      type: object
-      required: [action, connection_id, purchase_id]
-      additionalProperties: false
-      properties:
-        action:
-          type: string
-          enum: [ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS]
-        connection_id:
-          type: string
-        purchase_id:
-          type: string
-    StopMonitoringRequest:
-      type: object
-      required: [action, connection_id, purchase_id]
-      additionalProperties: false
-      properties:
-        action:
-          type: string
-          const: STOP_MONITORING
-        connection_id:
-          type: string
-        purchase_id:
-          type: string
-    RevokeAgentConnectionRequest:
-      type: object
-      required: [action, connection_id]
-      additionalProperties: false
-      properties:
-        action:
-          type: string
-          const: REVOKE_AGENT_CONNECTION
-        connection_id:
-          type: string
+          description: Captured alongside monitoring_consent; both must be true and durable before a payment quote is minted. Can be changed later via ENABLE_EMAIL_ALERTS/DISABLE_EMAIL_ALERTS without affecting monitoring_consent.
     PreflightMonitoringResponse:
       type: object
       required: [agent_state, status]
@@ -284,7 +315,7 @@ components:
           $ref: '#/components/schemas/ContinuationStatus'
         quote_id:
           type: string
-          description: Present only when status = PAYMENT_REQUIRED.
+          description: Present only when status = MONITORING_PAYMENT_READY.
         price_amount:
           type: number
           const: 0.99
@@ -297,6 +328,66 @@ components:
         monitoring_deadline:
           type: string
           format: date-time
+    ListActiveMonitorsRequest:
+      type: object
+      required: [action, connection_id, connection_token]
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          const: LIST_ACTIVE_MONITORS
+        connection_id:
+          type: string
+        connection_token:
+          type: string
+    SetEmailAlertsRequest:
+      type: object
+      required: [action, connection_id, connection_token, purchase_id]
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum: [ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS]
+        connection_id:
+          type: string
+        connection_token:
+          type: string
+        purchase_id:
+          type: string
+    StopMonitoringRequest:
+      type: object
+      required: [action, connection_id, connection_token, purchase_id]
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          const: STOP_MONITORING
+        connection_id:
+          type: string
+        connection_token:
+          type: string
+        purchase_id:
+          type: string
+      description: >-
+        Sets purchases.monitoring_stopped_at / monitoring_stop_reason =
+        "user_requested". Distinct from archive (visibility-only, unchanged).
+        Stopped purchases are excluded from scheduler selection. Never implies
+        a refund.
+    RevokeAgentConnectionRequest:
+      type: object
+      required: [action, connection_id, connection_token]
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          const: REVOKE_AGENT_CONNECTION
+        connection_id:
+          type: string
+        connection_token:
+          type: string
+      description: >-
+        Revokes the connection and invalidates its token. Never deletes or
+        stops monitors already started, and never implies a refund.
     StartMonitoringRequest:
       type: object
       required: [quote_id]
@@ -304,13 +395,13 @@ components:
       properties:
         quote_id:
           type: string
-          description: From a prior PREFLIGHT_MONITORING PAYMENT_REQUIRED response.
-        idempotency_key:
-          type: string
-          description: >-
-            Caller-supplied idempotency key, cross-checked against the
-            server-derived key on monitoring_enrollment_quotes; mismatch fails
-            closed rather than silently ignored.
+          description: From a prior PREFLIGHT_MONITORING MONITORING_PAYMENT_READY response.
+      description: >-
+        No caller-supplied idempotency key of any kind. Activation identity
+        is derived entirely server-side from quote_id, the OKX-verified
+        settlement reference, the confirmed purchase, and the locked
+        fingerprint (architecture document §7.3). Any extra field a caller
+        sends here that resembles an idempotency key is ignored, not trusted.
     StartMonitoringResponse:
       type: object
       required: [agent_state, status, monitor_id]
