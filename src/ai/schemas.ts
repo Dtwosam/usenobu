@@ -88,7 +88,42 @@ export const AgentActionSchema = z.enum([
   "BEGIN_EMAIL_VERIFICATION",
   "VERIFY_EMAIL_CODE",
   "REVOKE_AGENT_CONNECTION",
+  "DISCOVER_PRODUCT",
+  "CONFIRM_PRODUCT",
+  "PREFLIGHT_MONITORING",
 ]);
+
+/**
+ * Lane 7.4C — validated structured purchase fields for DISCOVER_PRODUCT.
+ * Mirrors ExtractedPurchaseSchema (already-confirmed intake output), not raw
+ * free text — discovery never accepts or stores raw purchase_text.
+ * At least one product clue (title/description/url/tcin/model/upc) plus
+ * price and date are required; enforced in the service layer (matches the
+ * existing canSubmitFindProduct / assessProductClues gate).
+ */
+export const DiscoveryPurchaseFieldsSchema = z
+  .object({
+    purchase_price: z.number().positive(),
+    purchase_date: z.string().min(1),
+    purchase_channel: z.literal("target_online").default("target_online"),
+    country: z.literal("US").default("US"),
+    region: z.string().optional(),
+    product_title: z.string().max(200).optional(),
+    product_description: z.string().max(2000).optional(),
+    target_product_url: z.string().optional(),
+    target_item_id: z.string().optional(),
+    model_number: z.string().optional(),
+    upc_or_gtin: z.string().optional(),
+    brand: z.string().optional(),
+    size: z.string().optional(),
+    color: z.string().optional(),
+    quantity: z.string().optional(),
+  })
+  .strict();
+
+export type DiscoveryPurchaseFields = z.infer<
+  typeof DiscoveryPurchaseFieldsSchema
+>;
 
 export const AgentRequestSchema = z.discriminatedUnion("action", [
   z
@@ -138,6 +173,29 @@ export const AgentRequestSchema = z.discriminatedUnion("action", [
       action: z.literal("REVOKE_AGENT_CONNECTION"),
       connection_id: z.string().min(1),
       connection_token: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("DISCOVER_PRODUCT"),
+      purchase: DiscoveryPurchaseFieldsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("CONFIRM_PRODUCT"),
+      discovery_session_id: z.string().min(1),
+      candidate_id: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("PREFLIGHT_MONITORING"),
+      connection_id: z.string().min(1),
+      connection_token: z.string().min(1),
+      discovery_session_id: z.string().min(1),
+      monitoring_consent: z.boolean(),
+      email_alert_consent: z.boolean(),
     })
     .strict(),
 ]);

@@ -1,29 +1,34 @@
 openapi: 3.1.0
 info:
   title: Nobu Agent-Native Paid Monitoring API (MOSTLY PROPOSED — PARTIALLY IMPLEMENTED)
-  version: 0.3.0-proposed
+  version: 0.4.0-proposed
   description: >-
-    MOSTLY PROPOSED, RESEARCH-STAGE CONTRACT — with one implemented slice.
+    MOSTLY PROPOSED, RESEARCH-STAGE CONTRACT — with two implemented slices.
     As of Lane 7.4B, `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, and
     `REVOKE_AGENT_CONNECTION` are IMPLEMENTED on the live `/v1/agent` route
-    (`app/v1/agent/route.ts` -> `runAgentAction`), additive and
-    backward-compatible with the three pre-existing live actions. Every other
-    action in this document (DISCOVER_PRODUCT, CONFIRM_PRODUCT,
-    PREFLIGHT_MONITORING, LIST_ACTIVE_MONITORS, ENABLE_EMAIL_ALERTS,
-    DISABLE_EMAIL_ALERTS, STOP_MONITORING, and the entire paid
-    `/v1/agent/start-monitoring` path) remains PROPOSED / NOT IMPLEMENTED.
-    Each schema below is marked `x-nobu-implementation-status` to disambiguate.
-    ASP #5541's registered listing is unchanged by Lane 7.4B (free actions on
-    the same already-free endpoint; no marketplace/listing modification).
+    (`app/v1/agent/route.ts` -> `runAgentAction`). As of Lane 7.4C,
+    `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT`, and `PREFLIGHT_MONITORING` are also
+    IMPLEMENTED on the same route, reusing existing matching
+    (`src/matching/discovery-candidates.ts`, `src/matching/confirm.ts`),
+    policy (`src/policy/evaluate-target-policy.ts`), and the Lane 7.4B
+    connection-authorization helper — no parallel implementation. All six are
+    additive and backward-compatible with the three pre-existing live
+    actions. Every other action in this document (LIST_ACTIVE_MONITORS,
+    ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS, STOP_MONITORING, and the entire
+    paid `/v1/agent/start-monitoring` path) remains PROPOSED / NOT
+    IMPLEMENTED. Each schema below is marked `x-nobu-implementation-status`
+    to disambiguate. ASP #5541's registered listing is unchanged by Lane
+    7.4B/7.4C (free actions on the same already-free endpoint; no
+    marketplace/listing modification).
 
     This file is an internal design artifact originating from Lane 7.4A / 7.4A.1
     (`docs/nobu-okx-agent-native-paid-monitoring-architecture.md`), now partially
-    realized by Lane 7.4B. It shows the *logical* shape of a proposed free
-    agent-native discovery/preflight surface and a proposed paid activation
-    surface. It intentionally does NOT declare, imply, or assume that both
-    paths can be exposed through a single OKX A2MCP listing, or through more
-    than one listing — that marketplace topology is UNDECIDED (see
-    `x-nobu-topology-status` on the paid path below).
+    realized by Lane 7.4B and Lane 7.4C. It shows the *logical* shape of a
+    proposed free agent-native discovery/preflight surface and a proposed
+    paid activation surface. It intentionally does NOT declare, imply, or
+    assume that both paths can be exposed through a single OKX A2MCP listing,
+    or through more than one listing — that marketplace topology is
+    UNDECIDED (see `x-nobu-topology-status` on the paid path below).
 
     Source purity: every OKX-specific fact this file assumes (registration is
     one price per call per endpoint; price 0 = free; an endpoint is either
@@ -47,9 +52,11 @@ paths:
     post:
       operationId: nobuAgentProposedFree
       summary: >-
-        PROPOSED, FREE-ONLY additive actions on top of the live nobuAgent
-        operation. Every action below returns HTTP 200 (or a documented 4xx/5xx)
-        and never a 402. No payment ever occurs on this path.
+        FREE-ONLY additive actions on top of the live nobuAgent operation —
+        six IMPLEMENTED (Lane 7.4B/7.4C), four still PROPOSED (see per-schema
+        x-nobu-implementation-status). Every action below returns HTTP 200
+        (or a documented 4xx/5xx) and never a 402. No payment ever occurs on
+        this path.
       description: >-
         Extends the live AgentRequest oneOf (UNDERSTAND_PURCHASE,
         CHECK_CONFIRMED_PURCHASE, CHECK_MONITORING_STATUS — unchanged, see the
@@ -165,10 +172,19 @@ components:
         Additive to the live A2mcpStatus/agent-response vocabulary.
         EMAIL_CODE_SENT, EMAIL_VERIFIED, CODE_INVALID, CODE_EXPIRED,
         ACTION_NOT_AUTHORIZED, and CONNECTION_REVOKED are IMPLEMENTED
-        (Lane 7.4B). The rest remain PROPOSED / NOT IMPLEMENTED.
+        (Lane 7.4B). MORE_INFORMATION_REQUIRED, PRODUCT_CONFIRMATION_REQUIRED,
+        PRODUCT_CONFIRMED, CANDIDATE_NOT_CONFIRMABLE, CONNECTION_EXPIRED,
+        CONSENT_REQUIRED, MONITORING_PAYMENT_READY, UNSUPPORTED_PURCHASE,
+        POLICY_EXCLUSION, WINDOW_EXPIRED, and POLICY_STALE are IMPLEMENTED
+        for DISCOVER_PRODUCT / CONFIRM_PRODUCT / PREFLIGHT_MONITORING (Lane
+        7.4C) — the last four are the existing locked policy statuses
+        (`docs/nobu-clean-master-spec.md` §8), returned as-is rather than
+        wrapped. The rest remain PROPOSED / NOT IMPLEMENTED.
       enum:
         - MORE_INFORMATION_REQUIRED
         - PRODUCT_CONFIRMATION_REQUIRED
+        - PRODUCT_CONFIRMED
+        - CANDIDATE_NOT_CONFIRMABLE
         - EMAIL_VERIFICATION_REQUIRED
         - EMAIL_CODE_SENT
         - EMAIL_VERIFIED
@@ -185,6 +201,9 @@ components:
         - ACTION_NOT_AUTHORIZED
         - CONNECTION_EXPIRED
         - UNSUPPORTED_PURCHASE
+        - POLICY_EXCLUSION
+        - WINDOW_EXPIRED
+        - POLICY_STALE
     ProposedFreeAgentRequest:
       oneOf:
         - $ref: '#/components/schemas/DiscoverProductRequest'
@@ -196,49 +215,136 @@ components:
         - $ref: '#/components/schemas/SetEmailAlertsRequest'
         - $ref: '#/components/schemas/StopMonitoringRequest'
         - $ref: '#/components/schemas/RevokeAgentConnectionRequest'
-    DiscoverProductRequest:
+    DiscoveryPurchaseFields:
       type: object
-      required: [action, purchase_text]
+      required: [purchase_price, purchase_date]
       additionalProperties: false
-      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4C)
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4C)
+      description: >-
+        Validated structured purchase fields — mirrors the existing
+        UNDERSTAND_PURCHASE extracted_purchase intake contract, never raw
+        free text. Discovery never accepts or stores raw purchase_text; only
+        already-confirmed structured fields. At least one product clue
+        (product_title, product_description, target_product_url,
+        target_item_id, model_number, or upc_or_gtin) is required alongside
+        purchase_price and purchase_date — enforced server-side by the same
+        canSubmitFindProduct / assessProductClues gate the consumer web flow
+        uses (src/web/product-clue.ts).
       properties:
-        action:
+        purchase_price:
+          type: number
+          exclusiveMinimum: 0
+        purchase_date:
           type: string
-          const: DISCOVER_PRODUCT
-        purchase_text:
+          format: date
+        purchase_channel:
+          type: string
+          const: target_online
+          default: target_online
+        country:
+          type: string
+          const: US
+          default: US
+        region:
+          type: string
+        product_title:
+          type: string
+          maxLength: 200
+        product_description:
           type: string
           maxLength: 2000
         target_product_url:
           type: string
-          format: uri
         target_item_id:
           type: string
+        model_number:
+          type: string
+        upc_or_gtin:
+          type: string
+        brand:
+          type: string
+        size:
+          type: string
+        color:
+          type: string
+        quantity:
+          type: string
+    DiscoverProductRequest:
+      type: object
+      required: [action, purchase]
+      additionalProperties: false
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4C)
+      properties:
+        action:
+          type: string
+          const: DISCOVER_PRODUCT
+        purchase:
+          $ref: '#/components/schemas/DiscoveryPurchaseFields'
       description: >-
         No connection_id/connection_token required — discovery never requires
         prior email verification and creates no durable owned purchase.
+        Reuses the existing Target discovery client
+        (src/web/live-discovery.ts) and the bounded, Target-Plus-excluding
+        multi-candidate evaluator (src/matching/discovery-candidates.ts).
+        The validated structured snapshot (never raw purchase text) is
+        stored durably on the discovery_sessions row for later
+        materialization by PREFLIGHT_MONITORING.
     DiscoverProductResponse:
       type: object
-      required: [agent_state, discovery_session_id, discovery_session_expires_at]
+      required: [agent_state, status, discovery_session_id, discovery_session_expires_at, candidates]
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4C)
       properties:
         agent_state:
           type: string
           const: PRODUCT_DISCOVERY
+        status:
+          $ref: '#/components/schemas/ContinuationStatus'
+          description: PRODUCT_CONFIRMATION_REQUIRED when at least one candidate was found, else MORE_INFORMATION_REQUIRED.
         discovery_session_id:
           type: string
           description: Expiring, server-issued handle for the candidate snapshot. Not a credential; not owned by any account.
         discovery_session_expires_at:
           type: string
           format: date-time
+          description: 30 minutes from issuance.
         candidates:
           type: array
+          description: Bounded (max 5) Target-seller-only candidates; Target Plus and non-Target sellers are excluded, never returned.
           items:
             type: object
-            additionalProperties: true
+            required: [candidate_id, title, confirmable]
+            additionalProperties: false
+            properties:
+              candidate_id:
+                type: string
+              title:
+                type: string
+              target_item_id:
+                type: string
+                nullable: true
+              model_number:
+                type: string
+                nullable: true
+              upc_or_gtin:
+                type: string
+                nullable: true
+              target_product_url:
+                type: string
+                nullable: true
+              observed_price:
+                type: number
+                nullable: true
+              currency:
+                type: string
+                nullable: true
+              confirmable:
+                type: boolean
+                description: True only when CONFIRM_PRODUCT would accept this candidate_id (strong tier, not title-only, Target seller, not Target Plus).
     ConfirmProductRequest:
       type: object
       required: [action, discovery_session_id, candidate_id]
       additionalProperties: false
-      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4C)
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4C)
       properties:
         action:
           type: string
@@ -257,6 +363,41 @@ components:
       description: >-
         No connection_id/connection_token required. Locks a fingerprint
         against the discovery session only; still no durable owned purchase.
+        Rejects stale/expired sessions, tampered/unknown candidate ids, and
+        non-Target/Target-Plus/weak/title-only candidates — identical
+        revalidation rules to the consumer web confirmation flow.
+    ConfirmProductResponse:
+      type: object
+      required: [agent_state, status]
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4C)
+      description: >-
+        target_product_url/target_item_id/model_number/upc_or_gtin are
+        present only when status = PRODUCT_CONFIRMED.
+      properties:
+        agent_state:
+          type: string
+          const: PRODUCT_CONFIRMATION
+        status:
+          $ref: '#/components/schemas/ContinuationStatus'
+          description: >-
+            PRODUCT_CONFIRMED on success. CANDIDATE_NOT_CONFIRMABLE (HTTP 400)
+            for tampered/unknown/weak/title-only/non-Target/Target-Plus
+            candidates. CONNECTION_EXPIRED (HTTP 404) for a missing, stale,
+            or already-materialized discovery session.
+        discovery_session_id:
+          type: string
+        target_product_url:
+          type: string
+          nullable: true
+        target_item_id:
+          type: string
+          nullable: true
+        model_number:
+          type: string
+          nullable: true
+        upc_or_gtin:
+          type: string
+          nullable: true
     BeginEmailVerificationRequest:
       type: object
       required: [action, email]
@@ -340,7 +481,7 @@ components:
       type: object
       required: [action, connection_id, connection_token, discovery_session_id, monitoring_consent, email_alert_consent]
       additionalProperties: false
-      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4C)
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4C)
       properties:
         action:
           type: string
@@ -355,13 +496,35 @@ components:
           description: Must be in a confirmed state from a prior CONFIRM_PRODUCT call. Materialized into a durable, connection-owned purchase only by this call.
         monitoring_consent:
           type: boolean
-          const: true
+          description: >-
+            Not schema-const-true: a caller sending false receives
+            CONSENT_REQUIRED (HTTP 400) rather than a schema-validation
+            error, so the agent gets a truthful continuation status instead
+            of a generic 400. Both this and email_alert_consent must be true
+            and are recorded as durable timestamps before a quote is minted.
         email_alert_consent:
           type: boolean
-          description: Captured alongside monitoring_consent; both must be true and durable before a payment quote is minted. Can be changed later via ENABLE_EMAIL_ALERTS/DISABLE_EMAIL_ALERTS without affecting monitoring_consent.
+          description: Captured alongside monitoring_consent; both must be true and durable before a payment quote is minted. Can be changed later via ENABLE_EMAIL_ALERTS/DISABLE_EMAIL_ALERTS (proposed, Lane 7.4E) without affecting monitoring_consent.
+      description: >-
+        Materializes exactly one account-owned purchase from the confirmed
+        discovery session's validated structured snapshot, attaches the
+        locked fingerprint, records both consents, and runs the existing
+        deterministic Target eligibility/window check
+        (src/policy/evaluate-target-policy.ts) before minting a quote.
+        Idempotent: retries or concurrent calls for the same
+        connection/session never create a second purchase or a second
+        active quote (server-derived reservation + a partial-unique DB
+        index on one active quote per purchase).
     PreflightMonitoringResponse:
       type: object
       required: [agent_state, status]
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4C)
+      description: >-
+        quote_id/price_amount/price_currency/quote_expires_at are present
+        only when status = MONITORING_PAYMENT_READY. Ineligible purchases
+        return the existing locked policy status directly (UNSUPPORTED_PURCHASE
+        / POLICY_EXCLUSION / WINDOW_EXPIRED / POLICY_STALE, HTTP 200, no
+        quote) rather than a wrapped/invented status.
       properties:
         agent_state:
           type: string
@@ -380,9 +543,11 @@ components:
         quote_expires_at:
           type: string
           format: date-time
+          description: 15 minutes from issuance.
         monitoring_deadline:
           type: string
           format: date-time
+          nullable: true
     ListActiveMonitorsRequest:
       type: object
       required: [action, connection_id, connection_token]

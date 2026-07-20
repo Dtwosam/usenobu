@@ -1,9 +1,9 @@
-# Nobu OKX Agent-Native Paid Monitoring — Architecture (Lane 7.4A, repaired 7.4A.1)
+# Nobu OKX Agent-Native Paid Monitoring — Architecture (Lane 7.4A, repaired 7.4A.1, partially implemented 7.4B/7.4C)
 
-**Status:** PROPOSED / RESEARCH — nothing in this document is deployed. The live contract remains `openapi/nobu-a2mcp.openapi.yaml` (free `UNDERSTAND_PURCHASE` / `CHECK_CONFIRMED_PURCHASE` / `CHECK_MONITORING_STATUS` only). This document proposes a **backward-compatible extension**, not a replacement.
+**Status:** MOSTLY PROPOSED / RESEARCH, with §3.2–§3.5 (Lane 7.4B) and §3.1 steps 2–3/§3.3/§7.2 eligibility-gate/§8 (Lane 7.4C) now IMPLEMENTED. The live contract remains `openapi/nobu-a2mcp.openapi.yaml` for the three original actions; the six Lane 7.4B/7.4C actions are additionally live on the same `/v1/agent` route (`app/v1/agent/route.ts`) as a backward-compatible extension. Payment (§5–§7.7 activation mechanics) remains undeployed, gated on Lane 7.4D.
 
-**Date:** 2026-07-20 (Lane 7.4A) — repaired 2026-07-20 (Lane 7.4A.1)
-**Lane:** 7.4A.1 — Official-OKX source cleanup and agent-monitoring contract repair
+**Date:** 2026-07-20 (Lane 7.4A) — repaired 2026-07-20 (Lane 7.4A.1) — partially implemented 2026-07-20 (Lane 7.4B, Lane 7.4C)
+**Lane:** 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight
 **ASP #5541:** unchanged (free, `PENDING_REVIEW`) — this lane does not edit or resubmit it.
 
 ## 0. Research provenance and honesty note
@@ -80,21 +80,27 @@ A `connection_id` is a **non-secret record handle only**. It identifies which co
 
 An agent action carrying a `connection_id` but a missing, wrong, expired, or hash-mismatched `connection_token` fails with `ACTION_NOT_AUTHORIZED` — identical treatment to a connection that does not exist, so a caller cannot distinguish "wrong secret" from "no such connection" by response shape.
 
-### 3.3 Discovery session (pre-identity)
+### 3.3 Discovery session (pre-identity) — IMPLEMENTED (Lane 7.4C)
 
 ```
 discovery_sessions
   id                     TEXT PK   (disc_*)
-  purchase_text_hash      TEXT NULL  -- hash only, never raw text, matching existing NL-intake privacy rule
+  structured_snapshot_json TEXT     -- validated structured purchase fields only (price, date, channel/location,
+                                     -- product clues); never raw purchase_text — DISCOVER_PRODUCT does not accept it
+  purchase_text_hash      TEXT NULL  -- reserved for a future raw-text intake path; unused while DISCOVER_PRODUCT
+                                      -- only accepts already-validated structured fields (never populated today)
   candidates_snapshot_json TEXT      -- server-held candidate set, same 30-minute-freshness pattern as the existing web confirm flow
   selected_candidate_id    TEXT NULL
   locked_fingerprint_snapshot_json TEXT NULL  -- set by CONFIRM_PRODUCT
-  status                  TEXT      -- discovering | confirmed | materialized | expired
+  status                  TEXT      -- discovering | confirmed | materialized
+  materialized_purchase_id TEXT NULL -- set atomically by PREFLIGHT_MONITORING; the idempotency anchor for retries
   created_at              TEXT
-  expires_at              TEXT      -- short TTL (e.g. 30 minutes), matching the existing discovery-candidate freshness bound
+  expires_at              TEXT      -- 30 minutes, matching the existing discovery-candidate freshness bound
 ```
 
-A `discovery_sessions` row never carries an `account_id` or `connection_id` while `status` is `discovering` or `confirmed`. `PREFLIGHT_MONITORING` (§3.1 step 9) is the only action that reads a `confirmed` discovery session, and it does so only once a valid `connection_id`/`connection_token` pair is present in the same request — at which point the session is marked `materialized` and its locked fingerprint becomes the new `purchases` row's fingerprint, owned by the connection's account. A `discovering` or `confirmed` session that expires before materialization is simply discarded; nothing durable or account-owned was ever created from it.
+A `discovery_sessions` row never carries an `account_id` or `connection_id` while `status` is `discovering` or `confirmed`. `PREFLIGHT_MONITORING` (§3.1 step 9) is the only action that reads a `confirmed` discovery session, and it does so only once a valid `connection_id`/`connection_token` pair is present in the same request. It first reserves materialization with an atomic `status='confirmed' → materialized_purchase_id=X` compare-and-set (first caller wins; a losing concurrent/retried call reads back the winner's `materialized_purchase_id` and reuses it — no second purchase is ever created). A `discovering` or `confirmed` session that expires before materialization is simply discarded; nothing durable or account-owned was ever created from it.
+
+**Implementation note on ordering:** the purchase row is materialized (inserted) *before* the deterministic eligibility/window check runs, matching the exactly-once reservation above — but the locked fingerprint is attached, and monitoring is activated, only *after* eligibility passes. An ineligible purchase (`UNSUPPORTED_PURCHASE` / `POLICY_EXCLUSION` / `WINDOW_EXPIRED` / `POLICY_STALE`) therefore still gets a durable purchase row (so a later status lookup is meaningful), but never a fingerprint, never `MONITORING_ACTIVE`, and never a quote.
 
 ### 3.4 Email verification code properties (all required)
 
@@ -300,8 +306,8 @@ All actions below are **proposed**, additive to the existing three live actions.
 
 - **Lane 7.4A — Research and architecture.** Complete on PASS (2026-07-20).
 - **Lane 7.4A.1 — Official-OKX source cleanup and agent-monitoring contract repair.** This document. Documentation and proposed-contract repair only.
-- **Lane 7.4B — Agent connection and conversational email verification.** Implements §3.2–§3.5 (`agent_connections`, `agent_email_codes`, `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, `REVOKE_AGENT_CONNECTION`, connection-token issuance/rotation/revocation). Does not require the payment topology decision.
-- **Lane 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight.** Implements `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT`, `discovery_sessions` (§3.3), consent capture (§4), `PREFLIGHT_MONITORING` and purchase materialization (§7.2, §8). Also does not require the payment topology decision.
+- **Lane 7.4B — Agent connection and conversational email verification. COMPLETE.** Implemented §3.2–§3.5 (`agent_connections`, `agent_email_codes`, `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, `REVOKE_AGENT_CONNECTION`, connection-token issuance/rotation/revocation). Did not require the payment topology decision. Evidence: `docs/proof/lane-7-4b-agent-connection/`.
+- **Lane 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight. COMPLETE.** Implemented `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT`, `discovery_sessions` (§3.3, now including `structured_snapshot_json`), consent capture (both `monitoring_consent`/`email_alert_consent` required true, checked in the service layer rather than schema-enforced so a `false` yields a truthful `CONSENT_REQUIRED` instead of a generic 400), `PREFLIGHT_MONITORING`, purchase materialization, and `monitoring_enrollment_quotes` (§6, `settlement_asset`/`settlement_network` left `NULL` pending Lane 7.4D). Reused `src/matching/discovery-candidates.ts`, `src/matching/confirm.ts`, `src/policy/evaluate-target-policy.ts`, and the Lane 7.4B `authorizeAgentConnection` helper — no parallel implementation. Idempotency: an atomic `discovery_sessions` reservation (first caller wins) plus a partial-unique index on `monitoring_enrollment_quotes(purchase_id) WHERE status='issued'` guarantee retries/concurrency never create a second purchase or a second active quote. Also did not require the payment topology decision. Evidence: `docs/proof/lane-7-4c-agent-preflight/`.
 - **Lane 8 gate — ASP #5541 approval and genuine live-listing proof.** No paid marketplace modification of any kind before this gate passes. This reuses the existing Lane 8 definition in `docs/nobu-build-order.md` ("Proof for PASS: approved, live listing"); it is not redefined here.
 - **Lane 7.4D — Official OKX paid-topology re-check and `$0.99` activation.** Opens with the "OKX paid-service topology capability re-check" to resolve, from official OKX evidence only, which (if any) of the three §5 possibilities is supported, whether `#5541` may change price under review, and whether OKX forwards identity/a cross-call credential. **Returns `NOBU_LANE_7_4D_BLOCKED` if topology remains unresolved.** Only once resolved: implements `payment_attempts`, `monitor_activations`, `START_MONITORING`, and the exactly-once/idempotency/fail-closed/reconciliation behavior in §7.
 - **Lane 7.4E — Agent-native monitor management.** `CHECK_MONITORING_STATUS` (already live) extended, `LIST_ACTIVE_MONITORS`, `ENABLE_EMAIL_ALERTS`/`DISABLE_EMAIL_ALERTS`, `STOP_MONITORING` (§9), scheduler-selection exclusion for stopped purchases.

@@ -215,14 +215,15 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `tests/auth/agent-connections.test.ts` (12 focused tests: code expiry/attempt-limit/one-time-consume, token hashed-and-returned-once, handle-only/wrong/expired/revoked rejection, rotation invalidating the old token, revocation, cross-connection isolation, existing `/v1/agent` actions unchanged), focused auth regressions (8 passed), combined targeted run (192 passed / 20 files), typecheck, build, `git diff --check` clean, sensitive-output scan clean. Verdict: `NOBU_LANE_7_4B_PASS`. Evidence: `docs/proof/lane-7-4b-agent-connection/`.
 
-## Lane 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight
+## Lane 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight COMPLETE
 
-- `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT` (reusing `src/matching/discovery-candidates.ts` / `src/matching/confirm.ts`) against an unauthenticated, expiring `discovery_session_id` — no connection required, no durable owned purchase created yet.
-- Durable `monitoring_consent` + `email_alert_consent` capture; `PREFLIGHT_MONITORING` materializes the connection-owned purchase from the confirmed discovery session, runs the deterministic eligibility check, and on full pass mints a durable, expiring `monitoring_enrollment_quotes` row and returns `MONITORING_PAYMENT_READY` (not `PAYMENT_REQUIRED` — that name is reserved for the real OKX `402` resource).
-- Unsupported/ambiguous purchases, or purchases missing either consent, never reach a quote.
-- Does not require the Lane 7.4D payment-topology decision.
+- `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT` (reusing `src/matching/discovery-candidates.ts` / `src/matching/confirm.ts`) against an unauthenticated, expiring `discovery_session_id` — no connection required, no durable owned purchase created yet. Discovery accepts only validated structured purchase fields (never raw purchase text) and returns bounded (max 5) Target-only candidates via the existing live Target discovery client; Target Plus and non-Target sellers excluded.
+- Durable `monitoring_consent` + `email_alert_consent` capture; `PREFLIGHT_MONITORING` authorizes via the Lane 7.4B shared connection helper, materializes the connection-owned purchase from the confirmed discovery session, attaches the locked fingerprint only after the deterministic Target eligibility/window check passes, and on full pass mints a durable, expiring `monitoring_enrollment_quotes` row ($0.99 USD, settlement fields `NULL` pending Lane 7.4D) and returns `MONITORING_PAYMENT_READY` (not `PAYMENT_REQUIRED` — that name is reserved for the real OKX `402` resource).
+- Unsupported/ambiguous/expired-session purchases, or purchases missing either consent, never reach a quote — the existing locked policy status is returned as-is.
+- Idempotent: an atomic discovery-session reservation plus a partial-unique active-quote index guarantee retries/concurrency never create a duplicate purchase or quote (verified under real `Promise.all` concurrency).
+- Did not require the Lane 7.4D payment-topology decision.
 
-**Proof:** eligibility/quote-issuance unit tests (supported, unsupported, ambiguous, expired-window, missing-consent, pre-connection-discovery cases), typecheck, build.
+**Proof:** `tests/web/agent-preflight.test.ts` (12 focused tests: discovery-without-identity creates no purchase, bounded Target-only candidates, confirmation rejection cases, session-bound-fingerprint-only confirmation, preflight auth/consent rejection, unsupported/ambiguous/expired create no quote, supported creates one purchase + one quote, retries/concurrency create no duplicates, Lane 7.4B + original actions unchanged, full dispatch path), directly affected regressions (283/284 passed, 1 pre-existing unrelated skip/failure untouched by this lane), typecheck, build, `git diff --check` clean, sensitive-output scan clean. Verdict: `NOBU_LANE_7_4C_PASS`. Evidence: `docs/proof/lane-7-4c-agent-preflight/`.
 
 ## Lane 8 gate — ASP #5541 approval and genuine live-listing proof
 

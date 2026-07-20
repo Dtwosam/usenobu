@@ -101,6 +101,53 @@ CREATE TABLE IF NOT EXISTS agent_email_codes (
 
 CREATE INDEX IF NOT EXISTS idx_agent_email_codes_connection
   ON agent_email_codes (connection_id);
+
+-- Lane 7.4C — free agent-native discovery, confirmation, and monitoring preflight.
+-- Same durable store as auth_accounts / agent_connections; never per-instance
+-- storage or the browser cookie snapshot. Raw purchase text is never stored,
+-- only a hash (structured_snapshot_json holds validated fields only).
+CREATE TABLE IF NOT EXISTS discovery_sessions (
+  id TEXT PRIMARY KEY NOT NULL,
+  structured_snapshot_json TEXT NOT NULL,
+  purchase_text_hash TEXT,
+  candidates_snapshot_json TEXT,
+  selected_candidate_id TEXT,
+  locked_fingerprint_snapshot_json TEXT,
+  status TEXT NOT NULL DEFAULT 'discovering',
+  materialized_purchase_id TEXT,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_discovery_sessions_materialized
+  ON discovery_sessions (materialized_purchase_id);
+
+CREATE TABLE IF NOT EXISTS monitoring_enrollment_quotes (
+  id TEXT PRIMARY KEY NOT NULL,
+  connection_id TEXT NOT NULL,
+  account_id TEXT NOT NULL,
+  purchase_id TEXT NOT NULL,
+  fingerprint_id TEXT NOT NULL,
+  price_amount NUMERIC NOT NULL,
+  price_currency TEXT NOT NULL,
+  settlement_asset TEXT,
+  settlement_network TEXT,
+  monitoring_deadline TEXT,
+  consent_monitoring_at TEXT NOT NULL,
+  consent_email_alerts_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'issued',
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_monitoring_enrollment_quotes_purchase
+  ON monitoring_enrollment_quotes (purchase_id);
+
+-- At most one active (issued) quote per purchase — enforced at the DB level
+-- as a race-safety net on top of the application-level idempotent lookup.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_monitoring_enrollment_quotes_one_active
+  ON monitoring_enrollment_quotes (purchase_id)
+  WHERE status = 'issued';
 `;
 
 /** Best-effort column adds for existing durable DBs (Postgres / SQLite). */

@@ -1,0 +1,89 @@
+{
+  "note": "Illustrative response shapes only. Every value below is a fabricated placeholder from the local test suite (test-mode SQLite, example.com addresses) — no production data, real email, code, or token is included.",
+  "1_discover_product_request": {
+    "action": "DISCOVER_PRODUCT",
+    "purchase": {
+      "purchase_price": 24.99,
+      "purchase_date": "2026-07-10",
+      "purchase_channel": "target_online",
+      "country": "US",
+      "region": "TX",
+      "target_product_url": "https://www.target.com/p/example-gadget/-/A-87654321",
+      "target_item_id": "87654321"
+    }
+  },
+  "1_discover_product_response": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "PRODUCT_DISCOVERY",
+      "status": "PRODUCT_CONFIRMATION_REQUIRED",
+      "discovery_session_id": "disc_REDACTED000000000000000000000000",
+      "discovery_session_expires_at": "REDACTED-ISO-TIMESTAMP",
+      "candidates": [
+        {
+          "candidate_id": "cand_o1",
+          "title": "Example Gadget WDG-100",
+          "target_item_id": "87654321",
+          "model_number": "WDG-100",
+          "upc_or_gtin": null,
+          "target_product_url": "https://www.target.com/p/example-gadget/-/A-87654321",
+          "observed_price": 19.99,
+          "currency": "USD",
+          "confirmable": true
+        }
+      ]
+    }
+  },
+  "2_confirm_product_request": {
+    "action": "CONFIRM_PRODUCT",
+    "discovery_session_id": "disc_REDACTED000000000000000000000000",
+    "candidate_id": "cand_o1"
+  },
+  "2_confirm_product_response": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "PRODUCT_CONFIRMATION",
+      "status": "PRODUCT_CONFIRMED",
+      "discovery_session_id": "disc_REDACTED000000000000000000000000",
+      "target_product_url": "https://www.target.com/p/example-gadget/-/A-87654321",
+      "target_item_id": "87654321",
+      "model_number": "WDG-100",
+      "upc_or_gtin": null
+    }
+  },
+  "3_preflight_monitoring_request": {
+    "action": "PREFLIGHT_MONITORING",
+    "connection_id": "conn_REDACTED000000000000000000000000",
+    "connection_token": "REDACTED",
+    "discovery_session_id": "disc_REDACTED000000000000000000000000",
+    "monitoring_consent": true,
+    "email_alert_consent": true
+  },
+  "3_preflight_monitoring_response_success": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "MONITORING_PREFLIGHT",
+      "status": "MONITORING_PAYMENT_READY",
+      "quote_id": "quote_REDACTED000000000000000000000000",
+      "price_amount": 0.99,
+      "price_currency": "USD",
+      "quote_expires_at": "REDACTED-ISO-TIMESTAMP",
+      "monitoring_deadline": "REDACTED-ISO-TIMESTAMP"
+    }
+  },
+  "3_preflight_monitoring_response_unsupported_example": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "MONITORING_PREFLIGHT",
+      "status": "UNSUPPORTED_PURCHASE"
+    },
+    "note": "Illustrates the Alaska-region test case — the existing locked policy status is returned as-is, no quote minted."
+  },
+  "3_preflight_monitoring_response_missing_consent_example": {
+    "http_status": 400,
+    "body": {
+      "agent_state": "MONITORING_PREFLIGHT",
+      "status": "CONSENT_REQUIRED"
+    }
+  }
+}

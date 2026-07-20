@@ -20,6 +20,11 @@ import {
   revokeAgentConnectionAction,
   verifyAgentEmailCode,
 } from "../auth/agent-connections.js";
+import {
+  confirmProductForAgent,
+  discoverProductForAgent,
+  preflightMonitoringForAgent,
+} from "../web/agent-preflight-service.js";
 
 export type AgentServiceDeps = UnderstandDeps &
   A2mcpCheckDeps & {
@@ -161,6 +166,96 @@ export async function runAgentAction(
         agent_state: "AGENT_CONNECTION_REVOCATION",
         status: result.status,
         connection_id: result.connection_id,
+      },
+    };
+  }
+
+  if (req.action === "DISCOVER_PRODUCT") {
+    const result = await discoverProductForAgent(req.purchase, {
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+      now: deps.connectionNow,
+      offersOverride: deps.offersOverride,
+    });
+    if (!result.ok) {
+      return {
+        http_status: 400,
+        body: { error: result.error, message: result.message },
+      };
+    }
+    return {
+      http_status: 200,
+      body: {
+        agent_state: "PRODUCT_DISCOVERY",
+        status: result.status,
+        discovery_session_id: result.discovery_session_id,
+        discovery_session_expires_at: result.discovery_session_expires_at,
+        candidates: result.candidates,
+      },
+    };
+  }
+
+  if (req.action === "CONFIRM_PRODUCT") {
+    const result = await confirmProductForAgent({
+      discoverySessionId: req.discovery_session_id,
+      candidateId: req.candidate_id,
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+      now: deps.connectionNow,
+    });
+    if (!result.ok) {
+      return {
+        http_status: result.http_status,
+        body: { agent_state: "PRODUCT_CONFIRMATION", status: result.status },
+      };
+    }
+    return {
+      http_status: 200,
+      body: {
+        agent_state: "PRODUCT_CONFIRMATION",
+        status: result.status,
+        discovery_session_id: result.discovery_session_id,
+        target_product_url: result.target_product_url,
+        target_item_id: result.target_item_id,
+        model_number: result.model_number,
+        upc_or_gtin: result.upc_or_gtin,
+      },
+    };
+  }
+
+  if (req.action === "PREFLIGHT_MONITORING") {
+    const result = await preflightMonitoringForAgent({
+      connectionId: req.connection_id,
+      connectionToken: req.connection_token,
+      discoverySessionId: req.discovery_session_id,
+      monitoringConsent: req.monitoring_consent,
+      emailAlertConsent: req.email_alert_consent,
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+      now: deps.connectionNow,
+    });
+    if (!result.ok && result.http_status === 200) {
+      return {
+        http_status: 200,
+        body: { agent_state: "MONITORING_PREFLIGHT", status: result.status },
+      };
+    }
+    if (!result.ok) {
+      return {
+        http_status: result.http_status,
+        body: { agent_state: "MONITORING_PREFLIGHT", status: result.status },
+      };
+    }
+    return {
+      http_status: 200,
+      body: {
+        agent_state: "MONITORING_PREFLIGHT",
+        status: result.status,
+        quote_id: result.quote_id,
+        price_amount: result.price_amount,
+        price_currency: result.price_currency,
+        quote_expires_at: result.quote_expires_at,
+        monitoring_deadline: result.monitoring_deadline,
       },
     };
   }

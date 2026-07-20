@@ -207,7 +207,7 @@ function preferUserProvidedIdentityWhenNeeded(args: {
 }
 
 /** True when purchase already carries exact Target identity (URL/TCIN). */
-function purchaseHasExactIdentity(ref: PurchaseMatchReference): boolean {
+export function purchaseHasExactIdentity(ref: PurchaseMatchReference): boolean {
   if (isLikelyTcin(ref.target_item_id)) return true;
   const url = String(ref.target_product_url ?? "");
   if (url.includes("pending-identity-discovery")) return false;
@@ -249,7 +249,7 @@ function enrichProductTitle(args: {
   return current || provisional || providerTitle;
 }
 
-const PENDING_DISCOVERY_URL =
+export const PENDING_DISCOVERY_URL =
   "https://www.target.com/p/pending-identity-discovery";
 
 /**

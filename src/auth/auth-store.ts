@@ -74,6 +74,37 @@ export type AgentEmailCodeRow = {
   created_at: string;
 };
 
+export type DiscoverySessionRow = {
+  id: string;
+  structured_snapshot_json: string;
+  purchase_text_hash: string | null;
+  candidates_snapshot_json: string | null;
+  selected_candidate_id: string | null;
+  locked_fingerprint_snapshot_json: string | null;
+  status: string;
+  materialized_purchase_id: string | null;
+  created_at: string;
+  expires_at: string;
+};
+
+export type MonitoringEnrollmentQuoteRow = {
+  id: string;
+  connection_id: string;
+  account_id: string;
+  purchase_id: string;
+  fingerprint_id: string;
+  price_amount: number;
+  price_currency: string;
+  settlement_asset: string | null;
+  settlement_network: string | null;
+  monitoring_deadline: string | null;
+  consent_monitoring_at: string;
+  consent_email_alerts_at: string;
+  status: string;
+  expires_at: string;
+  created_at: string;
+};
+
 export type PurchaseBlobRow = {
   purchase_id: string;
   account_id: string;
@@ -198,6 +229,46 @@ export interface AuthStore {
   markAgentEmailCodeUsed(codeId: string, nowIso: string): Promise<boolean>;
   /** Returns the attempt count after incrementing. */
   incrementAgentEmailCodeAttempt(codeId: string): Promise<number>;
+
+  // --- Lane 7.4C: discovery sessions + monitoring enrollment quotes ---
+  insertDiscoverySession(args: {
+    structuredSnapshotJson: string;
+    purchaseTextHash: string | null;
+    candidatesSnapshotJson: string;
+    now?: Date;
+    ttlMs?: number;
+  }): Promise<DiscoverySessionRow>;
+  getDiscoverySessionById(id: string): Promise<DiscoverySessionRow | null>;
+  /** Atomic: only succeeds from 'discovering' or 'confirmed'. */
+  confirmDiscoverySession(args: {
+    sessionId: string;
+    selectedCandidateId: string;
+    lockedFingerprintSnapshotJson: string;
+  }): Promise<boolean>;
+  /** Atomic reservation: only succeeds from 'confirmed'. First caller wins. */
+  reserveDiscoverySessionMaterialization(args: {
+    sessionId: string;
+    purchaseId: string;
+  }): Promise<boolean>;
+
+  insertMonitoringEnrollmentQuote(args: {
+    connectionId: string;
+    accountId: string;
+    purchaseId: string;
+    fingerprintId: string;
+    priceAmount: number;
+    priceCurrency: string;
+    monitoringDeadline: string | null;
+    consentMonitoringAt: string;
+    consentEmailAlertsAt: string;
+    now?: Date;
+    ttlMs?: number;
+  }): Promise<MonitoringEnrollmentQuoteRow>;
+  /** Active (status='issued', unexpired as of nowIso) quote for a purchase, if any. */
+  getActiveMonitoringEnrollmentQuote(
+    purchaseId: string,
+    nowIso: string,
+  ): Promise<MonitoringEnrollmentQuoteRow | null>;
 }
 
 export function mintAccountId(): string {
@@ -682,6 +753,116 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         .get(codeId) as { attempt_count: number } | undefined;
       return row?.attempt_count ?? 0;
     },
+
+    async insertDiscoverySession(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const expires = new Date(
+        now.getTime() + (args.ttlMs ?? 30 * 60 * 1000),
+      ).toISOString();
+      const id = newId("disc");
+      db.prepare(
+        `INSERT INTO discovery_sessions
+         (id, structured_snapshot_json, purchase_text_hash, candidates_snapshot_json,
+          selected_candidate_id, locked_fingerprint_snapshot_json, status,
+          materialized_purchase_id, created_at, expires_at)
+         VALUES (?,?,?,?,NULL,NULL,'discovering',NULL,?,?)`,
+      ).run(
+        id,
+        args.structuredSnapshotJson,
+        args.purchaseTextHash,
+        args.candidatesSnapshotJson,
+        nowIso,
+        expires,
+      );
+      return (await this.getDiscoverySessionById(id))!;
+    },
+    async getDiscoverySessionById(id) {
+      return (
+        (db
+          .prepare(`SELECT * FROM discovery_sessions WHERE id = ?`)
+          .get(id) as DiscoverySessionRow | undefined) ?? null
+      );
+    },
+    async confirmDiscoverySession(args) {
+      const r = db
+        .prepare(
+          `UPDATE discovery_sessions
+           SET selected_candidate_id = ?, locked_fingerprint_snapshot_json = ?, status = 'confirmed'
+           WHERE id = ? AND status IN ('discovering', 'confirmed')`,
+        )
+        .run(
+          args.selectedCandidateId,
+          args.lockedFingerprintSnapshotJson,
+          args.sessionId,
+        );
+      return Number(r.changes ?? 0) === 1;
+    },
+    async reserveDiscoverySessionMaterialization(args) {
+      const r = db
+        .prepare(
+          `UPDATE discovery_sessions
+           SET status = 'materialized', materialized_purchase_id = ?
+           WHERE id = ? AND status = 'confirmed'`,
+        )
+        .run(args.purchaseId, args.sessionId);
+      return Number(r.changes ?? 0) === 1;
+    },
+    async insertMonitoringEnrollmentQuote(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const expires = new Date(
+        now.getTime() + (args.ttlMs ?? 15 * 60 * 1000),
+      ).toISOString();
+      const id = newId("quote");
+      db.prepare(
+        `INSERT INTO monitoring_enrollment_quotes
+         (id, connection_id, account_id, purchase_id, fingerprint_id, price_amount,
+          price_currency, settlement_asset, settlement_network, monitoring_deadline,
+          consent_monitoring_at, consent_email_alerts_at, status, expires_at, created_at)
+         VALUES (?,?,?,?,?,?,?,NULL,NULL,?,?,?,'issued',?,?)`,
+      ).run(
+        id,
+        args.connectionId,
+        args.accountId,
+        args.purchaseId,
+        args.fingerprintId,
+        args.priceAmount,
+        args.priceCurrency,
+        args.monitoringDeadline,
+        args.consentMonitoringAt,
+        args.consentEmailAlertsAt,
+        expires,
+        nowIso,
+      );
+      return {
+        id,
+        connection_id: args.connectionId,
+        account_id: args.accountId,
+        purchase_id: args.purchaseId,
+        fingerprint_id: args.fingerprintId,
+        price_amount: args.priceAmount,
+        price_currency: args.priceCurrency,
+        settlement_asset: null,
+        settlement_network: null,
+        monitoring_deadline: args.monitoringDeadline,
+        consent_monitoring_at: args.consentMonitoringAt,
+        consent_email_alerts_at: args.consentEmailAlertsAt,
+        status: "issued",
+        expires_at: expires,
+        created_at: nowIso,
+      };
+    },
+    async getActiveMonitoringEnrollmentQuote(purchaseId, nowIso) {
+      const row = db
+        .prepare(
+          `SELECT * FROM monitoring_enrollment_quotes
+           WHERE purchase_id = ? AND status = 'issued' AND expires_at > ?
+           ORDER BY created_at DESC LIMIT 1`,
+        )
+        .get(purchaseId, nowIso) as MonitoringEnrollmentQuoteRow | undefined;
+      return row ?? null;
+    },
   };
 }
 
@@ -1159,6 +1340,115 @@ export function createPostgresAuthStore(
         [codeId],
       );
       return r.rows[0]?.attempt_count ?? 0;
+    },
+
+    async insertDiscoverySession(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const expires = new Date(
+        now.getTime() + (args.ttlMs ?? 30 * 60 * 1000),
+      ).toISOString();
+      const id = newId("disc");
+      await q(
+        `INSERT INTO discovery_sessions
+         (id, structured_snapshot_json, purchase_text_hash, candidates_snapshot_json,
+          selected_candidate_id, locked_fingerprint_snapshot_json, status,
+          materialized_purchase_id, created_at, expires_at)
+         VALUES ($1,$2,$3,$4,NULL,NULL,'discovering',NULL,$5,$6)`,
+        [
+          id,
+          args.structuredSnapshotJson,
+          args.purchaseTextHash,
+          args.candidatesSnapshotJson,
+          nowIso,
+          expires,
+        ],
+      );
+      return (await this.getDiscoverySessionById(id))!;
+    },
+    async getDiscoverySessionById(id) {
+      const r = await q<DiscoverySessionRow>(
+        `SELECT * FROM discovery_sessions WHERE id = $1`,
+        [id],
+      );
+      return r.rows[0] ?? null;
+    },
+    async confirmDiscoverySession(args) {
+      const r = await q(
+        `UPDATE discovery_sessions
+         SET selected_candidate_id = $1, locked_fingerprint_snapshot_json = $2, status = 'confirmed'
+         WHERE id = $3 AND status IN ('discovering', 'confirmed')`,
+        [
+          args.selectedCandidateId,
+          args.lockedFingerprintSnapshotJson,
+          args.sessionId,
+        ],
+      );
+      return (r.rowCount ?? 0) === 1;
+    },
+    async reserveDiscoverySessionMaterialization(args) {
+      const r = await q(
+        `UPDATE discovery_sessions
+         SET status = 'materialized', materialized_purchase_id = $1
+         WHERE id = $2 AND status = 'confirmed'`,
+        [args.purchaseId, args.sessionId],
+      );
+      return (r.rowCount ?? 0) === 1;
+    },
+    async insertMonitoringEnrollmentQuote(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const expires = new Date(
+        now.getTime() + (args.ttlMs ?? 15 * 60 * 1000),
+      ).toISOString();
+      const id = newId("quote");
+      await q(
+        `INSERT INTO monitoring_enrollment_quotes
+         (id, connection_id, account_id, purchase_id, fingerprint_id, price_amount,
+          price_currency, settlement_asset, settlement_network, monitoring_deadline,
+          consent_monitoring_at, consent_email_alerts_at, status, expires_at, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,NULL,NULL,$8,$9,$10,'issued',$11,$12)`,
+        [
+          id,
+          args.connectionId,
+          args.accountId,
+          args.purchaseId,
+          args.fingerprintId,
+          args.priceAmount,
+          args.priceCurrency,
+          args.monitoringDeadline,
+          args.consentMonitoringAt,
+          args.consentEmailAlertsAt,
+          expires,
+          nowIso,
+        ],
+      );
+      return {
+        id,
+        connection_id: args.connectionId,
+        account_id: args.accountId,
+        purchase_id: args.purchaseId,
+        fingerprint_id: args.fingerprintId,
+        price_amount: args.priceAmount,
+        price_currency: args.priceCurrency,
+        settlement_asset: null,
+        settlement_network: null,
+        monitoring_deadline: args.monitoringDeadline,
+        consent_monitoring_at: args.consentMonitoringAt,
+        consent_email_alerts_at: args.consentEmailAlertsAt,
+        status: "issued",
+        expires_at: expires,
+        created_at: nowIso,
+      };
+    },
+    async getActiveMonitoringEnrollmentQuote(purchaseId, nowIso) {
+      const r = await q<MonitoringEnrollmentQuoteRow>(
+        `SELECT * FROM monitoring_enrollment_quotes
+         WHERE purchase_id = $1 AND status = 'issued' AND expires_at > $2
+         ORDER BY created_at DESC LIMIT 1`,
+        [purchaseId, nowIso],
+      );
+      return r.rows[0] ?? null;
     },
   };
 }
