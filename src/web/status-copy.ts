@@ -4,13 +4,15 @@ import type { StatusTone } from "@/ui/StatusBadge";
 export function statusLabel(status: string): string {
   switch (status) {
     case "MONITORING_ACTIVE":
-      return "Nobu is watching this purchase";
+      return "Monitoring active";
     case "PRICE_DROP_DETECTED":
-      return "Price drop found";
+    case "ALERT_SENT":
+    case "POTENTIALLY_ELIGIBLE":
+      return "Possible price difference found";
     case "NO_PRICE_DROP":
-      return "No lower price found yet";
+      return "No lower price safely identified";
     case "WINDOW_EXPIRED":
-      return "Monitoring window ended";
+      return "Monitoring period ended";
     case "MATCH_REVIEW_REQUIRED":
       return "Confirm your exact product";
     case "NO_RELIABLE_PRICE":
@@ -20,12 +22,26 @@ export function statusLabel(status: string): string {
       return "This purchase isn’t supported";
     case "DATA_SOURCE_UNAVAILABLE":
       return "Price check temporarily unavailable";
-    case "ALERT_SENT":
-      return "Price drop found";
+    case "MONITORING_PAYMENT_READY":
+      return "Preparing monitoring";
+    case "MONITORING_STOPPED":
+    case "STOPPED":
+      return "Monitoring stopped";
+    case "ACTIVATION_PENDING":
+    case "PENDING_PROJECTION":
+      return "Activation pending";
     default:
       return "Status update";
   }
 }
+
+/** Supporting copy for stopped monitors. */
+export const MONITORING_STOPPED_COPY =
+  "Nobu will no longer run scheduled checks for this purchase.";
+
+/** Supporting copy for activation-pending durable state only. */
+export const ACTIVATION_PENDING_COPY =
+  "Your payment was recorded, but monitoring activation is still being completed. You will not be asked to pay again for this activation.";
 
 export function statusTone(status: string): StatusTone {
   switch (status) {

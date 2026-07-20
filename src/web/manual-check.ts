@@ -350,14 +350,15 @@ export function hasSearchBudget(
 export function monitoringStatusLabel(status: string): string {
   switch (status) {
     case "MONITORING_ACTIVE":
-      return "Watching";
+      return "Monitoring active";
     case "PRICE_DROP_DETECTED":
     case "ALERT_SENT":
-      return "Price difference found";
+    case "POTENTIALLY_ELIGIBLE":
+      return "Possible price difference found";
     case "NO_PRICE_DROP":
-      return "No lower price";
+      return "No lower price safely identified";
     case "WINDOW_EXPIRED":
-      return "Window ended";
+      return "Monitoring period ended";
     case "MATCH_REVIEW_REQUIRED":
       return "Confirm product";
     case "NO_RELIABLE_PRICE":
@@ -367,6 +368,14 @@ export function monitoringStatusLabel(status: string): string {
       return "Not supported";
     case "DATA_SOURCE_UNAVAILABLE":
       return "Source unavailable";
+    case "MONITORING_PAYMENT_READY":
+      return "Preparing monitoring";
+    case "MONITORING_STOPPED":
+    case "STOPPED":
+      return "Monitoring stopped";
+    case "ACTIVATION_PENDING":
+    case "PENDING_PROJECTION":
+      return "Activation pending";
     default:
       return "Status update";
   }

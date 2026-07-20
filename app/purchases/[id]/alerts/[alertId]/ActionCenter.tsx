@@ -6,6 +6,8 @@ import { Button, Disclosure } from "@/ui";
 export type ActionCenterProps = {
   /** Official Target request/support route (never a blog). */
   contactUrl: string;
+  /** Trusted Target product URL when available. */
+  productUrl?: string | null;
   copyText: string;
   heading: string;
   purchasePrice: string;
@@ -23,12 +25,12 @@ export type ActionCenterProps = {
 };
 
 /**
- * Price-drop Action Center.
- * Primary: open Target's official request route (user submits — Nobu never does).
- * Secondary: copy request details, view evidence.
+ * Action Center — customer contacts Target; Nobu never submits.
+ * Order: Contact Target → Open on Target → Copy price details → Review evidence.
  */
 export function ActionCenter({
   contactUrl,
+  productUrl,
   copyText,
   heading,
   purchasePrice,
@@ -79,8 +81,10 @@ export function ActionCenter({
           <dd data-testid="action-observed-price">{observedPrice}</dd>
         </div>
         <div>
-          <dt>Potential difference</dt>
-          <dd data-testid="action-difference">{potentialDifference}</dd>
+          <dt>Possible price difference</dt>
+          <dd data-testid="action-difference" className="n-diff-highlight">
+            {potentialDifference}
+          </dd>
         </div>
         {daysRemainingLabel ? (
           <div>
@@ -90,6 +94,11 @@ export function ActionCenter({
         ) : null}
       </dl>
 
+      <p className="muted n-trust-note" data-testid="action-boundary">
+        Nobu identified a possible price difference. Target verifies the price,
+        checks eligibility and makes the final decision.
+      </p>
+
       <div className="n-action-center__actions">
         <a
           href={contactUrl}
@@ -98,8 +107,22 @@ export function ActionCenter({
           rel="noopener noreferrer"
           data-testid="request-from-target"
         >
-          Request the difference from Target
+          Contact Target
+          <span className="visually-hidden"> (opens in a new tab)</span>
         </a>
+
+        {productUrl ? (
+          <a
+            href={productUrl}
+            className="n-btn n-btn--secondary n-btn--block"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="open-on-target-btn"
+          >
+            Open on Target
+            <span className="visually-hidden"> (opens in a new tab)</span>
+          </a>
+        ) : null}
 
         <Button
           type="button"
@@ -108,7 +131,7 @@ export function ActionCenter({
           onClick={onCopy}
           data-testid="copy-details"
         >
-          Copy request details
+          Copy price details
         </Button>
       </div>
 
@@ -118,12 +141,12 @@ export function ActionCenter({
           data-testid="copy-success"
           role="status"
         >
-          Request details copied.
+          Price details copied.
         </p>
       ) : null}
 
       <div className="n-action-center__evidence" data-testid="view-evidence">
-        <Disclosure title="View evidence">
+        <Disclosure title="Review evidence">
           <dl className="n-kv" data-testid="action-details">
             <div>
               <dt>Price source</dt>

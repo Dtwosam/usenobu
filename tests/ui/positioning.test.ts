@@ -24,71 +24,71 @@ const FORBIDDEN_MONEY = [
   "target owes you",
   "you will get the difference back",
   "claim approved",
+  "recover your money",
+  "make money with nobu",
+  "guaranteed savings",
+  "claim secured",
 ];
 
-describe("universal platform positioning copy", () => {
-  const files = [
+const FORBIDDEN_PUBLIC = [
+  "hackathon",
+  "judge",
+  "competition",
+  "submission",
+];
+
+describe("Lane 8R.1 public interface positioning", () => {
+  const publicFiles = [
     "app/page.tsx",
     "app/notices/page.tsx",
+    "app/okx/page.tsx",
     "app/purchases/new/page.tsx",
-    "PROJECT_DESCRIPTION.md",
-    "README.md",
-    "docs/nobu-clean-master-spec.md",
-    "docs/nobu-current-state.md",
+    "app/purchases/new/PurchaseIntake.tsx",
+    "src/ui/Header.tsx",
+    "src/ui/Footer.tsx",
+    "src/web/okx-marketplace.ts",
   ];
 
-  it("homepage hero is retailer-neutral with money-back benefit", () => {
+  it("homepage has five main sections and required copy", () => {
     const home = readFileSync(resolve("app/page.tsx"), "utf8");
-    expect(home).toContain("Nobu watches prices after you buy.");
-    expect(home).toContain("Add a purchase");
+    expect(home).toContain("Don’t miss a price drop after you buy.");
+    expect(home).toContain("Monitor a purchase");
+    expect(home).toContain("OkxMarketplaceLink");
     expect(home).toContain("How it works");
-    expect(home).toContain("request the difference back");
-    expect(home).toContain("Currently supported");
-    expect(home).toContain("Eligible Target.com purchases");
-    expect(home).toContain("Nobu is starting with eligible Target.com purchases.");
-    // Hero block must not hardcode Target in the lead (availability section may)
-    const heroStart = home.indexOf("n-hero");
-    const stepsStart = home.indexOf("how-it-works");
-    const heroChunk = home.slice(heroStart, stepsStart);
-    expect(heroChunk.toLowerCase()).not.toContain("target");
-    expect(home).not.toContain("Track a Target purchase");
-    expect(home).not.toContain("Ask Nobu to watch a purchase");
-  });
-
-  it("homepage three steps are retailer-neutral", () => {
-    const home = readFileSync(resolve("app/page.tsx"), "utf8");
-    expect(home).toContain("Add your purchase");
+    expect(home).toContain("What Nobu is watching for");
+    expect(home).toContain("Use Nobu your way");
+    expect(home).toContain("Availability and trust");
+    expect(home).toContain("Possible price difference");
+    expect(home).toContain("$20.00");
+    expect(home).toContain("Tell Nobu what you bought");
+    expect(home).toContain("Confirm the exact product");
     expect(home).toContain("Nobu keeps watch");
-    expect(home).toContain("Request the difference");
-    const stepsStart = home.indexOf("home-steps");
-    const availStart = home.indexOf("current-availability");
-    const stepsChunk = home.slice(stepsStart, availStart).toLowerCase();
-    expect(stepsChunk).not.toContain("target");
+    expect(home).toContain("Know when to contact the retailer");
+    const sectionMatches = home.match(/className="n-home-section"/g) ?? [];
+    // 4 n-home-section + hero = 5 main sections
+    expect(sectionMatches.length).toBe(4);
+    expect(home).toContain("n-hero");
   });
 
-  it("homepage money-back copy is qualified not guaranteed", () => {
-    const home = readFileSync(resolve("app/page.tsx"), "utf8").toLowerCase();
-    for (const phrase of FORBIDDEN_MONEY) {
-      expect(home, `homepage must not say "${phrase}"`).not.toContain(phrase);
+  it("homepage and public UI avoid guarantee and recovery language", () => {
+    for (const file of publicFiles) {
+      // Strip block comments so implementation notes are not scanned as copy
+      const raw = readFileSync(resolve(file), "utf8");
+      const text = raw
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/.*$/gm, "")
+        .toLowerCase();
+      for (const phrase of FORBIDDEN_MONEY) {
+        expect(text, `${file} must not say "${phrase}"`).not.toContain(phrase);
+      }
+      for (const phrase of FORBIDDEN_PUBLIC) {
+        expect(text, `${file} must not say "${phrase}"`).not.toContain(phrase);
+      }
     }
-    expect(home).toContain("may be able to get back");
-    expect(home).toContain("request the difference back");
-  });
-
-  it("add-purchase labels Target as currently supported retailer", () => {
-    const form = readFileSync(
-      resolve("app/purchases/new/PurchaseIntake.tsx"),
-      "utf8",
-    );
-    expect(form).toContain("Tell Nobu what you bought");
-    expect(form).toContain("Target — currently supported");
-    expect(form).toContain("This retailer isn’t supported yet");
-    expect(form).toContain("Fill details with AI");
-    expect(form).toContain("Find my product");
   });
 
   it("does not claim other retailers are live", () => {
-    for (const file of files) {
+    for (const file of publicFiles) {
       const text = readFileSync(resolve(file), "utf8").toLowerCase();
       for (const phrase of MISLEADING) {
         expect(text, `${file} must not claim "${phrase}"`).not.toContain(
@@ -98,14 +98,48 @@ describe("universal platform positioning copy", () => {
     }
   });
 
-  it("master definition states platform + Target-only live", () => {
-    const spec = readFileSync(resolve("docs/nobu-clean-master-spec.md"), "utf8");
-    expect(spec).toContain("retailer-specific connectors");
-    expect(spec).toContain(
-      "current live version supports eligible Target.com and Target app purchases only",
+  it("add-purchase intro and help panel explain exact product", () => {
+    const form = readFileSync(
+      resolve("app/purchases/new/PurchaseIntake.tsx"),
+      "utf8",
     );
-    expect(spec).toContain(
-      "Add a supported purchase once. Nobu watches the retailer price",
+    expect(form).toContain("Tell Nobu what you bought");
+    expect(form).toContain("Why the exact product matters");
+    expect(form).toContain("fails closed");
+    expect(form).toContain("Target — currently supported");
+    expect(form).toContain("Find my product");
+  });
+
+  it("OKX guide is customer-facing and truthful about payment", () => {
+    const okx = readFileSync(resolve("app/okx/page.tsx"), "utf8");
+    expect(okx).toContain("Use Nobu with OKX.AI");
+    expect(okx).toContain("One-time monitoring activation — $0.99");
+    expect(okx).toContain("does not guarantee");
+    expect(okx).toContain("Does Nobu contact Target for me?");
+    expect(okx).toContain("Does Nobu need my Target password?");
+    expect(okx.toLowerCase()).not.toContain("coming soon");
+    expect(okx.toLowerCase()).not.toContain("pending approval");
+  });
+
+  it("marketplace CTA uses one configuration source", () => {
+    const mod = readFileSync(resolve("src/web/okx-marketplace.ts"), "utf8");
+    expect(mod).toContain("NEXT_PUBLIC_OKX_MARKETPLACE_URL");
+    expect(mod).toContain("getOkxMarketplaceHref");
+    expect(mod).toContain('"/okx"');
+    const link = readFileSync(resolve("src/ui/OkxMarketplaceLink.tsx"), "utf8");
+    expect(link).toContain("getOkxMarketplaceCta");
+    // Components must not hardcode marketplace listing domains
+    expect(link).not.toMatch(/https:\/\/web3\.okx\.com/);
+  });
+
+  it("notices include OKX payment and retailer decision truth", () => {
+    const notices = readFileSync(resolve("app/notices/page.tsx"), "utf8");
+    expect(notices).toContain(
+      "The $0.99 OKX payment activates monitoring for one confirmed and eligible purchase",
     );
+    expect(notices).toContain("does not guarantee a price drop");
+    expect(notices).toContain("does not contact Target");
+    expect(notices).toContain("Price source");
+    expect(notices).toContain("Stopping monitoring");
   });
 });

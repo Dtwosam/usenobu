@@ -18,7 +18,7 @@ test.describe("Nobu design foundation (Lane 7.5B1)", () => {
     await expect(page.getByTestId("app-header")).toBeVisible();
     await expect(page.getByTestId("app-footer")).toBeVisible();
     await expect(page.getByRole("link", { name: "Skip to content" })).toBeAttached();
-    await expect(page.getByTestId("nav-add")).toContainText("Track a purchase");
+    await expect(page.getByTestId("nav-add")).toContainText("Monitor a purchase");
     await expect(page.getByTestId("token-swatches")).toBeVisible();
     await expect(page.getByTestId("foundation-demo-banner")).toContainText(
       "Demo data",
@@ -126,7 +126,9 @@ test.describe("Nobu design foundation (Lane 7.5B1)", () => {
     await page.goto("/");
     await expect(page.getByTestId("cta-add-purchase")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: /Nobu watches prices after you buy/i }),
+      page.getByRole("heading", {
+        name: /Don’t miss a price drop after you buy/i,
+      }),
     ).toBeVisible();
     await expect(page.getByTestId("app-header")).toBeVisible();
   });

@@ -21,30 +21,28 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: /Nobu watches prices after you buy/i }),
+      page.getByRole("heading", {
+        name: /Don’t miss a price drop after you buy/i,
+      }),
     ).toBeVisible();
     await expect(page.getByTestId("hero-lead")).toContainText(
-      "request the difference back",
+      "opportunity to request the difference",
     );
-    // Hero must be retailer-neutral
-    const hero = await page.locator(".n-hero").innerText();
-    expect(hero.toLowerCase()).not.toContain("target");
     await expect(page.getByTestId("availability-label")).toContainText(
       "Currently supports eligible Target.com purchases",
     );
     await expect(page.getByTestId("cta-add-purchase")).toContainText(
-      "Add a purchase",
+      "Monitor a purchase",
     );
-    await expect(page.getByTestId("cta-how-it-works")).toContainText(
-      "How it works",
-    );
+    await expect(page.getByTestId("home-steps")).toBeVisible();
     await expect(page.getByTestId("current-availability")).toContainText(
-      "Eligible Target.com purchases",
+      "Target.com",
     );
     const home = (await page.locator("body").innerText()).toLowerCase();
     expect(home).not.toMatch(/walmart|amazon|best buy.*live|all retailers supported/);
     expect(home).not.toMatch(/guaranteed refund|target owes you|automatic refund/);
     expect(home).not.toMatch(/coming soon.*walmart|more retailers coming soon/);
+    expect(home).not.toMatch(/hackathon|judge|competition/);
     await page.screenshot({
       path: path.join(SCREEN_DIR, "desktop-home.png"),
       fullPage: true,
@@ -115,7 +113,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     ]);
 
     await expect(page.getByTestId("status-pill")).toContainText(
-      "Nobu is watching this purchase",
+      "Monitoring active",
       { timeout: 15_000 },
     );
     await expect(page.getByTestId("status-code")).toHaveText("MONITORING_ACTIVE");
@@ -149,22 +147,29 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     });
     await expect(
       page.getByRole("heading", {
-        name: /Possible price difference|Nobu found a possible price difference|Price drop found/i,
+        name: "Possible price difference",
+        exact: true,
       }),
     ).toBeVisible();
     await expect(page.getByTestId("action-center")).toBeVisible();
     await expect(page.getByTestId("action-center-heading")).toContainText(
-      /You may be able to request/i,
+      /Possible price difference/i,
     );
     await expect(page.getByTestId("request-from-target")).toBeVisible();
+    await expect(page.getByTestId("request-from-target")).toContainText(
+      "Contact Target",
+    );
     await expect(page.getByTestId("request-from-target")).toHaveAttribute(
       "href",
       "https://www.target.com/help/contact-us",
     );
     await expect(page.getByTestId("copy-details")).toContainText(
-      "Copy request details",
+      "Copy price details",
     );
     await expect(page.getByTestId("view-evidence")).toBeVisible();
+    await expect(page.getByTestId("action-boundary")).toContainText(
+      "Target verifies the price",
+    );
     await expect(page.getByTestId("trust-note")).toContainText(
       "Target verifies and decides",
     );

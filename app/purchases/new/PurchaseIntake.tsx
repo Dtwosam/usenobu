@@ -712,12 +712,21 @@ export function PurchasePageChrome({
   return (
     <div className="n-screen n-screen--form">
       <div className="n-page-header">
-        <h1 className="n-page-header__title">Add your purchase</h1>
+        <h1 className="n-page-header__title">Monitor a purchase</h1>
         <p className="n-page-header__desc">
-          Tell Nobu what you bought, or enter the details. You will always review them
-          before Nobu looks for your product.
+          Tell Nobu what you bought. Purchase price, date and exact product
+          details help Nobu determine whether it can safely monitor for a
+          possible price difference.
         </p>
       </div>
+
+      <aside className="n-help-panel" data-testid="exact-product-help">
+        <h2>Why the exact product matters</h2>
+        <p>
+          A lower price is only useful when it belongs to the same product and
+          variant. Nobu fails closed when it cannot verify the match.
+        </p>
+      </aside>
 
       <Stepper
         steps={[

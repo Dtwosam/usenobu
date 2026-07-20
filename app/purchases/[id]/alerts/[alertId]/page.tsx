@@ -95,6 +95,7 @@ export default async function AlertPage({
 
         <ActionCenter
           contactUrl={action.contact_url}
+          productUrl={action.trusted_target_url}
           copyText={action.copy_text}
           heading={action.heading}
           purchasePrice={action.purchase_price_label}

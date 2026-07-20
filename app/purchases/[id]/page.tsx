@@ -202,9 +202,13 @@ export default async function PurchaseDashboardPage({
         </div>
 
         <p className="muted n-proof-support" data-testid="proof-support">
-          {fingerprint
-            ? "Nobu is watching the exact product you confirmed."
-            : "Confirm the exact product before watching."}
+          {status === "MONITORING_STOPPED" || status === "STOPPED"
+            ? "Nobu will no longer run scheduled checks for this purchase."
+            : status === "ACTIVATION_PENDING" || status === "PENDING_PROJECTION"
+              ? "Your payment was recorded, but monitoring activation is still being completed. You will not be asked to pay again for this activation."
+              : fingerprint
+                ? "Nobu is watching the exact product you confirmed."
+                : "Confirm the exact product before watching."}
         </p>
 
         <dl className="n-kv n-kv--grid" data-testid="proof-facts">
@@ -285,7 +289,11 @@ export default async function PurchaseDashboardPage({
         ) : null}
 
         {showPriceDropFacts && potentialDiff != null ? (
-          <div className="n-proof-diff" data-testid="price-drop-facts">
+          <div
+            className="n-proof-diff n-possible-diff"
+            data-testid="price-drop-facts"
+          >
+            <h2 className="n-card-title">Possible price difference</h2>
             <PriceSummary
               purchasePriceLabel="Purchase price"
               purchasePrice={formatUsd(purchasePrice)}
@@ -293,7 +301,7 @@ export default async function PurchaseDashboardPage({
               observedPrice={
                 latestPrice != null ? formatUsd(latestPrice) : undefined
               }
-              differenceLabel="Potential difference"
+              differenceLabel="Possible price difference"
               difference={formatUsd(potentialDiff)}
               note={
                 remaining != null
@@ -302,7 +310,24 @@ export default async function PurchaseDashboardPage({
               }
             />
             <p className="muted n-trust-note" data-testid="trust-note">
-              Third-party observed price. Target verifies and decides.
+              Nobu identified a possible price difference. Target verifies the
+              price, checks eligibility and makes the final decision.
+            </p>
+          </div>
+        ) : status === "MATCH_REVIEW_REQUIRED" ||
+          status === "NO_RELIABLE_PRICE" ? (
+          <div className="n-possible-diff" data-testid="possible-diff-uncertain">
+            <h2 className="n-card-title">Possible price difference</h2>
+            <p>
+              Nobu could not safely confirm that the observed price belongs to
+              the exact product.
+            </p>
+          </div>
+        ) : fingerprint ? (
+          <div className="n-possible-diff" data-testid="possible-diff-none">
+            <h2 className="n-card-title">Possible price difference</h2>
+            <p>
+              No safely matched lower price has been identified yet.
             </p>
           </div>
         ) : null}

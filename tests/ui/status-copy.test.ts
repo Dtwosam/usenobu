@@ -9,10 +9,19 @@ import { purchaseFormError } from "../../src/web/error-copy.js";
 
 describe("status copy", () => {
   it("maps monitoring statuses to plain English", () => {
-    expect(statusLabel("MONITORING_ACTIVE")).toBe(
-      "Nobu is watching this purchase",
+    expect(statusLabel("MONITORING_ACTIVE")).toBe("Monitoring active");
+    expect(statusLabel("PRICE_DROP_DETECTED")).toBe(
+      "Possible price difference found",
     );
-    expect(statusLabel("PRICE_DROP_DETECTED")).toBe("Price drop found");
+    expect(statusLabel("NO_PRICE_DROP")).toBe(
+      "No lower price safely identified",
+    );
+    expect(statusLabel("WINDOW_EXPIRED")).toBe("Monitoring period ended");
+    expect(statusLabel("MONITORING_STOPPED")).toBe("Monitoring stopped");
+    expect(statusLabel("ACTIVATION_PENDING")).toBe("Activation pending");
+    expect(statusLabel("MONITORING_PAYMENT_READY")).toBe(
+      "Preparing monitoring",
+    );
     expect(statusLabel("MATCH_REVIEW_REQUIRED")).toBe(
       "Confirm your exact product",
     );

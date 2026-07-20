@@ -73,7 +73,8 @@ export function CandidateSelection({
             Confirm your product
           </h2>
           <p className="n-selection-support">
-            Is this the exact item you purchased?
+            Only confirm if this is the exact product you purchased. This is the
+            product Nobu will monitor.
           </p>
         </header>
 

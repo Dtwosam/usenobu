@@ -1,0 +1,35 @@
+Lane 8R.1 forbidden-copy scan
+Date: 2026-07-20
+
+Files scanned (public interface / copy sources):
+- app/page.tsx
+- app/okx/page.tsx
+- app/okx/OkxGuideClient.tsx
+- app/notices/page.tsx
+- app/purchases/new/PurchaseIntake.tsx
+- app/purchases/[id]/page.tsx
+- app/purchases/[id]/alerts/[alertId]/ActionCenter.tsx
+- app/dashboard/MyPurchasesClient.tsx
+- src/ui/Header.tsx
+- src/ui/Footer.tsx
+- src/web/status-copy.ts
+- src/web/action-center.ts
+- src/web/okx-marketplace.ts
+
+Forbidden customer-facing phrases:
+- hackathon
+- judge
+- competition
+- submission
+- recover your money
+- nobu gets your money
+- make money with nobu
+- guaranteed savings
+- automatic refund
+- claim secured
+
+Result: PASS — no customer-facing occurrences.
+
+Notes:
+- action-center.ts lists "automatic refund" only inside COPY_FORBIDDEN_PATTERNS (safety reject list).
+- Unit test tests/ui/positioning.test.ts also guards public files.

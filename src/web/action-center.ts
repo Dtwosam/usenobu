@@ -15,6 +15,9 @@ export { FIXTURE_UI_LABEL, TARGET_OFFICIAL_CONTACT_URL };
 export const ACTION_TRUST_NOTE =
   "Third-party observed price. Target verifies and decides.";
 
+export const ACTION_BOUNDARY =
+  "Nobu identified a possible price difference. Target verifies the price, checks eligibility and makes the final decision.";
+
 export const COPY_CLOSING =
   "Target verifies eligibility and makes the final decision. Nobu does not submit the request for you.";
 
@@ -91,7 +94,7 @@ export function shouldShowActionCenter(alert: {
 }
 
 export function buildActionHeading(potentialDifference: number | string): string {
-  return `You may be able to request ${formatUsd(potentialDifference)} back`;
+  return `Possible price difference — ${formatUsd(potentialDifference)}`;
 }
 
 export type CopyDetailsInput = {
@@ -115,7 +118,7 @@ export function buildCopyDetailsText(input: CopyDetailsInput): string {
     `Purchase date: ${input.purchase_date || "—"}`,
     `Purchase price: ${formatUsd(input.purchase_price)}`,
     `Observed Target price: ${formatUsd(input.observed_price)}`,
-    `Potential difference: ${formatUsd(input.potential_difference)}`,
+    `Possible price difference: ${formatUsd(input.potential_difference)}`,
     `Observation time: ${input.observed_at || "—"}`,
   ];
 

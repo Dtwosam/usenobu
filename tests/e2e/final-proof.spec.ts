@@ -114,7 +114,7 @@ test.describe("Lane 7.5B3 final visual proof", () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.getByTestId("confirm-candidate").click();
     await expect(page.getByTestId("status-pill")).toContainText(
-      "Nobu is watching this purchase",
+      "Monitoring active",
     );
     await page.screenshot({
       path: path.join(FINAL, "desktop-dashboard.png"),

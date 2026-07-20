@@ -115,7 +115,7 @@ describe("Action Center visibility and copy (fixture)", () => {
     expect(text).toContain("Example Widget");
     expect(text).toContain("Purchase price: $39.99");
     expect(text).toContain("Observed Target price: $29.99");
-    expect(text).toContain("Potential difference: $10.00");
+    expect(text).toContain("Possible price difference: $10.00");
     expect(text).toContain("TCIN: 87654321");
     expect(text).toContain("Model: WDG-100");
     expect(text).toContain("UPC/GTIN: 012345678905");
@@ -129,9 +129,9 @@ describe("Action Center visibility and copy (fixture)", () => {
     expect(copyTextIsSafe(text)).toBe(true);
   });
 
-  it("heading uses may-be-able language with difference", () => {
+  it("heading uses possible price difference language", () => {
     expect(buildActionHeading(10)).toBe(
-      "You may be able to request $10.00 back",
+      "Possible price difference — $10.00",
     );
   });
 
@@ -176,7 +176,7 @@ describe("Action Center visibility and copy (fixture)", () => {
     expect(model.contact_url).toBe(TARGET_OFFICIAL_CONTACT_URL);
     expect(model.copy_text).toContain("Example Widget Blue");
     expect(model.copy_text).toContain("TCIN: 87654321");
-    expect(model.heading).toBe("You may be able to request $10.00 back");
+    expect(model.heading).toBe("Possible price difference — $10.00");
     expect(model.evidence.provider_label).toMatch(/fixture|third-party/i);
     expect(model.evidence.checklist.length).toBeGreaterThan(2);
   });

@@ -34,11 +34,11 @@ export default async function DashboardPage({
   return (
     <div className="n-screen">
       <PageHeader
-        title="Your purchases"
-        description="Purchases you’re watching for a lower observed retailer price."
+        title="My purchases"
+        description="Active monitors, history and archived purchases."
         actions={
           <ButtonLink href="/purchases/new" size="sm">
-            Track a purchase
+            Monitor a purchase
           </ButtonLink>
         }
       />

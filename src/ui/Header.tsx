@@ -6,15 +6,18 @@ import { ButtonLink } from "./Button.js";
 import { IconButton } from "./IconButton.js";
 import { IconClose, IconMenu } from "./icons.js";
 import { AccountMenu } from "./AccountMenu.js";
+import { OkxMarketplaceLink } from "./OkxMarketplaceLink.js";
 import { logoutAction } from "@/web/auth-actions";
 
 const NAV = [
-  { href: "/", label: "Home", testId: "nav-home" },
+  { href: "/#how-it-works", label: "How it works", testId: "nav-how" },
   { href: "/dashboard", label: "My purchases", testId: "nav-dashboard" },
-  { href: "/notices", label: "Notices", testId: "nav-notices" },
+  { href: "/okx", label: "Use with OKX.AI", testId: "nav-okx" },
+  { href: "/notices", label: "Supported purchases", testId: "nav-notices" },
 ] as const;
 
 function isCurrent(pathname: string, href: string): boolean {
+  if (href.startsWith("/#")) return pathname === "/";
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -59,9 +62,7 @@ export function Header({ auth }: { auth?: HeaderAuth | null }) {
             <a
               key={item.href}
               href={item.href}
-              data-testid={
-                item.testId === "nav-home" ? "nav-home-desktop" : item.testId
-              }
+              data-testid={item.testId}
               aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
             >
               {item.label}
@@ -94,7 +95,7 @@ export function Header({ auth }: { auth?: HeaderAuth | null }) {
             size="sm"
             data-testid="nav-add"
           >
-            Track a purchase
+            Monitor a purchase
           </ButtonLink>
           <IconButton
             className="n-menu-toggle"
@@ -158,8 +159,13 @@ export function Header({ auth }: { auth?: HeaderAuth | null }) {
             block
             data-testid="nav-add-mobile"
           >
-            Track a purchase
+            Monitor a purchase
           </ButtonLink>
+          <OkxMarketplaceLink
+            block
+            variant="secondary"
+            data-testid="nav-okx-mobile"
+          />
         </nav>
       </div>
     </header>

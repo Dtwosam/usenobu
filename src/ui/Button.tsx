@@ -70,6 +70,8 @@ export type ButtonLinkProps = {
   className?: string;
   children: ReactNode;
   "data-testid"?: string;
+  target?: string;
+  rel?: string;
 };
 
 export function ButtonLink({

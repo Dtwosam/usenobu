@@ -17,6 +17,7 @@ import {
 } from "@/web/purchase-lifecycle";
 import { formatUsd, statusLabel, statusTone } from "@/web/status-copy";
 import { Button, ButtonLink, Card, EmptyState, StatusBadge } from "@/ui";
+import { OkxMarketplaceLink } from "@/ui/OkxMarketplaceLink";
 
 type Props = {
   signedIn: boolean;
@@ -54,10 +55,9 @@ export function MyPurchasesClient({
     switch (t) {
       case "active":
         return {
-          title: "No active purchases",
-          description: signedIn
-            ? "Add a supported Target purchase to start monitoring, or check History for ended watches."
-            : "Add a recent supported purchase and confirm the exact product to begin.",
+          title: "No active monitors yet",
+          description:
+            "Add a purchase on the website or use Nobu with OKX.AI.",
         };
       case "history":
         return {
@@ -123,9 +123,15 @@ export function MyPurchasesClient({
             description={emptyCopy(tab).description}
             action={
               tab === "active" ? (
-                <ButtonLink href="/purchases/new" data-testid="empty-dashboard-cta">
-                  Track a purchase
-                </ButtonLink>
+                <div className="n-hero__actions" style={{ justifyContent: "center" }}>
+                  <ButtonLink href="/purchases/new" data-testid="empty-dashboard-cta">
+                    Monitor a purchase
+                  </ButtonLink>
+                  <OkxMarketplaceLink
+                    variant="secondary"
+                    data-testid="empty-okx-cta"
+                  />
+                </div>
               ) : undefined
             }
           />

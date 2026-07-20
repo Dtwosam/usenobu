@@ -122,7 +122,7 @@ test.describe("email alert preference UI", () => {
       timeout: 15_000,
     });
     await expect(page.getByTestId("nobu-watching")).toContainText(
-      "Nobu is watching this purchase",
+      "Monitoring active",
     );
     await page.screenshot({
       path: path.join(PROOF, "desktop-alerts-enabled.png"),

@@ -11,6 +11,7 @@ export { Footer } from "./Footer.js";
 export { FormError } from "./FormError.js";
 export { Header } from "./Header.js";
 export { AccountMenu } from "./AccountMenu.js";
+export { OkxMarketplaceLink } from "./OkxMarketplaceLink.js";
 export { SignedOutToast } from "./SignedOutToast.js";
 export { IconButton } from "./IconButton.js";
 export {

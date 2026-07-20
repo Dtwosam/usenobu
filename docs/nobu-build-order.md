@@ -233,7 +233,7 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 - Quote-issuance failure with no recoverable existing active quote now returns a graceful `{ error: "quote_issuance_failed" }` (HTTP 503) instead of throwing; because the fingerprint-lock step never sets `MONITORING_ACTIVE`, a quote failure structurally can never leave an active purchase either way.
 - Retries and real concurrent calls (`Promise.all`-verified) still produce exactly one purchase and one active quote; an existing valid quote is reused.
 - Corrected all Lane 7.4C docs and proof that claimed `PREFLIGHT_MONITORING` activates monitoring.
-- Roadmap correction: removed the requirement to wait for ASP `#5541`'s current review to resolve before continuing 7.4 development. Adopted order: `7.4C.1 → 7.4D.0 official OKX topology re-check → 7.4D → 7.4E → 7.4F → Lane 8R accurate edit/resubmit of #5541 → 7.4G → Lane 9`. During 7.4D–7.4F: do not edit or resubmit `#5541`; do not expose unfinished paid behavior publicly; use only official OKX evidence for topology decisions.
+- Roadmap correction: removed the requirement to wait for ASP `#5541`'s current review to resolve before continuing 7.4 development. Adopted order: `7.4C.1 → 7.4D.0 official OKX topology re-check → 7.4D → 7.4E → 7.4F → 8R.0 → 8R.1 → 8R.2 → Lane 8R accurate edit/resubmit of #5541 → 7.4G → Lane 9`. During 7.4D–7.4F: do not edit or resubmit `#5541`; do not expose unfinished paid behavior publicly; use only official OKX evidence for topology decisions.
 
 **Proof:** `tests/web/agent-preflight.test.ts` (15 focused tests, 3 new: preflight creates a fingerprint and quote but never `MONITORING_ACTIVE` and the scheduler cannot select it; recovers on retry after a simulated crash between reservation and insertion; quote-issuance failure never activates monitoring and creates no duplicate; existing 12 tests updated/retained including retries/concurrency create one purchase+quote and existing web confirmation still activates monitoring normally), typecheck, build, `git diff --check` clean. Verdict: `NOBU_LANE_7_4C_1_PASS`. Evidence: `docs/proof/lane-7-4c-agent-preflight/` (updated).
 
@@ -285,9 +285,22 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `tests/payments/okx-seller-adapter.test.ts` + Lane 7.4D activation tests; typecheck; build; deploy health. Verdict: `NOBU_LANE_8R_0_PASS`. Evidence: `docs/proof/lane-8r-0-okx-seller-integration/`.
 
+## Lane 8R.1 — Public website and interface alignment
+
+- Align the complete public UseNobu website to present Nobu as an AI agent that monitors the exact product after purchase and alerts when a safely matched lower price may create an opportunity to request the difference from the retailer.
+- Website + OKX.AI access paths; centralized `NEXT_PUBLIC_OKX_MARKETPLACE_URL` marketplace CTA module; five-section homepage; `/okx` customer guide; notices; purchase intake/list/detail/Action Center truth-bound copy.
+- No hackathon/judge language; no ASP `#5541` edit; no genuine payment; website and interface only.
+- Adopted sequence: `8R.0 → 8R.1 → 8R.2 → 8R → 7.4G`.
+
+**Proof:** focused copy/component tests; homepage `/okx` notices Playwright; typecheck; build; forbidden-copy and sensitive-output scans; deploy. Verdict: `NOBU_LANE_8R_1_PASS`. Evidence: `docs/proof/lane-8r-1-public-interface/`.
+
+## Lane 8R.2 — Active product documentation alignment
+
+- Align active product documentation with the public website truth boundary and OKX.AI dual-access positioning (broad doc rewrite — not this lane).
+
 ## Lane 8R — Accurate edit/resubmit of ASP #5541
 
-- First point in the roadmap where `#5541` is edited or resubmitted since Lane 8's original registration — done only once 7.4D–7.4F and 8R.0 seller integration are built and proven, so the listing accurately describes what is genuinely live (still starting from the existing free listing; any paid-service description added here must match the real, tested paid activation behavior).
+- First point in the roadmap where `#5541` is edited or resubmitted since Lane 8's original registration — done only once 7.4D–7.4F, 8R.0 seller integration, and 8R.1/8R.2 public/doc alignment are built and proven, so the listing accurately describes what is genuinely live (still starting from the existing free listing; any paid-service description added here must match the real, tested paid activation behavior).
 - No fake or aspirational claims in the listing; no price change beyond what Lane 7.4D.0's resolved topology actually supports.
 
 **Proof:** resubmission record (fields changed, before/after), consistency check against the actually-deployed paid behavior.

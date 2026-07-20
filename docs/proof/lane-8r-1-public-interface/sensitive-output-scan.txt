@@ -1,0 +1,16 @@
+Lane 8R.1 sensitive-output scan
+Date: 2026-07-20
+
+Checked public UI sources for:
+- PAYMENT-SIGNATURE / X-PAYMENT headers
+- private_key / BEGIN RSA material
+- serpapi_api_key
+- connection_token secrets
+- settlement references in UI copy
+
+Result: PASS — no secrets, payment signatures, or settlement references exposed in customer UI.
+
+Notes:
+- action-center.ts includes serpapi_api_key and payment-header patterns only in COPY_FORBIDDEN_PATTERNS.
+- Test ids such as okx-payment are not payment protocol headers.
+- OkxMarketplaceLink never embeds secrets; only NEXT_PUBLIC_OKX_MARKETPLACE_URL (public).
