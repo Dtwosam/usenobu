@@ -275,12 +275,22 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `tests/monitoring/durable-scheduler-bridge.test.ts` (5 cases), affected monitoring/notification/activation/management regressions, typecheck, build, `git diff --check`. Verdict: `NOBU_LANE_7_4F_PASS`. Evidence: `docs/proof/lane-7-4f-scheduler-notifications/`.
 
+## Lane 8R.0 — Official OKX seller integration and deployment preflight COMPLETE
+
+- Replace production `not_configured` verifier with official OKX seller HTTP adapter: HMAC-authenticated `POST /api/v6/pay/x402/verify`, `POST /api/v6/pay/x402/settle`, `GET /api/v6/pay/x402/settle/status` (source: `github.com/okx/payments` OKXFacilitatorClient).
+- Challenge is x402 **v2**, scheme `exact`, network `eip155:196`, USD₮0 asset, amount `990000`, `payTo` from server env only.
+- Signature verification alone never activates; settle success required; pending settle returns truthful `PAYMENT_SETTLEMENT_PENDING` and reconciles via status API.
+- Existing durable activation saga preserved (exactly-once). Fail closed when `OKX_API_KEY` / `OKX_SECRET_KEY` / `OKX_PASSPHRASE` / `OKX_PAY_TO` absent.
+- Deploy exact commit; free `/v1/agent` unchanged; no ASP `#5541` edit/resubmit; no genuine payment.
+
+**Proof:** `tests/payments/okx-seller-adapter.test.ts` + Lane 7.4D activation tests; typecheck; build; deploy health. Verdict: `NOBU_LANE_8R_0_PASS`. Evidence: `docs/proof/lane-8r-0-okx-seller-integration/`.
+
 ## Lane 8R — Accurate edit/resubmit of ASP #5541
 
-- First point in the roadmap where `#5541` is edited or resubmitted since Lane 8's original registration — done only once 7.4D–7.4F are built and proven, so the listing accurately describes what is genuinely live (still starting from the existing free listing; any paid-service description added here must match the real, tested Lane 7.4D behavior, not aspirational copy).
+- First point in the roadmap where `#5541` is edited or resubmitted since Lane 8's original registration — done only once 7.4D–7.4F and 8R.0 seller integration are built and proven, so the listing accurately describes what is genuinely live (still starting from the existing free listing; any paid-service description added here must match the real, tested paid activation behavior).
 - No fake or aspirational claims in the listing; no price change beyond what Lane 7.4D.0's resolved topology actually supports.
 
-**Proof:** resubmission record (fields changed, before/after), consistency check against the actually-deployed Lane 7.4D–7.4F behavior.
+**Proof:** resubmission record (fields changed, before/after), consistency check against the actually-deployed paid behavior.
 
 ## Lane 7.4G — Live marketplace end-to-end proof
 

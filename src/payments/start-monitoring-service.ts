@@ -36,6 +36,15 @@ import {
   type X402Challenge,
   type X402Verifier,
 } from "./x402.js";
+import {
+  createOkxSellerVerifier,
+  type OkxSellerVerifyOutcome,
+} from "./okx-seller-verifier.js";
+import {
+  isOkxSellerConfigured,
+  loadOkxSellerConfig,
+  OkxSellerClient,
+} from "./okx-seller-client.js";
 
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -78,6 +87,13 @@ export type StartMonitoringResult =
       status: "ACTIVATION_PENDING";
       monitor_id: string;
       http_status: 200;
+    }
+  | {
+      /** Settlement submitted but not yet confirmed on-chain — never "payment complete". */
+      ok: true;
+      status: "PAYMENT_SETTLEMENT_PENDING";
+      http_status: 200;
+      note: string;
     }
   | { ok: false; status: "ACTION_NOT_AUTHORIZED"; http_status: 401 }
   | { ok: false; status: "CONNECTION_EXPIRED"; http_status: 404 }
@@ -248,7 +264,27 @@ export async function startMonitoringForAgent(
   const challenge = buildX402Challenge({
     resource: args.resource,
     quoteId: args.quoteId,
+    env: args.env,
   });
+
+  // Resume: prior settle returned pending — poll official status API only.
+  if (
+    attempt.status === "verifying" &&
+    attempt.settlement_ref &&
+    !args.paymentAuthorizationHeader
+  ) {
+    return resumePendingSettlement({
+      attemptId: attempt.id,
+      quoteId: args.quoteId,
+      purchaseId: quote.purchase_id,
+      fingerprintId: quote.fingerprint_id,
+      pendingTxHash: attempt.settlement_ref,
+      sqliteDb: args.sqliteDb,
+      env: args.env,
+      nowIso,
+      challenge,
+    });
+  }
 
   if (!args.paymentAuthorizationHeader) {
     return {
@@ -260,14 +296,82 @@ export async function startMonitoringForAgent(
     };
   }
 
-  const verifier = resolveX402Verifier({ env: args.env, testVerifier: args.testVerifier });
-  const verified = await verifier.verifyPayment({
-    resource: args.resource,
-    quoteId: args.quoteId,
-    authorizationHeader: args.paymentAuthorizationHeader,
-  });
-  if (!verified.ok) {
-    // Invalid/altered payment, or verification unavailable — never activates.
+  // Official OKX path (verify → settle) when configured; testVerifier otherwise.
+  let settlementRef: string | null = null;
+  let pendingTxHash: string | null = null;
+
+  if (args.testVerifier) {
+    const verifier = resolveX402Verifier({
+      env: args.env,
+      testVerifier: args.testVerifier,
+    });
+    const verified = await verifier.verifyPayment({
+      resource: args.resource,
+      quoteId: args.quoteId,
+      authorizationHeader: args.paymentAuthorizationHeader,
+    });
+    if (!verified.ok) {
+      return {
+        ok: false,
+        status: "PAYMENT_PENDING",
+        challenge,
+        challengeHeaderValue: encodeX402ChallengeHeader(challenge),
+        http_status: 402,
+      };
+    }
+    settlementRef = verified.settlementRef;
+  } else if (isOkxSellerConfigured(args.env ?? process.env)) {
+    const seller = createOkxSellerVerifier({ env: args.env });
+    const detailed: OkxSellerVerifyOutcome =
+      await seller.verifyAndSettleDetailed({
+        resource: args.resource,
+        quoteId: args.quoteId,
+        authorizationHeader: args.paymentAuthorizationHeader,
+      });
+    if (detailed.ok) {
+      settlementRef = detailed.settlementRef;
+    } else if (
+      detailed.reason === "settlement_pending" &&
+      detailed.pendingTxHash
+    ) {
+      pendingTxHash = detailed.pendingTxHash;
+    } else {
+      // Invalid verification, settle failure, or not configured — never activates.
+      return {
+        ok: false,
+        status: "PAYMENT_PENDING",
+        challenge,
+        challengeHeaderValue: encodeX402ChallengeHeader(challenge),
+        http_status: 402,
+      };
+    }
+  } else {
+    // Production without seller credentials — fail closed (honest not_configured).
+    return {
+      ok: false,
+      status: "PAYMENT_PENDING",
+      challenge,
+      challengeHeaderValue: encodeX402ChallengeHeader(challenge),
+      http_status: 402,
+    };
+  }
+
+  if (pendingTxHash) {
+    // Persist opaque pending tx hash only — never payment credentials.
+    await store.markPaymentAttemptVerifying({
+      attemptId: attempt.id,
+      settlementRef: pendingTxHash,
+      nowIso,
+    });
+    return {
+      ok: true,
+      status: "PAYMENT_SETTLEMENT_PENDING",
+      http_status: 200,
+      note: "Settlement submitted; awaiting on-chain confirmation. Not payment complete.",
+    };
+  }
+
+  if (!settlementRef) {
     return {
       ok: false,
       status: "PAYMENT_PENDING",
@@ -279,13 +383,15 @@ export async function startMonitoringForAgent(
 
   const activationId = newId("act");
   const activationKey = sha256Hex(
-    [args.quoteId, verified.settlementRef, quote.purchase_id, quote.fingerprint_id].join("|"),
+    [args.quoteId, settlementRef, quote.purchase_id, quote.fingerprint_id].join(
+      "|",
+    ),
   );
 
   const saga = await store.recordSettledPaymentAndActivation({
     paymentAttemptId: attempt.id,
     quoteId: args.quoteId,
-    settlementRef: verified.settlementRef,
+    settlementRef,
     activationId,
     activationKey,
     purchaseId: quote.purchase_id,
@@ -294,8 +400,6 @@ export async function startMonitoringForAgent(
   });
 
   if (saga.outcome === "quote_not_issued") {
-    // Defensive fallback only — the pre-checks above already require the
-    // quote to be 'issued' and unexpired before reaching this point.
     return { ok: false, status: "CONNECTION_EXPIRED", http_status: 404 };
   }
 
@@ -306,6 +410,104 @@ export async function startMonitoringForAgent(
     nowIso,
     firstTime: saga.outcome === "recorded",
   });
+}
+
+async function resumePendingSettlement(args: {
+  attemptId: string;
+  quoteId: string;
+  purchaseId: string;
+  fingerprintId: string;
+  pendingTxHash: string;
+  sqliteDb?: NobuDatabase;
+  env?: EnvRecord;
+  nowIso: string;
+  challenge: X402Challenge;
+}): Promise<StartMonitoringResult> {
+  const store = await resolveStore(args.sqliteDb, args.env);
+  const existingActivation = await store.getMonitorActivationByQuoteId(
+    args.quoteId,
+  );
+  if (existingActivation) {
+    return resolveActivationResponse({
+      activation: existingActivation,
+      sqliteDb: args.sqliteDb,
+      env: args.env,
+      nowIso: args.nowIso,
+      firstTime: false,
+    });
+  }
+
+  const cfg = loadOkxSellerConfig(args.env ?? process.env);
+  if (!cfg) {
+    return {
+      ok: true,
+      status: "PAYMENT_SETTLEMENT_PENDING",
+      http_status: 200,
+      note: "Settlement still pending confirmation.",
+    };
+  }
+
+  try {
+    const client = new OkxSellerClient(cfg);
+    const status = await client.getSettleStatus(args.pendingTxHash);
+    if (status.status === "pending" || (!status.success && !status.status)) {
+      return {
+        ok: true,
+        status: "PAYMENT_SETTLEMENT_PENDING",
+        http_status: 200,
+        note: "Settlement still pending confirmation.",
+      };
+    }
+    if (status.status === "failed" || status.success === false) {
+      return {
+        ok: false,
+        status: "PAYMENT_PENDING",
+        challenge: args.challenge,
+        challengeHeaderValue: encodeX402ChallengeHeader(args.challenge),
+        http_status: 402,
+      };
+    }
+    // confirmed success
+    const settlementRef = String(
+      status.transaction || args.pendingTxHash,
+    ).trim();
+    const activationId = newId("act");
+    const activationKey = sha256Hex(
+      [
+        args.quoteId,
+        settlementRef,
+        args.purchaseId,
+        args.fingerprintId,
+      ].join("|"),
+    );
+    const saga = await store.recordSettledPaymentAndActivation({
+      paymentAttemptId: args.attemptId,
+      quoteId: args.quoteId,
+      settlementRef,
+      activationId,
+      activationKey,
+      purchaseId: args.purchaseId,
+      fingerprintId: args.fingerprintId,
+      nowIso: args.nowIso,
+    });
+    if (saga.outcome === "quote_not_issued") {
+      return { ok: false, status: "CONNECTION_EXPIRED", http_status: 404 };
+    }
+    return resolveActivationResponse({
+      activation: saga.activation,
+      sqliteDb: args.sqliteDb,
+      env: args.env,
+      nowIso: args.nowIso,
+      firstTime: saga.outcome === "recorded",
+    });
+  } catch {
+    return {
+      ok: true,
+      status: "PAYMENT_SETTLEMENT_PENDING",
+      http_status: 200,
+      note: "Settlement status unavailable; still not payment complete.",
+    };
+  }
 }
 
 export interface ReconciliationResult {

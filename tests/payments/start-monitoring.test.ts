@@ -290,6 +290,7 @@ describe("Lane 7.4D $0.99 paid monitoring activation", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.status).toBe("MONITORING_STARTED");
+    if (!("monitor_id" in result)) throw new Error("expected monitor_id");
     expect(result.monitor_id).toBeTruthy();
 
     expect(paymentAttemptCount()).toBe(1);
@@ -335,6 +336,9 @@ describe("Lane 7.4D $0.99 paid monitoring activation", () => {
 
     const statuses = [first.status, second.status].sort();
     expect(statuses).toEqual(["ALREADY_ACTIVE", "MONITORING_STARTED"]);
+    if (!("monitor_id" in first) || !("monitor_id" in second)) {
+      throw new Error("expected monitor_id on both results");
+    }
     expect(first.monitor_id).toBe(second.monitor_id);
 
     // A later sequential replay must also report ALREADY_ACTIVE.

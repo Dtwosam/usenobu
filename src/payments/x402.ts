@@ -1,36 +1,24 @@
 /**
- * Lane 7.4D — official x402 challenge/verification boundary.
+ * x402 challenge/verification boundary.
  *
- * Nobu issues its own x402 v2-shaped challenge (HTTP 402 with a
- * PAYMENT-REQUIRED header carrying base64 `{x402Version, resource,
- * accepts}}`, matching the official OKX seller-side flow documented in
- * `docs/external-source-registry.md` — protected request -> 402 challenge ->
- * signed payment -> replay) and verifies a client's payment replay through a
- * swappable `X402Verifier`.
+ * Lane 8R.0: production uses the official OKX seller HTTP adapter
+ * (verify → settle → settle/status). Test mode may inject a fake verifier.
  *
- * Production has no confirmed official seller-side settlement-verification
- * contract yet — Lane 7.4D.0's research established the buyer-side signing
- * tools (the official CLI's `payment pay` / `payment charge`) but never
- * found an official endpoint/contract for a *seller* to independently
- * verify a received payment. The production verifier therefore fails
- * closed by design, not by omission: wiring a real verifier requires that
- * gap to be closed by official OKX evidence first, never guessed. Only an
- * explicitly injected, test-mode-gated fake verifier may ever report a
- * successful settlement outside a genuine future integration.
+ * Challenge shape matches OKX x402 v2 + exact scheme on X Layer USD₮0.
  */
 import { isAuthTestMode } from "../auth/config.js";
+import { isOkxSellerConfigured, loadOkxSellerConfig } from "./okx-seller-client.js";
+import { createOkxSellerVerifier } from "./okx-seller-verifier.js";
 
-export const X402_VERSION = 1;
+/** Official OKX x402 version. */
+export const X402_VERSION = 2;
 /** Header the client must replay the signed payment authorization under. */
 export const X402_PAYMENT_HEADER_NAME = "PAYMENT-SIGNATURE";
 /** Header Nobu returns the encoded challenge under on a 402 response. */
 export const X402_CHALLENGE_HEADER_NAME = "PAYMENT-REQUIRED";
 
 /**
- * Per Lane 7.4D.0 (`OKX-XLAYER-EXAMPLE`, coordinator-provided, independently
- * corroborated by the official CLI/skills for asset family + decimals):
- * X Layer / USD₮0 official worked example. Not yet confirmed as the asset
- * Nobu's own listing will actually use — no paid listing is registered.
+ * Official X Layer / USD₮0 worked example (OKX payments docs + okx/payments).
  */
 export const DEFAULT_SETTLEMENT_NETWORK = "eip155:196";
 export const DEFAULT_SETTLEMENT_ASSET =
@@ -47,7 +35,7 @@ export interface X402AcceptOption {
   /** Atomic units, string per the official convention. */
   amount: string;
   resource: string;
-  /** Nobu's settlement address — null until a paid listing is registered (Lane 8R). */
+  /** Seller wallet — from server env only (never client-supplied). */
   payTo: string | null;
   extra: { quote_id: string };
 }
@@ -63,7 +51,14 @@ export function buildX402Challenge(args: {
   resource: string;
   quoteId: string;
   payTo?: string | null;
+  env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
 }): X402Challenge {
+  const env = args.env ?? process.env;
+  const cfg = loadOkxSellerConfig(env);
+  const payTo =
+    args.payTo !== undefined
+      ? args.payTo
+      : (cfg?.payTo ?? null);
   return {
     x402Version: X402_VERSION,
     resource: args.resource,
@@ -74,7 +69,7 @@ export function buildX402Challenge(args: {
         asset: DEFAULT_SETTLEMENT_ASSET,
         amount: MONITORING_PRICE_ATOMIC_UNITS,
         resource: args.resource,
-        payTo: args.payTo ?? null,
+        payTo,
         extra: { quote_id: args.quoteId },
       },
     ],
@@ -110,8 +105,7 @@ export interface X402Verifier {
 }
 
 /**
- * Always fails closed — the correct, honest production default until an
- * official seller-side settlement-verification contract is confirmed.
+ * Always fails closed when seller credentials / payTo are absent.
  */
 export const notConfiguredVerifier: X402Verifier = {
   label: "not-configured",
@@ -122,7 +116,7 @@ export const notConfiguredVerifier: X402Verifier = {
 
 export interface ResolveVerifierArgs {
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
-  /** Tests only. Ignored (throws) unless isAuthTestMode(env) — production can never inject a fake verifier. */
+  /** Tests only. Ignored (throws) unless isAuthTestMode(env). */
   testVerifier?: X402Verifier;
 }
 
@@ -135,6 +129,9 @@ export function resolveX402Verifier(
       throw new Error("x402_test_verifier_forbidden_outside_test_mode");
     }
     return args.testVerifier;
+  }
+  if (isOkxSellerConfigured(env)) {
+    return createOkxSellerVerifier({ env });
   }
   return notConfiguredVerifier;
 }

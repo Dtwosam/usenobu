@@ -41,6 +41,12 @@ function resolveResourceUrl(env: NodeJS.ProcessEnv = process.env): string {
 
 function responseBody(result: StartMonitoringResult): Record<string, unknown> {
   const base = { agent_state: "MONITORING_ACTIVATION", status: result.status };
+  if (result.ok && result.status === "PAYMENT_SETTLEMENT_PENDING") {
+    return {
+      ...base,
+      note: result.note,
+    };
+  }
   if (result.ok && "monitoring_deadline" in result) {
     return {
       ...base,
@@ -48,7 +54,7 @@ function responseBody(result: StartMonitoringResult): Record<string, unknown> {
       monitoring_deadline: result.monitoring_deadline,
     };
   }
-  if (result.ok) {
+  if (result.ok && "monitor_id" in result) {
     return { ...base, monitor_id: result.monitor_id };
   }
   return base;

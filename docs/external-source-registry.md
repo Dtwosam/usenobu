@@ -132,6 +132,18 @@ None of the four remaining rows above nor any coordinator-provided fact below re
 - Whether `agent update` works during the first, not-yet-reviewed pending state (vs. only proven after rejection).
 - The literal settlement asset/address for a real Nobu charge (coordinator-provided `OKX-XLAYER-EXAMPLE` only; not independently re-fetched).
 
+## Lane 8R.0 — Official OKX seller integration sources (2026-07-20)
+
+| ID | Source | Publisher | URL | Relevant decision | Checked | Status |
+|---|---|---|---|---|---|---|
+| OKX-PAYMENTS-REPO | OKX Payments SDK | OKX | https://github.com/okx/payments | Multi-language x402/MPP SDK; X Layer `eip155:196`; USD₮0; exact + aggr_deferred | 2026-07-20 | CONFIRMED (this session, GitHub API) |
+| OKX-TS-SELLER | TypeScript Seller SDK reference | OKX | `github.com/okx/payments` → `typescript/SELLER.md` | Seller env vars (`OKX_API_KEY`/`OKX_SECRET_KEY`/`OKX_PASSPHRASE`/`PAY_TO`); X Layer only; `@okxweb3/x402-*` + facilitator | 2026-07-20 | CONFIRMED (this session, raw fetch) |
+| OKX-FACILITATOR-CLIENT | OKXFacilitatorClient | OKX | `typescript/bu-payments/app-x402-core/src/facilitator/OKXFacilitatorClient.ts` | HMAC-SHA256 `OK-ACCESS-*` headers; `POST /api/v6/pay/x402/verify`; `POST /api/v6/pay/x402/settle`; `GET /api/v6/pay/x402/settle/status`; x402Version **2**; signature-only ≠ settle | 2026-07-20 | CONFIRMED (this session, raw fetch) |
+| OKX-FACILITATOR-TYPES | Facilitator response types | OKX | `typescript/bu-payments/app-x402-core/src/types/facilitator.ts` | `isValid` verify; settle `status` pending/success/timeout; settle status pending/success/failed | 2026-07-20 | CONFIRMED (this session, raw fetch) |
+| OKX-PAY-HTTP | Payments HTTP API | OKX | https://web3.okx.com/onchainos/dev-docs/payments/api-http | Seller 402 → sign → replay; path prefix `/api/v6/pay/x402` | prior coordinator + web index 2026-07-20 | CONFIRMED (indexed; DNS blocked for full page this session) |
+
+**Integration selected (Lane 8R.0):** official authenticated HTTP APIs as implemented by `OKXFacilitatorClient` (not a third-party x402 guide). Next.js route keeps the existing activation saga; seller adapter only supplies a verified opaque settlement reference after verify+settle (or settle/status confirmation).
+
 ## Change procedure
 
 When an official source changes:

@@ -320,6 +320,15 @@ export interface AuthStore {
     challengeRef: string;
     now?: Date;
   }): Promise<PaymentAttemptRow>;
+  /**
+   * Lane 8R.0 — store opaque pending settlement tx hash only.
+   * status becomes 'verifying' (awaiting official settle/status).
+   */
+  markPaymentAttemptVerifying(args: {
+    attemptId: string;
+    settlementRef: string;
+    nowIso: string;
+  }): Promise<boolean>;
   getMonitorActivationByQuoteId(
     quoteId: string,
   ): Promise<MonitorActivationRow | null>;
@@ -990,6 +999,16 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         created_at: nowIso,
         settled_at: null,
       };
+    },
+    async markPaymentAttemptVerifying(args) {
+      const r = db
+        .prepare(
+          `UPDATE payment_attempts
+           SET status = 'verifying', settlement_ref = ?
+           WHERE id = ? AND status IN ('challenged', 'verifying')`,
+        )
+        .run(args.settlementRef, args.attemptId);
+      return Number(r.changes ?? 0) === 1;
     },
     async getMonitorActivationByQuoteId(quoteId) {
       const row = db
@@ -1719,6 +1738,15 @@ export function createPostgresAuthStore(
         created_at: nowIso,
         settled_at: null,
       };
+    },
+    async markPaymentAttemptVerifying(args) {
+      const r = await q(
+        `UPDATE payment_attempts
+         SET status = 'verifying', settlement_ref = $1
+         WHERE id = $2 AND status IN ('challenged', 'verifying')`,
+        [args.settlementRef, args.attemptId],
+      );
+      return (r.rowCount ?? 0) === 1;
     },
     async getMonitorActivationByQuoteId(quoteId) {
       const r = await q<MonitorActivationRow>(
