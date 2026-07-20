@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import { getWebDatabase } from "./db.js";
 import type { NobuDatabase } from "../db/index.js";
 import {
-  confirmAndPersistLockedFingerprint,
+  confirmAndPersistLockedFingerprintPending,
   confirmProductMatch,
   evaluateUncertainProductDiscovery,
   isStrongMatchTier,
@@ -356,7 +356,8 @@ export type PreflightMonitoringResult =
       ok: false;
       status: "UNSUPPORTED_PURCHASE" | "POLICY_EXCLUSION" | "WINDOW_EXPIRED" | "POLICY_STALE";
       http_status: 200;
-    };
+    }
+  | { ok: false; error: "quote_issuance_failed"; http_status: 503 };
 
 /**
  * PREFLIGHT_MONITORING — the free/paid boundary. Requires a verified
@@ -364,7 +365,14 @@ export type PreflightMonitoringResult =
  * account-owned purchase from the confirmed discovery session, attaches the
  * locked fingerprint, runs deterministic eligibility, and only on full pass
  * mints an expiring $0.99 quote. Idempotent: retries/concurrency for the same
- * session never create a second purchase or a second active quote.
+ * session never create a second purchase or a second active quote, and a
+ * purchase-insertion failure after a successful session reservation recovers
+ * on retry using the reserved purchase id.
+ *
+ * Lane 7.4C.1: never activates monitoring. The purchase is left in the
+ * truthful, scheduler-ineligible `MONITORING_PAYMENT_READY_STATUS`
+ * (`src/matching/store.ts`) — only Lane 7.4D `START_MONITORING`, after
+ * verified payment, may transition it to `MONITORING_ACTIVE`.
  */
 export async function preflightMonitoringForAgent(args: {
   connectionId: string;
@@ -430,36 +438,50 @@ export async function preflightMonitoringForAgent(args: {
         return { ok: false, status: "CONNECTION_EXPIRED", http_status: 404 };
       }
       purchaseId = latest.materialized_purchase_id;
-    } else {
-      // We won the reservation — materialize the purchase row.
-      const snapshot = JSON.parse(session.structured_snapshot_json) as {
-        purchase_price: number;
-        purchase_date: string;
-        purchase_channel: string;
-        country: string;
-        region: string | null;
-        target_product_url: string;
-        target_item_id: string | null;
-        model_number: string | null;
-        upc_or_gtin: string | null;
-      };
-      const lockedSnapshot = JSON.parse(
-        session.locked_fingerprint_snapshot_json || "{}",
-      ) as {
-        fingerprint?: {
-          target_product_url: string;
-          target_item_id?: string | null;
-          model_number?: string | null;
-          upc_or_gtin?: string | null;
-        };
-        candidate?: ScoredCandidate;
-      };
-      const fp = lockedSnapshot.fingerprint;
-      const deadline = addCalendarDays(
-        snapshot.purchase_date,
-        TARGET_US_POLICY.window.days,
-      );
+    }
+  } else {
+    return { ok: false, status: "CONNECTION_EXPIRED", http_status: 404 };
+  }
 
+  // The session may already be reserved (status='materialized') for this
+  // purchase id without the purchase row itself ever having been inserted —
+  // a prior call could have crashed between reservation and insertion.
+  // Recover by inserting it now using the reserved id; a concurrent
+  // recoverer racing on the same id is caught and re-read (id is the
+  // primary key), so this never creates a duplicate.
+  let purchaseRow = db
+    .prepare(`SELECT * FROM purchases WHERE id = ?`)
+    .get(purchaseId) as Record<string, unknown> | undefined;
+
+  if (!purchaseRow) {
+    const snapshot = JSON.parse(session.structured_snapshot_json) as {
+      purchase_price: number;
+      purchase_date: string;
+      purchase_channel: string;
+      country: string;
+      region: string | null;
+      target_product_url: string;
+      target_item_id: string | null;
+      model_number: string | null;
+      upc_or_gtin: string | null;
+    };
+    const lockedSnapshotForInsert = JSON.parse(
+      session.locked_fingerprint_snapshot_json || "{}",
+    ) as {
+      fingerprint?: {
+        target_product_url: string;
+        target_item_id?: string | null;
+        model_number?: string | null;
+        upc_or_gtin?: string | null;
+      };
+    };
+    const fpForInsert = lockedSnapshotForInsert.fingerprint;
+    const deadline = addCalendarDays(
+      snapshot.purchase_date,
+      TARGET_US_POLICY.window.days,
+    );
+
+    try {
       db.prepare(
         `INSERT INTO purchases (
           id, user_ref, target_product_url, purchase_price, currency, purchase_date,
@@ -470,16 +492,16 @@ export async function preflightMonitoringForAgent(args: {
       ).run(
         purchaseId,
         accountId,
-        fp?.target_product_url || snapshot.target_product_url,
+        fpForInsert?.target_product_url || snapshot.target_product_url,
         snapshot.purchase_price,
         "USD",
         snapshot.purchase_date,
         snapshot.country,
         snapshot.region,
         snapshot.purchase_channel,
-        fp?.model_number ?? snapshot.model_number,
-        fp?.upc_or_gtin ?? snapshot.upc_or_gtin,
-        fp?.target_item_id ?? snapshot.target_item_id,
+        fpForInsert?.model_number ?? snapshot.model_number,
+        fpForInsert?.upc_or_gtin ?? snapshot.upc_or_gtin,
+        fpForInsert?.target_item_id ?? snapshot.target_item_id,
         0,
         null,
         "MATCH_REVIEW_REQUIRED",
@@ -488,14 +510,14 @@ export async function preflightMonitoringForAgent(args: {
         nowIso,
         nowIso,
       );
+    } catch {
+      // Race: a concurrent recovery attempt already inserted this exact id.
     }
-  } else {
-    return { ok: false, status: "CONNECTION_EXPIRED", http_status: 404 };
+    purchaseRow = db
+      .prepare(`SELECT * FROM purchases WHERE id = ?`)
+      .get(purchaseId) as Record<string, unknown> | undefined;
   }
 
-  const purchaseRow = db
-    .prepare(`SELECT * FROM purchases WHERE id = ?`)
-    .get(purchaseId) as Record<string, unknown> | undefined;
   if (!purchaseRow) {
     return { ok: false, status: "CONNECTION_EXPIRED", http_status: 404 };
   }
@@ -531,8 +553,10 @@ export async function preflightMonitoringForAgent(args: {
     };
   }
 
-  // Attach the locked fingerprint + activate monitoring (idempotent: only
-  // the first pass locks; retries reuse the already-persisted fingerprint).
+  // Attach the locked fingerprint WITHOUT activating monitoring (idempotent:
+  // only the first pass locks; retries reuse the already-persisted
+  // fingerprint). Never MONITORING_ACTIVE here — see
+  // confirmAndPersistLockedFingerprintPending doc comment.
   let fingerprintId = purchaseRow.fingerprint_id as string | null;
   if (!fingerprintId) {
     const lockedSnapshot = JSON.parse(
@@ -548,7 +572,7 @@ export async function preflightMonitoringForAgent(args: {
       model_number: (purchaseRow.model_number as string | null) ?? undefined,
       upc_or_gtin: (purchaseRow.upc_or_gtin as string | null) ?? undefined,
     };
-    const fp = confirmAndPersistLockedFingerprint({
+    const fp = confirmAndPersistLockedFingerprintPending({
       db,
       purchase: confirmRef,
       candidate: lockedSnapshot.candidate,
@@ -591,9 +615,14 @@ export async function preflightMonitoringForAgent(args: {
       ttlMs: QUOTE_TTL_MS,
     });
   } catch {
-    // Race: another call minted the active quote first — reuse it.
+    // Race: another call minted the active quote first — reuse it. If no
+    // active quote can be found either, fail closed without ever having
+    // touched purchases.status (the fingerprint lock above never sets
+    // MONITORING_ACTIVE) — no active purchase is left behind.
     const winner = await authStore.getActiveMonitoringEnrollmentQuote(purchaseId, nowIso);
-    if (!winner) throw new Error("quote_insert_failed");
+    if (!winner) {
+      return { ok: false, error: "quote_issuance_failed", http_status: 503 };
+    }
     quote = winner;
   }
 

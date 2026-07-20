@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { migrateUp, openDatabase } from "../../src/db/index.js";
-import { resetAuthStoreCache } from "../../src/auth/auth-store.js";
+import { createSqliteAuthStore, resetAuthStoreCache } from "../../src/auth/auth-store.js";
 import {
   beginAgentEmailVerification,
   verifyAgentEmailCode,
@@ -23,6 +23,12 @@ import {
   preflightMonitoringForAgent,
 } from "../../src/web/agent-preflight-service.js";
 import { runAgentAction } from "../../src/ai/agent-service.js";
+import {
+  confirmAndPersistLockedFingerprint,
+  evaluateProductMatches,
+} from "../../src/matching/index.js";
+import { MONITORING_PAYMENT_READY_STATUS } from "../../src/matching/store.js";
+import { selectActivePurchases } from "../../src/monitoring/index.js";
 import type { MatchableOffer } from "../../src/matching/types.js";
 import type { DiscoveryPurchaseFields } from "../../src/ai/schemas.js";
 
@@ -331,7 +337,7 @@ describe("Lane 7.4C agent discovery/confirmation/preflight", () => {
       sqliteDb: db,
     });
     expect(badAuth.ok).toBe(false);
-    if (!badAuth.ok) {
+    if (!badAuth.ok && "status" in badAuth) {
       expect(badAuth.status).toBe("ACTION_NOT_AUTHORIZED");
       expect(badAuth.http_status).toBe(401);
     }
@@ -346,7 +352,7 @@ describe("Lane 7.4C agent discovery/confirmation/preflight", () => {
       sqliteDb: db,
     });
     expect(missingConsent.ok).toBe(false);
-    if (!missingConsent.ok) {
+    if (!missingConsent.ok && "status" in missingConsent) {
       expect(missingConsent.status).toBe("CONSENT_REQUIRED");
       expect(missingConsent.http_status).toBe(400);
     }
@@ -383,7 +389,7 @@ describe("Lane 7.4C agent discovery/confirmation/preflight", () => {
       sqliteDb: db,
     });
     expect(unsupportedResult.ok).toBe(false);
-    if (!unsupportedResult.ok) {
+    if (!unsupportedResult.ok && "status" in unsupportedResult) {
       expect(unsupportedResult.status).toBe("UNSUPPORTED_PURCHASE");
       expect(unsupportedResult.http_status).toBe(200);
     }
@@ -405,7 +411,7 @@ describe("Lane 7.4C agent discovery/confirmation/preflight", () => {
       sqliteDb: db,
     });
     expect(ambiguousResult.ok).toBe(false);
-    if (!ambiguousResult.ok) {
+    if (!ambiguousResult.ok && "status" in ambiguousResult) {
       expect(ambiguousResult.status).toBe("PRODUCT_CONFIRMATION_REQUIRED");
       expect(ambiguousResult.http_status).toBe(400);
     }
@@ -438,7 +444,7 @@ describe("Lane 7.4C agent discovery/confirmation/preflight", () => {
       now: wayLater,
     });
     expect(expiredResult.ok).toBe(false);
-    if (!expiredResult.ok) {
+    if (!expiredResult.ok && "status" in expiredResult) {
       expect(expiredResult.status).toBe("CONNECTION_EXPIRED");
       expect(expiredResult.http_status).toBe(404);
     }
@@ -449,7 +455,7 @@ describe("Lane 7.4C agent discovery/confirmation/preflight", () => {
     expect(purchaseCount()).toBe(1);
   });
 
-  it("supported PREFLIGHT_MONITORING creates exactly one owned purchase and one quote", async () => {
+  it("supported PREFLIGHT_MONITORING creates a fingerprint and quote but never MONITORING_ACTIVE, and the scheduler cannot select it", async () => {
     const verified = await establishConnection("preflight-supported@example.com");
     const discovery = await discoverProductForAgent(EXACT_IDENTITY_FIELDS, {
       offersOverride: [targetOffer()],
@@ -482,11 +488,203 @@ describe("Lane 7.4C agent discovery/confirmation/preflight", () => {
     expect(purchaseCount()).toBe(1);
     expect(quoteCount()).toBe(1);
     const purchaseRow = db
-      .prepare(`SELECT user_ref, fingerprint_id FROM purchases`)
-      .get() as { user_ref: string; fingerprint_id: string | null };
-    expect(purchaseRow.user_ref).toBe(verified.connection_id ? purchaseRow.user_ref : null);
+      .prepare(`SELECT id, user_ref, fingerprint_id, status FROM purchases`)
+      .get() as {
+      id: string;
+      user_ref: string;
+      fingerprint_id: string | null;
+      status: string;
+    };
     expect(purchaseRow.user_ref).toMatch(/^acct_/);
     expect(purchaseRow.fingerprint_id).toBeTruthy();
+    // Lane 7.4C.1: fingerprint locked, but never activated — a truthful
+    // pre-payment status, never MONITORING_ACTIVE.
+    expect(purchaseRow.status).toBe(MONITORING_PAYMENT_READY_STATUS);
+    expect(purchaseRow.status).not.toBe("MONITORING_ACTIVE");
+
+    // The scheduler's own selection function must not pick this purchase up.
+    const allRows = db
+      .prepare(
+        `SELECT id, status, purchase_price, currency, purchase_date, purchase_channel,
+                country, region, fingerprint_id, monitoring_deadline, is_target_plus,
+                known_exclusion
+         FROM purchases`,
+      )
+      .all() as Array<{
+      id: string;
+      status: string;
+      purchase_price: number;
+      currency: string;
+      purchase_date: string;
+      purchase_channel: string;
+      country: string;
+      region: string | null;
+      fingerprint_id: string | null;
+      monitoring_deadline: string | null;
+      is_target_plus: number;
+      known_exclusion: string | null;
+    }>;
+    const selected = selectActivePurchases(allRows, new Date().toISOString());
+    expect(selected.some((p) => p.id === purchaseRow.id)).toBe(false);
+  });
+
+  it("recovers on retry when purchase insertion fails after a successful session reservation (crash simulation)", async () => {
+    const verified = await establishConnection("preflight-recovery@example.com");
+    const discovery = await discoverProductForAgent(EXACT_IDENTITY_FIELDS, {
+      offersOverride: [targetOffer()],
+      sqliteDb: db,
+    });
+    expect(discovery.ok).toBe(true);
+    if (!discovery.ok) return;
+    await confirmProductForAgent({
+      discoverySessionId: discovery.discovery_session_id,
+      candidateId: discovery.candidates[0]!.candidate_id,
+      sqliteDb: db,
+    });
+
+    // Simulate a crash between session reservation and purchase insertion:
+    // reserve the session for a purchase id that is never actually inserted.
+    const store = createSqliteAuthStore(db);
+    await store.ensureSchema();
+    const crashPurchaseId = "pur_crashsimulated01";
+    const reserved = await store.reserveDiscoverySessionMaterialization({
+      sessionId: discovery.discovery_session_id,
+      purchaseId: crashPurchaseId,
+    });
+    expect(reserved).toBe(true);
+    expect(purchaseCount()).toBe(0); // reservation alone creates no row
+
+    const result = await preflightMonitoringForAgent({
+      connectionId: verified.connection_id,
+      connectionToken: verified.connection_token,
+      discoverySessionId: discovery.discovery_session_id,
+      monitoringConsent: true,
+      emailAlertConsent: true,
+      sqliteDb: db,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.status).toBe("MONITORING_PAYMENT_READY");
+    expect(purchaseCount()).toBe(1);
+    expect(quoteCount()).toBe(1);
+    const row = db
+      .prepare(`SELECT id, status FROM purchases`)
+      .get() as { id: string; status: string };
+    expect(row.id).toBe(crashPurchaseId);
+    expect(row.status).not.toBe("MONITORING_ACTIVE");
+  });
+
+  it("quote issuance failure never activates monitoring and creates no duplicate", async () => {
+    const verified = await establishConnection("preflight-quotefail@example.com");
+    const discovery = await discoverProductForAgent(EXACT_IDENTITY_FIELDS, {
+      offersOverride: [targetOffer()],
+      sqliteDb: db,
+    });
+    expect(discovery.ok).toBe(true);
+    if (!discovery.ok) return;
+    await confirmProductForAgent({
+      discoverySessionId: discovery.discovery_session_id,
+      candidateId: discovery.candidates[0]!.candidate_id,
+      sqliteDb: db,
+    });
+
+    const first = await preflightMonitoringForAgent({
+      connectionId: verified.connection_id,
+      connectionToken: verified.connection_token,
+      discoverySessionId: discovery.discovery_session_id,
+      monitoringConsent: true,
+      emailAlertConsent: true,
+      sqliteDb: db,
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    // Force the existing quote into an unusable state: still "issued" (so it
+    // occupies the one-active-quote-per-purchase unique index) but expired
+    // (so the idempotent lookup no longer treats it as reusable). A retry
+    // must then fail to mint a new quote and fail closed, never silently
+    // activating monitoring.
+    db.prepare(
+      `UPDATE monitoring_enrollment_quotes SET expires_at = '2000-01-01T00:00:00.000Z' WHERE id = ?`,
+    ).run(first.quote_id);
+
+    const retry = await preflightMonitoringForAgent({
+      connectionId: verified.connection_id,
+      connectionToken: verified.connection_token,
+      discoverySessionId: discovery.discovery_session_id,
+      monitoringConsent: true,
+      emailAlertConsent: true,
+      sqliteDb: db,
+    });
+    expect(retry.ok).toBe(false);
+    if (!retry.ok && "error" in retry) {
+      expect(retry.error).toBe("quote_issuance_failed");
+      expect(retry.http_status).toBe(503);
+    }
+
+    expect(purchaseCount()).toBe(1);
+    expect(quoteCount()).toBe(1); // the old (now-expired) quote only — no new one
+    const purchaseRow = db
+      .prepare(`SELECT status FROM purchases`)
+      .get() as { status: string };
+    expect(purchaseRow.status).not.toBe("MONITORING_ACTIVE");
+  });
+
+  it("existing web confirmation flow still activates monitoring normally (unchanged)", () => {
+    const purchaseId = "pur_web_unchanged_01";
+    db.prepare(
+      `INSERT INTO purchases (
+        id, user_ref, target_product_url, purchase_price, currency, purchase_date,
+        country, region, purchase_channel, model_number, upc_or_gtin, target_item_id,
+        is_target_plus, known_exclusion, status, fingerprint_id, monitoring_deadline,
+        created_at, updated_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    ).run(
+      purchaseId,
+      "usr_webtest0000000000000000000000",
+      "https://www.target.com/p/example-widget/-/A-87654321",
+      12.99,
+      "USD",
+      "2026-07-01",
+      "US",
+      "TX",
+      "target_online",
+      "WDG-100",
+      null,
+      "87654321",
+      0,
+      null,
+      "MATCH_REVIEW_REQUIRED",
+      null,
+      null,
+      "2026-07-13T00:00:00.000Z",
+      "2026-07-13T00:00:00.000Z",
+    );
+
+    const purchase = {
+      purchase_id: purchaseId,
+      target_product_url: "https://www.target.com/p/example-widget/-/A-87654321",
+      target_item_id: "87654321",
+      model_number: "WDG-100",
+      product_title: "Example Widget",
+    };
+    const offer = targetOffer({ offer_id: "web1" });
+    const evaluation = evaluateProductMatches(purchase, [offer]);
+    expect(evaluation.exact_candidate).toBeDefined();
+
+    const fp = confirmAndPersistLockedFingerprint({
+      db,
+      purchase,
+      candidate: evaluation.exact_candidate!,
+      confirmed_at: "2026-07-13T19:00:00.000Z",
+    });
+    expect(fp.fingerprint_id).toBeTruthy();
+
+    const row = db
+      .prepare(`SELECT status, fingerprint_id FROM purchases WHERE id = ?`)
+      .get(purchaseId) as { status: string; fingerprint_id: string };
+    expect(row.status).toBe("MONITORING_ACTIVE");
+    expect(row.fingerprint_id).toBe(fp.fingerprint_id);
   });
 
   it("retries and concurrent PREFLIGHT_MONITORING calls create no duplicate purchase or quote", async () => {

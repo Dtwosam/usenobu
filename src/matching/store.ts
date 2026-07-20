@@ -79,11 +79,26 @@ export interface ConfirmAndPersistInput {
 }
 
 /**
- * Confirm user selection, create locked fingerprint, persist match + purchase update.
- * Monitoring must not start without this step (Lane 5 consumes fingerprint_id).
+ * Truthful, scheduler-ineligible pre-payment purchase status. Only Lane 7.4D
+ * `START_MONITORING`, after verified payment, may transition a purchase to
+ * `MONITORING_ACTIVE` — see `selectActivePurchases` /
+ * `loadScheduleRows`, both of which select on `status === "MONITORING_ACTIVE"`
+ * only, so any other status (including this one) is automatically excluded.
  */
-export function confirmAndPersistLockedFingerprint(
+export const MONITORING_PAYMENT_READY_STATUS = "MONITORING_PAYMENT_READY";
+
+/**
+ * Shared persistence: create the locked fingerprint, persist match +
+ * fingerprint rows, and set the purchase's final status. Never call directly
+ * from outside this module — use `confirmAndPersistLockedFingerprint` (web,
+ * activates monitoring immediately) or
+ * `confirmAndPersistLockedFingerprintPending` (agent pre-payment path, never
+ * activates monitoring) so the activation decision stays explicit at the
+ * call site.
+ */
+function persistConfirmedFingerprint(
   input: ConfirmAndPersistInput,
+  finalStatus: string,
 ): LockedProductFingerprint {
   const confirmed = confirmProductMatch({
     purchase: input.purchase,
@@ -177,9 +192,35 @@ export function confirmAndPersistLockedFingerprint(
        SET fingerprint_id = ?, status = ?, updated_at = ?
        WHERE id = ?`,
     )
-    .run(fp.fingerprint_id, "MONITORING_ACTIVE", now, input.purchase.purchase_id);
+    .run(fp.fingerprint_id, finalStatus, now, input.purchase.purchase_id);
 
   return fp;
+}
+
+/**
+ * Confirm user selection, create locked fingerprint, persist match + purchase
+ * update, and activate monitoring immediately. Monitoring must not start
+ * without this step (Lane 5 consumes fingerprint_id). Used by the consumer
+ * web confirmation flow only — unchanged since before Lane 7.4C.1.
+ */
+export function confirmAndPersistLockedFingerprint(
+  input: ConfirmAndPersistInput,
+): LockedProductFingerprint {
+  return persistConfirmedFingerprint(input, "MONITORING_ACTIVE");
+}
+
+/**
+ * Lane 7.4C.1 — agent-native pre-payment path. Locks the fingerprint and
+ * persists match/fingerprint rows exactly like
+ * `confirmAndPersistLockedFingerprint`, but leaves the purchase in the
+ * truthful, scheduler-ineligible `MONITORING_PAYMENT_READY_STATUS` instead
+ * of `MONITORING_ACTIVE`. Only Lane 7.4D `START_MONITORING`, after verified
+ * payment, may transition the purchase to `MONITORING_ACTIVE`.
+ */
+export function confirmAndPersistLockedFingerprintPending(
+  input: ConfirmAndPersistInput,
+): LockedProductFingerprint {
+  return persistConfirmedFingerprint(input, MONITORING_PAYMENT_READY_STATUS);
 }
 
 export function getLockedFingerprint(

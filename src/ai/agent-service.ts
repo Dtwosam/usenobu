@@ -234,6 +234,12 @@ export async function runAgentAction(
       env: deps.env,
       now: deps.connectionNow,
     });
+    if (!result.ok && "error" in result) {
+      return {
+        http_status: result.http_status,
+        body: { error: result.error },
+      };
+    }
     if (!result.ok && result.http_status === 200) {
       return {
         http_status: 200,

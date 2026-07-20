@@ -215,25 +215,39 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `tests/auth/agent-connections.test.ts` (12 focused tests: code expiry/attempt-limit/one-time-consume, token hashed-and-returned-once, handle-only/wrong/expired/revoked rejection, rotation invalidating the old token, revocation, cross-connection isolation, existing `/v1/agent` actions unchanged), focused auth regressions (8 passed), combined targeted run (192 passed / 20 files), typecheck, build, `git diff --check` clean, sensitive-output scan clean. Verdict: `NOBU_LANE_7_4B_PASS`. Evidence: `docs/proof/lane-7-4b-agent-connection/`.
 
-## Lane 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight COMPLETE
+## Lane 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight COMPLETE (repaired by 7.4C.1)
 
 - `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT` (reusing `src/matching/discovery-candidates.ts` / `src/matching/confirm.ts`) against an unauthenticated, expiring `discovery_session_id` — no connection required, no durable owned purchase created yet. Discovery accepts only validated structured purchase fields (never raw purchase text) and returns bounded (max 5) Target-only candidates via the existing live Target discovery client; Target Plus and non-Target sellers excluded.
 - Durable `monitoring_consent` + `email_alert_consent` capture; `PREFLIGHT_MONITORING` authorizes via the Lane 7.4B shared connection helper, materializes the connection-owned purchase from the confirmed discovery session, attaches the locked fingerprint only after the deterministic Target eligibility/window check passes, and on full pass mints a durable, expiring `monitoring_enrollment_quotes` row ($0.99 USD, settlement fields `NULL` pending Lane 7.4D) and returns `MONITORING_PAYMENT_READY` (not `PAYMENT_REQUIRED` — that name is reserved for the real OKX `402` resource).
 - Unsupported/ambiguous/expired-session purchases, or purchases missing either consent, never reach a quote — the existing locked policy status is returned as-is.
 - Idempotent: an atomic discovery-session reservation plus a partial-unique active-quote index guarantee retries/concurrency never create a duplicate purchase or quote (verified under real `Promise.all` concurrency).
 - Did not require the Lane 7.4D payment-topology decision.
+- **Note:** the original 7.4C pass attached the locked fingerprint by calling `confirmAndPersistLockedFingerprint`, which also set `purchases.status = 'MONITORING_ACTIVE'` — meaning `PREFLIGHT_MONITORING` (free, no payment) could start real monitoring. Lane 7.4C.1 repairs this — see below.
 
 **Proof:** `tests/web/agent-preflight.test.ts` (12 focused tests: discovery-without-identity creates no purchase, bounded Target-only candidates, confirmation rejection cases, session-bound-fingerprint-only confirmation, preflight auth/consent rejection, unsupported/ambiguous/expired create no quote, supported creates one purchase + one quote, retries/concurrency create no duplicates, Lane 7.4B + original actions unchanged, full dispatch path), directly affected regressions (283/284 passed, 1 pre-existing unrelated skip/failure untouched by this lane), typecheck, build, `git diff --check` clean, sensitive-output scan clean. Verdict: `NOBU_LANE_7_4C_PASS`. Evidence: `docs/proof/lane-7-4c-agent-preflight/`.
 
-## Lane 8 gate — ASP #5541 approval and genuine live-listing proof
+## Lane 7.4C.1 — Pre-payment activation and roadmap repair COMPLETE
 
-- ASP #5541 must be approved and genuinely, publicly live (per the existing Lane 8 definition later in this document: "Proof for PASS: approved, live listing. Do not claim completion before this exists.") before any paid marketplace modification is attempted.
-- No paid marketplace modification of any kind — no listing edit, no new listing, no price change — before this gate passes.
+- Replaced `PREFLIGHT_MONITORING`'s use of `confirmAndPersistLockedFingerprint` with a new `confirmAndPersistLockedFingerprintPending` (`src/matching/store.ts`, sharing one internal helper with the original so both stay in sync): persists the confirmed locked fingerprint identically, but leaves the purchase in a new truthful, scheduler-ineligible status (`MONITORING_PAYMENT_READY_STATUS` = `"MONITORING_PAYMENT_READY"`) instead of `MONITORING_ACTIVE`. The consumer web confirmation flow's `confirmAndPersistLockedFingerprint` is unchanged and still activates monitoring immediately — verified directly by a regression test. The scheduler already selects strictly on `status === "MONITORING_ACTIVE"` (`src/monitoring/selection.ts`, `src/monitoring/scheduler.ts`), so no scheduler code changed; the new status is automatically excluded.
+- Failure-recoverable preflight: after resolving a purchase id (fresh reservation or an already-`materialized` session), the purchase row's existence is always checked and inserted if missing — recovering a prior attempt that crashed between session reservation and purchase insertion, using the reserved id, never a new one. A concurrent recovery race on the same id is caught (primary key conflict) and re-read, never duplicated.
+- Quote-issuance failure with no recoverable existing active quote now returns a graceful `{ error: "quote_issuance_failed" }` (HTTP 503) instead of throwing; because the fingerprint-lock step never sets `MONITORING_ACTIVE`, a quote failure structurally can never leave an active purchase either way.
+- Retries and real concurrent calls (`Promise.all`-verified) still produce exactly one purchase and one active quote; an existing valid quote is reused.
+- Corrected all Lane 7.4C docs and proof that claimed `PREFLIGHT_MONITORING` activates monitoring.
+- Roadmap correction: removed the requirement to wait for ASP `#5541`'s current review to resolve before continuing 7.4 development. Adopted order: `7.4C.1 → 7.4D.0 official OKX topology re-check → 7.4D → 7.4E → 7.4F → Lane 8R accurate edit/resubmit of #5541 → 7.4G → Lane 9`. During 7.4D–7.4F: do not edit or resubmit `#5541`; do not expose unfinished paid behavior publicly; use only official OKX evidence for topology decisions.
 
-## Lane 7.4D — Official OKX paid-topology re-check and `$0.99` activation
+**Proof:** `tests/web/agent-preflight.test.ts` (15 focused tests, 3 new: preflight creates a fingerprint and quote but never `MONITORING_ACTIVE` and the scheduler cannot select it; recovers on retry after a simulated crash between reservation and insertion; quote-issuance failure never activates monitoring and creates no duplicate; existing 12 tests updated/retained including retries/concurrency create one purchase+quote and existing web confirmation still activates monitoring normally), typecheck, build, `git diff --check` clean. Verdict: `NOBU_LANE_7_4C_1_PASS`. Evidence: `docs/proof/lane-7-4c-agent-preflight/` (updated).
 
-- **Opens with "OKX paid-service topology capability re-check"**, using only official OKX documentation available at that time: resolve which (if any) of the three documented possibilities (mixed listing / separate listings / convert-and-relocate) is supported, whether ASP #5541 may change price under review, whether OKX forwards identity/email, and whether OKX forwards a reusable cross-call authorization credential. **If topology remains unresolved, return `NOBU_LANE_7_4D_BLOCKED`.**
-- Only once resolved: implement the confirmed topology, `payment_attempts` / `monitor_activations` ledgers, `START_MONITORING` with a server-derived `activation_key` (no caller-supplied idempotency key), exactly-once activation in one durable transaction, replay-safe `200 ALREADY_ACTIVE` (never `409` for a valid replay), fail-closed expired/altered-quote handling, and the settled-but-uncommitted reconciliation job.
+## Lane 7.4D.0 — Official OKX paid-service topology re-check
+
+- Using only official OKX documentation available at that time: resolve which (if any) of the three documented topology possibilities (mixed listing / separate listings / convert-and-relocate) is supported, whether ASP `#5541` may change price under review, whether OKX forwards identity/email, and whether OKX forwards a reusable cross-call authorization credential.
+- **If topology remains unresolved, return `NOBU_LANE_7_4D_0_BLOCKED`.** Does not edit or resubmit `#5541`.
+
+**Proof:** topology-resolution record citing only official OKX sources (or a documented `BLOCKED` verdict).
+
+## Lane 7.4D — `$0.99` activation
+
+- Only once Lane 7.4D.0 resolves a topology: implement the confirmed topology, `payment_attempts` / `monitor_activations` ledgers, `START_MONITORING` with a server-derived `activation_key` (no caller-supplied idempotency key), exactly-once activation in one durable transaction, replay-safe `200 ALREADY_ACTIVE` (never `409` for a valid replay), fail-closed expired/altered-quote handling, and the settled-but-uncommitted reconciliation job. This is the only lane that may transition a purchase to `MONITORING_ACTIVE` from an agent-native quote.
+- Does not edit or resubmit `#5541`; does not expose unfinished paid behavior publicly.
 
 **Proof:** payment-challenge/settlement/idempotency unit tests, duplicate-replay test (exactly one monitor, `200 ALREADY_ACTIVE`), expired/altered-quote fail-closed test, reconciliation-job test, typecheck, build.
 
@@ -241,14 +255,23 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 - `LIST_ACTIVE_MONITORS`, `ENABLE_EMAIL_ALERTS`/`DISABLE_EMAIL_ALERTS`, `STOP_MONITORING`; `CHECK_MONITORING_STATUS` (already live) confirmed compatible.
 - `STOP_MONITORING` sets an explicit `monitoring_stopped_at`/`monitoring_stop_reason = user_requested` state, distinct from the visibility-only Lane 7.3A.2B archive; scheduler selection excludes stopped purchases. No refund promises in any response text.
+- Does not edit or resubmit `#5541`; does not expose unfinished paid behavior publicly.
 
 **Proof:** owner-scope, stop-vs-archive, and scheduler-exclusion regression tests, typecheck, build.
 
 ## Lane 7.4F — Scheduler and notification integration
 
 - Prove agent-originated paid monitors flow through the existing `src/monitoring` scheduler and Lane 7.3B `src/notifications` email pipeline unmodified — no parallel scheduler or notification system.
+- Does not edit or resubmit `#5541`; does not expose unfinished paid behavior publicly.
 
 **Proof:** scheduler/notification regression tests covering an agent-originated monitor alongside a web-originated one.
+
+## Lane 8R — Accurate edit/resubmit of ASP #5541
+
+- First point in the roadmap where `#5541` is edited or resubmitted since Lane 8's original registration — done only once 7.4D–7.4F are built and proven, so the listing accurately describes what is genuinely live (still starting from the existing free listing; any paid-service description added here must match the real, tested Lane 7.4D behavior, not aspirational copy).
+- No fake or aspirational claims in the listing; no price change beyond what Lane 7.4D.0's resolved topology actually supports.
+
+**Proof:** resubmission record (fields changed, before/after), consistency check against the actually-deployed Lane 7.4D–7.4F behavior.
 
 ## Lane 7.4G — Live marketplace end-to-end proof
 
@@ -337,6 +360,8 @@ Then **Lane 9 — Demo and submission closeout** (defined later in this document
 **Proof:** `docs/proof/nobu-ai-agent/live-groq-provider/` — `NOBU_LANE_7_5E_2_PASS`.
 
 ## Lane 8 — OKX ASP registration and live listing (**ACTIVE — PENDING REVIEW**)
+
+**Lane 7.4C.1 roadmap note:** this lane's free-listing review runs independently of 7.4 development — 7.4D.0 through 7.4F proceed without waiting for it to resolve and without editing/resubmitting `#5541`. The next `#5541` edit is **Lane 8R** (after 7.4F, before 7.4G), which accurately reflects whatever is genuinely built by then; it is not this lane reopened.
 
 - Register free A2MCP ASP using **`https://usenobu.vercel.app/v1/agent`**.
 - Accurate listing: AI agent + Target-only live integration.
