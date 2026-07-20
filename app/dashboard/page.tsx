@@ -1,15 +1,14 @@
-import { listPurchases } from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
 import { getEffectivePurchaseOwner } from "@/auth/service";
-import { formatUsd, statusLabel, statusTone } from "@/web/status-copy";
-import {
-  ButtonLink,
-  Card,
-  EmptyState,
-  IconLock,
-  PageHeader,
-  StatusBadge,
-} from "@/ui";
+import { listPurchasesForLifecycle } from "@/web/purchase-lifecycle-service";
+import type { LifecycleTab } from "@/web/purchase-lifecycle";
+import { ButtonLink, IconLock, PageHeader } from "@/ui";
+import { MyPurchasesClient } from "./MyPurchasesClient";
+
+function parseTab(raw: string | undefined): LifecycleTab {
+  if (raw === "history" || raw === "archived" || raw === "active") return raw;
+  return "active";
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -22,11 +21,15 @@ export default async function DashboardPage({
     db,
     createGuestIfMissing: true,
   });
-  const purchases = listPurchases({ owner_ref: effective.owner_ref });
+  const { items, counts } = await listPurchasesForLifecycle({
+    owner_ref: effective.owner_ref,
+    kind: effective.kind,
+    db,
+  });
   const signedIn = effective.kind === "account";
   const claimed = sp.claimed ? Number(sp.claimed) : 0;
-  const showClaim =
-    signedIn && Number.isFinite(claimed) && claimed > 0;
+  const showClaim = signedIn && Number.isFinite(claimed) && claimed > 0;
+  const initialTab = parseTab(sp.tab);
 
   return (
     <div className="n-screen">
@@ -34,11 +37,9 @@ export default async function DashboardPage({
         title="Your purchases"
         description="Purchases you’re watching for a lower observed retailer price."
         actions={
-          purchases.length > 0 ? (
-            <ButtonLink href="/purchases/new" size="sm">
-              Track a purchase
-            </ButtonLink>
-          ) : undefined
+          <ButtonLink href="/purchases/new" size="sm">
+            Track a purchase
+          </ButtonLink>
         }
       />
 
@@ -99,53 +100,30 @@ export default async function DashboardPage({
         </div>
       ) : null}
 
-      {purchases.length === 0 ? (
-        <Card>
-          <EmptyState
-            title="Nothing being watched yet"
-            description="Add a recent supported purchase and confirm the exact product to begin. Currently: eligible Target.com purchases."
-            action={
-              <ButtonLink href="/purchases/new" data-testid="empty-dashboard-cta">
-                Track a purchase
-              </ButtonLink>
-            }
-          />
-          <p className="visually-hidden" data-testid="empty-dashboard">
-            No purchases yet.
-          </p>
-        </Card>
-      ) : (
-        <ul className="n-purchase-list" data-testid="purchases-table">
-          {purchases.map((p) => {
-            const status = String(p.status);
-            return (
-              <li key={String(p.id)}>
-                <a
-                  className="n-purchase-card"
-                  href={`/purchases/${String(p.id)}`}
-                  data-testid="purchase-row"
-                >
-                  <div className="n-purchase-card__top">
-                    <StatusBadge
-                      label={statusLabel(status)}
-                      tone={statusTone(status)}
-                    />
-                    <span className="muted n-purchase-card__date">
-                      {String(p.purchase_date)}
-                    </span>
-                  </div>
-                  <p className="n-purchase-card__title n-break">
-                    {String(p.target_product_url)}
-                  </p>
-                  <p className="n-purchase-card__price">
-                    You paid {formatUsd(String(p.purchase_price))}
-                  </p>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {sp.outcome_saved === "1" ? (
+        <p className="n-inline-status" role="status" data-testid="outcome-saved">
+          Your report was saved. It is not verified by Target.
+        </p>
+      ) : null}
+      {sp.deleted === "1" ? (
+        <p className="n-inline-status" role="status" data-testid="deleted-status">
+          Purchase deleted.
+        </p>
+      ) : null}
+
+      <MyPurchasesClient
+        key={`${initialTab}-${items.map((i) => i.id + i.lifecycle).join(",")}`}
+        signedIn={signedIn}
+        items={items}
+        counts={counts}
+        initialTab={initialTab}
+      />
+
+      {!signedIn && items.length === 0 ? (
+        <p className="visually-hidden" data-testid="empty-dashboard">
+          No purchases yet.
+        </p>
+      ) : null}
     </div>
   );
 }

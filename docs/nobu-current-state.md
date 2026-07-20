@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-20
-**Status:** LANE 7.3A.2A.1 — PASSWORDLESS ACCOUNTS + GUEST CLAIM (code complete; production email secrets may be manual); NEXT LANE 7.3A.2B after auth closeout
+**Status:** LANE 7.3A.2B PASS — PERSISTENT PURCHASE HISTORY + LIFECYCLE UI; NEXT LANE 7.3B
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)
@@ -17,6 +17,8 @@
 **Lane 7.3A.2A.1 passwordless accounts + guest claim:** Guests keep `nobu_owner_v1` (`usr_*`) browser-scoped ownership (not called an account). Verified passwordless email magic-link creates stable `acct_*` account IDs and httpOnly auth session; on verify, eligible guest purchases are claimed atomically onto the account (idempotent; never ownerless/demo-user/other accounts). Logout revokes session and does not delete history or move purchases back to guest. UI: `/sign-in`, guest notice, claim success, account menu.
 
 **Lane 7.3A.2A.1R magic-link + durable auth repair:** Root causes of laptop/phone failures: (1) GET `/auth/verify` consumed one-time tokens (email previews invalidated links in seconds); (2) auth tokens/sessions lived in per-instance SQLite + browser cookie snapshot, so phone/server instances could not see laptop-issued tokens. Repair: durable Postgres AuthStore (`DATABASE_URL` / `POLICY_OPS_DATABASE_URL`) for accounts, tokens, sessions, claims, and account purchase blobs; auth **not** in cookie snapshot; cookies hold only opaque session/guest tokens. Safe verify: GET peeks only → confirmation UI → POST consumes once. Magic-link origin defaults to `https://www.usenobu.xyz` (A2MCP remains `https://usenobu.vercel.app/v1/agent`).
+
+**Lane 7.3A.2B persistent purchase history + lifecycle:** Signed-in purchases remain in durable account blobs after monitoring ends. My Purchases tabs: **Active** / **History** / **Archived** via centralized lifecycle mapper (status + deadline + archive flag). Archive is visibility-only; restore returns to the correct tab. User-reported Target outcomes (not contacted / requested / approved / declined / did not request) store with timestamp and disclosure *Reported by you — not verified by Target* without changing matching, policy, or prices. Owner-authorized archive, restore, delete (confirm required). Guests keep browser-scoped lists; cross-device history requires sign-in.
 
 **Lane 7.3A purchase intake UX + multi-candidate discovery:** **PASS** - exact mode accepts Target URL alone or TCIN alone; Fill with AI no longer demands a URL when TCIN is valid; link-derived provisional titles with SerpApi enrichment; Demo options removed from production form; uncertain-product mode returns bounded Target multi-candidates with offer_id preserved through cookie snapshot; monitoring remains confirmation-gated. Local proof: 317 unit tests, typecheck, build, Playwright consumer-flow. Evidence: `docs/proof/lane-7-3a-purchase-intake/`.
 
@@ -98,9 +100,8 @@ publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
 
 ## Next active lane
 
-**Lane 7.3A.2B — Persistent purchase history and lifecycle interface** is the exact next lane after 7.3A.2A.
+**Lane 7.3B — Consented price-drop email alerts** is the exact next lane after 7.3A.2B.
 **Lane 8 — reviewer-status monitoring** remains queued (ASP #5541 under review).
-**Lane 7.3B — consented email price-drop notifications** remains queued separately.
 Then: **Lane 9 — Demo and submission closeout**.
 
 Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`, `docs/proof/lane-7-3a-purchase-intake/`, `docs/proof/lane-7-3a-1-adaptive/`

@@ -167,7 +167,17 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** focused auth unit tests, purchase-privacy regressions, Playwright 1R flow, typecheck, build.
 
-## Lane 7.3A.2B — Persistent purchase history and lifecycle interface (next after 7.3A.2A.1 PASS)
+## Lane 7.3A.2B - Persistent purchase history and lifecycle interface COMPLETE
+
+- Signed-in durable history via account purchase blobs (Postgres).
+- Tabs: Active / History / Archived; archive is visibility-only.
+- User-reported Target outcome (unverified disclosure).
+- Archive, restore, permanent delete (owner-scoped).
+- Guests retain local lists; cross-device requires sign-in.
+
+**Proof:** lifecycle unit tests, privacy/auth regressions, Playwright lifecycle UI, typecheck, build.
+
+## Lane 7.3B — Consented price-drop email alerts (next)
 
 ## Lane 7.3B — Consented email price-drop notifications (queued)
 

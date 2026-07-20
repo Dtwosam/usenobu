@@ -6,7 +6,10 @@
  */
 import pg from "pg";
 import type { NobuDatabase } from "../db/index.js";
-import { AUTH_DURABLE_SCHEMA_SQL } from "./durable-schema.js";
+import {
+  AUTH_DURABLE_SCHEMA_PATCHES,
+  AUTH_DURABLE_SCHEMA_SQL,
+} from "./durable-schema.js";
 import {
   ACCOUNT_ID_RE,
   AUTH_LOGIN_TOKEN_TTL_MS,
@@ -52,6 +55,9 @@ export type PurchaseBlobRow = {
   account_id: string;
   blob_json: string;
   updated_at: string;
+  archived_at: string | null;
+  user_outcome: string | null;
+  user_outcome_at: string | null;
 };
 
 export interface AuthStore {
@@ -101,9 +107,28 @@ export interface AuthStore {
     purchaseId: string;
     blobJson: string;
     nowIso: string;
+    /** Preserve existing lifecycle meta unless provided */
+    archived_at?: string | null;
+    user_outcome?: string | null;
+    user_outcome_at?: string | null;
   }): Promise<void>;
   listPurchaseBlobs(accountId: string): Promise<PurchaseBlobRow[]>;
-  deletePurchaseBlobsForGuest?(guestOwnerRef: string): Promise<void>;
+  getPurchaseBlob(
+    accountId: string,
+    purchaseId: string,
+  ): Promise<PurchaseBlobRow | null>;
+  updatePurchaseLifecycleMeta(args: {
+    accountId: string;
+    purchaseId: string;
+    archived_at?: string | null;
+    user_outcome?: string | null;
+    user_outcome_at?: string | null;
+    nowIso: string;
+  }): Promise<boolean>;
+  deletePurchaseBlob(args: {
+    accountId: string;
+    purchaseId: string;
+  }): Promise<boolean>;
 }
 
 export function mintAccountId(): string {
@@ -140,6 +165,13 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
     kind: "sqlite",
     async ensureSchema() {
       db.exec(AUTH_DURABLE_SCHEMA_SQL);
+      for (const patch of AUTH_DURABLE_SCHEMA_PATCHES) {
+        try {
+          db.exec(patch);
+        } catch {
+          /* column may already exist */
+        }
+      }
       // Legacy 0006 table names → mirror into durable names if present
       try {
         db.exec(`
@@ -348,18 +380,48 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
       return { already: false, claimed: args.purchasesClaimed };
     },
     async savePurchaseBlob(args) {
+      const existing = db
+        .prepare(
+          `SELECT archived_at, user_outcome, user_outcome_at FROM account_purchase_blobs WHERE purchase_id = ?`,
+        )
+        .get(args.purchaseId) as
+        | {
+            archived_at: string | null;
+            user_outcome: string | null;
+            user_outcome_at: string | null;
+          }
+        | undefined;
+      const archived =
+        args.archived_at !== undefined
+          ? args.archived_at
+          : (existing?.archived_at ?? null);
+      const outcome =
+        args.user_outcome !== undefined
+          ? args.user_outcome
+          : (existing?.user_outcome ?? null);
+      const outcomeAt =
+        args.user_outcome_at !== undefined
+          ? args.user_outcome_at
+          : (existing?.user_outcome_at ?? null);
       db.prepare(
-        `INSERT INTO account_purchase_blobs (purchase_id, account_id, blob_json, updated_at)
-         VALUES (?,?,?,?)
+        `INSERT INTO account_purchase_blobs
+         (purchase_id, account_id, blob_json, updated_at, archived_at, user_outcome, user_outcome_at)
+         VALUES (?,?,?,?,?,?,?)
          ON CONFLICT(purchase_id) DO UPDATE SET
            account_id = excluded.account_id,
            blob_json = excluded.blob_json,
-           updated_at = excluded.updated_at`,
+           updated_at = excluded.updated_at,
+           archived_at = excluded.archived_at,
+           user_outcome = excluded.user_outcome,
+           user_outcome_at = excluded.user_outcome_at`,
       ).run(
         args.purchaseId,
         args.accountId,
         args.blobJson,
         args.nowIso,
+        archived,
+        outcome,
+        outcomeAt,
       );
     },
     async listPurchaseBlobs(accountId) {
@@ -368,6 +430,48 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           `SELECT * FROM account_purchase_blobs WHERE account_id = ? ORDER BY updated_at DESC`,
         )
         .all(accountId) as PurchaseBlobRow[];
+    },
+    async getPurchaseBlob(accountId, purchaseId) {
+      return (
+        (db
+          .prepare(
+            `SELECT * FROM account_purchase_blobs WHERE account_id = ? AND purchase_id = ?`,
+          )
+          .get(accountId, purchaseId) as PurchaseBlobRow | undefined) ?? null
+      );
+    },
+    async updatePurchaseLifecycleMeta(args) {
+      const row = await this.getPurchaseBlob(args.accountId, args.purchaseId);
+      if (!row) return false;
+      const archived =
+        args.archived_at !== undefined ? args.archived_at : row.archived_at;
+      const outcome =
+        args.user_outcome !== undefined ? args.user_outcome : row.user_outcome;
+      const outcomeAt =
+        args.user_outcome_at !== undefined
+          ? args.user_outcome_at
+          : row.user_outcome_at;
+      db.prepare(
+        `UPDATE account_purchase_blobs
+         SET archived_at = ?, user_outcome = ?, user_outcome_at = ?, updated_at = ?
+         WHERE account_id = ? AND purchase_id = ?`,
+      ).run(
+        archived,
+        outcome,
+        outcomeAt,
+        args.nowIso,
+        args.accountId,
+        args.purchaseId,
+      );
+      return true;
+    },
+    async deletePurchaseBlob(args) {
+      const r = db
+        .prepare(
+          `DELETE FROM account_purchase_blobs WHERE account_id = ? AND purchase_id = ?`,
+        )
+        .run(args.accountId, args.purchaseId);
+      return Number(r.changes ?? 0) > 0;
     },
   };
 }
@@ -419,6 +523,13 @@ export function createPostgresAuthStore(
     async ensureSchema() {
       if (pgSchemaReady) return;
       await q(AUTH_DURABLE_SCHEMA_SQL);
+      for (const patch of AUTH_DURABLE_SCHEMA_PATCHES) {
+        try {
+          await q(patch);
+        } catch {
+          /* column may already exist */
+        }
+      }
       pgSchemaReady = true;
     },
     async getAccountById(id) {
@@ -617,14 +728,47 @@ export function createPostgresAuthStore(
       }
     },
     async savePurchaseBlob(args) {
+      const existing = await q<{
+        archived_at: string | null;
+        user_outcome: string | null;
+        user_outcome_at: string | null;
+      }>(
+        `SELECT archived_at, user_outcome, user_outcome_at FROM account_purchase_blobs WHERE purchase_id = $1`,
+        [args.purchaseId],
+      );
+      const prev = existing.rows[0];
+      const archived =
+        args.archived_at !== undefined
+          ? args.archived_at
+          : (prev?.archived_at ?? null);
+      const outcome =
+        args.user_outcome !== undefined
+          ? args.user_outcome
+          : (prev?.user_outcome ?? null);
+      const outcomeAt =
+        args.user_outcome_at !== undefined
+          ? args.user_outcome_at
+          : (prev?.user_outcome_at ?? null);
       await q(
-        `INSERT INTO account_purchase_blobs (purchase_id, account_id, blob_json, updated_at)
-         VALUES ($1,$2,$3,$4)
+        `INSERT INTO account_purchase_blobs
+         (purchase_id, account_id, blob_json, updated_at, archived_at, user_outcome, user_outcome_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
          ON CONFLICT (purchase_id) DO UPDATE SET
            account_id = EXCLUDED.account_id,
            blob_json = EXCLUDED.blob_json,
-           updated_at = EXCLUDED.updated_at`,
-        [args.purchaseId, args.accountId, args.blobJson, args.nowIso],
+           updated_at = EXCLUDED.updated_at,
+           archived_at = EXCLUDED.archived_at,
+           user_outcome = EXCLUDED.user_outcome,
+           user_outcome_at = EXCLUDED.user_outcome_at`,
+        [
+          args.purchaseId,
+          args.accountId,
+          args.blobJson,
+          args.nowIso,
+          archived,
+          outcome,
+          outcomeAt,
+        ],
       );
     },
     async listPurchaseBlobs(accountId) {
@@ -633,6 +777,46 @@ export function createPostgresAuthStore(
         [accountId],
       );
       return r.rows;
+    },
+    async getPurchaseBlob(accountId, purchaseId) {
+      const r = await q<PurchaseBlobRow>(
+        `SELECT * FROM account_purchase_blobs WHERE account_id = $1 AND purchase_id = $2`,
+        [accountId, purchaseId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async updatePurchaseLifecycleMeta(args) {
+      const row = await this.getPurchaseBlob(args.accountId, args.purchaseId);
+      if (!row) return false;
+      const archived =
+        args.archived_at !== undefined ? args.archived_at : row.archived_at;
+      const outcome =
+        args.user_outcome !== undefined ? args.user_outcome : row.user_outcome;
+      const outcomeAt =
+        args.user_outcome_at !== undefined
+          ? args.user_outcome_at
+          : row.user_outcome_at;
+      await q(
+        `UPDATE account_purchase_blobs
+         SET archived_at = $1, user_outcome = $2, user_outcome_at = $3, updated_at = $4
+         WHERE account_id = $5 AND purchase_id = $6`,
+        [
+          archived,
+          outcome,
+          outcomeAt,
+          args.nowIso,
+          args.accountId,
+          args.purchaseId,
+        ],
+      );
+      return true;
+    },
+    async deletePurchaseBlob(args) {
+      const r = await q(
+        `DELETE FROM account_purchase_blobs WHERE account_id = $1 AND purchase_id = $2`,
+        [args.accountId, args.purchaseId],
+      );
+      return (r.rowCount ?? 0) > 0;
     },
   };
 }

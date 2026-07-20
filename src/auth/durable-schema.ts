@@ -58,9 +58,20 @@ CREATE TABLE IF NOT EXISTS account_purchase_blobs (
   purchase_id TEXT PRIMARY KEY NOT NULL,
   account_id TEXT NOT NULL,
   blob_json TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  archived_at TEXT,
+  user_outcome TEXT,
+  user_outcome_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_account_purchase_blobs_account
   ON account_purchase_blobs (account_id);
 `;
+
+/** Best-effort column adds for existing durable DBs (Postgres / SQLite). */
+export const AUTH_DURABLE_SCHEMA_PATCHES = [
+  `ALTER TABLE account_purchase_blobs ADD COLUMN archived_at TEXT`,
+  `ALTER TABLE account_purchase_blobs ADD COLUMN user_outcome TEXT`,
+  `ALTER TABLE account_purchase_blobs ADD COLUMN user_outcome_at TEXT`,
+];
+
