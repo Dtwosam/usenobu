@@ -30,5 +30,11 @@
                        "status":  200
                    },
     "no_genuine_payment":  true,
-    "asp_5541_untouched":  true
+    "asp_5541_untouched":  true,
+    "agent_host_paid_unauth":  {
+                                   "fail_closed":  true,
+                                   "status":  401,
+                                   "body":  "{\"agent_state\":\"MONITORING_ACTIVATION\",\"status\":\"ACTION_NOT_AUTHORIZED\"}"
+                               },
+    "agent_host_alias":  "https://usenobu.vercel.app -\u003e usenobu-clysmlg2z-dtwoflicks-2878s-projects.vercel.app"
 }
