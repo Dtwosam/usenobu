@@ -121,10 +121,10 @@ Note: naive substring match on `X-PAYMENT` can false-positive on `okx-payment` t
 
 | Item | Value |
 |---|---|
-| Local HEAD | `354cdb1c525cbbd24f977767cd88140c60c3cfb9` |
-| origin/master | same |
-| Deploy URL | `https://usenobu-mjrpc8nlt-dtwoflicks-2878s-projects.vercel.app` |
-| Deploy ID | `dpl_9w67CtqPM6rXcnmz9gPyZzgtTyd4` |
+| Product commit | `354cdb1` — Align Nobu public website experience |
+| Proof HEAD | see `deployment.json` (includes deployment evidence commits) |
+| Deploy URL | `https://usenobu-kgwmhx0dw-dtwoflicks-2878s-projects.vercel.app` |
+| Deploy ID | `dpl_3EHNRYBmztioAGxwJRtT8FJWDUQ2` |
 | Aliases | `usenobu.vercel.app`, `www.usenobu.xyz`, `usenobu.xyz` |
 
 External verify (all HTTP 200 unless noted):
