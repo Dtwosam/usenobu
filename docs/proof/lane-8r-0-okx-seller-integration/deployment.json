@@ -1,0 +1,34 @@
+﻿{
+    "commit":  "9cd9deb285803ccd7d6be61d633f604bf35eeef7",
+    "deployment_url":  "https://usenobu-clysmlg2z-dtwoflicks-2878s-projects.vercel.app",
+    "alias_www":  "https://www.usenobu.xyz",
+    "alias_agent":  "https://usenobu.vercel.app",
+    "health":  {
+                   "ok":  true,
+                   "status":  200
+               },
+    "free_agent_empty":  {
+                             "status":  400,
+                             "fail_closed":  true,
+                             "no_secret":  true
+                         },
+    "paid_unauth":  {
+                        "not_activated":  true,
+                        "no_secret":  true,
+                        "fail_closed":  true,
+                        "not_html_app_404":  true,
+                        "status":  401,
+                        "body_redacted":  "{\"agent_state\":\"MONITORING_ACTIVATION\",\"status\":\"ACTION_NOT_AUTHORIZED\"}"
+                    },
+    "paid_malformed":  {
+                           "status":  400,
+                           "fail_closed":  true,
+                           "no_secret":  true
+                       },
+    "www_health":  {
+                       "ok":  true,
+                       "status":  200
+                   },
+    "no_genuine_payment":  true,
+    "asp_5541_untouched":  true
+}
