@@ -266,12 +266,14 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `tests/web/agent-monitor-management.test.ts` (6 focused cases), affected agent/notification/monitoring regressions, typecheck, build, `git diff --check`. Verdict: `NOBU_LANE_7_4E_PASS`. Evidence: `docs/proof/lane-7-4e-monitor-management/`.
 
-## Lane 7.4F — Scheduler and notification integration
+## Lane 7.4F — Scheduler and notification integration COMPLETE
 
-- Prove agent-originated paid monitors flow through the existing `src/monitoring` scheduler and Lane 7.3B `src/notifications` email pipeline unmodified — no parallel scheduler or notification system.
-- Does not edit or resubmit `#5541`; does not expose unfinished paid behavior publicly.
+- Durable-to-scheduler bridge: load `monitor_activations.status = 'active'` purchase blobs from AuthStore, hydrate into per-instance scheduler SQLite (including email-alert prefs + notification ledger), run existing `runScheduledMonitoringTick`, persist account-owned graphs back.
+- Agent and web monitors share the same matcher, alert creation, and email workflow; stopped monitors are not fetched; disabled consent suppresses email only.
+- Minimal integration fix: runner ignores outer `check_lock_until` (owned by scheduler) so locked due purchases are not permanently skipped.
+- Did not edit or resubmit `#5541`; did not deploy; paid route remains private/unregistered.
 
-**Proof:** scheduler/notification regression tests covering an agent-originated monitor alongside a web-originated one.
+**Proof:** `tests/monitoring/durable-scheduler-bridge.test.ts` (5 cases), affected monitoring/notification/activation/management regressions, typecheck, build, `git diff --check`. Verdict: `NOBU_LANE_7_4F_PASS`. Evidence: `docs/proof/lane-7-4f-scheduler-notifications/`.
 
 ## Lane 8R — Accurate edit/resubmit of ASP #5541
 

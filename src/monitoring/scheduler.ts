@@ -32,6 +32,12 @@ export interface ScheduledMonitorOptions {
   fetchObservation: ObservationFetcher;
   /** When false, skip email side-effects (tests that only care about checks). */
   process_emails?: boolean;
+  /**
+   * Lane 7.4F — durable AuthStore for verified-account email lookup when
+   * purchases DB is per-instance and accounts live elsewhere.
+   */
+  accountStore?: unknown;
+  env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
 }
 
 export interface ScheduledMonitorResult {
@@ -278,6 +284,12 @@ export async function runScheduledMonitoringTick(
           db: options.db,
           results: batch.results,
           nowIso: asOf,
+          env: options.env,
+          accountStore: options.accountStore as
+            | Awaited<
+                ReturnType<typeof import("../auth/auth-store.js").getAuthStore>
+              >
+            | undefined,
         });
         emails_attempted += emailResults.filter((e) => e.attempted).length;
       }

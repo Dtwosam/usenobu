@@ -1,10 +1,57 @@
 /**
  * Export / import account-owned purchase graphs for durable cross-device access.
+ * Lane 7.4F: also carries email notification ledger + alert prefs for
+ * cross-instance scheduler/notification idempotency.
  */
 import type { NobuDatabase } from "../db/index.js";
 import type { PurchaseBlobRow } from "./auth-store.js";
 import { isValidSessionOwner } from "../web/session-owner.js";
 import { isAccountOwnerRef } from "./auth-store.js";
+
+/**
+ * Restore local email-alert prefs from durable blob meta.
+ * Kept here (not prefs.ts) to avoid circular import with exportPurchaseBlob.
+ */
+function restoreEmailAlertPref(
+  db: NobuDatabase,
+  args: {
+    purchaseId: string;
+    accountId: string;
+    email_alerts_enabled?: number | boolean | null;
+    email_alerts_consent_at?: string | null;
+    email_alerts_disabled_at?: string | null;
+    updated_at?: string;
+  },
+): void {
+  if (args.email_alerts_enabled == null && !args.email_alerts_consent_at) {
+    return;
+  }
+  const enabled =
+    args.email_alerts_enabled === true || args.email_alerts_enabled === 1;
+  const nowIso = args.updated_at ?? new Date().toISOString();
+  try {
+    db.prepare(
+      `INSERT INTO purchase_email_alert_prefs
+       (purchase_id, account_id, enabled, consent_at, disabled_at, updated_at)
+       VALUES (?,?,?,?,?,?)
+       ON CONFLICT(purchase_id) DO UPDATE SET
+         account_id = excluded.account_id,
+         enabled = excluded.enabled,
+         consent_at = COALESCE(excluded.consent_at, purchase_email_alert_prefs.consent_at),
+         disabled_at = excluded.disabled_at,
+         updated_at = excluded.updated_at`,
+    ).run(
+      args.purchaseId,
+      args.accountId,
+      enabled ? 1 : 0,
+      args.email_alerts_consent_at ?? null,
+      args.email_alerts_disabled_at ?? null,
+      nowIso,
+    );
+  } catch {
+    /* table may not exist yet */
+  }
+}
 
 export type PurchaseBlobPayload = {
   purchase: Record<string, unknown>;
@@ -13,6 +60,10 @@ export type PurchaseBlobPayload = {
   price_observations: Array<Record<string, unknown>>;
   alerts: Array<Record<string, unknown>>;
   enrollment_discovery: Array<Record<string, unknown>>;
+  /** Lane 7.4F — durable email notification ledger rows for this purchase. */
+  email_notifications?: Array<Record<string, unknown>>;
+  /** Lane 7.4F — local email-alert pref row snapshot (also on blob meta). */
+  email_alert_pref?: Record<string, unknown> | null;
 };
 
 function rows(
@@ -37,6 +88,18 @@ export function exportPurchaseBlob(
     .prepare(`SELECT * FROM purchases WHERE id = ?`)
     .get(purchaseId) as Record<string, unknown> | undefined;
   if (!purchase) return null;
+
+  let email_alert_pref: Record<string, unknown> | null = null;
+  try {
+    email_alert_pref =
+      (db
+        .prepare(
+          `SELECT * FROM purchase_email_alert_prefs WHERE purchase_id = ?`,
+        )
+        .get(purchaseId) as Record<string, unknown> | undefined) ?? null;
+  } catch {
+    email_alert_pref = null;
+  }
 
   const payload: PurchaseBlobPayload = {
     purchase,
@@ -65,6 +128,12 @@ export function exportPurchaseBlob(
       `SELECT * FROM enrollment_discovery WHERE purchase_id = ?`,
       purchaseId,
     ),
+    email_notifications: rows(
+      db,
+      `SELECT * FROM email_notifications WHERE purchase_id = ? ORDER BY created_at DESC LIMIT 20`,
+      purchaseId,
+    ),
+    email_alert_pref,
   };
   return JSON.stringify(payload);
 }
@@ -114,12 +183,75 @@ export function importPurchaseBlobs(
       for (const a of payload.alerts ?? []) insertRow(db, "alerts", a);
       for (const d of payload.enrollment_discovery ?? [])
         insertRow(db, "enrollment_discovery", d);
+      for (const en of payload.email_notifications ?? [])
+        insertRow(db, "email_notifications", en);
+
+      // Durable blob meta is source of truth for email consent across instances.
+      restoreEmailAlertPref(db, {
+        purchaseId: b.purchase_id,
+        accountId: b.account_id,
+        email_alerts_enabled: b.email_alerts_enabled,
+        email_alerts_consent_at: b.email_alerts_consent_at,
+        email_alerts_disabled_at: b.email_alerts_disabled_at,
+        updated_at: b.updated_at,
+      });
+
+      // Prefer embedded pref snapshot when meta columns are empty but snapshot is on.
+      if (
+        payload.email_alert_pref &&
+        (b.email_alerts_enabled == null || b.email_alerts_enabled === 0) &&
+        payload.email_alert_pref.enabled
+      ) {
+        restoreEmailAlertPref(db, {
+          purchaseId: b.purchase_id,
+          accountId: b.account_id,
+          email_alerts_enabled: payload.email_alert_pref.enabled as
+            | number
+            | boolean,
+          email_alerts_consent_at: (payload.email_alert_pref.consent_at as
+            | string
+            | null
+            | undefined) ?? null,
+          email_alerts_disabled_at: (payload.email_alert_pref.disabled_at as
+            | string
+            | null
+            | undefined) ?? null,
+          updated_at: b.updated_at,
+        });
+      }
+
       n += 1;
     } catch {
       /* skip bad blob */
     }
   }
   return n;
+}
+
+/** True when durable purchase JSON indicates a stopped monitor. */
+export function purchaseBlobIsStopped(blob: PurchaseBlobRow): boolean {
+  try {
+    const payload = JSON.parse(blob.blob_json) as PurchaseBlobPayload;
+    const stopped = payload.purchase?.monitoring_stopped_at;
+    return Boolean(stopped && String(stopped).trim().length > 0);
+  } catch {
+    return false;
+  }
+}
+
+/** True when blob is eligible for scheduled monitoring. */
+export function purchaseBlobIsSchedulerEligible(blob: PurchaseBlobRow): boolean {
+  try {
+    const payload = JSON.parse(blob.blob_json) as PurchaseBlobPayload;
+    const p = payload.purchase;
+    if (!p) return false;
+    if (String(p.status || "") !== "MONITORING_ACTIVE") return false;
+    if (!p.fingerprint_id) return false;
+    if (purchaseBlobIsStopped(blob)) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

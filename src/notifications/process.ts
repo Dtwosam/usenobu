@@ -114,6 +114,11 @@ export async function processPriceDropEmailForNewAlert(args: {
   alertId: string;
   nowIso?: string;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  /**
+   * Lane 7.4F — durable AuthStore for account email lookup when purchases
+   * live in a separate per-instance DB from accounts.
+   */
+  accountStore?: Awaited<ReturnType<typeof getAuthStore>>;
 }): Promise<NotificationProcessResult> {
   const nowIso = args.nowIso ?? new Date().toISOString();
   const env = args.env ?? process.env;
@@ -178,7 +183,9 @@ export async function processPriceDropEmailForNewAlert(args: {
     };
   }
 
-  const store = await getAuthStore({ sqliteDb: args.db, env });
+  const store =
+    args.accountStore ??
+    (await getAuthStore({ sqliteDb: args.db, env }));
   const account = await store.getAccountById(ownerRef);
   if (!account?.email_verified_at || !account.email_normalized) {
     const inserted = insertNotification({
@@ -533,6 +540,7 @@ export async function processNewAlertsFromMonitorBatch(args: {
   }>;
   nowIso?: string;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  accountStore?: Awaited<ReturnType<typeof getAuthStore>>;
 }): Promise<NotificationProcessResult[]> {
   const out: NotificationProcessResult[] = [];
   for (const r of args.results) {
@@ -543,6 +551,7 @@ export async function processNewAlertsFromMonitorBatch(args: {
       alertId: r.alert_id,
       nowIso: args.nowIso,
       env: args.env,
+      accountStore: args.accountStore,
     });
     out.push(result);
   }

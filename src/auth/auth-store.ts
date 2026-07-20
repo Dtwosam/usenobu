@@ -351,6 +351,17 @@ export interface AuthStore {
   }): Promise<boolean>;
   /** For reconciliation — every activation still awaiting projection. */
   listPendingProjectionActivations(): Promise<MonitorActivationRow[]>;
+  /**
+   * Lane 7.4F — active agent-originated monitors for scheduler hydrate.
+   * Bounded; ordered oldest-first for fairness.
+   */
+  listActiveMonitorActivations(args?: {
+    limit?: number;
+  }): Promise<MonitorActivationRow[]>;
+  /** Purchase blob by id only (purchase_id is primary key). */
+  getPurchaseBlobByPurchaseId(
+    purchaseId: string,
+  ): Promise<PurchaseBlobRow | null>;
 }
 
 export function mintAccountId(): string {
@@ -1066,6 +1077,25 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
            ORDER BY created_at ASC`,
         )
         .all() as MonitorActivationRow[];
+    },
+    async listActiveMonitorActivations(args) {
+      const limit = Math.min(Math.max(1, args?.limit ?? 50), 200);
+      return db
+        .prepare(
+          `SELECT * FROM monitor_activations WHERE status = 'active'
+           ORDER BY created_at ASC
+           LIMIT ?`,
+        )
+        .all(limit) as MonitorActivationRow[];
+    },
+    async getPurchaseBlobByPurchaseId(purchaseId) {
+      return (
+        (db
+          .prepare(
+            `SELECT * FROM account_purchase_blobs WHERE purchase_id = ?`,
+          )
+          .get(purchaseId) as PurchaseBlobRow | undefined) ?? null
+      );
     },
   };
 }
@@ -1784,6 +1814,23 @@ export function createPostgresAuthStore(
          ORDER BY created_at ASC`,
       );
       return r.rows;
+    },
+    async listActiveMonitorActivations(args) {
+      const limit = Math.min(Math.max(1, args?.limit ?? 50), 200);
+      const r = await q<MonitorActivationRow>(
+        `SELECT * FROM monitor_activations WHERE status = 'active'
+         ORDER BY created_at ASC
+         LIMIT $1`,
+        [limit],
+      );
+      return r.rows;
+    },
+    async getPurchaseBlobByPurchaseId(purchaseId) {
+      const r = await q<PurchaseBlobRow>(
+        `SELECT * FROM account_purchase_blobs WHERE purchase_id = $1`,
+        [purchaseId],
+      );
+      return r.rows[0] ?? null;
     },
   };
 }

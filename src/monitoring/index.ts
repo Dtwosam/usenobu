@@ -7,3 +7,4 @@ export * from "./store.js";
 export * from "./runner.js";
 export * from "./schedule.js";
 export * from "./scheduler.js";
+export * from "./durable-bridge.js";

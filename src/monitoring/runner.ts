@@ -109,13 +109,16 @@ export async function runMonitoringPass(
     const started = asOf;
     const notes: string[] = [];
 
-    // Scheduled mode: enforce 24h cadence + lock/backoff (manual checks bypass)
+    // Scheduled mode: enforce 24h cadence + backoff (manual checks bypass).
+    // check_lock_until is owned by the outer scheduler loop (Lane 7.3B/7.4F) —
+    // it is set before this runner is invoked, so treating it as "not due" here
+    // would permanently skip every locked purchase.
     if (options.mode === "scheduled") {
       const sched = loadPurchaseScheduleFields(options.db, purchase.id);
       const due = isDueForScheduledCheck({
         next_check_at: sched.next_check_at,
         provider_backoff_until: sched.provider_backoff_until,
-        check_lock_until: sched.check_lock_until,
+        check_lock_until: null,
         as_of: asOf,
       });
       if (!due.due) {
