@@ -6,17 +6,21 @@
 
 ## 1. Product definition
 
-Nobu is an AI agent that monitors supported purchases after checkout and alerts users when a lower retailer price may be available. It is also an OKX.AI A2MCP ASP designed for retailer-specific connectors, policy contracts, and price-monitoring workflows. The current live version supports eligible Target.com and Target app purchases only.
+Nobu is an **AI post-purchase monitoring agent** that monitors the **exact product** after purchase and alerts the customer when a **safely matched lower price** may create an opportunity to **request the difference from the retailer**.
+
+Customers use Nobu through the **UseNobu website** and through **OKX.AI** in compatible AI-agent environments. Nobu is also offered as an OKX.AI A2MCP agent service with free preparation actions and a paid `$0.99` monitoring activation path.
+
+**Target is the only retailer currently supported** (eligible Target.com and Target app purchases). More retailers are planned; each must be separately integrated and verified before support is claimed.
 
 Natural-language intake may extract purchase fields, but **only user-confirmed structured data** enters deterministic matching, policy, and monitoring.
 
-A user adds a supported purchase once. For the Target integration, Nobu identifies and locks the exact Target product, checks a third-party shopping data source for a lower Target online price while the purchase remains within Target's adjustment window, and alerts the user when a possible price-adjustment opportunity appears.
+A customer adds a supported purchase once, confirms the exact product, and Nobu monitors third-party observed Target prices during the applicable window. When a lower price is safely matched, Nobu presents a **possible price difference** and the retailer’s official contact path.
 
-Nobu returns the observed price difference, remaining time, evidence provenance, policy conditions, and the retailer's official next step. For Target purchases, Target verifies the price and makes the final decision. Other retailers remain unsupported until separately integrated and governed.
+For Target purchases, **Target verifies the price and makes the final decision**. Nobu does not contact the retailer, submit a request, or guarantee an adjustment.
 
 ## 2. Core user promise
 
-> Add a supported purchase once. Nobu watches the retailer price during the applicable monitoring window and alerts you when there may be a difference to request.
+> Confirm the exact product once. Nobu monitors during the supported window and alerts you when a safely matched lower price may create an opportunity to request the difference. The retailer verifies and decides.
 
 ## 3. Problem
 
@@ -32,14 +36,12 @@ Initial user:
 - item has a stable model, item identifier, or exact Target URL;
 - user wants monitoring without repeatedly checking the product page.
 
-## 5. Hackathon position
+## 5. Marketplace position (product)
 
 - ASP type: A2MCP
-- Primary category: Lifestyle Companion
-- Secondary category: Software Utility
-- General award strategy: Best Product through clarity, completeness, and real user value
-- Initial endpoint: free HTTP 200 endpoint
-- Paid x402: optional after listing and proof, not a launch blocker
+- Free endpoint: public HTTPS preparation and monitor-management actions
+- Paid path: `$0.99` monitoring activation (x402) under the same ASP identity when registered
+- Listing must match implemented behavior only
 
 ## 6. MVP scope
 
@@ -49,7 +51,8 @@ Initial user:
 - manual structured purchase entry (always available);
 - Target product URL and identifier intake;
 - optional receipt text/image parsing;
-- bounded `POST /v1/agent` actions (understand, confirmed check, monitoring status);
+- bounded free `POST /v1/agent` actions (understand, discover, confirm, email verify, preflight, monitor manage, status);
+- paid `POST /v1/agent/start-monitoring` for one-purchase `$0.99` activation;
 - candidate product discovery through SerpApi Google Shopping;
 - user confirmation of the exact Target offer once;
 - locked product fingerprint;
@@ -133,7 +136,7 @@ Forbidden:
 
 ## 10. Success criteria
 
-The hackathon MVP is complete only when:
+The Target MVP is complete only when:
 
 - a user can register a supported Target.com purchase;
 - the exact Target product is confirmed and fingerprinted;

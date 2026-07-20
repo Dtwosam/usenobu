@@ -1,17 +1,23 @@
-# Nobu Source-of-Truth Pack v1
+# START-HERE — Nobu
 
-**Prepared:** 2026-07-13  
-**Project:** Nobu  
-**Hackathon:** OKX.AI Genesis Hackathon  
-**Current product decision:** Universal post-purchase price-monitoring platform; first live retailer is Target.com (SerpApi third-party observation), free A2MCP check endpoint, small consumer web app.
+**Product:** Nobu  
+**Production:** https://usenobu.vercel.app  
+**Date alignment:** 2026-07-20 (Lane 8R.2)
 
 ## What Nobu is
 
-Nobu is a post-purchase price-monitoring platform that watches supported purchases for possible retailer price drops. The current live integration supports eligible Target.com purchases.
+Nobu is an AI post-purchase monitoring agent that monitors the **exact product** after purchase and alerts the customer when a **safely matched lower price** may create an opportunity to **request the difference from the retailer**.
 
-Add a supported purchase once. Nobu watches the retailer price during the applicable monitoring window and alerts you when there may be a difference to request.
+Customers use Nobu through:
 
-Nobu does **not** guarantee a refund, submit a claim, log into retailer accounts, or claim observed prices are official Target API prices. For Target purchases, Target verifies the price and makes the final decision. Other retailers remain unsupported until separately integrated.
+1. the **UseNobu website**;
+2. **OKX.AI** in compatible AI-agent environments.
+
+**Target** is the only retailer currently supported. More retailers are planned; each requires a separate integration before support is claimed.
+
+Nobu does **not** contact the retailer, submit a request, recover money, or guarantee a price adjustment. The customer contacts the retailer. The retailer verifies and decides.
+
+Observed prices are third-party SerpApi Google Shopping observations, not an official Target API.
 
 ## Mandatory source stack
 
@@ -20,47 +26,76 @@ Read these in order before planning or changing code:
 1. `AGENTS.md`
 2. `docs/nobu-clean-master-spec.md`
 3. `docs/nobu-current-state.md`
-4. `docs/nobu-hackathon-compliance-matrix.md`
+4. `docs/nobu-product-overview.md`
 5. `docs/nobu-retailer-and-price-source-governance.md`
 6. `docs/nobu-target-policy-contract.md`
 7. `docs/nobu-serpapi-data-contract.md`
 8. `docs/nobu-architecture.md`
-9. `openapi/nobu-a2mcp.openapi.yaml`
-10. `docs/nobu-build-order.md`
-11. `docs/nobu-test-and-proof-plan.md`
-12. `docs/nobu-privacy-security-threat-model.md`
-13. `docs/nobu-submission-runbook.md`
-14. `docs/external-source-registry.md`
+9. `docs/nobu-okx-agent-native-paid-monitoring-architecture.md`
+10. `openapi/nobu-a2mcp.openapi.yaml`
+11. `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml` (implemented paid surface; ASP registration pending Lane 8R)
+12. `docs/nobu-build-order.md`
+13. `docs/nobu-test-and-proof-plan.md`
+14. `docs/nobu-privacy-security-threat-model.md`
+15. `docs/external-source-registry.md`
+
+Historical-only (not active product positioning):
+
+- `docs/nobu-hackathon-compliance-matrix.md` — **HISTORICAL ONLY**
+- `docs/nobu-submission-runbook.md` — **HISTORICAL ONLY**
 
 ## Source precedence
 
-When sources conflict, use this order:
+1. Current official external rules, policies, terms, and API documentation  
+2. `docs/nobu-clean-master-spec.md`  
+3. `docs/nobu-current-state.md`  
+4. Governance and policy contracts  
+5. OpenAPI contracts  
+6. Active build order  
+7. Tests and proof plan  
+8. README, prompts, and comments  
 
-1. Current official external rules, policies, terms, and API documentation
-2. `docs/nobu-clean-master-spec.md`
-3. `docs/nobu-current-state.md`
-4. Compliance and governance documents
-5. Policy/data contracts and OpenAPI contract
-6. Active build order
-7. Tests and proof plan
-8. README, prompts, demo copy, and comments
+Dynamic external facts must be rechecked against the official URL before repository changes.
 
-Dynamic external facts must be rechecked against the official URL before they are changed in the repository.
+## Current architecture (summary)
 
-## Important current caveats
+- **Website** + **OKX.AI** dual access  
+- Free `POST /v1/agent` (discovery, confirmation, email verification, preflight, monitor management)  
+- Paid `POST /v1/agent/start-monitoring` — `$0.99` x402 v2 on X Layer USD₮0; official OKX verify/settle/status; durable activation saga  
+- Separate free and paid A2MCP services under one ASP identity (**#5541** free listing live; paid service registration is **Lane 8R**)  
+- Durable agent connection, email verification, consent, enrollment quotes  
+- Exact-product confirmation and fail-closed matching  
+- Durable scheduler bridge + consented email alerts  
+- Shared web/agent monitoring pipeline  
 
-- Target allows qualifying price-adjustment requests within 14 days, but Target makes the final decision.
-- Target requires an identical item and valid current price; screenshots are not accepted as proof at the store.
-- The MVP supports Target.com purchases in supported U.S. locations and excludes Target Plus, Alaska, and Hawaii.
-- SerpApi is a third-party observation source. The free plan currently advertises 250 searches per month.
-- SerpApi's U.S. Legal Shield is not included with the Free, Starter, or Developer plans.
-- No price result is accepted unless the Target seller and exact product match pass the fail-closed matching contract.
-- Marketplace/wallet/payment actions must follow OKX eligibility rules. Never bypass age, identity, location, or guardian requirements.
+## Active lane
 
-## Tool responsibilities
+See `docs/nobu-current-state.md`. Sequence: `8R.0 → 8R.1 → 8R.2 → 8R → 7.4G`.
 
-- **ChatGPT:** product, architecture, lane coordination, source-of-truth management, and review. Upload `NOBU_CHATGPT_PROJECT_SOURCE.md` and paste `CHATGPT_PROJECT_INSTRUCTIONS.md` into Project instructions. Modular files may also be uploaded as sources.
-- **Grok Build:** primary repository implementation and test execution, lane by lane. Follow `AGENTS.md` and `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`.
-- **Regular Grok research:** current public discussion, competition, and external-change research only, using `prompts/GROK_RESEARCH_VERIFICATION_PROMPT.md`. Regular Grok research does not implement product code and does not override official sources.
-- **Official Target, OKX, and SerpApi sources** remain authoritative for external facts. Dynamic external facts must be rechecked against the official URL before repository changes.
-- **Claude/Codex (optional fallback only):** not the active Nobu implementation workflow. If needed, use `prompts/CLAUDE_CODEX_LANE_PROMPT_TEMPLATE.md` under the same hard locks.
+Do not skip lanes. Do not edit or resubmit ASP `#5541` until Lane 8R.
+
+## Proof expectations
+
+- Lane-specific proof under `docs/proof/`  
+- No secrets, payment signatures, raw emails, or settlement references in public proof  
+- No fake live data, refunds, or approvals  
+- Deploy only when the lane requires it  
+
+## Implementation workflow
+
+1. Confirm HEAD and active lane.  
+2. Read the mandatory source stack.  
+3. Short checklist; stop on first failure.  
+4. Implement only that lane.  
+5. Focused tests, then typecheck/build as required.  
+6. Write proof; commit when asked; push/deploy only as the lane requires.  
+
+Primary implementation agent: **Grok Build** (`prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`).
+
+## Important product caveats
+
+- Target makes the final price-adjustment decision.  
+- Exact-product confirmation is required before monitoring.  
+- Matching fails closed on ambiguity.  
+- `$0.99` activates monitoring for one confirmed eligible purchase — it does not guarantee a lower price, alert, or adjustment.  
+- Never collect Target passwords or retailer login.  

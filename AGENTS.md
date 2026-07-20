@@ -6,17 +6,21 @@ Before planning, auditing, implementing, testing, documenting, or closing a lane
 
 1. `docs/nobu-clean-master-spec.md`
 2. `docs/nobu-current-state.md`
-3. `docs/nobu-hackathon-compliance-matrix.md`
+3. `docs/nobu-product-overview.md`
 4. `docs/nobu-retailer-and-price-source-governance.md`
 5. `docs/nobu-target-policy-contract.md`
 6. `docs/nobu-serpapi-data-contract.md`
 7. `docs/nobu-architecture.md`
-8. `openapi/nobu-a2mcp.openapi.yaml`
-9. `docs/nobu-build-order.md`
-10. `docs/nobu-test-and-proof-plan.md`
-11. `docs/nobu-privacy-security-threat-model.md`
-12. `docs/nobu-submission-runbook.md`
-13. `docs/external-source-registry.md`
+8. `docs/nobu-okx-agent-native-paid-monitoring-architecture.md`
+9. `openapi/nobu-a2mcp.openapi.yaml`
+10. `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml`
+11. `docs/nobu-build-order.md`
+12. `docs/nobu-test-and-proof-plan.md`
+13. `docs/nobu-privacy-security-threat-model.md`
+14. `docs/external-source-registry.md`
+
+Historical-only (do not treat as current product story):  
+`docs/nobu-hackathon-compliance-matrix.md`, `docs/nobu-submission-runbook.md`.
 
 The active build order is `docs/nobu-build-order.md`.
 
@@ -33,7 +37,7 @@ The active build order is `docs/nobu-build-order.md`.
 
 ## Hard product locks
 
-- MVP retailer: Target only.
+- MVP retailer: **Target only** (more retailers planned; not claimed until integrated).
 - MVP purchase channel: Target.com / Target online purchase only.
 - Supported geography: U.S. excluding Alaska and Hawaii unless the official policy is later verified to permit it.
 - Target Plus is excluded from the MVP.
@@ -43,14 +47,15 @@ The active build order is `docs/nobu-build-order.md`.
 - All later checks must use the locked product fingerprint.
 - Exact matching is fail closed. Ambiguous matches return `MATCH_REVIEW_REQUIRED` or `NO_RELIABLE_PRICE`.
 - Target makes the final adjustment decision.
-- Never guarantee a refund.
+- Never guarantee a refund, lower price, alert, or savings.
 - No direct Target scraping.
 - No retailer account login.
 - No claim submission.
 - No card, banking, ID-document, wallet-key, password, or 2FA collection.
-- No fake live data, refunds, orders, users, reviews, or hackathon approvals.
-- Free A2MCP endpoint first. x402 is optional only after the free service is stable and listed.
+- No fake live data, refunds, orders, users, or reviews.
+- Free A2MCP surface is live; paid `$0.99` activation is implemented/deployed on a private route pending ASP registration (Lane 8R).
 - Do not add another retailer before the Target MVP closeout.
+- Do not edit or resubmit ASP `#5541` until Lane 8R explicitly requires it.
 
 ## AI boundary
 

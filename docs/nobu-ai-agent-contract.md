@@ -1,4 +1,4 @@
-# Nobu AI Agent Contract (Lane 7.5E / 7.5E.2)
+# Nobu AI Agent Contract (Lane 7.5E / 7.5E.2 + 7.4B–7.4E)
 
 ## Purpose
 
@@ -8,20 +8,39 @@ Nobu is a **bounded AI agent** that:
 2. Extracts structured fields without inventing data.
 3. Requires the user to review and confirm details.
 4. Passes only confirmed structured data into deterministic matching, policy, and monitoring.
+5. Supports free agent-native discovery, confirmation, email verification, preflight, and monitor management.
+6. Activates scheduled monitoring only after verified `$0.99` payment on the paid route.
 
 Primary definition:
 
-> Nobu is an AI agent that monitors supported purchases after checkout and alerts users when a lower retailer price may be available.
+> Nobu is an AI post-purchase monitoring agent that monitors the exact product after purchase and alerts the customer when a safely matched lower price may create an opportunity to request the difference from the retailer.
 
-Current availability: **eligible Target.com purchases only**.
+Current availability: **Target is the only retailer currently supported** (eligible Target.com / Target app).
 
-## Supported actions (`POST /v1/agent`)
+## Free actions (`POST /v1/agent`)
 
-| Action | Purpose | Matching / monitoring |
-|---|---|---|
-| `UNDERSTAND_PURCHASE` | NL extraction only | **Never** |
-| `CHECK_CONFIRMED_PURCHASE` | Deterministic Target check | Existing A2MCP path |
-| `CHECK_MONITORING_STATUS` | Stored status for a purchase id | Read-only |
+| Action | Purpose |
+|---|---|
+| `UNDERSTAND_PURCHASE` | NL extraction only — never starts monitoring |
+| `CHECK_CONFIRMED_PURCHASE` | Deterministic one-time Target check |
+| `CHECK_MONITORING_STATUS` | Stored status (connection required for account-owned) |
+| `DISCOVER_PRODUCT` | Structured discovery candidates |
+| `CONFIRM_PRODUCT` | Exact-product confirmation on discovery session |
+| `BEGIN_EMAIL_VERIFICATION` | Send verification code |
+| `VERIFY_EMAIL_CODE` | Verify code; mint connection_token once |
+| `PREFLIGHT_MONITORING` | Consent + eligibility + quote; never takes payment |
+| `REVOKE_AGENT_CONNECTION` | Revoke connection credentials |
+| `LIST_ACTIVE_MONITORS` | List active monitors for the connection |
+| `ENABLE_EMAIL_ALERTS` / `DISABLE_EMAIL_ALERTS` | Alert preference |
+| `STOP_MONITORING` | Stop scheduled checks for a purchase |
+
+## Paid action (`POST /v1/agent/start-monitoring`)
+
+| Action | Purpose |
+|---|---|
+| Start monitoring | One confirmed eligible purchase; `$0.99`; verified settlement required; exactly-once activation; no guaranteed lower price/alert/adjustment |
+
+Canonical OpenAPI: `openapi/nobu-a2mcp.openapi.yaml` (free) and `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml` (paid; registration pending Lane 8R).
 
 No open-ended chat, tools, or free-form action loops.
 

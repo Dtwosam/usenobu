@@ -58,8 +58,14 @@ describe("Lane 8R.1 public interface positioning", () => {
     expect(home).toContain("What Nobu is watching for");
     expect(home).toContain("Use Nobu your way");
     expect(home).toContain("Availability and trust");
+    expect(home).toContain("Target is the only retailer currently supported");
+    expect(home).toContain("More retailers are planned for the future");
     expect(home).toContain("Possible price difference");
     expect(home).toContain("$20.00");
+    // Retailer sentence appears once on the homepage
+    expect(
+      home.split("Target is the only retailer currently supported").length - 1,
+    ).toBe(1);
     expect(home).toContain("Tell Nobu what you bought");
     expect(home).toContain("Confirm the exact product");
     expect(home).toContain("Nobu keeps watch");

@@ -1,0 +1,17 @@
+Lane 8R.2 stale-claim scan
+
+Target phrases (must not remain as current truth in active contracts):
+- production verifier always returns not_configured (as current fact)
+- paid route is not deployed (as current fact)
+- only three agent actions
+- free-only product
+- x402 later
+- Lane 7.5B as active lane
+- Lane 7.5E as current status
+
+OpenAPI paid file: PASS (no not_configured / not deployed)
+README / START-HERE / AGENTS: PASS (active lane via current-state)
+docs/nobu-ai-agent-contract.md: PASS (full free action list + paid route)
+
+Allowed supersession wording in current-state / architecture status banners may
+quote the old claim when explaining what was superseded.

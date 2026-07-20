@@ -34,6 +34,12 @@ test.describe("Lane 8R.1 public website", () => {
     await expect(page.getByTestId("current-availability")).toContainText(
       "Target.com",
     );
+    await expect(page.getByTestId("retailer-availability-sentence")).toContainText(
+      "Target is the only retailer currently supported",
+    );
+    await expect(page.getByTestId("retailer-availability-sentence")).toContainText(
+      "More retailers are planned for the future",
+    );
 
     const body = (await page.locator("body").innerText()).toLowerCase();
     expect(body).not.toMatch(

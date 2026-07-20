@@ -285,23 +285,32 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `tests/payments/okx-seller-adapter.test.ts` + Lane 7.4D activation tests; typecheck; build; deploy health. Verdict: `NOBU_LANE_8R_0_PASS`. Evidence: `docs/proof/lane-8r-0-okx-seller-integration/`.
 
-## Lane 8R.1 — Public website and interface alignment
+## Lane 8R.1 — Public website and interface alignment COMPLETE
 
 - Align the complete public UseNobu website to present Nobu as an AI agent that monitors the exact product after purchase and alerts when a safely matched lower price may create an opportunity to request the difference from the retailer.
 - Website + OKX.AI access paths; centralized `NEXT_PUBLIC_OKX_MARKETPLACE_URL` marketplace CTA module; five-section homepage; `/okx` customer guide; notices; purchase intake/list/detail/Action Center truth-bound copy.
-- No hackathon/judge language; no ASP `#5541` edit; no genuine payment; website and interface only.
+- No ASP `#5541` edit; no genuine payment; website and interface only.
 - Adopted sequence: `8R.0 → 8R.1 → 8R.2 → 8R → 7.4G`.
 
 **Proof:** focused copy/component tests; homepage `/okx` notices Playwright; typecheck; build; forbidden-copy and sensitive-output scans; deploy. Verdict: `NOBU_LANE_8R_1_PASS`. Evidence: `docs/proof/lane-8r-1-public-interface/`.
 
-## Lane 8R.2 — Active product documentation alignment
+## Lane 8R.2 — Active product documentation alignment COMPLETE
 
-- Align active product documentation with the public website truth boundary and OKX.AI dual-access positioning (broad doc rewrite — not this lane).
+- Align active product documentation with the implemented product, public website, and OKX.AI dual-access positioning.
+- Product overview, FAQ, OKX user guide; free and paid OpenAPI sync; align active docs to product truth (historical competition-era docs labeled historical-only); one homepage retailer-availability sentence.
+- Sequence: `8R.0 → 8R.1 → 8R.2 → 8R → 7.4G`.
 
-## Lane 8R — Accurate edit/resubmit of ASP #5541
+**Proof:** doc inventory, OpenAPI validation, consistency scans, homepage check, deploy. Verdict: `NOBU_LANE_8R_2_PASS`. Evidence: `docs/proof/lane-8r-2-documentation-alignment/`.
 
-- First point in the roadmap where `#5541` is edited or resubmitted since Lane 8's original registration — done only once 7.4D–7.4F, 8R.0 seller integration, and 8R.1/8R.2 public/doc alignment are built and proven, so the listing accurately describes what is genuinely live (still starting from the existing free listing; any paid-service description added here must match the real, tested paid activation behavior).
-- No fake or aspirational claims in the listing; no price change beyond what Lane 7.4D.0's resolved topology actually supports.
+## Lane 8R — Accurate update and resubmission of ASP #5541
+
+- First point where `#5541` is edited or resubmitted after free registration — only after 8R.0–8R.2 are proven.
+- **Production OKX seller credentials must be configured before registration proof** (verify/settle/status fail closed without them).
+- Existing **free** service remains on ASP `#5541`.
+- New paid **$0.99** activation service is added under the **same** ASP (no second ASP).
+- Listing copy must match the final website and documentation.
+- Genuine payment proof remains **Lane 7.4G** (not this lane).
+- No fake or aspirational claims; paid-service description must match real, tested activation behavior.
 
 **Proof:** resubmission record (fields changed, before/after), consistency check against the actually-deployed paid behavior.
 
@@ -311,7 +320,7 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** end-to-end evidence bundle covering every step above with no fake payments, users, revenue, transactions, or alerts.
 
-Then **Lane 9 — Demo and submission closeout** (defined later in this document) after the applicable 7.4 proof.
+Then **Lane 9 — Product / release closeout** (defined later in this document) after the applicable 7.4 proof.
 
 ## Lane 7.5A — Global Nobu rename
 
@@ -420,25 +429,22 @@ Then **Lane 9 — Demo and submission closeout** (defined later in this document
 
 **Proof for PASS:** approved, live listing. Do not claim completion before this exists.
 
-## Lane 9 — Demo and submission closeout
+## Lane 9 — Product / release closeout
 
-- 90-second-or-shorter demo.
-- Realistic purchase and observed price flow.
+- Short product demo of the live website and agent flow.
+- Realistic purchase and observed-price path.
 - Clearly identify third-party price source and Target final verification.
-- X post with `#OKXAI`.
-- Official form with ASP and X link.
-- Archive submission evidence.
+- Archive release evidence (deploy commit, health, free agent smoke).
 
-**Proof:** post URL, duration, form confirmation, live ASP.
+**Proof:** demo artifact, production health, free agent smoke, ASP listing consistent with live behavior.
 
 ## Lane 10 — Optional post-listing enhancements
 
-Only if time remains after Lane 8 proof:
+Only after Lane 8R / 7.4G closeout where relevant:
 
-- receipt image parsing;
-- email alerts;
-- paid x402 monitoring/check service;
-- more live Target products;
+- receipt image parsing improvements;
+- additional alert channels;
+- more live Target product coverage;
 - capacity dashboard.
 
-No second retailer during the hackathon MVP.
+No second retailer until the Target MVP is closed and a dedicated retailer-integration lane is approved.

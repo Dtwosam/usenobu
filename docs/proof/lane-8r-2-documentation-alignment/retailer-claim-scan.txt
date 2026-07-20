@@ -1,0 +1,15 @@
+Lane 8R.2 retailer-claim scan
+
+Required:
+- Target is the only retailer currently supported
+- More retailers planned / separately integrated language
+
+Forbidden:
+- supports all retailers
+- currently supports every retailer
+- naming future retailers as live
+- walmart/amazon/best buy is live
+
+Homepage: sentence once in availability section only.
+Active product docs: Target-only current support; future direction without names/dates.
+Result: PASS

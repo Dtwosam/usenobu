@@ -1,5 +1,32 @@
 # Nobu MVP Architecture
 
+## Current production architecture (as of Lanes 8R.0–8R.2)
+
+**Access**
+
+- **Website** (UseNobu): purchase intake, exact confirmation, monitoring UI, Action Center.
+- **OKX.AI**: conversational setup and monitor management through free agent actions; paid activation for scheduled monitoring.
+
+**Agent surfaces**
+
+- Free `POST /v1/agent` — understand, discover, confirm, email verification, preflight, list/status, alert prefs, stop, revoke connection (live).
+- Paid `POST /v1/agent/start-monitoring` — `$0.99` x402 v2 exact on X Layer (`eip155:196`) USD₮0 amount `990000`; official OKX seller **verify → settle → settle/status**; durable two-phase activation saga; `MONITORING_STARTED` / `ACTIVATION_PENDING` / `ALREADY_ACTIVE` / `PAYMENT_SETTLEMENT_PENDING` as applicable. **Deployed**; ASP paid-service **registration** is Lane 8R.
+- Topology: **separate free and paid A2MCP services under one ASP identity** (`#5541`); no second ASP.
+
+**Shared pipeline**
+
+- Durable agent connection + email verification  
+- Discovery session + exact-product confirmation + locked fingerprint  
+- Monitoring + email consent before quote  
+- Durable enrollment quotes and payment/activation ledger  
+- Durable scheduler bridge (hydrate → tick → persist)  
+- Consented email-notification pipeline  
+- Shared web/agent matching and monitoring system  
+
+**Supersedes:** earlier statements that production seller verification is unavailable, the paid route is undeployed, payment/monitor/scheduler work is only proposed, or Nobu is free-only. Historical lane notes elsewhere may still describe the state *at that time*; this section is current.
+
+Detail: `docs/nobu-okx-agent-native-paid-monitoring-architecture.md`, OpenAPI under `openapi/`.
+
 ## Reference stack
 
 The default implementation is:
@@ -11,7 +38,7 @@ The default implementation is:
 - server-side SerpApi client;
 - optional email provider for alerts;
 - public HTTPS deployment;
-- free A2MCP-compatible JSON endpoint.
+- free A2MCP-compatible JSON endpoint plus private paid activation route.
 
 A different stack requires an ADR and must not weaken the contracts.
 
@@ -19,7 +46,7 @@ A different stack requires an ADR and must not weaken the contracts.
 
 - **Intake:** natural language → structured extraction (**Groq** or deterministic fallback) → confirmation UI.
 - **Authority:** matching, policy, fingerprints, monitoring remain deterministic code paths.
-- **API:** `POST /v1/agent` for bounded actions; `POST /v1/target-price-check` for structured Target checks.
+- **API:** free `POST /v1/agent`; paid `POST /v1/agent/start-monitoring`; `POST /v1/target-price-check` for structured Target checks.
 - **Privacy:** raw purchase text is not stored in the DB; audits use hashes.
 - **Provider:** Groq (`GROQ_API_KEY`, `https://api.groq.com/openai/v1`, default model `openai/gpt-oss-20b`).
 
@@ -27,7 +54,7 @@ A different stack requires an ADR and must not weaken the contracts.
 
 Nobu is structured as a multi-retailer-capable platform with retailer-specific connectors:
 
-- **Retailer** — merchant scope (only Target is live);
+- **Retailer** — merchant scope (**Target is the only retailer currently supported**; more planned);
 - **Retailer connector** — fetch/normalize price observations for one retailer;
 - **Retailer policy** — eligibility and claim-route rules for one retailer;
 - **Supported retailer** — retailer with an approved live integration;

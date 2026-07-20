@@ -1,68 +1,46 @@
 openapi: 3.1.0
 info:
-  title: Nobu Agent-Native Paid Monitoring API (MOSTLY IMPLEMENTED — NOT DEPLOYED/REGISTERED)
-  version: 0.6.0-proposed
+  title: Nobu Agent-Native Paid Monitoring API (IMPLEMENTED + DEPLOYED — ASP REGISTRATION PENDING)
+  version: 1.0.0
   description: >-
-    Free agent actions through Lane 7.4E are IMPLEMENTED on `/v1/agent`
-    (including LIST_ACTIVE_MONITORS, ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS,
-    STOP_MONITORING, and ownership-safe CHECK_MONITORING_STATUS). As of
-    Lane 7.4B, `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, and
-    `REVOKE_AGENT_CONNECTION` are IMPLEMENTED on the live `/v1/agent` route
-    (`app/v1/agent/route.ts` -> `runAgentAction`). As of Lane 7.4C,
-    `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT`, and `PREFLIGHT_MONITORING` are also
-    IMPLEMENTED on the same route, reusing existing matching
-    (`src/matching/discovery-candidates.ts`, `src/matching/confirm.ts`),
-    policy (`src/policy/evaluate-target-policy.ts`), and the Lane 7.4B
-    connection-authorization helper — no parallel implementation. As of Lane
-    7.4D, `POST /v1/agent/start-monitoring` (the paid activation path) is
-    also IMPLEMENTED — a separate, private, **unregistered** route
-    (`app/v1/agent/start-monitoring/route.ts`), not advertised, not part of
-    ASP #5541's listing, and not deployed. Every action on `/v1/agent` is
-    additive and backward-compatible with the three pre-existing live
-    actions. Each schema below is marked `x-nobu-implementation-status` to
-    disambiguate "implemented in code" from "deployed" from "registered with
-    OKX" — those are three different, independently tracked facts. ASP
-    #5541's registered listing is unchanged by Lane 7.4B–7.4E (free
-    actions on the same already-free endpoint; no marketplace/listing
-    modification; the paid service is registered only at Lane 8R).
+    Filename retained for reference stability (`nobu-agent-native-paid-monitoring-proposed.openapi.yaml`).
+    Status as of Lanes 8R.0–8R.2: free agent actions and paid start-monitoring are
+    IMPLEMENTED and DEPLOYED on UseNobu production. Official OKX seller verify/settle/status
+    integration is live in code (fails closed without production credentials). The paid
+    service is NOT YET registered on ASP #5541 — registration is Lane 8R. Genuine payment
+    marketplace proof is Lane 7.4G.
 
-    This file is an internal design artifact originating from Lane 7.4A / 7.4A.1
-    (`docs/nobu-okx-agent-native-paid-monitoring-architecture.md`), now largely
-    realized by Lane 7.4B, Lane 7.4C, and Lane 7.4D. It shows the shape of the
-    free agent-native discovery/preflight surface and the paid activation
-    surface, both now implemented against real code. As of Lane 7.4D.0, the
-    marketplace topology is RESOLVED (see `x-nobu-topology-status` on the
-    paid path below): separate free and paid A2MCP services, co-located
-    under the existing Agent #5541 identity — not a single listing branching
-    per request, and not a second ASP.
+    Free actions on POST /v1/agent (also documented in openapi/nobu-a2mcp.openapi.yaml):
+    UNDERSTAND_PURCHASE, CHECK_CONFIRMED_PURCHASE, CHECK_MONITORING_STATUS,
+    DISCOVER_PRODUCT, CONFIRM_PRODUCT, BEGIN_EMAIL_VERIFICATION, VERIFY_EMAIL_CODE,
+    PREFLIGHT_MONITORING, REVOKE_AGENT_CONNECTION, LIST_ACTIVE_MONITORS,
+    ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS, STOP_MONITORING.
 
-    Source purity: every OKX-specific fact this file assumes (registration is
-    one price per call per endpoint; price 0 = free; an endpoint is either
-    free-200 or x402-402-then-replay; the seller flow is
-    protected-request -> 402 challenge -> signed payment -> replay; the
-    official X Layer settlement example) comes from official OKX documentation
-    or coordinator-provided official findings recorded in
-    `docs/external-source-registry.md`, under the Lane 7.4A / 7.4A.1 entries.
-    No non-OKX payment source (x402.org, Cloudflare, packaged environment
-    skills, web search synthesis, or generic MCP/x402 precedent) is used as
-    authority for any OKX-specific behavior in this file.
+    Paid path: POST /v1/agent/start-monitoring — one confirmed eligible purchase;
+    $0.99; x402 v2 exact; network eip155:196 (X Layer); asset USD₮0; amount 990000
+    base units; payTo server-owned only; official OKX verify then settle (status
+    for pending); responses MONITORING_STARTED, ACTIVATION_PENDING, ALREADY_ACTIVE,
+    PAYMENT_SETTLEMENT_PENDING as applicable. Exactly-once durable activation saga.
+    Payment does not guarantee a lower price, alert, refund, or adjustment.
+
+    Topology (resolved Lane 7.4D.0): separate free and paid A2MCP services under
+    the existing Agent #5541 identity — not a second ASP.
+
+    Source purity: OKX-specific facts from official OKX documentation / registry only.
   contact:
     name: Nobu internal architecture — not a public support channel
 servers:
   - url: https://usenobu.vercel.app
     description: >-
-      Placeholder only. Whether the paid path is served from this same host,
-      a different host, or a different ASP identity is undecided (see below).
+      UseNobu production host for free /v1/agent and paid /v1/agent/start-monitoring.
+      Paid ASP marketplace registration remains Lane 8R.
 paths:
   /v1/agent:
     post:
       operationId: nobuAgentProposedFree
       summary: >-
-        FREE-ONLY additive actions on top of the live nobuAgent operation —
-        six IMPLEMENTED (Lane 7.4B/7.4C), four still PROPOSED (see per-schema
-        x-nobu-implementation-status). Every action below returns HTTP 200
-        (or a documented 4xx/5xx) and never a 402. No payment ever occurs on
-        this path.
+        FREE-ONLY actions on /v1/agent (implemented and deployed). Never HTTP 402.
+        Canonical free contract also lives in openapi/nobu-a2mcp.openapi.yaml.
       description: >-
         Extends the live AgentRequest oneOf (UNDERSTAND_PURCHASE,
         CHECK_CONFIRMED_PURCHASE, CHECK_MONITORING_STATUS — unchanged, see the
@@ -108,59 +86,30 @@ paths:
     post:
       operationId: nobuAgentPaidActivation
       summary: >-
-        IMPLEMENTED (Lane 7.4D) — a private, UNREGISTERED endpoint. Exists
-        and is unit-tested in the codebase (`app/v1/agent/start-monitoring/route.ts`)
-        but is not deployed and not part of ASP #5541's marketplace listing.
-        Marketplace topology resolved (Lane 7.4D.0) — see
-        x-nobu-topology-status below and Lane 7.4D in the architecture
-        document. Do not treat this path as reachable from the live #5541
-        listing until Lane 8R registers it.
+        IMPLEMENTED and DEPLOYED (Lanes 7.4D + 8R.0). Official OKX seller
+        verify/settle/status. ASP paid-service registration still pending
+        (Lane 8R). Not part of the free #5541 listing until registered.
       description: >-
         Consumes a settled OKX x402 payment against a previously issued,
-        unexpired monitoring_enrollment_quotes row (minted by a prior free
-        PREFLIGHT_MONITORING call) and performs exactly-once monitor
-        activation. Activation identity is derived entirely server-side from
-        the quote id, the OKX-verified settlement reference, the confirmed
-        purchase, and the locked fingerprint — this endpoint does not accept
-        or trust any caller-supplied idempotency key (architecture document
-        §7.3–§7.4). Activation is a durable two-phase saga, not one
-        cross-store transaction: settlement/quote-consumption/ledger-insert
-        commit in one AuthStore transaction; projecting purchases.status to
-        MONITORING_ACTIVE in the separate purchases database is a second,
-        best-effort step that can fail independently and is retried by a
-        reconciliation job — never by requesting a second payment
-        (architecture §7.4/§7.6). First valid paid replay creates exactly one
-        monitor; a valid replay that resolves to an already-active quote
-        returns HTTP 200 with status ALREADY_ACTIVE and the original
-        monitor_id — never HTTP 409, and never a duplicate monitor. A replay
-        while durable settlement is recorded but projection has not yet
-        succeeded returns HTTP 200 with status ACTIVATION_PENDING (truthful,
-        never re-requests payment). Altered or expired quotes fail closed
-        (CONNECTION_EXPIRED) before any payment attempt exists, and are never
-        re-priced or re-matched on the fly. This action never overrides
-        deterministic eligibility, matching, or consent — those were already
-        enforced by PREFLIGHT_MONITORING before the quote existed.
+        unexpired monitoring_enrollment_quotes row (minted by free
+        PREFLIGHT_MONITORING) and performs exactly-once monitor activation.
+        Challenge: x402 v2, scheme exact, network eip155:196 (X Layer),
+        asset USD₮0, amount 990000 base units ($0.99), payTo server-owned only.
+        Production uses official OKX seller HTTP APIs: verify, settle, and
+        settle/status (HMAC credentials from env). Verify alone never activates.
+        Pending settle may return PAYMENT_SETTLEMENT_PENDING and reconciles via
+        status. Activation identity is derived server-side only — no caller
+        idempotency key. Durable two-phase saga: AuthStore settlement/ledger
+        then purchases projection; reconciliation never re-charges.
+        Responses: MONITORING_STARTED, ALREADY_ACTIVE, ACTIVATION_PENDING.
+        Payment does not guarantee a lower price, alert, refund, or adjustment.
       x-nobu-topology-status: >-
-        RESOLVED as of Lane 7.4D.0 (2026-07-20). Selected: separate free and
-        paid A2MCP services, co-located under the existing Agent #5541
-        identity (not a second ASP) — the existing free service stays
-        untouched; a new, independently priced/endpointed paid A2MCP service
-        (this path) is added later, in Lane 8R, via `agent update --service`
-        with one `operation: "create"` delta entry. Evidence: the official
-        Onchain OS CLI's own `agent create --help` / `agent update --help`
-        document `--service` as a JSON array supporting multiple
-        independently priced/endpointed services per agent, and the official
-        `github.com/okx/onchainos-skills` repository's `identity-register.md`
-        states plainly that multiple services per agent are fully supported
-        — see `docs/external-source-registry.md` "Lane 7.4D.0" and
-        `docs/proof/lane-7-4d-0-okx-topology/`. Not selected: one mixed
-        free/paid A2MCP service/endpoint (no official evidence permits a
-        single service to branch 200/402 per request body), and converting
-        #5541 to paid and relocating free preparation elsewhere (unnecessary
-        and more disruptive once the multi-service path was proven). This
-        path (`/v1/agent/start-monitoring`) is not reachable from the live
-        #5541 listing until Lane 8R actually registers it as a second
-        service — Lane 7.4D.0 was documentation/research only.
+        RESOLVED (Lane 7.4D.0). Separate free and paid A2MCP services under
+        existing Agent #5541 (not a second ASP). Free service untouched; paid
+        service registered at Lane 8R via agent update --service create.
+      x-nobu-deployment-status: >-
+        Route deployed on UseNobu production. Fail closed without OKX seller
+        credentials. Marketplace registration of the paid service is Lane 8R.
       requestBody:
         required: true
         content:
@@ -189,14 +138,12 @@ paths:
             quote_id and resource — never reusable across quotes. Also
             returned (re-challenging) when a submitted PAYMENT-SIGNATURE
             header fails verification; an invalid/altered payment never
-            activates. Exact accepts[]/network/asset shape follows the
-            official X Layer example recorded in
-            docs/external-source-registry.md (OKX-XLAYER-EXAMPLE:
-            eip155:196, USD₮0, 0x779ded0c9e1022225f8e0630b35a9b54be713736, 6
-            decimals, 990000 base units = $0.99); the production verifier
-            always reports not-configured/fails closed until an official
-            OKX seller-side settlement-verification contract is confirmed
-            (see architecture §7.4 / src/payments/x402.ts).
+            activates. Accepts: x402 v2 exact, network eip155:196, USD₮0,
+            amount 990000 base units ($0.99), payTo from server env only.
+            Official OKX seller verify/settle/status is used in production;
+            the integration fails closed when seller credentials are absent
+            (never invents settlement). Do not put credentials or real
+            settlement references in examples.
         '404':
           description: >-
             CONNECTION_EXPIRED — as implemented, this single status covers
@@ -222,11 +169,10 @@ components:
         for DISCOVER_PRODUCT / CONFIRM_PRODUCT / PREFLIGHT_MONITORING (Lane
         7.4C) — the last four are the existing locked policy statuses
         (`docs/nobu-clean-master-spec.md` §8), returned as-is rather than
-        wrapped. PAYMENT_PENDING, MONITORING_STARTED, ACTIVATION_PENDING, and
-        ALREADY_ACTIVE are IMPLEMENTED for the private, unregistered
-        `POST /v1/agent/start-monitoring` (Lane 7.4D; not deployed, not
-        registered with OKX). The rest remain PROPOSED / NOT IMPLEMENTED
-        (Lane 7.4E).
+        wrapped. PAYMENT_PENDING, PAYMENT_SETTLEMENT_PENDING, MONITORING_STARTED,
+        ACTIVATION_PENDING, and ALREADY_ACTIVE are IMPLEMENTED for
+        `POST /v1/agent/start-monitoring` (deployed; ASP registration pending
+        Lane 8R).
       enum:
         - MORE_INFORMATION_REQUIRED
         - PRODUCT_CONFIRMATION_REQUIRED
@@ -241,6 +187,7 @@ components:
         - CONSENT_REQUIRED
         - MONITORING_PAYMENT_READY
         - PAYMENT_PENDING
+        - PAYMENT_SETTLEMENT_PENDING
         - MONITORING_STARTED
         - ACTIVATION_PENDING
         - MONITORING_ACTIVE
@@ -552,7 +499,7 @@ components:
             and are recorded as durable timestamps before a quote is minted.
         email_alert_consent:
           type: boolean
-          description: Captured alongside monitoring_consent; both must be true and durable before a payment quote is minted. Can be changed later via ENABLE_EMAIL_ALERTS/DISABLE_EMAIL_ALERTS (proposed, Lane 7.4E) without affecting monitoring_consent.
+          description: Captured alongside monitoring_consent; both must be true and durable before a payment quote is minted. Can be changed later via ENABLE_EMAIL_ALERTS/DISABLE_EMAIL_ALERTS without affecting monitoring_consent.
       description: >-
         Materializes exactly one account-owned purchase from the confirmed
         discovery session's validated structured snapshot, attaches the
@@ -683,7 +630,7 @@ components:
       type: object
       required: [quote_id, connection_id, connection_token]
       additionalProperties: false
-      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4D) — private, unregistered route; not deployed
+      x-nobu-implementation-status: IMPLEMENTED + DEPLOYED (Lanes 7.4D + 8R.0); ASP registration pending Lane 8R
       properties:
         quote_id:
           type: string
@@ -709,7 +656,7 @@ components:
     StartMonitoringResponse:
       type: object
       required: [agent_state, status]
-      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4D) — private, unregistered route; not deployed
+      x-nobu-implementation-status: IMPLEMENTED + DEPLOYED (Lanes 7.4D + 8R.0); ASP registration pending Lane 8R
       description: >-
         monitor_id is present whenever status is MONITORING_STARTED,
         ALREADY_ACTIVE, or ACTIVATION_PENDING; absent for

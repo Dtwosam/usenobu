@@ -199,6 +199,13 @@ export default async function HomePage({
           Availability and trust
         </h2>
         <div className="n-trust-combined" data-testid="current-availability">
+          <p
+            className="n-section-lead"
+            style={{ marginTop: 0, marginBottom: "1rem" }}
+            data-testid="retailer-availability-sentence"
+          >
+            Target is the only retailer currently supported. More retailers are planned for the future.
+          </p>
           <ul className="n-list" data-testid="availability-list">
             <li>
               Eligible Target.com and Target app purchases in the verified

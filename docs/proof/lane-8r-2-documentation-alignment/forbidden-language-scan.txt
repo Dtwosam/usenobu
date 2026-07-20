@@ -1,0 +1,17 @@
+Lane 8R.2 forbidden-language scan (active product docs)
+
+Scanned product-facing active docs (README, START-HERE, AGENTS, product overview,
+FAQ, OKX guide, architecture current section, clean master spec product sections,
+OpenAPI free contract, app/page.tsx).
+
+Patterns: recover your money; Nobu gets your refund; guaranteed savings;
+automatic refund; make money with Nobu; claim secured; currently supports all
+retailers; active competition/prize/judge framing as product story.
+
+Result: PASS for product prose.
+
+Notes:
+- Historical file paths still named nobu-hackathon-compliance-matrix.md /
+  nobu-submission-runbook.md are referenced only as HISTORICAL ONLY.
+- Historical sprint verdicts in current-state may retain original labels for audit.
+- docs/proof/** historical bundles unchanged by design.

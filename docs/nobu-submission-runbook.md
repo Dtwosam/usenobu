@@ -1,5 +1,7 @@
 # Nobu Submission Runbook
 
+> **HISTORICAL ONLY (Lane 8R.2).** Retained for audit history of the original listing/registration process. Not active product positioning. For current ASP update work, follow **Lane 8R** in `docs/nobu-build-order.md` and live product docs (`docs/nobu-product-overview.md`, OpenAPI contracts).
+
 ## Listing identity
 
 **Name:** Nobu  

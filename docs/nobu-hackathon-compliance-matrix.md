@@ -1,7 +1,9 @@
 # Nobu Hackathon Compliance Matrix
 
-**Official event:** OKX.AI Genesis Hackathon  
-**Submission deadline:** 2026-07-17 23:59 UTC
+> **HISTORICAL ONLY (Lane 8R.2).** This document records the original competition-era compliance matrix for audit history. It is **not** active product positioning and must not appear in the mandatory source stack for current engineering. Current product story: `docs/nobu-product-overview.md`.
+
+**Original event (historical):** OKX.AI Genesis Hackathon  
+**Original deadline (historical):** 2026-07-17 23:59 UTC
 
 | Requirement / criterion | Official basis | Nobu implementation | Required proof | Status |
 |---|---|---|---|---|

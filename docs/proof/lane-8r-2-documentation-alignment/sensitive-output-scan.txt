@@ -1,0 +1,10 @@
+Lane 8R.2 sensitive-output scan
+
+Checked new/updated docs and OpenAPI examples for:
+- API keys, secrets, private keys
+- connection_token values
+- PAYMENT-SIGNATURE / settlement references
+- real emails
+
+Result: PASS — no secrets or settlement material in documentation.
+connection_token appears only as a field name description (not a value).

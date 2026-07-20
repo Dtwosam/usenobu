@@ -1,12 +1,14 @@
 openapi: 3.1.0
 info:
   title: Nobu A2MCP API
-  version: 1.1.0
+  version: 1.2.0
   description: >-
-    Nobu is an AI agent that monitors supported purchases after checkout.
-    Free A2MCP endpoints: structured Target price check and bounded agent actions.
-    Target verifies prices and makes the final decision. Currently supports
-    eligible Target.com purchases only.
+    Nobu is an AI post-purchase monitoring agent. Free A2MCP endpoints:
+    structured Target price check and bounded free agent actions on POST /v1/agent.
+    Paid monitoring activation is a separate route (POST /v1/agent/start-monitoring);
+    see openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml.
+    Target is the only retailer currently supported. Target verifies prices and
+    makes the final decision. Observed prices are third-party SerpApi observations.
 servers:
   - url: https://usenobu.vercel.app
     description: Public HTTPS free A2MCP (UseNobu production)
@@ -16,11 +18,14 @@ paths:
   /v1/agent:
     post:
       operationId: nobuAgent
-      summary: Bounded Nobu agent actions (understand, check confirmed, status)
+      summary: Bounded free Nobu agent actions
       description: >-
-        Fixed actions only. UNDERSTAND_PURCHASE extracts fields and always requires
-        user confirmation. CHECK_CONFIRMED_PURCHASE runs the existing deterministic
-        Target check. CHECK_MONITORING_STATUS returns stored monitor state.
+        Free actions only (never HTTP 402). Actions include purchase understanding,
+        product discovery and exact confirmation, email verification, preflight
+        (consent + eligibility + quote preparation), monitor list/status, email-alert
+        preference, stop monitoring, and connection revocation. Backward-compatible
+        with the original UNDERSTAND_PURCHASE, CHECK_CONFIRMED_PURCHASE, and
+        CHECK_MONITORING_STATUS actions. Does not expose secrets or internal-only fields.
       requestBody:
         required: true
         content:
@@ -32,12 +37,14 @@ paths:
           description: Agent action result
         '400':
           description: Invalid input
+        '401':
+          description: Missing or invalid connection credentials for a protected action
         '404':
-          description: Purchase not found
+          description: Purchase, session, or resource not found
         '429':
           description: Rate limited
         '503':
-          description: AI provider unavailable
+          description: AI provider or dependency unavailable
   /v1/target-price-check:
     post:
       operationId: checkTargetPriceProtection
@@ -185,6 +192,46 @@ components:
         eligibility_suppressed:
           type: boolean
           description: True when positive eligibility was suppressed pending policy owner review
+    DiscoveryPurchaseFields:
+      type: object
+      additionalProperties: false
+      required: [purchase_price, purchase_date]
+      properties:
+        purchase_price:
+          type: number
+          exclusiveMinimum: 0
+        purchase_date:
+          type: string
+        purchase_channel:
+          type: string
+          const: target_online
+        country:
+          type: string
+          const: US
+        region:
+          type: string
+        product_title:
+          type: string
+          maxLength: 200
+        product_description:
+          type: string
+          maxLength: 2000
+        target_product_url:
+          type: string
+        target_item_id:
+          type: string
+        model_number:
+          type: string
+        upc_or_gtin:
+          type: string
+        brand:
+          type: string
+        size:
+          type: string
+        color:
+          type: string
+        quantity:
+          type: string
     AgentRequest:
       oneOf:
         - type: object
@@ -245,6 +292,139 @@ components:
             action:
               type: string
               const: CHECK_MONITORING_STATUS
+            purchase_id:
+              type: string
+            connection_id:
+              type: string
+              description: Required for account-owned / agent monitors
+            connection_token:
+              type: string
+              description: Secret credential; never log or return after mint
+        - type: object
+          required: [action, email]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: BEGIN_EMAIL_VERIFICATION
+            email:
+              type: string
+              maxLength: 254
+        - type: object
+          required: [action, connection_id, code]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: VERIFY_EMAIL_CODE
+            connection_id:
+              type: string
+            code:
+              type: string
+              minLength: 6
+              maxLength: 32
+        - type: object
+          required: [action, connection_id, connection_token]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: REVOKE_AGENT_CONNECTION
+            connection_id:
+              type: string
+            connection_token:
+              type: string
+        - type: object
+          required: [action, purchase]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: DISCOVER_PRODUCT
+            purchase:
+              $ref: '#/components/schemas/DiscoveryPurchaseFields'
+        - type: object
+          required: [action, discovery_session_id, candidate_id]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: CONFIRM_PRODUCT
+            discovery_session_id:
+              type: string
+            candidate_id:
+              type: string
+        - type: object
+          required:
+            - action
+            - connection_id
+            - connection_token
+            - discovery_session_id
+            - monitoring_consent
+            - email_alert_consent
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: PREFLIGHT_MONITORING
+            connection_id:
+              type: string
+            connection_token:
+              type: string
+            discovery_session_id:
+              type: string
+            monitoring_consent:
+              type: boolean
+            email_alert_consent:
+              type: boolean
+        - type: object
+          required: [action, connection_id, connection_token]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: LIST_ACTIVE_MONITORS
+            connection_id:
+              type: string
+            connection_token:
+              type: string
+        - type: object
+          required: [action, connection_id, connection_token, purchase_id]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: ENABLE_EMAIL_ALERTS
+            connection_id:
+              type: string
+            connection_token:
+              type: string
+            purchase_id:
+              type: string
+        - type: object
+          required: [action, connection_id, connection_token, purchase_id]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: DISABLE_EMAIL_ALERTS
+            connection_id:
+              type: string
+            connection_token:
+              type: string
+            purchase_id:
+              type: string
+        - type: object
+          required: [action, connection_id, connection_token, purchase_id]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: STOP_MONITORING
+            connection_id:
+              type: string
+            connection_token:
+              type: string
             purchase_id:
               type: string
 

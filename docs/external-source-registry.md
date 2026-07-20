@@ -1,13 +1,14 @@
 # External Source Registry
 
-**Rule:** Official sources govern policy and hackathon facts. SerpApi official documentation governs its API, pricing, and terms. Public discussion can inform product positioning but cannot override these sources.
+**Rule:** Official sources govern **policy and technical product facts**. SerpApi official documentation governs its API, pricing, and terms. Public discussion can inform product positioning but cannot override these sources. **Current product decisions do not depend on competition rules.**
+
+## Active authority (product engineering)
 
 | ID | Source | Publisher | URL | Relevant decision | Last checked | Status |
 |---|---|---|---|---|---|---|
-| OKX-HACKATHON | OKX.AI Genesis Hackathon | OKX | https://web3.okx.com/xlayer/build-x-series | Deadline, eligibility, categories, demo, listing requirement, judging | 2026-07-13 | CURRENT |
-| OKX-A2MCP | A2MCP Guide | OKX | https://web3.okx.com/onchainos/dev-docs/okxai/howtomcp | Free HTTP 200 or x402, public HTTPS, X Layer payment configuration | 2026-07-13 | CURRENT |
-| OKX-ASP | ASP Introduction | OKX | https://web3.okx.com/onchainos/dev-docs/okxai/asp-introduction | A2MCP suitability and review/listing flow | 2026-07-13 | CURRENT |
-| OKX-REGISTER | ASP Registration | OKX | https://web3.okx.com/onchainos/dev-docs/okxai/registerasp | Registration prompts/fields and 24-hour wording | 2026-07-13 | CURRENT |
+| OKX-A2MCP | A2MCP Guide | OKX | https://web3.okx.com/onchainos/dev-docs/okxai/howtomcp | Free HTTP 200 or x402, public HTTPS, X Layer payment configuration | 2026-07-13 | CURRENT (active technical) |
+| OKX-ASP | ASP Introduction | OKX | https://web3.okx.com/onchainos/dev-docs/okxai/asp-introduction | A2MCP suitability and review/listing flow | 2026-07-13 | CURRENT (active technical) |
+| OKX-REGISTER | ASP Registration | OKX | https://web3.okx.com/onchainos/dev-docs/okxai/registerasp | Registration prompts/fields and 24-hour wording | 2026-07-13 | CURRENT (active technical) |
 | TARGET-POLICY | Price Match Guarantee | Target | https://www.target.com/help/articles/policies-guidelines/price-match-guarantee | 14-day window, identical item, proof, exclusions, Alaska/Hawaii, Target Plus; Target decides | 2026-07-15 | CURRENT |
 | TARGET-SUMMARY | Target price-match summary | Target | https://www.target.com/help/article/000062256 | Contact routes and summary | 2026-07-15 | CURRENT |
 | TARGET-CONTACT | Contact Us | Target | https://www.target.com/help/contact-us | Official help/contact entry for Guest Services / chat (production request route for Action Center). Not a blog. | 2026-07-15 | CURRENT |
@@ -16,6 +17,14 @@
 | SERPAPI-LEGAL | Legal Documents | SerpApi | https://serpapi.com/legal | Terms and Legal Shield limits | 2026-07-13 | CURRENT |
 | SERPAPI-PRICE-MONITOR | Price Monitoring use case | SerpApi | https://serpapi.com/use-cases/price-monitoring | Provider explicitly supports price-monitoring use cases | 2026-07-13 | CURRENT |
 | OPENAI-PROJECTS | Projects in ChatGPT | OpenAI | https://help.openai.com/en/articles/10169521-projects-in-chatgpt | Upload project sources and add project instructions | 2026-07-13 | CURRENT |
+
+## Historical-only (not active product authority)
+
+| ID | Source | Publisher | URL | Relevant decision | Last checked | Status |
+|---|---|---|---|---|---|---|
+| OKX-HACKATHON | OKX.AI Genesis Hackathon | OKX | https://web3.okx.com/xlayer/build-x-series | Historical deadline, eligibility, categories, demo, listing requirement | 2026-07-13 | **HISTORICAL ONLY** — not active product authority (Lane 8R.2) |
+
+Competition-related material may remain in historical proof folders. Do not use it to decide current product behavior.
 
 ## Lane 7.4A / 7.4A.1 — OKX agent-native paid monitoring research (repaired 2026-07-20)
 

@@ -1,121 +1,87 @@
 # Nobu
 
-**Status:** Lane 7.5E complete / bounded AI agent intake  
-**Production:** https://usenobu.vercel.app (UseNobu; product Nobu; health `nobu-a2mcp`)  
-**Hackathon:** OKX.AI Genesis Hackathon  
-**First live retailer:** Target.com / Target app (U.S., excluding Alaska and Hawaii)  
-**Price source (Target):** SerpApi Google Shopping (third-party observation, not an official Target API)  
-**Agent API:** `POST /v1/agent`  
-**Primary implementation agent:** Grok Build
+**Production:** [https://usenobu.vercel.app](https://usenobu.vercel.app)  
+**Agent API:** `POST /v1/agent` (free) · `POST /v1/agent/start-monitoring` (paid activation)  
+**Active lane:** see `docs/nobu-current-state.md`
 
-Nobu is an AI agent that monitors supported purchases after checkout and alerts users when a lower retailer price may be available. Currently supports eligible Target.com purchases.
+## Product description
 
-Tell Nobu what you bought (or enter details). You review and confirm. Then deterministic matching and monitoring take over.
+Nobu is an **AI post-purchase monitoring agent** that monitors the **exact product** after purchase and alerts the customer when a **safely matched lower price** may create an opportunity to **request the difference from the retailer**.
 
-Nobu does **not** guarantee a refund, submit a claim, log into retailer accounts, scrape Target, or claim observed prices are official Target API prices. For Target purchases, Target verifies the price and makes the final decision. Other retailers remain unsupported until separately integrated.
+Customers often buy shortly before a price drop. Nobu keeps watch during the supported monitoring period so they can act in time. When a lower price is safely matched, Nobu shows a **possible price difference** and the retailer’s official contact path.
+
+**Example:** purchase price `$79.99` → later safely matched price `$59.99` → **possible price difference `$20.00`**. Nobu alerts the customer. The customer may contact Target. **Target verifies the price, checks eligibility, and makes the final decision.**
+
+## How customers use Nobu
+
+1. **UseNobu website** — add purchases, confirm the exact product, inspect alerts, and use the Action Center.
+2. **OKX.AI** — through compatible AI-agent environments: discover, confirm, verify email, activate monitoring, and manage monitors in conversation.
+
+## Current retailer support
+
+- **Target is the only retailer currently supported.**
+- Eligible **Target.com** and **Target app** purchases (verified supported geography).
+- **Target Plus** is excluded.
+- More retailers are planned; each must be separately integrated, policy-verified, and data-source-validated before support is claimed.
+
+Observed prices come from **SerpApi Google Shopping** (third-party observation, not an official Target API).
+
+## What Nobu does not do
+
+- Contact the retailer or submit a request
+- Recover money or guarantee a lower price, alert, adjustment, or savings
+- Access retailer accounts or collect Target passwords, cards, or 2FA
+
+The **customer** contacts the retailer. The **retailer** verifies and decides.
 
 ## Start here
 
-1. Read `START-HERE.md` and `AGENTS.md`.
-2. Follow the mandatory source stack in those files.
-3. Build only against the active lane in `docs/nobu-build-order.md`.
-4. Implement with **Grok Build** using `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`.
+1. `START-HERE.md` — product entry, source stack, workflow  
+2. `AGENTS.md` — hard locks and execution rules  
+3. `docs/nobu-product-overview.md` — full product story  
+4. `docs/nobu-faq.md` — short FAQ  
+5. `docs/nobu-okx-user-guide.md` — OKX.AI customer guide  
+6. Active lane only: `docs/nobu-current-state.md` + `docs/nobu-build-order.md`
 
-## Tool workflow
+Implementation agents: follow `AGENTS.md` and `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`.
 
-| Tool | Role |
-|---|---|
-| **ChatGPT** | Product, architecture, lane coordination, source-of-truth management, and review |
-| **Grok Build** | Primary repository implementation and test execution, lane by lane |
-| **Regular Grok research** | Public discussion, competition, and external-change research only (`prompts/GROK_RESEARCH_VERIFICATION_PROMPT.md`) |
-| **Official Target / OKX / SerpApi sources** | Authoritative for external facts |
-| **Claude/Codex** | Optional fallback only (`prompts/CLAUDE_CODEX_LANE_PROMPT_TEMPLATE.md`); not the active workflow |
-
-Regular Grok research does not implement product code and does not override official sources.
-
-## Source precedence
-
-When sources conflict:
-
-1. Current official external rules, policies, terms, and API documentation
-2. `docs/nobu-clean-master-spec.md`
-3. `docs/nobu-current-state.md`
-4. Compliance and governance documents
-5. Policy/data contracts and `openapi/nobu-a2mcp.openapi.yaml`
-6. Active build order
-7. Tests and proof plan
-8. README, prompts, demo copy, and comments
-
-## Hard product locks (MVP)
-
-- Target only; Target Plus excluded
-- Target.com / Target online purchase channel only
-- U.S. geography excluding Alaska and Hawaii unless later verified otherwise
-- Exact product confirmation before monitoring; fail-closed matching
-- Free A2MCP endpoint first; x402 only after free service is stable and listed
-- No secrets in the repository; use environment variables only
-
-## Repository layout
+## Architecture and repository layout
 
 | Path | Purpose |
 |---|---|
-| `AGENTS.md` | Agent execution rules and product locks |
-| `START-HERE.md` | Source-of-truth entry point |
-| `docs/` | Specs, contracts, build order, ADRs, threat model |
-| `data/retailer-policies/` | Machine-readable Target policy fixtures |
-| `openapi/` | Free A2MCP OpenAPI contract |
-| `prompts/` | Grok Build lane template, research prompt, optional fallbacks |
+| `app/` | Next.js website, free `/v1/agent`, paid `/v1/agent/start-monitoring` |
+| `src/web/` | Purchase, monitoring UI services |
+| `src/ai/` | Bounded agent actions and NL extraction |
+| `src/matching/` | Fail-closed exact-product matching |
+| `src/policy/` | Target policy engine |
+| `src/serpapi/` | Third-party price observations |
+| `src/payments/` | Official OKX seller verify / settle / status |
+| `src/monitoring/` | Scheduled checks and durable bridge |
+| `docs/` | Specs, contracts, build order, threat model |
+| `openapi/` | Free and paid A2MCP OpenAPI contracts |
 
-## Local environment
+Canonical architecture: `docs/nobu-architecture.md` and `docs/nobu-okx-agent-native-paid-monitoring-architecture.md`.
 
-Copy `.env.example` to `.env` and fill in values locally. Never commit `.env` or real API keys.
+## Local setup
 
 ```bash
-cp .env.example .env
+cp .env.example .env   # never commit secrets
 npm install
 npm test
 npm run typecheck
-```
-
-Lane 1 domain contracts live under `src/domain/`. Database models and SQL migrations live under `src/db/`. The Lane 2 Target policy engine lives under `src/policy/`. The Lane 3 SerpApi connector lives under `src/serpapi/` (server-only; third-party observation, not an official Target API). Fail-closed product matching and confirmation live under `src/matching/`. The price monitoring loop lives under `src/monitoring/`. Bounded AI agent intake (NL extraction, confirmation gate, `POST /v1/agent`) lives under `src/ai/` with contract `docs/nobu-ai-agent-contract.md`. Consumer UI is Next.js App Router under `app/` with server services in `src/web/`. Local migration proof uses Node built-in `node:sqlite` (no secrets, no native compile). Production remains PostgreSQL per the architecture doc.
-
-```bash
-# Unit / domain tests
-npm test
-
-# Consumer web (fixture-labelled demo data)
 npm run dev
-
-# Browser E2E proof
-npm run test:e2e
-
-# Free public A2MCP (UseNobu production)
-# GET  https://usenobu.vercel.app/health
-# POST https://usenobu.vercel.app/v1/target-price-check
-
-# One bounded live capability audit (requires SERPAPI_API_KEY; never commit the key)
-npm run serpapi:live-audit
 ```
 
-## Reference stack
+Production health: `GET https://usenobu.vercel.app/health`
 
-Default implementation (see `docs/nobu-architecture.md`):
+## Active lane
 
-- TypeScript
-- Next.js (or equivalent server-capable framework)
-- PostgreSQL for deployed persistence
-- Server-side SerpApi client
-- Public HTTPS deployment
-- Free A2MCP-compatible JSON endpoint
+See **`docs/nobu-current-state.md`**. Full sequence: **`docs/nobu-build-order.md`**.
 
-A different stack requires an ADR and must not weaken the contracts.
+Adopted sequence: `8R.0 → 8R.1 → 8R.2 → 8R → 7.4G`.
 
-## Active build lane
+## Privacy and secrets
 
-See `docs/nobu-current-state.md` for the current lane and `docs/nobu-build-order.md` for the full sequence. Do not skip lanes or invent live proof.
-
-**Current active lane:** Lane 7.5B — Nobu interface redesign.
-
-## License / secrets
-
-Do not commit API keys, credentials, wallet keys, passwords, or personal data. See `docs/nobu-privacy-security-threat-model.md`.
+- No secrets in git; use environment variables only.
+- No retailer login, card, bank, ID, wallet-key, password, or 2FA collection.
+- Email for sign-in and consented alerts is private and must not appear in public proof.

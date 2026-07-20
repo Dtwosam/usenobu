@@ -1,0 +1,17 @@
+Lane 8R.2 OpenAPI validation
+
+Files:
+- openapi/nobu-a2mcp.openapi.yaml (v1.2.0 free)
+- openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml (v1.0.0 implemented+deployed)
+
+Structural checks (node):
+- free action consts: all 13 present
+- paid path /v1/agent/start-monitoring: present
+- x402 details: eip155:196, 990000 present
+- stale "not_configured" / "not deployed": absent from paid file
+- free/paid status language: IMPLEMENTED and DEPLOYED; ASP registration pending Lane 8R
+
+Redocly lint (recommended defaults) reports pre-existing OAS3.1 nullable-keyword
+style issues and optional security/license warnings on historical response
+schemas. Not treated as lane blockers; structural contract consistency is the
+required proof for this documentation lane.
