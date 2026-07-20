@@ -8,7 +8,7 @@ import { prepareWebDatabase } from "@/web/prepare-db";
 import { getWebDatabase } from "@/web/db";
 import { loadEnrollmentDiscovery } from "@/web/discovery-store";
 import { isStrongMatchTier } from "@/matching/rules";
-import { getOrCreateSessionOwner } from "@/web/session-owner";
+import { getEffectivePurchaseOwner } from "@/auth/service";
 import { notFound, redirect } from "next/navigation";
 import {
   Card,
@@ -34,8 +34,10 @@ export default async function ReviewPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  await prepareWebDatabase();
-  const ownerRef = await getOrCreateSessionOwner();
+  const dbPrep = await prepareWebDatabase();
+  const ownerRef = (
+    await getEffectivePurchaseOwner({ db: dbPrep, createGuestIfMissing: true })
+  ).owner_ref;
   const detail = getPurchaseDetail(id, { owner_ref: ownerRef });
   // Missing, cross-user, and quarantined are indistinguishable.
   if (!detail) {

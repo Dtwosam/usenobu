@@ -23,6 +23,8 @@ export default defineConfig({
       ...process.env,
       NOBU_DB_PATH: "data/nobu.e2e.sqlite",
       NOBU_FIXTURE_MODE: "1",
+      NOBU_AUTH_TEST_MODE: "1",
+      SESSION_SECRET: "nobu-e2e-session-secret-32chars!!",
     },
   },
 });

@@ -10,6 +10,8 @@ export { Field } from "./Field.js";
 export { Footer } from "./Footer.js";
 export { FormError } from "./FormError.js";
 export { Header } from "./Header.js";
+export { AccountMenu } from "./AccountMenu.js";
+export { SignedOutToast } from "./SignedOutToast.js";
 export { IconButton } from "./IconButton.js";
 export {
   IconAlert,

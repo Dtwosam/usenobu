@@ -6,7 +6,7 @@ import {
   FIXTURE_UI_LABEL,
 } from "@/web/action-center";
 import { DEFAULT_POLICY_DISCLAIMER } from "@/policy/target-us-policy";
-import { getOrCreateSessionOwner } from "@/web/session-owner";
+import { getEffectivePurchaseOwner } from "@/auth/service";
 import { notFound } from "next/navigation";
 import {
   ButtonLink,
@@ -22,8 +22,10 @@ export default async function AlertPage({
   params: Promise<{ id: string; alertId: string }>;
 }) {
   const { id, alertId } = await params;
-  await prepareWebDatabase();
-  const ownerRef = await getOrCreateSessionOwner();
+  const dbPrep = await prepareWebDatabase();
+  const ownerRef = (
+    await getEffectivePurchaseOwner({ db: dbPrep, createGuestIfMissing: true })
+  ).owner_ref;
   const data = getAlert(id, alertId, { owner_ref: ownerRef });
   if (!data) notFound();
 

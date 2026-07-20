@@ -13,8 +13,11 @@ import { isVercelRuntime } from "./db.js";
 
 export const OWNER_COOKIE_NAME = "nobu_owner_v1";
 
-/** Production session owners only (cookie path). */
+/** Guest browser owners (cookie path). */
 export const SESSION_OWNER_RE = /^usr_[a-f0-9]{32}$/;
+
+/** Verified account owners (server-assigned after email magic link). */
+export const ACCOUNT_OWNER_RE = /^acct_[a-f0-9]{32}$/;
 
 /**
  * Legacy shared demo identity. Never used for new production purchases.
@@ -31,12 +34,17 @@ export function isValidSessionOwner(ref: string): boolean {
   return SESSION_OWNER_RE.test(String(ref || "").trim());
 }
 
-/** Service-layer owner refs (session or explicit test ids). */
+export function isValidAccountOwner(ref: string): boolean {
+  return ACCOUNT_OWNER_RE.test(String(ref || "").trim());
+}
+
+/** Service-layer owner refs (guest, account, or explicit test ids). */
 export function isUsableOwnerRef(ref: string): boolean {
   const t = String(ref || "").trim();
   if (!t || t.length < 4 || t.length > 80) return false;
   if (t === LEGACY_SHARED_DEMO_OWNER) return true; // tests only
   if (isValidSessionOwner(t)) return true;
+  if (isValidAccountOwner(t)) return true;
   // Explicit test / seeded owners (never from production cookie minting)
   if (/^test_[a-zA-Z0-9_-]{3,64}$/.test(t)) return true;
   return false;

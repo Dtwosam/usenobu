@@ -5,6 +5,8 @@ import { useEffect, useId, useState } from "react";
 import { ButtonLink } from "./Button.js";
 import { IconButton } from "./IconButton.js";
 import { IconClose, IconMenu } from "./icons.js";
+import { AccountMenu } from "./AccountMenu.js";
+import { logoutAction } from "@/web/auth-actions";
 
 const NAV = [
   { href: "/", label: "Home", testId: "nav-home" },
@@ -17,10 +19,17 @@ function isCurrent(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Header() {
+export type HeaderAuth = {
+  signedIn: boolean;
+  emailDisplay?: string;
+  initial?: string;
+};
+
+export function Header({ auth }: { auth?: HeaderAuth | null }) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const signedIn = Boolean(auth?.signedIn && auth.emailDisplay);
 
   useEffect(() => {
     setOpen(false);
@@ -50,7 +59,9 @@ export function Header() {
             <a
               key={item.href}
               href={item.href}
-              data-testid={item.testId === "nav-home" ? "nav-home-desktop" : item.testId}
+              data-testid={
+                item.testId === "nav-home" ? "nav-home-desktop" : item.testId
+              }
               aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
             >
               {item.label}
@@ -59,6 +70,24 @@ export function Header() {
         </nav>
 
         <div className="n-header__actions">
+          {signedIn ? (
+            <div className="n-header__account-desktop">
+              <AccountMenu
+                emailDisplay={auth!.emailDisplay!}
+                initial={auth!.initial || "?"}
+              />
+            </div>
+          ) : (
+            <ButtonLink
+              href="/sign-in"
+              className="n-header__signin-desktop"
+              size="sm"
+              variant="secondary"
+              data-testid="nav-sign-in"
+            >
+              Sign in
+            </ButtonLink>
+          )}
           <ButtonLink
             href="/purchases/new"
             className="n-header__cta-desktop"
@@ -97,6 +126,33 @@ export function Header() {
               {item.label}
             </a>
           ))}
+          {signedIn ? (
+            <div className="n-mobile-account" data-testid="nav-mobile-account">
+              <p className="n-mobile-account__label">Signed in as</p>
+              <p className="n-mobile-account__email">{auth!.emailDisplay}</p>
+              <a href="/dashboard" data-testid="nav-mobile-purchases">
+                My Purchases
+              </a>
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  className="n-text-action"
+                  data-testid="nav-mobile-sign-out"
+                >
+                  Sign out
+                </button>
+              </form>
+            </div>
+          ) : (
+            <ButtonLink
+              href="/sign-in"
+              block
+              variant="secondary"
+              data-testid="nav-sign-in-mobile"
+            >
+              Sign in
+            </ButtonLink>
+          )}
           <ButtonLink
             href="/purchases/new"
             block

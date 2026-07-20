@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-20
-**Status:** LANE 7.3A.2A PASS - ACCOUNT-PRIVATE PURCHASES + NO PRODUCTION DEMO DATA; NEXT LANE 7.3A.2B
+**Status:** LANE 7.3A.2A.1 — PASSWORDLESS ACCOUNTS + GUEST CLAIM (code complete; production email secrets may be manual); NEXT LANE 7.3A.2B after auth closeout
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)
@@ -13,6 +13,8 @@
 **Review-Safe Sprint A.3:** **NOBU_REVIEW_SAFE_A_3_PASS** (policy freshness + live Conair closeout; no_match is fail-closed, not accepted price)
 
 **Lane 7.3A.2A account-private My Purchases:** **PASS** (`NOBU_LANE_7_3A_2A_PASS`) — every new purchase has one server-assigned owner (`usr_*` httpOnly cookie, minted by middleware / server actions; client owner/user/email fields ignored). Consumer list/read/confirm/check/alert are owner-scoped; cross-user and missing IDs both yield generic **Purchase not found**. Ownerless and legacy shared `demo-user` rows are quarantined (not reassigned, not listed). Production My Purchases never shows the **Demo data** fixture banner; fixtures stay gated to tests/e2e (`NOBU_FIXTURE_MODE`). Scheduler/internal monitoring remains a separate protected boundary and may process across owners. Privacy reassurance copy under My Purchases. Evidence: unit privacy + fixture isolation tests; Playwright two-user privacy; full unit suite; typecheck; build.
+
+**Lane 7.3A.2A.1 passwordless accounts + guest claim:** Guests keep `nobu_owner_v1` (`usr_*`) browser-scoped ownership (not called an account). Verified passwordless email magic-link creates stable `acct_*` account IDs and httpOnly auth session; on verify, eligible guest purchases are claimed atomically onto the account (idempotent; never ownerless/demo-user/other accounts). Logout revokes session and does not delete history or move purchases back to guest. UI: `/sign-in`, guest notice, claim success, account menu. Production email delivery requires `SESSION_SECRET`, `RESEND_API_KEY` (or `EMAIL_PROVIDER_API_KEY`), `EMAIL_FROM_ADDRESS`, `APP_BASE_URL` when not in test mode.
 
 **Lane 7.3A purchase intake UX + multi-candidate discovery:** **PASS** - exact mode accepts Target URL alone or TCIN alone; Fill with AI no longer demands a URL when TCIN is valid; link-derived provisional titles with SerpApi enrichment; Demo options removed from production form; uncertain-product mode returns bounded Target multi-candidates with offer_id preserved through cookie snapshot; monitoring remains confirmation-gated. Local proof: 317 unit tests, typecheck, build, Playwright consumer-flow. Evidence: `docs/proof/lane-7-3a-purchase-intake/`.
 

@@ -148,7 +148,17 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** privacy unit tests, fixture isolation, scheduler/monitoring regressions, typecheck, build, Playwright two-user privacy + consumer-flow. Verdict: `NOBU_LANE_7_3A_2A_PASS`.
 
-## Lane 7.3A.2B — Persistent purchase history and lifecycle interface (next)
+## Lane 7.3A.2A.1 - Passwordless accounts + guest claim
+
+- Passwordless email magic link (no passwords); verified email before account ownership.
+- Guests keep `nobu_owner_v1`; accounts use stable `acct_*` ids.
+- Guest purchases claimable only from the browser holding the guest cookie; atomic, idempotent.
+- Sign-in UI, guest notice, claim success, account menu, logout toast.
+- Logout never deletes history; never moves account purchases back to guest.
+
+**Proof:** auth unit tests, privacy regressions, Playwright account-auth + consumer-flow, typecheck, build.
+
+## Lane 7.3A.2B — Persistent purchase history and lifecycle interface (next after 7.3A.2A.1 PASS)
 
 ## Lane 7.3B — Consented email price-drop notifications (queued)
 

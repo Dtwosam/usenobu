@@ -10,7 +10,7 @@ import {
 } from "../../src/db/index.js";
 
 describe("database migrations", () => {
-  it("lists 0001–0005 migration pairs", () => {
+  it("lists 0001–0006 migration pairs", () => {
     const migrations = listMigrations();
     expect(migrations.map((m) => m.id)).toEqual([
       "0001_init",
@@ -18,6 +18,7 @@ describe("database migrations", () => {
       "0003_monitoring",
       "0004_policy_operations",
       "0005_policy_operations_r2a",
+      "0006_accounts",
     ]);
   });
 
@@ -31,6 +32,7 @@ describe("database migrations", () => {
         "0003_monitoring",
         "0004_policy_operations",
         "0005_policy_operations_r2a",
+        "0006_accounts",
       ]);
       expect(getAppliedMigrations(db)).toEqual([
         "0001_init",
@@ -38,12 +40,15 @@ describe("database migrations", () => {
         "0003_monitoring",
         "0004_policy_operations",
         "0005_policy_operations_r2a",
+        "0006_accounts",
       ]);
 
       for (const table of TABLE_NAMES) {
         expect(tableExists(db, table)).toBe(true);
       }
       expect(tableExists(db, "schema_migrations")).toBe(true);
+      expect(tableExists(db, "accounts")).toBe(true);
+      expect(tableExists(db, "auth_sessions")).toBe(true);
 
       // Idempotent second up: no duplicate apply
       expect(migrateUp(db)).toEqual([]);
@@ -53,6 +58,7 @@ describe("database migrations", () => {
         "0003_monitoring",
         "0004_policy_operations",
         "0005_policy_operations_r2a",
+        "0006_accounts",
       ]);
     } finally {
       db.close();
@@ -63,6 +69,7 @@ describe("database migrations", () => {
     const db = openDatabase(":memory:");
     try {
       migrateUp(db);
+      expect(migrateDown(db, undefined, 1)).toEqual(["0006_accounts"]);
       expect(migrateDown(db, undefined, 1)).toEqual([
         "0005_policy_operations_r2a",
       ]);
@@ -98,6 +105,7 @@ describe("database migrations", () => {
         "0003_monitoring",
         "0004_policy_operations",
         "0005_policy_operations_r2a",
+        "0006_accounts",
       ]);
       for (const table of TABLE_NAMES) {
         expect(tableExists(db, table)).toBe(true);

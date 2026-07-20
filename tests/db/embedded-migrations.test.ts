@@ -19,6 +19,7 @@ const EXPECTED_EMBEDDED_MIGRATIONS = [
   "0003_monitoring",
   "0004_policy_operations",
   "0005_policy_operations_r2a",
+  "0006_accounts",
 ];
 
 describe("embedded migrations (production-safe)", () => {

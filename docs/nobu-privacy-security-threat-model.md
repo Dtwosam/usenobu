@@ -78,14 +78,18 @@ If receipt images are added:
 - clear disclaimer that Target verifies and decides;
 - confirmation gate before Find my product / monitoring.
 
-## Purchase ownership (Lane 7.3A.2A)
+## Purchase ownership (Lane 7.3A.2A + 7.3A.2A.1)
 
-- **My Purchases is account-private.** Each browser session receives a server-minted `usr_*` owner id in an httpOnly cookie (`nobu_owner_v1`), set by middleware on consumer routes and by server actions when needed.
-- **Every new purchase has exactly one server-assigned owner** written to `purchases.user_ref`. Client-supplied user ID, owner ID, email, or account fields are ignored.
+- **Guests** use browser-scoped ownership via server-minted `usr_*` in httpOnly `nobu_owner_v1` (middleware + actions). Guest storage is **not** a full account.
+- **Verified accounts** use stable server-side `acct_*` IDs after passwordless email magic-link verification. Auth session is a separate httpOnly cookie (`nobu_auth_session_v1`); sessions rotate on login/logout; magic tokens are one-time and expiring.
+- **Every new purchase has exactly one server-assigned owner** written to `purchases.user_ref` (account id when signed in, else guest id). Client-supplied user/owner/email fields are ignored.
+- **Guest claim:** only the browser holding the guest cookie may transfer that guest’s eligible purchases to the verified account; atomic and idempotent; never claims ownerless, legacy `demo-user`, or another account’s rows; guest cookie is rotated after claim.
+- **Logout** invalidates the auth session and does not delete purchase history or move account purchases back to guest ownership.
+- **Email is private** — never log full addresses or raw tokens; never put them in proof bundles.
 - **Consumer operations are owner-scoped:** list, read, confirm, manual check, alerts/history. Cross-user and unknown IDs both return the same generic **Purchase not found** result (no existence leak).
-- **Ownerless historical rows** (`user_ref` null/empty) and **legacy shared `demo-user` rows** are quarantined: never assigned to the next user, never listed for consumer sessions, not auto-deleted. Ops may report only a redacted count. Later durable migration can re-home them with an explicit admin path if needed.
-- **Fixtures never appear in normal production accounts.** Fixture discovery/check requires an explicit server gate (`NOBU_FIXTURE_MODE` / tests). Production My Purchases does not show the **Demo data** banner. Honest SerpApi third-party provenance remains visible on live paths.
-- **Scheduler / internal monitoring** uses a separate protected boundary (e.g. cron secret for policy scheduler; monitoring runner is not a public consumer list). It may process eligible purchases across owners; public consumer routes never gain global list access.
+- **Ownerless historical rows** and **legacy shared `demo-user` rows** remain quarantined.
+- **Fixtures never appear in normal production accounts.** Fixture discovery/check requires an explicit server gate.
+- **Scheduler / internal monitoring** remains a separate protected boundary and may process across owners.
 
 ## Platform eligibility
 

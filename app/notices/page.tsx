@@ -95,6 +95,10 @@ export default async function NoticesPage() {
             </li>
             <li>No Target passwords or retailer login.</li>
             <li>Only purchase details needed to find and watch a product.</li>
+            <li>
+              Email used for optional sign-in is private and is not shown in logs
+              or public proof.
+            </li>
           </ul>
           <Disclosure title="What we store">
             <p>
@@ -103,6 +107,24 @@ export default async function NoticesPage() {
               card numbers in any field.
             </p>
           </Disclosure>
+        </Card>
+
+        <Card data-testid="guest-purchases-notice" id="guest-purchases">
+          <h2 className="n-card-title">Guest purchases</h2>
+          <ul className="n-list">
+            <li>
+              As a guest, purchases stay in this browser only (not a full account).
+            </li>
+            <li>
+              After you verify email, purchases from this browser can move into
+              your Nobu account.
+            </li>
+            <li>
+              Only this browser’s guest session can claim those purchases — not
+              another device or user.
+            </li>
+            <li>Signing out never deletes your account purchase history.</li>
+          </ul>
         </Card>
 
         <Card data-testid="target-action-notice">

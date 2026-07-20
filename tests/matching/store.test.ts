@@ -50,6 +50,7 @@ describe("matching persistence", () => {
         "0003_monitoring",
         "0004_policy_operations",
         "0005_policy_operations_r2a",
+        "0006_accounts",
       ]);
       seedPurchase(db, "pur-lock-1");
 

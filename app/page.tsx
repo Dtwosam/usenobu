@@ -1,12 +1,21 @@
 import { ButtonLink, Card } from "@/ui";
+import { SignedOutToast } from "@/ui/SignedOutToast";
 
 /**
  * Homepage — retailer-neutral product positioning (Sprint C).
  * Target appears only under current availability, not in the hero.
  */
-export default function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | undefined>>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const showSignedOut = sp.signed_out === "1";
+
   return (
     <div className="n-screen n-screen--home">
+      {showSignedOut ? <SignedOutToast /> : null}
       <section className="n-hero" aria-labelledby="home-title">
         <h1 id="home-title" className="n-hero__title">
           Nobu watches prices after you buy.

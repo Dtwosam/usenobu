@@ -28,7 +28,7 @@ import {
 import { getPurchaseDetail } from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
 import { getWebDatabase } from "@/web/db";
-import { getOrCreateSessionOwner } from "@/web/session-owner";
+import { getEffectivePurchaseOwner } from "@/auth/service";
 import { notFound } from "next/navigation";
 import {
   Card,
@@ -51,8 +51,10 @@ export default async function PurchaseDashboardPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  await prepareWebDatabase();
-  const ownerRef = await getOrCreateSessionOwner();
+  const dbPrep = await prepareWebDatabase();
+  const ownerRef = (
+    await getEffectivePurchaseOwner({ db: dbPrep, createGuestIfMissing: true })
+  ).owner_ref;
   const detail = getPurchaseDetail(id, { owner_ref: ownerRef });
   if (!detail) notFound();
 

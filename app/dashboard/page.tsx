@@ -1,6 +1,6 @@
 import { listPurchases } from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
-import { getOrCreateSessionOwner } from "@/web/session-owner";
+import { getEffectivePurchaseOwner } from "@/auth/service";
 import { formatUsd, statusLabel, statusTone } from "@/web/status-copy";
 import {
   ButtonLink,
@@ -11,10 +11,22 @@ import {
   StatusBadge,
 } from "@/ui";
 
-export default async function DashboardPage() {
-  await prepareWebDatabase();
-  const ownerRef = await getOrCreateSessionOwner();
-  const purchases = listPurchases({ owner_ref: ownerRef });
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const sp = await searchParams;
+  const db = await prepareWebDatabase();
+  const effective = await getEffectivePurchaseOwner({
+    db,
+    createGuestIfMissing: true,
+  });
+  const purchases = listPurchases({ owner_ref: effective.owner_ref });
+  const signedIn = effective.kind === "account";
+  const claimed = sp.claimed ? Number(sp.claimed) : 0;
+  const showClaim =
+    signedIn && Number.isFinite(claimed) && claimed > 0;
 
   return (
     <div className="n-screen">
@@ -34,6 +46,58 @@ export default async function DashboardPage() {
         <IconLock className="n-privacy-reassurance__icon" width={14} height={14} />
         <span>Only you can see the purchases saved to your Nobu account.</span>
       </p>
+
+      {showClaim ? (
+        <div
+          className="n-claim-success"
+          data-testid="claim-success"
+          role="status"
+        >
+          <h2 className="n-claim-success__title">
+            Your purchases are now saved to your account
+          </h2>
+          <p className="n-claim-success__body">
+            We moved the purchases from this browser into your Nobu account.
+          </p>
+          <p className="n-claim-success__count" data-testid="claim-count">
+            {claimed === 1
+              ? "1 purchase saved"
+              : `${claimed} purchases saved`}
+          </p>
+          <ButtonLink
+            href="/dashboard"
+            size="sm"
+            data-testid="claim-view-purchases"
+          >
+            View My Purchases
+          </ButtonLink>
+        </div>
+      ) : null}
+
+      {!signedIn ? (
+        <div className="n-guest-notice" data-testid="guest-notice">
+          <p className="n-guest-notice__text">
+            You’re using Nobu as a guest. Sign in to keep your purchases across
+            devices and recover them if you clear this browser.
+          </p>
+          <div className="n-guest-notice__actions">
+            <ButtonLink
+              href="/sign-in"
+              size="sm"
+              data-testid="guest-notice-sign-in"
+            >
+              Sign in
+            </ButtonLink>
+            <a
+              href="/notices#guest-purchases"
+              className="n-text-action"
+              data-testid="guest-notice-learn"
+            >
+              Learn how guest purchases work
+            </a>
+          </div>
+        </div>
+      ) : null}
 
       {purchases.length === 0 ? (
         <Card>

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import { Footer } from "@/ui/Footer";
 import { Header } from "@/ui/Header";
+import { prepareWebDatabase } from "@/web/prepare-db";
+import { getAuthenticatedAccount } from "@/auth/service";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -17,11 +19,32 @@ export const metadata: Metadata = {
     "Nobu is an AI agent that monitors supported purchases after checkout and alerts you when a lower retailer price may be available. Currently supports eligible Target.com purchases.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  let auth: {
+    signedIn: boolean;
+    emailDisplay?: string;
+    initial?: string;
+  } | null = null;
+  try {
+    const db = await prepareWebDatabase();
+    const account = await getAuthenticatedAccount(db);
+    if (account) {
+      auth = {
+        signedIn: true,
+        emailDisplay: account.email_display,
+        initial: account.initial,
+      };
+    } else {
+      auth = { signedIn: false };
+    }
+  } catch {
+    auth = { signedIn: false };
+  }
+
   return (
     <html lang="en" className={manrope.variable}>
       <body className={manrope.className}>
@@ -29,7 +52,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <div className="n-shell">
-          <Header />
+          <Header auth={auth} />
           <main id="main-content" className="n-main legacy-main" tabIndex={-1}>
             {children}
           </main>

@@ -2236,3 +2236,386 @@ form.n-form-card {
     transition: none;
   }
 }
+
+/* Lane 7.3A.2A.1 — passwordless sign-in + account UI */
+.n-signin-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 64px 24px 80px;
+}
+
+@media (max-width: 700px) {
+  .n-signin-page {
+    padding: 32px 16px 64px;
+  }
+}
+
+.n-signin-card {
+  border-radius: 22px;
+  padding: 32px;
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 700px) {
+  .n-signin-card {
+    border-radius: 18px;
+    padding: 20px;
+    width: 100%;
+  }
+}
+
+.n-signin-card--center {
+  text-align: center;
+}
+
+.n-signin-title {
+  margin: 0;
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+@media (max-width: 700px) {
+  .n-signin-title {
+    font-size: 26px;
+    line-height: 32px;
+  }
+}
+
+.n-signin-support {
+  margin: 10px 0 28px;
+  font-size: 15px;
+  line-height: 23px;
+  color: var(--text-secondary);
+}
+
+.n-signin-secondary-copy {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--text-tertiary);
+}
+
+.n-signin-mail {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 24px;
+  color: var(--brand);
+}
+
+.n-field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+
+.n-signin-input.n-input,
+.n-signin-input {
+  width: 100%;
+  height: 52px;
+  border-radius: 14px;
+  padding: 0 16px;
+  font-size: 16px;
+}
+
+.n-signin-input:focus {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--brand);
+}
+
+.n-signin-error {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--danger);
+}
+
+.n-signin-primary {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 20px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: var(--radius-control);
+}
+
+.n-signin-secondary {
+  width: 100%;
+  min-height: 48px;
+}
+
+.n-signin-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.n-signin-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.n-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: n-spin 0.7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .n-spinner {
+    animation: none;
+    border-top-color: #fff;
+    opacity: 0.85;
+  }
+}
+
+@keyframes n-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.n-text-action {
+  background: none;
+  border: none;
+  color: var(--brand);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  min-height: 44px;
+  padding: 8px 4px;
+}
+
+.n-text-action:hover {
+  color: var(--brand-hover);
+}
+
+.n-guest-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.n-guest-notice__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--ink);
+  flex: 1;
+}
+
+.n-guest-notice__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.n-guest-notice__actions .n-btn {
+  min-height: 42px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+@media (max-width: 700px) {
+  .n-guest-notice {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .n-guest-notice__actions .n-btn {
+    width: 100%;
+  }
+}
+
+.n-claim-success {
+  max-width: 560px;
+  background: var(--success-soft);
+  border: 1px solid #b7d9c8;
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.n-claim-success__title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.n-claim-success__body {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--text-secondary);
+}
+
+.n-claim-success__count {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.n-account-menu {
+  position: relative;
+}
+
+.n-account-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  height: 42px;
+  padding: 0 10px 0 6px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+}
+
+.n-account-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.n-account-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.n-account-email {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.n-account-chevron {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.n-account-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  z-index: 40;
+}
+
+.n-account-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.n-account-item:hover,
+.n-account-item:focus-visible {
+  background: var(--brand-soft);
+  outline: none;
+}
+
+.n-account-item--button {
+  color: var(--ink);
+}
+
+.n-header__signin-desktop {
+  display: none;
+}
+
+.n-header__account-desktop {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .n-header__signin-desktop,
+  .n-header__account-desktop {
+    display: inline-flex;
+  }
+}
+
+.n-mobile-account {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 8px 0;
+}
+
+.n-mobile-account__label {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.n-mobile-account__email {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.n-signed-out-toast {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--ink);
+}
+
+.n-signin-test {
+  margin-top: 8px;
+}
