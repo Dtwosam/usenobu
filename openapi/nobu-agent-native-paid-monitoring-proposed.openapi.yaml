@@ -25,10 +25,11 @@ info:
     (`docs/nobu-okx-agent-native-paid-monitoring-architecture.md`), now partially
     realized by Lane 7.4B and Lane 7.4C. It shows the *logical* shape of a
     proposed free agent-native discovery/preflight surface and a proposed
-    paid activation surface. It intentionally does NOT declare, imply, or
-    assume that both paths can be exposed through a single OKX A2MCP listing,
-    or through more than one listing — that marketplace topology is
-    UNDECIDED (see `x-nobu-topology-status` on the paid path below).
+    paid activation surface. As of Lane 7.4D.0, the marketplace topology is
+    RESOLVED (see `x-nobu-topology-status` on the paid path below): separate
+    free and paid A2MCP services, co-located under the existing Agent #5541
+    identity — not a single listing branching per request, and not a second
+    ASP.
 
     Source purity: every OKX-specific fact this file assumes (registration is
     one price per call per endpoint; price 0 = free; an endpoint is either
@@ -102,10 +103,10 @@ paths:
     post:
       operationId: nobuAgentProposedPaidActivation
       summary: >-
-        PROPOSED, PAID activation only. Marketplace topology undecided — see
-        x-nobu-topology-status below and Lane 7.4D in the architecture
-        document. Do not treat this path as reachable from the live #5541
-        listing.
+        PROPOSED, PAID activation only, NOT YET IMPLEMENTED. Marketplace
+        topology resolved (Lane 7.4D.0) — see x-nobu-topology-status below
+        and Lane 7.4D in the architecture document. Do not treat this path as
+        reachable from the live #5541 listing until Lane 8R registers it.
       description: >-
         Consumes a settled OKX x402 payment against a previously issued,
         unexpired monitoring_enrollment_quotes row (minted by a prior free
@@ -122,16 +123,26 @@ paths:
         overrides deterministic eligibility, matching, or consent — those were
         already enforced by PREFLIGHT_MONITORING before the quote existed.
       x-nobu-topology-status: >-
-        UNDECIDED as of Lane 7.4A.1 (2026-07-20). Three possibilities are
-        documented in the architecture document §5 and none is selected: (1)
-        one mixed free/paid A2MCP listing; (2) separate free and paid A2MCP
-        listings; (3) convert the current free service to paid and relocate
-        free preparation elsewhere. Selecting between them requires official
-        OKX confirmation, obtained only during Lane 7.4D's "OKX paid-service
-        topology capability re-check" — and only after the Lane 8 gate (ASP
-        #5541 approved and genuinely live) has passed. If still unresolved at
-        that point, Lane 7.4D returns NOBU_LANE_7_4D_BLOCKED rather than
-        guessing.
+        RESOLVED as of Lane 7.4D.0 (2026-07-20). Selected: separate free and
+        paid A2MCP services, co-located under the existing Agent #5541
+        identity (not a second ASP) — the existing free service stays
+        untouched; a new, independently priced/endpointed paid A2MCP service
+        (this path) is added later, in Lane 8R, via `agent update --service`
+        with one `operation: "create"` delta entry. Evidence: the official
+        Onchain OS CLI's own `agent create --help` / `agent update --help`
+        document `--service` as a JSON array supporting multiple
+        independently priced/endpointed services per agent, and the official
+        `github.com/okx/onchainos-skills` repository's `identity-register.md`
+        states plainly that multiple services per agent are fully supported
+        — see `docs/external-source-registry.md` "Lane 7.4D.0" and
+        `docs/proof/lane-7-4d-0-okx-topology/`. Not selected: one mixed
+        free/paid A2MCP service/endpoint (no official evidence permits a
+        single service to branch 200/402 per request body), and converting
+        #5541 to paid and relocating free preparation elsewhere (unnecessary
+        and more disruptive once the multi-service path was proven). This
+        path (`/v1/agent/start-monitoring`) is not reachable from the live
+        #5541 listing until Lane 8R actually registers it as a second
+        service — Lane 7.4D.0 was documentation/research only.
       requestBody:
         required: true
         content:
@@ -635,7 +646,7 @@ components:
       type: object
       required: [quote_id]
       additionalProperties: false
-      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4D, blocked on OKX topology re-check)
+      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4D — topology resolved by Lane 7.4D.0, implementation not yet started)
       properties:
         quote_id:
           type: string

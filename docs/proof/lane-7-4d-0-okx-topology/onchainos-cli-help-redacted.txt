@@ -1,0 +1,115 @@
+Lane 7.4D.0 — read-only `--help` output from the official Onchain OS CLI
+(onchainos.exe, version 4.2.4, installed at %USERPROFILE%\.onchainos\bin\,
+matching a published multi-platform checksums.txt release manifest).
+
+No state-changing command (create/update/activate/deactivate/upload/submit)
+was executed. Every command below was `--help` only. No wallet, account,
+email, or transaction data is present in this file.
+
+=== onchainos.exe --version ===
+onchainos 4.2.4
+
+=== onchainos.exe agent create --help ===
+Register a new Agent identity
+
+Usage: onchainos.exe agent create [OPTIONS]
+
+Options:
+      --base-url <BASE_URL>        Backend service URL (overrides config)
+      --name <NAME>                Required (all roles). The agent name. Missing / empty -> `missing required parameter: --name`
+      --chain <CHAIN>              Chain: ethereum, solana, base, bsc, polygon, arbitrum, sui, etc
+      --role <ROLE>                Required. One of `user` / `asp` / `evaluator`. Fixed at create — cannot be changed by `update`
+      --description <DESCRIPTION>  Agent description. Required for `asp`; optional for `user` / `evaluator`
+      --picture <PICTURE>          Profile-picture URL (upload an image via `agent upload` first, then pass the returned URL). Required for `asp` (no avatar -> `ASP agents require an avatar`); optional for `user` / `evaluator` (omitted -> default avatar)
+      --service <SERVICE>          Service list as a JSON array. Element keys: `serviceName`, `serviceDescription`, `serviceType` (`A2A` | `A2MCP`), `fee` (A2MCP required, A2A optional — plain number, USDT implied, <=6 decimals), `endpoint` (A2MCP only; A2A must omit it). Required for `asp`: at least one service (empty -> `ASP agents require at least one service`); ignored for `user` / `evaluator`
+  -h, --help                       Print help
+
+=== onchainos.exe agent update --help ===
+Update Agent identity and services
+
+Usage: onchainos.exe agent update [OPTIONS]
+
+Options:
+      --agent-id <AGENT_ID>
+          REQUIRED. The target agent's id (becomes cardJson `agentId`). Missing -> `missing required parameter: --agent-id`
+
+      --base-url <BASE_URL>
+          Backend service URL (overrides config)
+
+      --chain <CHAIN>
+          Chain: ethereum, solana, base, bsc, polygon, arbitrum, sui, etc
+
+      --name <NAME>
+          Optional. New agent name. Omitted / empty -> name left unchanged
+
+      --description <DESCRIPTION>
+          Optional. New agent-level description. Omitted / empty -> unchanged; an empty string does NOT clear an existing description
+
+      --picture <PICTURE>
+          Optional. New profile-picture URL. Omitted / empty -> unchanged
+
+      --service <SERVICE>
+          Optional. Incremental service changes as a JSON array — only the services you want to add / modify / remove, NOT the full list. Element keys: `serviceName`, `serviceDescription`, `serviceType` (`A2A` | `A2MCP`), `fee` (A2MCP required — plain number, USDT implied, <=6 decimals), `endpoint` (A2MCP only), plus `operation`: `create` (new service, no `id`) / `update` (modify, carry the existing service `id`) / `delete` (remove, carry the existing service `id`). Omitted -> the `services` field is left out entirely (omission does NOT clear existing services).
+
+          Example — add one A2MCP service and delete an existing one: --service '[{"operation":"create","serviceName":"Price feed","serviceDescription":"Realtime prices","serviceType":"A2MCP","fee":"0.5","endpoint":"https://api.example.com/mcp"},{"operation":"delete","id":"svc_123"}]'
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+=== onchainos.exe agent activate --help ===
+Activate an Agent (agent-status + submit-approval; QA runs at register/update, not here)
+
+Usage: onchainos.exe agent activate [OPTIONS] --preferred-language <PREFERRED_LANGUAGE>
+
+Options:
+      --agent-id <AGENT_ID>
+          REQUIRED (runtime-enforced). The target agent's id. Missing -> `missing required parameter: --agent-id`
+      --base-url <BASE_URL>
+          Backend service URL (overrides config)
+      --chain <CHAIN>
+          Chain: ethereum, solana, base, bsc, polygon, arbitrum, sui, etc
+      --preferred-language <PREFERRED_LANGUAGE>
+          Required: preferred language for backend review messages (BCP-47, e.g. `zh-CN`, `en-US`). Normalized to canonical BCP-47
+  -h, --help
+          Print help
+
+=== onchainos.exe agent service-list --help ===
+Query an Agent's services
+
+Usage: onchainos.exe agent service-list [OPTIONS]
+
+Options:
+      --agent-id <AGENT_ID>  REQUIRED (runtime-enforced). The target agent's id whose services to list. Missing -> `missing required parameter: --agent-id`
+      --base-url <BASE_URL>  Backend service URL (overrides config)
+      --chain <CHAIN>        Chain: ethereum, solana, base, bsc, polygon, arbitrum, sui, etc
+  -h, --help                 Print help
+
+=== onchainos.exe payment pay --help ===
+Sign a payment authorization for an HTTP 402-gated resource and return the assembled `PAYMENT-SIGNATURE` header (x402 v2). Signs from the currently selected wallet account via TEE
+
+Usage: onchainos.exe payment pay [OPTIONS] --payload <PAYLOAD>
+
+Options:
+      --base-url <BASE_URL>
+          Backend service URL (overrides config)
+      --payload <PAYLOAD>
+          base64 of the decoded 402 payload `{x402Version, resource, accepts}` — i.e. the raw `PAYMENT-REQUIRED` header value (base64 or base64url). The CLI decodes it, signs the selected accepts entry, and (v2) returns `{authorization_header, header_name, scheme, wallet}`
+      --chain <CHAIN>
+          Chain: ethereum, solana, base, bsc, polygon, arbitrum, sui, etc
+      --selected-index <SELECTED_INDEX>
+          Optional 0-based index into the payload's `accepts[]` to sign. Use it to pin the exact scheme the user chose from a multi-scheme prompt. Omit to let the CLI auto-select (exact > aggr_deferred > first)
+  -h, --help
+          Print help
+
+=== onchainos.exe payment charge --help ===
+Sign a one-shot Charge payment (EIP-3009 via TEE) or wrap a client-broadcast hash. Returns authorization_header for replaying the request. When challenge.methodDetails.feePayer == false, --tx-hash is required (hash mode). Splits are auto-detected from challenge.methodDetails.splits[] (max 10)
+
+Usage: onchainos.exe payment charge [OPTIONS] --challenge <CHALLENGE>
+
+Options:
+      --base-url <BASE_URL>    Backend service URL (overrides config)
+      --challenge <CHALLENGE>  Full WWW-Authenticate header value from 402 response
+      --chain <CHAIN>          Chain: ethereum, solana, base, bsc, polygon, arbitrum, sui, etc
+      --from <FROM>            Payer address (optional, defaults to selected account)
+      --tx-hash <TX_HASH>      Optional: tx hash of a client-broadcast transferWithAuthorization (hash mode). Required when challenge.methodDetails.feePayer=false
+  -h, --help                   Print help

@@ -237,16 +237,19 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `tests/web/agent-preflight.test.ts` (15 focused tests, 3 new: preflight creates a fingerprint and quote but never `MONITORING_ACTIVE` and the scheduler cannot select it; recovers on retry after a simulated crash between reservation and insertion; quote-issuance failure never activates monitoring and creates no duplicate; existing 12 tests updated/retained including retries/concurrency create one purchase+quote and existing web confirmation still activates monitoring normally), typecheck, build, `git diff --check` clean. Verdict: `NOBU_LANE_7_4C_1_PASS`. Evidence: `docs/proof/lane-7-4c-agent-preflight/` (updated).
 
-## Lane 7.4D.0 — Official OKX paid-service topology re-check
+## Lane 7.4D.0 — Official OKX paid-service topology re-check COMPLETE
 
-- Using only official OKX documentation available at that time: resolve which (if any) of the three documented topology possibilities (mixed listing / separate listings / convert-and-relocate) is supported, whether ASP `#5541` may change price under review, whether OKX forwards identity/email, and whether OKX forwards a reusable cross-call authorization credential.
-- **If topology remains unresolved, return `NOBU_LANE_7_4D_0_BLOCKED`.** Does not edit or resubmit `#5541`.
+- Research/documentation-only. Resolved: **separate free and paid A2MCP services, co-located under the existing Agent `#5541` identity** (not a second ASP) — the existing free service is left untouched; a new paid service (own `fee`, own `endpoint`) is added later, in Lane 8R, via `agent update --service` with an `operation: "create"` delta entry.
+- Official evidence: the installed official Onchain OS CLI (`onchainos.exe`, v4.2.4) `--help` schema, inspected strictly read-only (`agent create`, `agent update`, `agent activate`, `agent service-list`, `payment pay`, `payment charge` — no state-changing command executed), and the official `github.com/okx/onchainos-skills` repository (`skills/okx-ai/references/identity-register.md`, `identity-update.md`, `identity-invariants.md`; `skills/okx-agent-payments-protocol/SKILL.md` + `_shared/amount-display.md`), reachable this session for the first time since Lane 7.4A (`web3.okx.com` itself remained DNS-blocked).
+- Also confirmed: `agent update` never creates a new Agent ID; editing a QA-governed field (name, description, or a service create/update) re-triggers review; X Layer chain id `196` and the USDT-family/6-decimal settlement pattern, independently corroborated from a second official source.
+- Genuine remaining gaps (do not block the topology decision): whether `agent update` succeeds during `#5541`'s first, not-yet-reviewed pending state (vs. only proven after a rejection); whether OKX forwards caller identity/email or a reusable cross-call credential to the ASP.
+- Did not edit, resubmit, or create an ASP. Did not deploy or implement payment code.
 
-**Proof:** topology-resolution record citing only official OKX sources (or a documented `BLOCKED` verdict).
+**Proof:** topology-resolution record citing only official OKX/Onchain-OS sources (CLI help schema + official skills repo). Verdict: `NOBU_LANE_7_4D_0_PASS`. Evidence: `docs/proof/lane-7-4d-0-okx-topology/`.
 
 ## Lane 7.4D — `$0.99` activation
 
-- Only once Lane 7.4D.0 resolves a topology: implement the confirmed topology, `payment_attempts` / `monitor_activations` ledgers, `START_MONITORING` with a server-derived `activation_key` (no caller-supplied idempotency key), exactly-once activation in one durable transaction, replay-safe `200 ALREADY_ACTIVE` (never `409` for a valid replay), fail-closed expired/altered-quote handling, and the settled-but-uncommitted reconciliation job. This is the only lane that may transition a purchase to `MONITORING_ACTIVE` from an agent-native quote.
+- Implements the Lane 7.4D.0-selected topology (separate free/paid A2MCP services co-located under `#5541`): `payment_attempts` / `monitor_activations` ledgers, `START_MONITORING` with a server-derived `activation_key` (no caller-supplied idempotency key), exactly-once activation in one durable transaction, replay-safe `200 ALREADY_ACTIVE` (never `409` for a valid replay), fail-closed expired/altered-quote handling, and the settled-but-uncommitted reconciliation job. This is the only lane that may transition a purchase to `MONITORING_ACTIVE` from an agent-native quote. Registering the actual new paid service on `#5541` is a Lane 8R action, not this lane's.
 - Does not edit or resubmit `#5541`; does not expose unfinished paid behavior publicly.
 
 **Proof:** payment-challenge/settlement/idempotency unit tests, duplicate-replay test (exactly one monitor, `200 ALREADY_ACTIVE`), expired/altered-quote fail-closed test, reconciliation-job test, typecheck, build.

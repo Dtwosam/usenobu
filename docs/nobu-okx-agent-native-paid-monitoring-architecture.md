@@ -1,40 +1,44 @@
-# Nobu OKX Agent-Native Paid Monitoring — Architecture (Lane 7.4A, repaired 7.4A.1, partially implemented 7.4B/7.4C, repaired 7.4C.1)
+# Nobu OKX Agent-Native Paid Monitoring — Architecture (Lane 7.4A, repaired 7.4A.1, partially implemented 7.4B/7.4C, repaired 7.4C.1, topology resolved 7.4D.0)
 
-**Status:** MOSTLY PROPOSED / RESEARCH, with §3.2–§3.5 (Lane 7.4B) and §3.1 steps 2–3/§3.3/§7.2 eligibility-gate/§8 (Lane 7.4C, repaired by 7.4C.1) now IMPLEMENTED. The live contract remains `openapi/nobu-a2mcp.openapi.yaml` for the three original actions; the six Lane 7.4B/7.4C actions are additionally live on the same `/v1/agent` route (`app/v1/agent/route.ts`) as a backward-compatible extension. `PREFLIGHT_MONITORING` never activates monitoring (Lane 7.4C.1 repair — see §3.3). Payment (§5–§7.7 activation mechanics) remains undeployed, gated on Lane 7.4D.0/7.4D.
+**Status:** PARTIALLY IMPLEMENTED / PARTIALLY RESOLVED RESEARCH, with §3.2–§3.5 (Lane 7.4B) and §3.1 steps 2–3/§3.3/§7.2 eligibility-gate/§8 (Lane 7.4C, repaired by 7.4C.1) IMPLEMENTED (in the codebase, unit-tested locally — **not proven deployed to production**; see §10) and the payment topology (§5) now RESOLVED by Lane 7.4D.0. The live contract remains `openapi/nobu-a2mcp.openapi.yaml` for the three original actions; the six Lane 7.4B/7.4C actions are additionally implemented on the same `/v1/agent` route (`app/v1/agent/route.ts`) as a backward-compatible extension. `PREFLIGHT_MONITORING` never activates monitoring (Lane 7.4C.1 repair — see §3.3). Payment (§6–§7.7 activation mechanics) remains unimplemented and undeployed — Lane 7.4D builds it against the topology Lane 7.4D.0 selected.
 
-**Date:** 2026-07-20 (Lane 7.4A) — repaired 2026-07-20 (Lane 7.4A.1) — partially implemented 2026-07-20 (Lane 7.4B, Lane 7.4C) — repaired 2026-07-20 (Lane 7.4C.1)
-**Lane:** 7.4C.1 — Pre-payment activation and roadmap repair
-**ASP #5541:** unchanged (free, `PENDING_REVIEW`) — this lane does not edit or resubmit it. The roadmap no longer waits for its review to resolve before continuing 7.4 development — see §12.
+**Date:** 2026-07-20 (Lane 7.4A) — repaired 2026-07-20 (Lane 7.4A.1) — partially implemented 2026-07-20 (Lane 7.4B, Lane 7.4C) — repaired 2026-07-20 (Lane 7.4C.1) — topology resolved 2026-07-20 (Lane 7.4D.0)
+**Lane:** 7.4D.0 — Official OKX paid-service topology re-check
+**ASP #5541:** unchanged (free, `PENDING_REVIEW`) — this lane does not edit, resubmit, or create an ASP, and does not deploy or implement payment code. The roadmap no longer waits for its review to resolve before continuing 7.4 development — see §12.
 
 ## 0. Research provenance and honesty note
 
-This lane's own research session could not reach OKX's documentation domains: `web3.okx.com` and `www.okx.com` returned DNS `ENOTFOUND` for every attempt, and `okx.ai` / `www.okx.ai` returned `HTTP 403` (reachable, bot-blocked). Wayback/archive mirrors are blocked by tool policy in this environment. This session did **not** personally fetch or read any `web3.okx.com` page, in either the original Lane 7.4A pass or this 7.4A.1 repair. Full detail is in `docs/external-source-registry.md` under "Lane 7.4A / 7.4A.1 — OKX agent-native paid monitoring research."
+**Lane 7.4A/7.4A.1 (2026-07-20, earlier in this project's history):** that research session could not reach OKX's documentation domains: `web3.okx.com` and `www.okx.com` returned DNS `ENOTFOUND` for every attempt, and `okx.ai` / `www.okx.ai` returned `HTTP 403` (reachable, bot-blocked). That session did **not** personally fetch or read any `web3.okx.com` page; the OKX-specific facts it used were coordinator-provided (see below).
+
+**Lane 7.4D.0 (2026-07-20, this repair):** `web3.okx.com` / `www.okx.com` remained DNS-unreachable — that specific block is unchanged. However, this session **did** directly and successfully fetch the official `github.com/okx/onchainos-skills` repository (named in this lane's source rule as an acceptable official source), and separately inspected the **read-only `--help` schema** of the official Onchain OS CLI (`onchainos.exe`, v4.2.4) already installed in this environment from prior lane work — no state-changing command was run. Full detail, including every URL/command and exactly what each did and did not establish, is in `docs/external-source-registry.md` under "Lane 7.4D.0 — Official OKX paid-service topology re-check."
 
 **Source purity rule (7.4A.1):** every claim below about OKX.AI, A2MCP, Agentic Wallet, ASP registration, x402 payments, marketplace pricing, settlement networks/assets, review behavior, or listing topology rests only on official OKX/Onchain OS documentation or the coordinator-provided official findings recorded in the registry. The original 7.4A pass also cited `x402.org`, Cloudflare's documentation, this environment's packaged `okx-agent-payments-protocol` skill, WebSearch synthesis, and a generic Solana `SettlementCache` detail to corroborate or infer OKX-specific behavior. **All of those citations are removed from this document as of 7.4A.1** — none of them appear below as support for an OKX-specific claim. They are retained only as a historical record in the registry, marked as removed and why.
 
 Five OKX-specific facts used below are **coordinator-provided**, not self-fetched: the task coordinator had working access to `web3.okx.com/onchainos/dev-docs/okxai/registerasp`, `.../okxai/howtomcp`, `.../payments/api-http`, and `.../payments/service-seller-reverseproxy`, and supplied their content (including a worked X Layer settlement example) directly. These are recorded as `OKX-REGISTER-2`, `OKX-A2MCP-2`, `OKX-PAY-HTTP`, `OKX-PAY-PROXY`, `OKX-XLAYER-EXAMPLE` in the external source registry and are treated as official-source evidence, but this document never claims this session independently verified them.
 
-## 1. Confirmed official OKX capabilities (OKX official documentation only)
+## 1. Confirmed official OKX capabilities (OKX official documentation, official CLI schema, and official skills repository only)
 
-- A2MCP registration takes a service name, description, a price per call, and one endpoint. **Price `0` means a free service** (`OKX-REGISTER-2`).
+- A2MCP registration takes a service name, description, a price per call, and one endpoint **per service** (`OKX-REGISTER-2`). **Price `0` means a free service.**
 - The registered endpoint is documented as one of two forms (`OKX-A2MCP-2`):
   1. **free** — returns the result directly with `HTTP 200`;
   2. **x402 pay-per-call** — returns `HTTP 402` before payment and replay.
-- The seller-side payment flow is: protected request → `HTTP 402` payment challenge → signed payment → request replay (`OKX-PAY-HTTP`).
-- OKX's reverse-proxy payment infrastructure **can technically contain free and paid routes** (`OKX-PAY-PROXY`) — this is a statement about infrastructure capability, not about the A2MCP marketplace listing rule, and is **not** treated as proof that one A2MCP listing may mix free and paid actions. See §5.
-- Official X Layer settlement example (`OKX-XLAYER-EXAMPLE`): network `eip155:196`; asset **USD₮0**; asset address `0x779ded0c9e1022225f8e0630b35a9b54be713736`; decimals `6`; a `$0.99` display amount equals `990000` base units.
+- The seller-side payment flow is: protected request → `HTTP 402` payment challenge → signed payment → request replay (`OKX-PAY-HTTP`; independently confirmed via the official CLI's own `payment pay`/`payment charge` schemas, `OKX-CLI-HELP`).
+- OKX's reverse-proxy payment infrastructure **can technically contain free and paid routes** (`OKX-PAY-PROXY`) — this is a statement about infrastructure capability, not about the A2MCP marketplace listing rule, and is **not** treated as proof that one A2MCP listing may mix free and paid actions within a single service/endpoint. See §5.
+- Official X Layer settlement example (`OKX-XLAYER-EXAMPLE`): network `eip155:196`; asset **USD₮0**; asset address `0x779ded0c9e1022225f8e0630b35a9b54be713736`; decimals `6`; a `$0.99` display amount equals `990000` base units. **Independently corroborated (Lane 7.4D.0):** the official CLI documents A2MCP `fee` as "USDT implied, ≤6 decimals" (`OKX-CLI-HELP`); the official `okx-agent-payments-protocol` skill's settlement decimals table lists USDC/USDT/USDG all at 6 decimals with `human = atomic / 10^decimals` (`OKX-SKILLS-PAYMENTS`); a second, independent official worked example in that same skill uses `chainId: 196` labelled "X Layer." The literal asset address and the specific `990000`-for-`$0.99` figure remain coordinator-provided only (not literally re-fetched), now generically corroborated by this pattern.
+- **(Lane 7.4D.0 — new) One Agent identity may register multiple A2MCP services, each with its own independent `fee` and `endpoint`.** The official CLI's `agent create --help` / `agent update --help` document `--service` as a JSON **array**, each element carrying its own `serviceType`/`fee`/`endpoint`; the official `okx-ai` skill's `identity-register.md` states plainly: *"All services ship in one `agent create`" — multiple services per agent are fully supported.* (`OKX-CLI-HELP`, `OKX-SKILLS-IDENTITY-REGISTER`.)
+- **(Lane 7.4D.0 — new) `agent update` never creates a new Agent ID**, and re-triggers QA/marketplace review whenever a "QA-governed field" changes (agent name, description, or any service create/update entry) — documented in `identity-update.md` and independently corroborated by this project's own Lane 8 avatar-fix evidence (`docs/proof/okx/gate5-update-avatar-redacted.json`: `newAgentId: null`, followed by a fresh `approvalStatus: 2` after `activate`). (`OKX-SKILLS-IDENTITY-UPDATE`, `OKX-CLI-HELP`.)
+- **(Lane 7.4D.0 — new) Service updates are incremental** — `agent update --service` accepts only the services being added/modified/removed (via `operation: create|update|delete`); an omitted existing service is left untouched, not cleared. (`OKX-CLI-HELP`, `OKX-SKILLS-IDENTITY-UPDATE`.)
 
 ## 2. Undocumented or blocked capabilities
 
-Kept explicitly unresolved — not established by any official OKX source reachable or supplied this session, and not to be inferred from any non-OKX source:
+Kept explicitly unresolved — not established by any official OKX source reachable or supplied this or any prior session, and not to be inferred from any non-OKX source:
 
-- Whether **one A2MCP listing** may mix free and paid actions.
-- Whether Nobu may register **multiple differently priced ASP listings**.
-- Whether ASP `#5541` may **change price while under review**, and what resubmission that would require.
+- Whether **one A2MCP service/endpoint** may itself mix free and paid actions (branch `200` vs `402` per request body within a single registered service). Still unsupported per §1 — resolved by Lane 7.4D.0 as **not selected** (§5), not by proof it is impossible.
+- Whether ASP `#5541` may change price while under review, specifically during its **first, not-yet-reviewed pending state** (as opposed to after a rejection, which Lane 7.4D.0 confirmed both officially and empirically — §5).
 - Whether OKX forwards a **verified user identity or email** to the ASP.
 - Whether OKX forwards a **reusable cross-call authorization credential** the ASP can rely on between requests.
 
-None of these are resolved by this lane. They gate Lane 7.4D, via Lane 7.4D.0's "official OKX paid-service topology re-check" (§12) — which is not itself blocked on ASP `#5541`'s free-listing review resolving; that review runs independently, and `#5541` is not edited or resubmitted before Lane 8R (§12).
+The first two no longer gate Lane 7.4D's topology selection — Lane 7.4D.0 (§5, §12) resolved the topology using other, sufficient official evidence. The identity/credential items remain open but do not block Lane 7.4D, because Nobu's own agent-native email verification (§3) never depended on them. `#5541` is not edited or resubmitted before Lane 8R (§12); `#5541`'s existing free-listing review runs independently.
 
 ## 3. Identity architecture — selected
 
@@ -49,16 +53,16 @@ This is not an emergency fallback adopted only because OKX proof was unobtainabl
 ### 3.1 Agent flow, in order
 
 1. `UNDERSTAND_PURCHASE` (free, live today) — natural-language purchase intake.
-2. `DISCOVER_PRODUCT` (free, proposed) — returns bounded Target candidates plus an expiring, server-issued `discovery_session_id`. **Discovery does not require prior email verification** and creates no durable owned purchase.
-3. The user selects the exact product; the agent calls `CONFIRM_PRODUCT` (free, proposed) with `discovery_session_id` + `candidate_id`. The server reloads and revalidates the held candidate snapshot (same pattern as `src/matching/confirm.ts`) and locks a fingerprint **against the discovery session**, not against any account — still no durable owned purchase, and no private monitoring state exists yet.
-4. `BEGIN_EMAIL_VERIFICATION` (free, proposed) — the agent submits an email address. **Nobu sends the code by email. The user reads it and enters it in the AI-agent conversation. The agent submits it to Nobu.**
+2. `DISCOVER_PRODUCT` (free, IMPLEMENTED — Lane 7.4C) — returns bounded Target candidates plus an expiring, server-issued `discovery_session_id`. **Discovery does not require prior email verification** and creates no durable owned purchase.
+3. The user selects the exact product; the agent calls `CONFIRM_PRODUCT` (free, IMPLEMENTED — Lane 7.4C) with `discovery_session_id` + `candidate_id`. The server reloads and revalidates the held candidate snapshot (same pattern as `src/matching/confirm.ts`) and locks a fingerprint **against the discovery session**, not against any account — still no durable owned purchase, and no private monitoring state exists yet.
+4. `BEGIN_EMAIL_VERIFICATION` (free, IMPLEMENTED — Lane 7.4B) — the agent submits an email address. **Nobu sends the code by email. The user reads it and enters it in the AI-agent conversation. The agent submits it to Nobu.**
 5. The user reads the code from their inbox and tells the agent.
-6. `VERIFY_EMAIL_CODE` (free, proposed) — the agent submits the code. On success, Nobu creates (or reuses) a verified `agent_connections` row and returns a `connection_id` **and** a high-entropy `connection_token`, shown once. From this point on, a verified connection exists.
+6. `VERIFY_EMAIL_CODE` (free, IMPLEMENTED — Lane 7.4B) — the agent submits the code. On success, Nobu creates (or reuses) a verified `agent_connections` row and returns a `connection_id` **and** a high-entropy `connection_token`, shown once. From this point on, a verified connection exists.
 7. The agent asks the user for explicit **monitoring consent** and records the user's explicit answer.
 8. The agent asks the user for explicit **email-alert consent** and records the user's explicit answer.
-9. `PREFLIGHT_MONITORING` (free, proposed) — the agent submits `connection_id` + `connection_token` + `discovery_session_id` + both consent booleans. Only here does Nobu materialize a durable, account-owned `purchases` row from the discovery session's locked fingerprint, run the full deterministic eligibility check (§8), record both consents durably, and — only on a full pass — mint a `monitoring_enrollment_quotes` row and return `MONITORING_PAYMENT_READY`.
-10. A genuine OKX payment occurs against the quote, through whichever marketplace topology Lane 7.4D's capability re-check ultimately supports.
-11. `START_MONITORING` (paid, proposed) — consumes the settled payment and activates monitoring exactly once.
+9. `PREFLIGHT_MONITORING` (free, IMPLEMENTED — Lane 7.4C, repaired 7.4C.1) — the agent submits `connection_id` + `connection_token` + `discovery_session_id` + both consent booleans. Only here does Nobu materialize a durable, account-owned `purchases` row from the discovery session's locked fingerprint, run the full deterministic eligibility check (§8), record both consents durably, and — only on a full pass — mint a `monitoring_enrollment_quotes` row and return `MONITORING_PAYMENT_READY`.
+10. A genuine OKX payment occurs against the quote, through the resolved marketplace topology (§5) — a second, paid A2MCP service registered on `#5541`.
+11. `START_MONITORING` (paid, PROPOSED / NOT IMPLEMENTED — Lane 7.4D) — consumes the settled payment and activates monitoring exactly once. Registered as a second A2MCP service on `#5541` per §5, not the existing free endpoint.
 
 The website remains optional at every step; no step above requires a browser visit.
 
@@ -144,15 +148,28 @@ For the `$0.99` monitored-product service, both of the following must be recorde
 
 Both are captured conversationally (§3.1 steps 7–8) and submitted together on the `PREFLIGHT_MONITORING` call; neither is inferred from the user having reached that step in the conversation. `email_alert_consent` may be revisited later via `ENABLE_EMAIL_ALERTS` / `DISABLE_EMAIL_ALERTS` (§10) without affecting `monitoring_consent` or the underlying monitor. This extends the existing Lane 7.3B `purchase_email_alert_prefs` / `email_alerts_consent_at` durable-consent pattern to also cover the base monitoring consent, which today is implicit in "user clicked Find my product" on the web flow.
 
-## 5. Payment topology — unresolved, none selected
+## 5. Payment topology — RESOLVED (Lane 7.4D.0, 2026-07-20)
 
-Per §1 and §2, an A2MCP endpoint is registered with one price and is documented as one of two forms (free-direct, or x402-paid), and OKX's reverse-proxy infrastructure being technically capable of hosting mixed routes does not establish that one **A2MCP listing** may do so. No topology is selected in this lane. Three possibilities are documented, all unresolved, all requiring official OKX confirmation before implementation:
+Per §1, an individual A2MCP **service** registration takes one price and one endpoint and is documented as one of two forms (free-direct, or x402-paid). Three possibilities were documented and left unresolved through Lane 7.4A.1:
 
-1. **One mixed free/paid A2MCP listing** — the existing `/v1/agent` endpoint (or `#5541`) branches per request between a free `200` and an x402 `402`, based on which action is called. **Only viable if official OKX evidence permits it** — not established either way by §1's facts.
-2. **Separate free and paid A2MCP listings** — the free orchestration actions (`UNDERSTAND_PURCHASE` through `PREFLIGHT_MONITORING`) stay on one listing, and a second, separately registered listing carries exactly one paid activation action. **Only viable if official OKX evidence permits one provider to hold multiple differently priced listings** — not established either way by §1's facts.
-3. **Convert the current service to paid and relocate free preparation elsewhere** — `#5541` (or its successor) becomes the paid activation surface, and the free orchestration actions move to the web product and/or a separate free listing. Requires resolving whether `#5541` may change price while under review (§2), and is the most disruptive to the existing live free listing.
+1. **One mixed free/paid A2MCP listing** — a single registered service/endpoint branches per request between a free `200` and an x402 `402`, based on which action is called.
+2. **Separate free and paid A2MCP listings** — the free orchestration actions stay on one service, and a second, independently priced/endpointed service carries exactly one paid activation action.
+3. **Convert the current service to paid and relocate free preparation elsewhere** — `#5541` (or its successor) becomes the paid activation surface; free orchestration moves elsewhere.
 
-**None of the three is selected.** `#5541` remains free, unchanged, and under review throughout this lane. Lane 7.4D.0, the "official OKX paid-service topology re-check," resolves which possibility (if any) official OKX evidence supports; Lane 7.4D only proceeds to implementation once one is confirmed. If none is confirmed, Lane 7.4D.0 returns `NOBU_LANE_7_4D_0_BLOCKED` (§12).
+**Selected: Option 2 — separate free and paid A2MCP services, co-located under the existing Agent `#5541` identity** (not a second Agent/ASP registration). Official evidence (Lane 7.4D.0, `docs/external-source-registry.md` "Lane 7.4D.0"):
+
+- The official Onchain OS CLI (`onchainos.exe agent create --help` / `agent update --help`, v4.2.4) documents `--service` as a JSON **array**; each element carries its own `serviceType` (`A2MCP`), `fee`, and `endpoint`.
+- The official `okx-ai` skill (`skills/okx-ai/references/identity-register.md`, `github.com/okx/onchainos-skills`) states plainly that multiple services per agent are fully supported.
+- `agent update --service` accepts **incremental** changes (`operation: create|update|delete`); an existing service that is not named in the delta is left untouched, not cleared (`identity-update.md`, `agent update --help`).
+- `agent update` never creates a new Agent ID and does not require abandoning `#5541`'s existing free service or its review history (`identity-update.md`: *"Rejected listing → update the same agent, never create new"*; empirically corroborated by this project's own Lane 8 avatar-fix evidence).
+
+**Concretely (implemented in Lane 8R, not this documentation-only lane):** `#5541`'s existing free A2MCP service (`https://usenobu.vercel.app/v1/agent`, fee `0`) is left untouched — omitted from the update delta. A **second** A2MCP service is added to the same `#5541` agent via one `operation: "create"` entry: its own `fee` (`0.99`), its own `endpoint` (`https://usenobu.vercel.app/v1/agent/start-monitoring`, matching the already-designed proposed path in `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml`). This is genuinely a "separate listing" in the sense that matters (independent price, independent endpoint, independently reachable) — not the rejected "mixed" option (branching one endpoint's response code per request body), and not the disruptive "convert" option (the free service is never touched).
+
+**Not selected — Option 1 (mixed single-service branching):** remains unsupported. Nothing in this session's official findings shows a single service/endpoint returning `200` for some request bodies and `402` for others; each service element has exactly one `fee` and one `endpoint`. Per the task's starting-evidence instruction, this option is treated as unsupported absent explicit official permission, and none was found.
+
+**Not selected — Option 3 (convert `#5541` to paid, relocate free elsewhere):** Option 2 is officially proven, is strictly less disruptive (the existing free service, its review history, and its listing URL are never touched), and avoids ever needing to resolve "may `#5541` change its *existing* price while under review" — a question Lane 7.4D.0 did not need to answer because the free service's price is never changed.
+
+**Genuine remaining gap, does not block this selection:** whether `agent update` succeeds while `#5541` is in its **first, not-yet-reviewed** pending state (as opposed to after a rejection, which is both documented and empirically proven — see `docs/external-source-registry.md`) is not established by any official source found. This affects *timing* of the Lane 8R update call (it may need to wait for `#5541`'s current review to resolve, one way or the other, before adding the paid service), not the *topology* selected here. `#5541` is not edited or resubmitted by this lane or before Lane 8R (§12).
 
 ## 6. Durable records (topology-independent)
 
@@ -167,8 +184,8 @@ monitoring_enrollment_quotes
   fingerprint_id             TEXT      -- locked product fingerprint
   price_amount               NUMERIC   -- 0.99
   price_currency              TEXT      -- "USD" (display)
-  settlement_asset            TEXT NULL -- expected default per OKX-XLAYER-EXAMPLE: USD₮0 — confirmed only once Lane 7.4D selects a topology
-  settlement_network           TEXT NULL -- expected default per OKX-XLAYER-EXAMPLE: eip155:196 (X Layer) — confirmed only once Lane 7.4D selects a topology
+  settlement_asset            TEXT NULL -- expected default per OKX-XLAYER-EXAMPLE: USD₮0 — literal asset/address not yet independently re-fetched (see Lane 7.4D.0 registry entry); confirmed only once Lane 7.4D implements against a real registered paid service
+  settlement_network           TEXT NULL -- expected default per OKX-XLAYER-EXAMPLE: eip155:196 (X Layer), independently corroborated (chainId 196) by the official okx-agent-payments-protocol skill in Lane 7.4D.0; confirmed only once Lane 7.4D implements
   monitoring_deadline           TEXT      -- copied from the Target policy window at quote time
   consent_monitoring_at          TEXT      -- durable, required non-null before this row can exist
   consent_email_alerts_at         TEXT      -- durable, required non-null before this row can exist
@@ -255,44 +272,51 @@ purchases (new columns)
 - Once `monitoring_stopped_at` is set, the purchase must no longer be selected by the scheduler — the existing active-purchase selection query (`src/monitoring/selection.ts`) must exclude any row with `monitoring_stopped_at IS NOT NULL`, in addition to its existing window/status checks. This is a required Lane 7.4E implementation detail, not implemented by this documentation-only lane.
 - `REVOKE_AGENT_CONNECTION` (§3.5) and `STOP_MONITORING` never touch `monitor_activations` or payment records, and no response body, email, or status message issued by either action promises or implies a refund. Response text for both is reviewed against the existing locked-language list in `docs/nobu-clean-master-spec.md` §9 before implementation.
 
-## 10. Proposed action contract and statuses
+## 10. Action contract and statuses — implementation status corrected (Lane 7.4D.0)
 
-All actions below are **proposed**, additive to the existing three live actions. None are implemented by this lane.
+Three honest tiers, not two: **LIVE** (deployed to production with proof — currently only the three original actions), **IMPLEMENTED** (exists in the codebase, passes local unit tests, wired into `runAgentAction`/`/v1/agent` — but this project has not recorded a production deployment/curl proof for these six, so they are not called "live"), and **PROPOSED / NOT IMPLEMENTED** (design only, no code).
 
-| Action | Free/Paid | Purpose |
+| Action | Free/Paid | Status | Purpose |
+|---|---|---|---|
+| `UNDERSTAND_PURCHASE` | free | **LIVE** (deployed, pre-dates this document) | unchanged |
+| `CHECK_CONFIRMED_PURCHASE` | free | **LIVE** (deployed, pre-dates this document) | unchanged |
+| `CHECK_MONITORING_STATUS` | free | **LIVE** (deployed, pre-dates this document) | unchanged |
+| `DISCOVER_PRODUCT` | free | **IMPLEMENTED** (Lane 7.4C; not deployment-proven) | §3.1 step 2 — returns candidates + `discovery_session_id`; no connection required |
+| `CONFIRM_PRODUCT` | free | **IMPLEMENTED** (Lane 7.4C; not deployment-proven) | §3.1 step 3 — locks a fingerprint against the discovery session; no connection required |
+| `BEGIN_EMAIL_VERIFICATION` | free | **IMPLEMENTED** (Lane 7.4B; not deployment-proven) | §3.1 step 4 |
+| `VERIFY_EMAIL_CODE` | free | **IMPLEMENTED** (Lane 7.4B; not deployment-proven) | §3.1 step 6 — returns `connection_id` + one-time `connection_token` |
+| `PREFLIGHT_MONITORING` | free | **IMPLEMENTED** (Lane 7.4C, repaired 7.4C.1; not deployment-proven) | §7.2 — the free/paid boundary; materializes the purchase and mints a quote only on full eligibility + consent pass; never activates monitoring (§3.3) |
+| `REVOKE_AGENT_CONNECTION` | free | **IMPLEMENTED** (Lane 7.4B; not deployment-proven) | §3.5 |
+| `START_MONITORING` | **paid** | PROPOSED / NOT IMPLEMENTED (Lane 7.4D) | §7.4 — consumes a settled payment against a quote; exactly-once, server-derived identity; registered as a **second A2MCP service** on `#5541` per §5, not this same free endpoint |
+| `LIST_ACTIVE_MONITORS` | free | PROPOSED / NOT IMPLEMENTED (Lane 7.4E) | owner-scoped list, reusing existing owner-scope rules from `src/web/session-owner.ts` |
+| `ENABLE_EMAIL_ALERTS` / `DISABLE_EMAIL_ALERTS` | free | PROPOSED / NOT IMPLEMENTED (Lane 7.4E) | agent-native equivalent of the existing `src/notifications/prefs.ts` toggle |
+| `STOP_MONITORING` | free | PROPOSED / NOT IMPLEMENTED (Lane 7.4E) | §9 |
+
+### Continuation statuses (additive to the existing `A2mcpStatus`/agent response vocabulary — IMPLEMENTED statuses per Lane 7.4B/7.4C; the rest remain PROPOSED)
+
+Canonical, authoritative per-status implementation status lives in `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml`'s `ContinuationStatus` enum (kept in sync by every lane that implements an action); this table is a narrative summary.
+
+| Status | Status | Meaning |
 |---|---|---|
-| `UNDERSTAND_PURCHASE` | free (live today) | unchanged |
-| `DISCOVER_PRODUCT` | free (proposed) | §3.1 step 2 — returns candidates + `discovery_session_id`; no connection required |
-| `CONFIRM_PRODUCT` | free (proposed) | §3.1 step 3 — locks a fingerprint against the discovery session; no connection required |
-| `BEGIN_EMAIL_VERIFICATION` | free (proposed) | §3.1 step 4 |
-| `VERIFY_EMAIL_CODE` | free (proposed) | §3.1 step 6 — returns `connection_id` + one-time `connection_token` |
-| `PREFLIGHT_MONITORING` | free (proposed) | §7.2 — the free/paid boundary; materializes the purchase and mints a quote only on full eligibility + consent pass |
-| `START_MONITORING` | **paid** (proposed) | §7.4 — consumes a settled payment against a quote; exactly-once, server-derived identity |
-| `CHECK_MONITORING_STATUS` | free (live today) | unchanged |
-| `LIST_ACTIVE_MONITORS` | free (proposed) | owner-scoped list, reusing existing owner-scope rules from `src/web/session-owner.ts` |
-| `ENABLE_EMAIL_ALERTS` / `DISABLE_EMAIL_ALERTS` | free (proposed) | agent-native equivalent of the existing `src/notifications/prefs.ts` toggle |
-| `STOP_MONITORING` | free (proposed) | §9 |
-| `REVOKE_AGENT_CONNECTION` | free (proposed) | §3.5 |
-
-### Continuation statuses (proposed, additive to the existing `A2mcpStatus`/agent response vocabulary)
-
-| Status | Meaning |
-|---|---|
-| `MORE_INFORMATION_REQUIRED` | purchase intake incomplete; mirrors existing `UNDERSTAND_PURCHASE` behavior |
-| `PRODUCT_CONFIRMATION_REQUIRED` | candidates returned, awaiting explicit `CONFIRM_PRODUCT` |
-| `EMAIL_VERIFICATION_REQUIRED` | no active `agent_connections` row for this conversation |
-| `EMAIL_CODE_SENT` | `BEGIN_EMAIL_VERIFICATION` succeeded; awaiting `VERIFY_EMAIL_CODE` |
-| `EMAIL_VERIFIED` | connection active; `connection_token` issued |
-| `CONSENT_REQUIRED` | monitoring and/or email-alert consent not yet given |
-| `MONITORING_PAYMENT_READY` | `PREFLIGHT_MONITORING` passed; quote minted, awaiting genuine OKX payment (§7.2 — not an HTTP 402 itself) |
-| `PAYMENT_PENDING` | payment challenged/verifying, not yet settled |
-| `MONITORING_STARTED` | first successful activation for this quote |
-| `MONITORING_ACTIVE` | existing status, unchanged |
-| `PRICE_DROP_DETECTED` | existing status, unchanged |
-| `ALREADY_ACTIVE` | replayed activation resolving to an already-consumed quote; returned with `HTTP 200`, never `409` (§7.4) |
-| `ACTION_NOT_AUTHORIZED` | missing/invalid/expired connection token, revoked connection, or action targets a purchase the connection does not own |
-| `CONNECTION_EXPIRED` | connection credential or quote expired/altered (§7.5) |
-| `UNSUPPORTED_PURCHASE` | existing status, unchanged |
+| `MORE_INFORMATION_REQUIRED` | IMPLEMENTED | purchase intake incomplete; mirrors existing `UNDERSTAND_PURCHASE` behavior |
+| `PRODUCT_CONFIRMATION_REQUIRED` | IMPLEMENTED | candidates returned, awaiting explicit `CONFIRM_PRODUCT` (also returned by `PREFLIGHT_MONITORING` for an unconfirmed session) |
+| `PRODUCT_CONFIRMED` | IMPLEMENTED | `CONFIRM_PRODUCT` succeeded — locked a session-bound fingerprint |
+| `CANDIDATE_NOT_CONFIRMABLE` | IMPLEMENTED | `CONFIRM_PRODUCT` rejected a tampered/unknown/weak/title-only/non-Target/Target-Plus candidate |
+| `EMAIL_VERIFICATION_REQUIRED` | PROPOSED / NOT IMPLEMENTED | no active `agent_connections` row for this conversation |
+| `EMAIL_CODE_SENT` | IMPLEMENTED | `BEGIN_EMAIL_VERIFICATION` succeeded; awaiting `VERIFY_EMAIL_CODE` |
+| `EMAIL_VERIFIED` | IMPLEMENTED | connection active; `connection_token` issued |
+| `CODE_INVALID` / `CODE_EXPIRED` | IMPLEMENTED | wrong code (attempt consumed) / code expired or attempts exhausted — a new `BEGIN_EMAIL_VERIFICATION` is required |
+| `CONNECTION_REVOKED` | IMPLEMENTED | `REVOKE_AGENT_CONNECTION` succeeded |
+| `CONSENT_REQUIRED` | IMPLEMENTED | monitoring and/or email-alert consent not yet given |
+| `MONITORING_PAYMENT_READY` | IMPLEMENTED | `PREFLIGHT_MONITORING` passed; quote minted, awaiting genuine OKX payment (§7.2 — not an HTTP 402 itself). Purchase status is `MONITORING_PAYMENT_READY_STATUS`, never `MONITORING_ACTIVE` (Lane 7.4C.1) |
+| `UNSUPPORTED_PURCHASE` / `POLICY_EXCLUSION` / `WINDOW_EXPIRED` / `POLICY_STALE` | IMPLEMENTED for `PREFLIGHT_MONITORING` | existing locked policy statuses, returned as-is (not wrapped) when a purchase fails deterministic eligibility before a quote is minted |
+| `PAYMENT_PENDING` | PROPOSED / NOT IMPLEMENTED (Lane 7.4D) | payment challenged/verifying, not yet settled |
+| `MONITORING_STARTED` | PROPOSED / NOT IMPLEMENTED (Lane 7.4D) | first successful activation for this quote |
+| `MONITORING_ACTIVE` | existing status, LIVE | unchanged — only Lane 7.4D's `START_MONITORING` may set this on an agent-native purchase |
+| `PRICE_DROP_DETECTED` | existing status, LIVE | unchanged |
+| `ALREADY_ACTIVE` | PROPOSED / NOT IMPLEMENTED (Lane 7.4D) | replayed activation resolving to an already-consumed quote; returned with `HTTP 200`, never `409` (§7.4) |
+| `ACTION_NOT_AUTHORIZED` | IMPLEMENTED | missing/invalid/expired connection token, revoked connection, or action targets a purchase the connection does not own |
+| `CONNECTION_EXPIRED` | IMPLEMENTED | discovery session (or, once Lane 7.4D exists, connection credential/quote) expired or altered (§7.5) |
 
 ## 11. Reused vs new components
 
@@ -310,8 +334,8 @@ All actions below are **proposed**, additive to the existing three live actions.
 - **Lane 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight. COMPLETE (repaired by 7.4C.1).** Implemented `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT`, `discovery_sessions` (§3.3, now including `structured_snapshot_json`), consent capture (both `monitoring_consent`/`email_alert_consent` required true, checked in the service layer rather than schema-enforced so a `false` yields a truthful `CONSENT_REQUIRED` instead of a generic 400), `PREFLIGHT_MONITORING`, purchase materialization, and `monitoring_enrollment_quotes` (§6, `settlement_asset`/`settlement_network` left `NULL` pending Lane 7.4D). Reused `src/matching/discovery-candidates.ts`, `src/matching/confirm.ts`, `src/policy/evaluate-target-policy.ts`, and the Lane 7.4B `authorizeAgentConnection` helper — no parallel implementation. Idempotency: an atomic `discovery_sessions` reservation (first caller wins) plus a partial-unique index on `monitoring_enrollment_quotes(purchase_id) WHERE status='issued'` guarantee retries/concurrency never create a second purchase or a second active quote. Also did not require the payment topology decision. **Bug (repaired by 7.4C.1 below):** the original pass attached the locked fingerprint via `confirmAndPersistLockedFingerprint`, which also activated monitoring (`MONITORING_ACTIVE`) — before any payment existed. Evidence: `docs/proof/lane-7-4c-agent-preflight/`.
 - **Lane 7.4C.1 — Pre-payment activation and roadmap repair. COMPLETE.** Replaced `PREFLIGHT_MONITORING`'s fingerprint-attach call with `confirmAndPersistLockedFingerprintPending` (`src/matching/store.ts`) — same persistence, but leaves the purchase in the truthful, scheduler-ineligible `MONITORING_PAYMENT_READY_STATUS` instead of `MONITORING_ACTIVE`; the web confirmation flow's `confirmAndPersistLockedFingerprint` is unchanged. Made preflight failure-recoverable (purchase-insertion retry after a successful session reservation recovers using the reserved id; quote-issuance failure returns a graceful error and can never leave an active purchase; retries/concurrency still produce exactly one purchase and one active quote; an existing valid quote is reused). Corrected this document and the Lane 7.4C proof bundle. **Roadmap correction:** removed the requirement to wait for ASP `#5541`'s current review before continuing 7.4 development — see the adopted order below. Evidence: `docs/proof/lane-7-4c-agent-preflight/` (updated).
 - **Adopted roadmap order:** `7.4C.1 → 7.4D.0 → 7.4D → 7.4E → 7.4F → Lane 8R → 7.4G → Lane 9`. During 7.4D.0–7.4F: do not edit or resubmit `#5541`; do not expose unfinished paid behavior publicly; use only official OKX evidence for topology decisions. `#5541`'s existing free-listing review (`docs/nobu-build-order.md` Lane 8) runs independently and is not a blocking gate for this sequence.
-- **Lane 7.4D.0 — Official OKX paid-service topology re-check.** Using only official OKX evidence available at that time: resolves which (if any) of the three §5 possibilities is supported, whether `#5541` may change price under review, and whether OKX forwards identity/a cross-call credential. **Returns `NOBU_LANE_7_4D_0_BLOCKED` if topology remains unresolved.** Does not edit or resubmit `#5541`.
-- **Lane 7.4D — `$0.99` activation.** Only once Lane 7.4D.0 resolves a topology: implements `payment_attempts`, `monitor_activations`, `START_MONITORING`, and the exactly-once/idempotency/fail-closed/reconciliation behavior in §7. The only lane that may transition a purchase to `MONITORING_ACTIVE` from an agent-native quote.
+- **Lane 7.4D.0 — Official OKX paid-service topology re-check. COMPLETE.** Resolved (§5): **separate free and paid A2MCP services, co-located under the existing Agent `#5541` identity**, added via `agent update --service` (`operation: create`, incremental — the existing free service is untouched). Evidence: official Onchain OS CLI schema (`onchainos.exe agent create --help` / `agent update --help`, v4.2.4, read-only) and the official `okx-ai` / `okx-agent-payments-protocol` skills in `github.com/okx/onchainos-skills` (self-fetched this session — reachable for the first time since Lane 7.4A; `web3.okx.com` remained DNS-blocked). Also confirmed: `agent update` never creates a new Agent ID; editing re-triggers QA/review; X Layer chain id 196 and the USDT-family/6-decimal settlement pattern, independently corroborated. Remaining gap (does not block the selection): whether `agent update` succeeds during `#5541`'s *first, not-yet-reviewed* pending state, vs. only proven after a rejection. Whether OKX forwards caller identity/email or a reusable cross-call credential remains unresolved and does not block Lane 7.4D (Nobu's own email verification never depended on it). Did not edit, resubmit, or create an ASP; did not deploy or implement payment code. Verdict: `NOBU_LANE_7_4D_0_PASS`. Evidence: `docs/proof/lane-7-4d-0-okx-topology/`.
+- **Lane 7.4D — `$0.99` activation.** Implements the Lane 7.4D.0-selected topology: `payment_attempts`, `monitor_activations`, `START_MONITORING`, and the exactly-once/idempotency/fail-closed/reconciliation behavior in §7, against a new paid A2MCP service added to `#5541` per §5. The only lane that may transition a purchase to `MONITORING_ACTIVE` from an agent-native quote.
 - **Lane 7.4E — Agent-native monitor management.** `CHECK_MONITORING_STATUS` (already live) extended, `LIST_ACTIVE_MONITORS`, `ENABLE_EMAIL_ALERTS`/`DISABLE_EMAIL_ALERTS`, `STOP_MONITORING` (§9), scheduler-selection exclusion for stopped purchases. Does not edit or resubmit `#5541`.
 - **Lane 7.4F — Scheduler and notification integration.** Proves agent-originated paid monitors flow through the existing scheduler/notification stack unmodified (§11). Does not edit or resubmit `#5541`.
 - **Lane 8R — Accurate edit/resubmit of ASP #5541.** First point in the roadmap where `#5541` is edited or resubmitted since its original registration, done only once 7.4D–7.4F are built and proven, so the listing accurately describes what is genuinely live.
