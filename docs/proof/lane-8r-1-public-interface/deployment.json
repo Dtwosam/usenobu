@@ -1,0 +1,30 @@
+{
+  "lane": "8R.1",
+  "verdict": "NOBU_LANE_8R_1_PASS",
+  "local_head": "354cdb1c525cbbd24f977767cd88140c60c3cfb9",
+  "origin_master": "354cdb1c525cbbd24f977767cd88140c60c3cfb9",
+  "commit_message": "Align Nobu public website experience",
+  "deployment_url": "https://usenobu-mjrpc8nlt-dtwoflicks-2878s-projects.vercel.app",
+  "deployment_id": "dpl_9w67CtqPM6rXcnmz9gPyZzgtTyd4",
+  "aliases": [
+    "https://usenobu.vercel.app",
+    "https://www.usenobu.xyz",
+    "https://usenobu.xyz"
+  ],
+  "external_checks": {
+    "https://usenobu.vercel.app/": 200,
+    "https://usenobu.vercel.app/okx": 200,
+    "https://usenobu.vercel.app/notices": 200,
+    "https://usenobu.vercel.app/purchases/new": 200,
+    "https://usenobu.vercel.app/health": 200,
+    "https://usenobu.vercel.app/v1/agent": "200 free UNDERSTAND_PURCHASE",
+    "marketplace_cta_fallback": "/okx",
+    "forbidden_public_language": "absent"
+  },
+  "notes": [
+    "No ASP #5541 edit or resubmit",
+    "No genuine payment",
+    "No OKX secrets in proof",
+    "usenobu.vercel.app re-aliased to this deployment after promote"
+  ]
+}

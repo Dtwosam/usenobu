@@ -119,7 +119,24 @@ Note: naive substring match on `X-PAYMENT` can false-positive on `okx-payment` t
 
 ## Deployment
 
-See `deployment.md` after production promote.
+| Item | Value |
+|---|---|
+| Local HEAD | `354cdb1c525cbbd24f977767cd88140c60c3cfb9` |
+| origin/master | same |
+| Deploy URL | `https://usenobu-mjrpc8nlt-dtwoflicks-2878s-projects.vercel.app` |
+| Deploy ID | `dpl_9w67CtqPM6rXcnmz9gPyZzgtTyd4` |
+| Aliases | `usenobu.vercel.app`, `www.usenobu.xyz`, `usenobu.xyz` |
+
+External verify (all HTTP 200 unless noted):
+
+- `/` — new hero, five sections, no forbidden language
+- `/okx` — guide live; marketplace CTAs fall back to `/okx`
+- `/notices` — OKX payment + retailer decision copy
+- `/purchases/new` — intake + exact-product help
+- `/health` — OK
+- free `POST /v1/agent` — responds (UNDERSTAND_PURCHASE)
+
+See `deployment.json`.
 
 ## Explicit non-actions
 
