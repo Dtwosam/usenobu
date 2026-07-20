@@ -58,6 +58,10 @@ export type PurchaseBlobRow = {
   archived_at: string | null;
   user_outcome: string | null;
   user_outcome_at: string | null;
+  /** Lane 7.3B — purchase-level email alert consent (0/1). */
+  email_alerts_enabled?: number | null;
+  email_alerts_consent_at?: string | null;
+  email_alerts_disabled_at?: string | null;
 };
 
 export interface AuthStore {
@@ -123,6 +127,9 @@ export interface AuthStore {
     archived_at?: string | null;
     user_outcome?: string | null;
     user_outcome_at?: string | null;
+    email_alerts_enabled?: number | null;
+    email_alerts_consent_at?: string | null;
+    email_alerts_disabled_at?: string | null;
     nowIso: string;
   }): Promise<boolean>;
   deletePurchaseBlob(args: {
@@ -382,13 +389,18 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
     async savePurchaseBlob(args) {
       const existing = db
         .prepare(
-          `SELECT archived_at, user_outcome, user_outcome_at FROM account_purchase_blobs WHERE purchase_id = ?`,
+          `SELECT archived_at, user_outcome, user_outcome_at,
+                  email_alerts_enabled, email_alerts_consent_at, email_alerts_disabled_at
+           FROM account_purchase_blobs WHERE purchase_id = ?`,
         )
         .get(args.purchaseId) as
         | {
             archived_at: string | null;
             user_outcome: string | null;
             user_outcome_at: string | null;
+            email_alerts_enabled: number | null;
+            email_alerts_consent_at: string | null;
+            email_alerts_disabled_at: string | null;
           }
         | undefined;
       const archived =
@@ -403,17 +415,25 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         args.user_outcome_at !== undefined
           ? args.user_outcome_at
           : (existing?.user_outcome_at ?? null);
+      const emailOn =
+        existing?.email_alerts_enabled ?? 0;
+      const emailConsent = existing?.email_alerts_consent_at ?? null;
+      const emailDisabled = existing?.email_alerts_disabled_at ?? null;
       db.prepare(
         `INSERT INTO account_purchase_blobs
-         (purchase_id, account_id, blob_json, updated_at, archived_at, user_outcome, user_outcome_at)
-         VALUES (?,?,?,?,?,?,?)
+         (purchase_id, account_id, blob_json, updated_at, archived_at, user_outcome, user_outcome_at,
+          email_alerts_enabled, email_alerts_consent_at, email_alerts_disabled_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?)
          ON CONFLICT(purchase_id) DO UPDATE SET
            account_id = excluded.account_id,
            blob_json = excluded.blob_json,
            updated_at = excluded.updated_at,
            archived_at = excluded.archived_at,
            user_outcome = excluded.user_outcome,
-           user_outcome_at = excluded.user_outcome_at`,
+           user_outcome_at = excluded.user_outcome_at,
+           email_alerts_enabled = COALESCE(account_purchase_blobs.email_alerts_enabled, excluded.email_alerts_enabled),
+           email_alerts_consent_at = COALESCE(account_purchase_blobs.email_alerts_consent_at, excluded.email_alerts_consent_at),
+           email_alerts_disabled_at = COALESCE(account_purchase_blobs.email_alerts_disabled_at, excluded.email_alerts_disabled_at)`,
       ).run(
         args.purchaseId,
         args.accountId,
@@ -422,6 +442,9 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         archived,
         outcome,
         outcomeAt,
+        emailOn,
+        emailConsent,
+        emailDisabled,
       );
     },
     async listPurchaseBlobs(accountId) {
@@ -451,14 +474,31 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         args.user_outcome_at !== undefined
           ? args.user_outcome_at
           : row.user_outcome_at;
+      const emailOn =
+        args.email_alerts_enabled !== undefined
+          ? args.email_alerts_enabled
+          : (row.email_alerts_enabled ?? 0);
+      const emailConsent =
+        args.email_alerts_consent_at !== undefined
+          ? args.email_alerts_consent_at
+          : (row.email_alerts_consent_at ?? null);
+      const emailDisabled =
+        args.email_alerts_disabled_at !== undefined
+          ? args.email_alerts_disabled_at
+          : (row.email_alerts_disabled_at ?? null);
       db.prepare(
         `UPDATE account_purchase_blobs
-         SET archived_at = ?, user_outcome = ?, user_outcome_at = ?, updated_at = ?
+         SET archived_at = ?, user_outcome = ?, user_outcome_at = ?,
+             email_alerts_enabled = ?, email_alerts_consent_at = ?,
+             email_alerts_disabled_at = ?, updated_at = ?
          WHERE account_id = ? AND purchase_id = ?`,
       ).run(
         archived,
         outcome,
         outcomeAt,
+        emailOn,
+        emailConsent,
+        emailDisabled,
         args.nowIso,
         args.accountId,
         args.purchaseId,
@@ -732,8 +772,13 @@ export function createPostgresAuthStore(
         archived_at: string | null;
         user_outcome: string | null;
         user_outcome_at: string | null;
+        email_alerts_enabled: number | null;
+        email_alerts_consent_at: string | null;
+        email_alerts_disabled_at: string | null;
       }>(
-        `SELECT archived_at, user_outcome, user_outcome_at FROM account_purchase_blobs WHERE purchase_id = $1`,
+        `SELECT archived_at, user_outcome, user_outcome_at,
+                email_alerts_enabled, email_alerts_consent_at, email_alerts_disabled_at
+         FROM account_purchase_blobs WHERE purchase_id = $1`,
         [args.purchaseId],
       );
       const prev = existing.rows[0];
@@ -749,10 +794,14 @@ export function createPostgresAuthStore(
         args.user_outcome_at !== undefined
           ? args.user_outcome_at
           : (prev?.user_outcome_at ?? null);
+      const emailOn = prev?.email_alerts_enabled ?? 0;
+      const emailConsent = prev?.email_alerts_consent_at ?? null;
+      const emailDisabled = prev?.email_alerts_disabled_at ?? null;
       await q(
         `INSERT INTO account_purchase_blobs
-         (purchase_id, account_id, blob_json, updated_at, archived_at, user_outcome, user_outcome_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         (purchase_id, account_id, blob_json, updated_at, archived_at, user_outcome, user_outcome_at,
+          email_alerts_enabled, email_alerts_consent_at, email_alerts_disabled_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          ON CONFLICT (purchase_id) DO UPDATE SET
            account_id = EXCLUDED.account_id,
            blob_json = EXCLUDED.blob_json,
@@ -768,6 +817,9 @@ export function createPostgresAuthStore(
           archived,
           outcome,
           outcomeAt,
+          emailOn,
+          emailConsent,
+          emailDisabled,
         ],
       );
     },
@@ -796,14 +848,31 @@ export function createPostgresAuthStore(
         args.user_outcome_at !== undefined
           ? args.user_outcome_at
           : row.user_outcome_at;
+      const emailOn =
+        args.email_alerts_enabled !== undefined
+          ? args.email_alerts_enabled
+          : (row.email_alerts_enabled ?? 0);
+      const emailConsent =
+        args.email_alerts_consent_at !== undefined
+          ? args.email_alerts_consent_at
+          : (row.email_alerts_consent_at ?? null);
+      const emailDisabled =
+        args.email_alerts_disabled_at !== undefined
+          ? args.email_alerts_disabled_at
+          : (row.email_alerts_disabled_at ?? null);
       await q(
         `UPDATE account_purchase_blobs
-         SET archived_at = $1, user_outcome = $2, user_outcome_at = $3, updated_at = $4
-         WHERE account_id = $5 AND purchase_id = $6`,
+         SET archived_at = $1, user_outcome = $2, user_outcome_at = $3,
+             email_alerts_enabled = $4, email_alerts_consent_at = $5,
+             email_alerts_disabled_at = $6, updated_at = $7
+         WHERE account_id = $8 AND purchase_id = $9`,
         [
           archived,
           outcome,
           outcomeAt,
+          emailOn,
+          emailConsent,
+          emailDisabled,
           args.nowIso,
           args.accountId,
           args.purchaseId,

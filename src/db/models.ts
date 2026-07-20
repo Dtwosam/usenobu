@@ -225,6 +225,9 @@ export const TABLE_NAMES = [
   "policy_owner_alerts",
   "policy_pending_reviews",
   "policy_review_events",
+  "purchase_email_alert_prefs",
+  "email_notifications",
+  "closed_price_opportunities",
 ] as const;
 
 export type TableName = (typeof TABLE_NAMES)[number];

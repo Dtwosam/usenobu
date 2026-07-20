@@ -15,6 +15,9 @@ export type MonitorSkipReason =
   | "window_expired"
   | "budget_exhausted"
   | "already_checked_this_tick"
+  | "not_due"
+  | "check_in_progress"
+  | "provider_backoff"
   | null;
 
 export interface SearchBudgetSnapshot {

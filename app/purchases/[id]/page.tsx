@@ -29,6 +29,10 @@ import { getPurchaseDetail } from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
 import { getWebDatabase } from "@/web/db";
 import { getEffectivePurchaseOwner } from "@/auth/service";
+import { getAuthStore, isAccountOwnerRef } from "@/auth/auth-store";
+import { getEmailAlertPref } from "@/notifications/prefs";
+import { maskEmail } from "@/notifications/mask-email";
+import { setEmailAlertPreference } from "@/notifications/prefs";
 import { notFound } from "next/navigation";
 import {
   Card,
@@ -41,6 +45,7 @@ import {
   StatusBadge,
 } from "@/ui";
 import { CheckPriceButton } from "./CheckPriceButton";
+import { EmailAlertPreference } from "./EmailAlertPreference";
 
 export default async function PurchaseDashboardPage({
   params,
@@ -52,13 +57,43 @@ export default async function PurchaseDashboardPage({
   const { id } = await params;
   const sp = await searchParams;
   const dbPrep = await prepareWebDatabase();
-  const ownerRef = (
-    await getEffectivePurchaseOwner({ db: dbPrep, createGuestIfMissing: true })
-  ).owner_ref;
+  const effective = await getEffectivePurchaseOwner({
+    db: dbPrep,
+    createGuestIfMissing: true,
+  });
+  const ownerRef = effective.owner_ref;
   const detail = getPurchaseDetail(id, { owner_ref: ownerRef });
   if (!detail) notFound();
 
   const db = getWebDatabase();
+  const signedIn =
+    effective.kind === "account" && isAccountOwnerRef(ownerRef);
+  let maskedEmail: string | null = null;
+  if (signedIn) {
+    try {
+      const store = await getAuthStore({ sqliteDb: db });
+      const account = await store.getAccountById(ownerRef);
+      if (account?.email_normalized) {
+        maskedEmail = maskEmail(account.email_normalized);
+      }
+    } catch {
+      maskedEmail = null;
+    }
+  }
+
+  // Deep link: disable alerts without tokens (owner session required)
+  if (signedIn && sp.alerts === "off") {
+    await setEmailAlertPreference({
+      db,
+      accountId: ownerRef,
+      purchaseId: id,
+      enabled: false,
+    });
+  }
+
+  const alertPref = getEmailAlertPref(db, id);
+  const alertsEnabled = Boolean(alertPref?.enabled);
+
   const { purchase, fingerprint, observations, alerts, runs } = detail;
   const status = String(purchase.status);
   const remaining = daysRemaining(
@@ -228,6 +263,24 @@ export default async function PurchaseDashboardPage({
         {showCheck ? (
           <div className="n-proof-action">
             <CheckPriceButton purchaseId={id} action={runCheckAction} />
+          </div>
+        ) : null}
+
+        {fingerprint ? (
+          <div className="n-alert-pref-slot" data-testid="alert-pref-card">
+            <EmailAlertPreference
+              purchaseId={id}
+              signedIn={signedIn}
+              initialEnabled={alertsEnabled}
+              maskedEmail={maskedEmail}
+              showWatchingCopy={
+                status === "MONITORING_ACTIVE" ||
+                status === "PRICE_DROP_DETECTED" ||
+                status === "POTENTIALLY_ELIGIBLE" ||
+                status === "NO_PRICE_DROP" ||
+                status === "NO_RELIABLE_PRICE"
+              }
+            />
           </div>
         ) : null}
 

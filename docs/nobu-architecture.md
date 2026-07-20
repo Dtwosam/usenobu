@@ -104,7 +104,7 @@ Stores:
 
 ### 7. Notification service
 
-MVP requires in-app alerts. Email is optional. Alerts must include provenance and never say refund guaranteed.
+MVP requires in-app alerts. Consented email alerts (Lane 7.3B) send only after deterministic new valid price-drop opportunities, only to the verified account email, with durable opportunity-key idempotency. Nobu prepares copy from validated evidence and initiates delivery; Resend is the transport only. Alerts must include provenance and never say refund guaranteed.
 
 ### 8. A2MCP API
 

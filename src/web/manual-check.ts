@@ -29,7 +29,27 @@ import {
 /** @deprecated Legacy shared identity — tests only; re-exported for compatibility. */
 export { WEB_DEMO_USER_REF };
 
-/** Seconds between manual checks for the same purchase. */
+/**
+ * Seconds between manual checks for the same purchase.
+ * Production: 6 hours. Tests/fixture mode keep a short cooldown for UX proof.
+ */
+export function resolveManualCheckCooldownSeconds(
+  env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
+): number {
+  const override = Number(env.NOBU_MANUAL_CHECK_COOLDOWN_SECONDS);
+  if (Number.isFinite(override) && override >= 0) return override;
+  if (
+    env.VITEST === "true" ||
+    env.NODE_ENV === "test" ||
+    env.NOBU_AUTH_TEST_MODE === "1" ||
+    env.NOBU_FIXTURE_MODE === "1"
+  ) {
+    return 30;
+  }
+  return 6 * 60 * 60;
+}
+
+/** @deprecated Prefer resolveManualCheckCooldownSeconds() — default reflects test-friendly value. */
 export const MANUAL_CHECK_COOLDOWN_SECONDS = 30;
 
 const inFlight = new Set<string>();
@@ -70,7 +90,7 @@ export function isCooldownActive(
   db: NobuDatabase,
   purchaseId: string,
   nowMs = Date.now(),
-  cooldownSeconds = MANUAL_CHECK_COOLDOWN_SECONDS,
+  cooldownSeconds = resolveManualCheckCooldownSeconds(),
 ): boolean {
   const last = lastManualRunAt(db, purchaseId);
   if (!last) return false;
@@ -227,6 +247,23 @@ export async function runBoundedManualCheck(args: {
       provider_status: check.provider_status,
       potential_recovery: check.potential_recovery,
     });
+
+    // Nobu notification workflow: only after deterministic new alert
+    if (check.alert_created && check.alert_id) {
+      try {
+        const { processPriceDropEmailForNewAlert } = await import(
+          "../notifications/process.js"
+        );
+        await processPriceDropEmailForNewAlert({
+          db: args.db,
+          purchaseId: args.purchase_id,
+          alertId: check.alert_id,
+          nowIso: now.toISOString(),
+        });
+      } catch {
+        /* email failure must not break check result */
+      }
+    }
 
     return {
       ok: true,

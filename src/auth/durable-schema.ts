@@ -61,7 +61,10 @@ CREATE TABLE IF NOT EXISTS account_purchase_blobs (
   updated_at TEXT NOT NULL,
   archived_at TEXT,
   user_outcome TEXT,
-  user_outcome_at TEXT
+  user_outcome_at TEXT,
+  email_alerts_enabled INTEGER DEFAULT 0,
+  email_alerts_consent_at TEXT,
+  email_alerts_disabled_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_account_purchase_blobs_account
@@ -73,5 +76,8 @@ export const AUTH_DURABLE_SCHEMA_PATCHES = [
   `ALTER TABLE account_purchase_blobs ADD COLUMN archived_at TEXT`,
   `ALTER TABLE account_purchase_blobs ADD COLUMN user_outcome TEXT`,
   `ALTER TABLE account_purchase_blobs ADD COLUMN user_outcome_at TEXT`,
+  `ALTER TABLE account_purchase_blobs ADD COLUMN email_alerts_enabled INTEGER DEFAULT 0`,
+  `ALTER TABLE account_purchase_blobs ADD COLUMN email_alerts_consent_at TEXT`,
+  `ALTER TABLE account_purchase_blobs ADD COLUMN email_alerts_disabled_at TEXT`,
 ];
 

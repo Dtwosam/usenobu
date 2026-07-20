@@ -177,9 +177,16 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** lifecycle unit tests, privacy/auth regressions, Playwright lifecycle UI, typecheck, build.
 
-## Lane 7.3B — Consented price-drop email alerts (next)
+## Lane 7.3B — Consented automatic price-drop email alerts COMPLETE
 
-## Lane 7.3B — Consented email price-drop notifications (queued)
+- Purchase-level consent: **Email me about possible price drops** (off until enabled; durable consent timestamp).
+- Sends only to the verified Nobu account email (masked in UI); guests must sign in; no second email field.
+- Nobu receives eligible alert events after deterministic monitoring, prepares purchase-specific copy from validated evidence only, triggers email, and records Nobu-initiated notification.
+- Durable opportunity-key idempotency; anti-spam (1/purchase/24h, 3/account/24h, summary thereafter).
+- Controlled schedule: ≤1 scheduled provider check / purchase / 24h; batch + budget bounds; manual Check now ≤6h in production.
+- Scheduler: `POST /v1/owner/monitor-scheduler` (CRON_SECRET).
+
+**Proof:** focused email-alert unit tests, migration 0007, monitoring regression, Playwright preference UI (incl. 390px), typecheck, build. Evidence: `docs/proof/lane-7-3b-email-alerts/`.
 
 ## Return to Lane 8 — reviewer-status monitoring (queued; ASP under review)
 

@@ -1,0 +1,22 @@
+{
+  "lane": "7.3B",
+  "mode": "test_capture",
+  "ok": true,
+  "subject": "Nobu found a possible price drop",
+  "has_disclosure": true,
+  "has_cta": true,
+  "has_disable_link": true,
+  "has_token_in_url": false,
+  "has_raw_email_in_body": false,
+  "masked_ui_example": "s***@example.com",
+  "capture_to_hash": "e377c29ac",
+  "capture_purchase_id": "pur_smoke",
+  "recipient": "verified_account_email_only",
+  "command": "npx tsx scripts/smoke-price-drop-email.mjs",
+  "live_resend": {
+    "vercel_env_names_present": ["RESEND_API_KEY", "EMAIL_FROM_ADDRESS"],
+    "local_pull_secret_values": "empty_placeholders",
+    "live_api_send_executed": false,
+    "note": "Unit + test capture prove composition and idempotency. Live Resend delivery uses production secrets on Vercel; local secret pull did not expose key material."
+  }
+}

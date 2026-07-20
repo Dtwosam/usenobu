@@ -75,6 +75,46 @@ export function listPurchaseRows(db: NobuDatabase): PurchaseSelectionRow[] {
     .all() as unknown as PurchaseSelectionRow[];
 }
 
+/** Optional schedule columns (Lane 7.3B). Missing columns → nulls. */
+export function loadPurchaseScheduleFields(
+  db: NobuDatabase,
+  purchaseId: string,
+): {
+  last_checked_at: string | null;
+  next_check_at: string | null;
+  check_lock_until: string | null;
+  provider_backoff_until: string | null;
+} {
+  try {
+    const row = db
+      .prepare(
+        `SELECT last_checked_at, next_check_at, check_lock_until, provider_backoff_until
+         FROM purchases WHERE id = ?`,
+      )
+      .get(purchaseId) as
+      | {
+          last_checked_at: string | null;
+          next_check_at: string | null;
+          check_lock_until: string | null;
+          provider_backoff_until: string | null;
+        }
+      | undefined;
+    return {
+      last_checked_at: row?.last_checked_at ?? null,
+      next_check_at: row?.next_check_at ?? null,
+      check_lock_until: row?.check_lock_until ?? null,
+      provider_backoff_until: row?.provider_backoff_until ?? null,
+    };
+  } catch {
+    return {
+      last_checked_at: null,
+      next_check_at: null,
+      check_lock_until: null,
+      provider_backoff_until: null,
+    };
+  }
+}
+
 export function loadFingerprint(
   db: NobuDatabase,
   fingerprintId: string,

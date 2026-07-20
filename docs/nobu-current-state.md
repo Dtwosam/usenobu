@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-20
-**Status:** LANE 7.3A.2B PASS — PERSISTENT PURCHASE HISTORY + LIFECYCLE UI; NEXT LANE 7.3B
+**Status:** LANE 7.3B PASS — CONSENTED PRICE-DROP EMAIL ALERTS; NEXT LANE 8 (QUEUED)
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)
@@ -19,6 +19,8 @@
 **Lane 7.3A.2A.1R magic-link + durable auth repair:** Root causes of laptop/phone failures: (1) GET `/auth/verify` consumed one-time tokens (email previews invalidated links in seconds); (2) auth tokens/sessions lived in per-instance SQLite + browser cookie snapshot, so phone/server instances could not see laptop-issued tokens. Repair: durable Postgres AuthStore (`DATABASE_URL` / `POLICY_OPS_DATABASE_URL`) for accounts, tokens, sessions, claims, and account purchase blobs; auth **not** in cookie snapshot; cookies hold only opaque session/guest tokens. Safe verify: GET peeks only → confirmation UI → POST consumes once. Magic-link origin defaults to `https://www.usenobu.xyz` (A2MCP remains `https://usenobu.vercel.app/v1/agent`).
 
 **Lane 7.3A.2B persistent purchase history + lifecycle:** Signed-in purchases remain in durable account blobs after monitoring ends. My Purchases tabs: **Active** / **History** / **Archived** via centralized lifecycle mapper (status + deadline + archive flag). Archive is visibility-only; restore returns to the correct tab. User-reported Target outcomes (not contacted / requested / approved / declined / did not request) store with timestamp and disclosure *Reported by you — not verified by Target* without changing matching, policy, or prices. Owner-authorized archive, restore, delete (confirm required). Guests keep browser-scoped lists; cross-device history requires sign-in.
+
+**Lane 7.3B consented automatic price-drop email alerts:** **PASS** (`NOBU_LANE_7_3B_PASS`) — purchase-level **Email me about possible price drops** consent (off by default, durable timestamp, disable anytime). Emails only to verified account email (masked UI; no second address field). Nobu notification workflow runs only after deterministic new valid opportunity; fail-closed on missing evidence; opportunity-key idempotency prevents duplicates. Anti-spam limits + controlled 24h scheduled cadence + production 6h manual cooldown. UI on purchase detail + My Purchases guest/signed-in states. Evidence: `docs/proof/lane-7-3b-email-alerts/`.
 
 **Lane 7.3A purchase intake UX + multi-candidate discovery:** **PASS** - exact mode accepts Target URL alone or TCIN alone; Fill with AI no longer demands a URL when TCIN is valid; link-derived provisional titles with SerpApi enrichment; Demo options removed from production form; uncertain-product mode returns bounded Target multi-candidates with offer_id preserved through cookie snapshot; monitoring remains confirmation-gated. Local proof: 317 unit tests, typecheck, build, Playwright consumer-flow. Evidence: `docs/proof/lane-7-3a-purchase-intake/`.
 
@@ -100,8 +102,7 @@ publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
 
 ## Next active lane
 
-**Lane 7.3B — Consented price-drop email alerts** is the exact next lane after 7.3A.2B.
-**Lane 8 — reviewer-status monitoring** remains queued (ASP #5541 under review).
+**Lane 8 — reviewer-status monitoring** (ASP #5541 under review) is the exact next lane after 7.3B.
 Then: **Lane 9 — Demo and submission closeout**.
 
-Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`, `docs/proof/lane-7-3a-purchase-intake/`, `docs/proof/lane-7-3a-1-adaptive/`
+Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`, `docs/proof/lane-7-3a-purchase-intake/`, `docs/proof/lane-7-3a-1-adaptive/`, `docs/proof/lane-7-3b-email-alerts/`

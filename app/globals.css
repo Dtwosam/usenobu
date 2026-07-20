@@ -1761,6 +1761,105 @@ main.legacy-main > .n-screen {
   border-top: 1px solid var(--border);
 }
 
+/* Lane 7.3B â€” email alert preference (secondary to status) */
+.n-alert-pref-slot {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.n-alert-pref {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.n-alert-pref__watching-title {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.n-alert-pref__watching-body {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.n-alert-pref__control {
+  min-height: var(--touch-min);
+}
+
+.n-alert-pref__label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+  min-height: var(--touch-min);
+}
+
+.n-alert-pref__switch-wrap {
+  flex: 0 0 auto;
+  padding-top: 2px;
+}
+
+.n-alert-pref__switch {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.n-alert-pref__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.n-alert-pref__title {
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.n-alert-pref__support {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.n-alert-pref__status {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.n-alert-pref__error {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--danger);
+}
+
+.n-alert-pref__guest {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 390px) {
+  .n-alert-pref__label {
+    flex-wrap: nowrap;
+  }
+
+  .n-alert-pref__title,
+  .n-alert-pref__support {
+    overflow-wrap: anywhere;
+  }
+}
+
 .n-trust-note {
   margin: var(--space-3) 0 0;
   font-size: 0.9rem;
@@ -2237,7 +2336,7 @@ form.n-form-card {
   }
 }
 
-/* Lane 7.3A.2A.1 — passwordless sign-in + account UI */
+/* Lane 7.3A.2A.1 ï¿½ passwordless sign-in + account UI */
 .n-signin-page {
   max-width: 480px;
   margin: 0 auto;
@@ -2620,7 +2719,7 @@ form.n-form-card {
   margin-top: 8px;
 }
 
-/* Lane 7.3A.2B — purchase lifecycle */
+/* Lane 7.3A.2B ï¿½ purchase lifecycle */
 .n-purchases-lifecycle {
   margin-top: var(--space-6);
 }

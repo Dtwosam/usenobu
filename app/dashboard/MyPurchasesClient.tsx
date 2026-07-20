@@ -185,6 +185,22 @@ export function MyPurchasesClient({
                     </span>
                   </p>
                 ) : null}
+                {signedIn && p.email_alerts_enabled && p.fingerprint_id ? (
+                  <p
+                    className="n-purchase-card__meta muted"
+                    data-testid="email-alerts-on"
+                  >
+                    Nobu is watching · email alerts on
+                  </p>
+                ) : null}
+                {!signedIn && p.fingerprint_id ? (
+                  <p
+                    className="n-purchase-card__meta muted"
+                    data-testid="email-alerts-guest"
+                  >
+                    Sign in to receive automatic email alerts
+                  </p>
+                ) : null}
 
                 <div className="n-purchase-card__actions">
                   <ButtonLink

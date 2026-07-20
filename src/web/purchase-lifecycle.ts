@@ -115,6 +115,8 @@ export type PurchaseListItem = {
   user_outcome: UserOutcome | null;
   user_outcome_at: string | null;
   lifecycle: LifecycleTab;
+  /** Lane 7.3B — email alert consent enabled */
+  email_alerts_enabled: boolean;
 };
 
 export function partitionByLifecycle(

@@ -20,6 +20,7 @@ import {
   USER_OUTCOME_DISCLOSURE,
   USER_OUTCOME_LABELS,
 } from "./purchase-lifecycle.js";
+import { getEmailAlertPref, applyDurableEmailAlertMeta } from "../notifications/prefs.js";
 
 export { USER_OUTCOME_DISCLOSURE, USER_OUTCOME_LABELS };
 
@@ -30,6 +31,7 @@ function enrichFromLocal(
     archived_at: string | null;
     user_outcome: string | null;
     user_outcome_at: string | null;
+    email_alerts_enabled?: number | boolean | null;
   },
 ): PurchaseListItem {
   const id = String(row.id);
@@ -123,6 +125,12 @@ function enrichFromLocal(
     has_price_drop_alert,
   });
 
+  const pref = getEmailAlertPref(db, id);
+  const email_alerts_enabled =
+    pref?.enabled === true ||
+    meta.email_alerts_enabled === true ||
+    meta.email_alerts_enabled === 1;
+
   return {
     id,
     target_product_url: String(row.target_product_url ?? ""),
@@ -143,6 +151,7 @@ function enrichFromLocal(
     user_outcome,
     user_outcome_at: meta.user_outcome_at,
     lifecycle,
+    email_alerts_enabled,
   };
 }
 
@@ -182,6 +191,7 @@ export async function listPurchasesForLifecycle(args: {
         archived_at: null,
         user_outcome: null,
         user_outcome_at: null,
+        email_alerts_enabled: 0,
       }),
     );
     const by_tab = partitionByLifecycle(items);
@@ -208,9 +218,22 @@ export async function listPurchasesForLifecycle(args: {
         archived_at: b.archived_at ?? null,
         user_outcome: b.user_outcome ?? null,
         user_outcome_at: b.user_outcome_at ?? null,
+        email_alerts_enabled: b.email_alerts_enabled ?? 0,
       },
     ]),
   );
+
+  // Hydrate local email prefs from durable meta
+  for (const b of blobs) {
+    applyDurableEmailAlertMeta(db, {
+      purchaseId: b.purchase_id,
+      accountId: owner,
+      email_alerts_enabled: b.email_alerts_enabled,
+      email_alerts_consent_at: b.email_alerts_consent_at,
+      email_alerts_disabled_at: b.email_alerts_disabled_at,
+      updated_at: b.updated_at,
+    });
+  }
 
   const rows = db
     .prepare(
@@ -225,6 +248,7 @@ export async function listPurchasesForLifecycle(args: {
       archived_at: null,
       user_outcome: null,
       user_outcome_at: null,
+      email_alerts_enabled: 0,
     };
     return enrichFromLocal(db, r, meta);
   });
@@ -242,6 +266,7 @@ export async function listPurchasesForLifecycle(args: {
             archived_at: b.archived_at ?? null,
             user_outcome: b.user_outcome ?? null,
             user_outcome_at: b.user_outcome_at ?? null,
+            email_alerts_enabled: b.email_alerts_enabled ?? 0,
           }),
         );
       }

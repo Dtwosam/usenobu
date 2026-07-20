@@ -10,10 +10,15 @@ import {
   insertPriceObservation,
   listPurchaseRows,
   loadFingerprint,
+  loadPurchaseScheduleFields,
   loadSearchBudget,
   markPurchaseWindowExpired,
   saveSearchBudget,
 } from "./store.js";
+import {
+  isDueForScheduledCheck,
+  updatePurchaseSchedule,
+} from "./schedule.js";
 import type {
   MonitorBatchResult,
   MonitorCheckResult,
@@ -103,6 +108,52 @@ export async function runMonitoringPass(
   for (const purchase of active) {
     const started = asOf;
     const notes: string[] = [];
+
+    // Scheduled mode: enforce 24h cadence + lock/backoff (manual checks bypass)
+    if (options.mode === "scheduled") {
+      const sched = loadPurchaseScheduleFields(options.db, purchase.id);
+      const due = isDueForScheduledCheck({
+        next_check_at: sched.next_check_at,
+        provider_backoff_until: sched.provider_backoff_until,
+        check_lock_until: sched.check_lock_until,
+        as_of: asOf,
+      });
+      if (!due.due) {
+        const skip = (due.reason ?? "not_due") as
+          | "not_due"
+          | "check_in_progress"
+          | "provider_backoff";
+        const runId = insertMonitorRun({
+          db: options.db,
+          purchase_id: purchase.id,
+          mode: options.mode,
+          outcome: "skipped",
+          skip_reason: skip,
+          searches_consumed: 0,
+          notes: `schedule_skip:${skip}`,
+          started_at: started,
+          finished_at: asOf,
+        });
+        updatePurchaseSchedule({
+          db: options.db,
+          purchaseId: purchase.id,
+          asOf,
+          skipReason: skip,
+        });
+        results.push({
+          purchase_id: purchase.id,
+          outcome: "skipped",
+          skip_reason: skip,
+          searches_consumed: 0,
+          alert_created: false,
+          match_ok: false,
+          match_reasons: [skip],
+          notes: [`schedule_skip:${skip}`],
+          monitor_run_id: runId,
+        });
+        continue;
+      }
+    }
 
     if (!canConsumeSearches(budget, 1)) {
       const runId = insertMonitorRun({
@@ -274,6 +325,29 @@ export async function runMonitoringPass(
       finished_at: asOf,
     });
 
+    const providerStatus = String(observation.provider_status ?? "");
+    const providerFailed =
+      providerStatus === "PROVIDER_ERROR" ||
+      providerStatus === "RATE_LIMITED" ||
+      providerStatus === "DATA_SOURCE_UNAVAILABLE";
+
+    if (providerFailed && !evalResult.match_ok) {
+      updatePurchaseSchedule({
+        db: options.db,
+        purchaseId: purchase.id,
+        asOf,
+        providerFailed: true,
+        skipReason: "provider_failure",
+      });
+    } else {
+      updatePurchaseSchedule({
+        db: options.db,
+        purchaseId: purchase.id,
+        asOf,
+        checked: true,
+      });
+    }
+
     results.push({
       purchase_id: purchase.id,
       outcome: "checked",
@@ -286,7 +360,7 @@ export async function runMonitoringPass(
       match_reasons: evalResult.match_reasons,
       observed_price: evalResult.observed_price,
       potential_recovery: evalResult.potential_recovery,
-      provider_status: String(observation.provider_status ?? ""),
+      provider_status: providerStatus,
       notes,
       monitor_run_id: runId,
     });
