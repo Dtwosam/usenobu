@@ -120,9 +120,9 @@ export function purchaseFormError(
     return {
       code,
       heading: "Product identity needed",
-      body: "Nobu needs a Target product link or a TCIN (Target item number) for exact product mode. You do not need both.",
+      body: "Nobu could not use the Target product link or TCIN as provided. Check for typos, or add another product detail such as the product name, model or UPC.",
       nextAction:
-        "Add a Target.com product URL or TCIN, or switch to “Help me find the product” with a description.",
+        "Enter a valid Target.com product URL or TCIN, or add the product name, model or UPC, then try Find my product again.",
     };
   }
 

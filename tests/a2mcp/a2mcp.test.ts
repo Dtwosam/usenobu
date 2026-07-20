@@ -29,6 +29,9 @@ const validRequest = {
   target_item_id: "87654321",
 };
 
+/** Frozen as-of inside the 14-day window for purchase_date 2026-07-05 (day 7). */
+const withinWindowNow = () => new Date("2026-07-12T12:00:00.000Z");
+
 const airTagRequest = {
   target_product_url:
     "https://www.target.com/p/apple-airtag-bluetooth-tracker-for-keys-suitcases-and-more-1-pack/-/A-54191097",
@@ -93,6 +96,7 @@ describe("A2MCP check service", () => {
     const result = await runA2mcpTargetPriceCheck(validRequest, {
       offersOverride: [exactOffer(18.0)],
       skipPolicyFreshness: true,
+      now: withinWindowNow,
     });
     expect(result.http_status).toBe(200);
     expect(result.body).toMatchObject({
@@ -134,6 +138,7 @@ describe("A2MCP check service", () => {
       },
       {
         skipPolicyFreshness: true,
+        now: withinWindowNow,
         offersOverride: [
           {
             ...exactOffer(10),
@@ -160,7 +165,11 @@ describe("A2MCP check service", () => {
   it("returns UNSUPPORTED_PURCHASE for Alaska", async () => {
     const result = await runA2mcpTargetPriceCheck(
       { ...validRequest, region: "AK" },
-      { skipPolicyFreshness: true, offersOverride: [exactOffer(10)] },
+      {
+        skipPolicyFreshness: true,
+        now: withinWindowNow,
+        offersOverride: [exactOffer(10)],
+      },
     );
     expect(result.http_status).toBe(200);
     expect(result.body).toMatchObject({ status: "UNSUPPORTED_PURCHASE" });
@@ -170,6 +179,7 @@ describe("A2MCP check service", () => {
     const result = await runA2mcpTargetPriceCheck(validRequest, {
       forceProviderError: true,
       skipPolicyFreshness: true,
+      now: withinWindowNow,
     });
     expect(result.http_status).toBe(503);
     expect(result.body).toMatchObject({ status: "DATA_SOURCE_UNAVAILABLE" });
@@ -244,6 +254,7 @@ describe("A2MCP check service", () => {
     const result = await runA2mcpTargetPriceCheck(validRequest, {
       offersOverride: [exactOffer(24.99)],
       skipPolicyFreshness: true,
+      now: withinWindowNow,
     });
     expect(result.http_status).toBe(200);
     expect(result.body).toMatchObject({

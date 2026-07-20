@@ -1,6 +1,6 @@
 # Nobu Current State
 
-**Date:** 2026-07-19
+**Date:** 2026-07-20
 **Status:** LANE 7.3A.1 PASS - ADAPTIVE PRODUCT DISCOVERY (NO MODE SELECTOR); NEXT LANE 8 REVIEWER MONITORING
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
@@ -14,7 +14,7 @@
 
 **Lane 7.3A purchase intake UX + multi-candidate discovery:** **PASS** - exact mode accepts Target URL alone or TCIN alone; Fill with AI no longer demands a URL when TCIN is valid; link-derived provisional titles with SerpApi enrichment; Demo options removed from production form; uncertain-product mode returns bounded Target multi-candidates with offer_id preserved through cookie snapshot; monitoring remains confirmation-gated. Local proof: 317 unit tests, typecheck, build, Playwright consumer-flow. Evidence: `docs/proof/lane-7-3a-purchase-intake/`.
 
-**Lane 7.3A.1 adaptive product discovery:** **PASS** - mode selector removed; one product-details form; Find my product gated on usable product clue; adaptive single/multi/no-results review with radio selection UI; no auto-select or auto-confirm; monitoring still fingerprint-locked. Evidence: `docs/proof/lane-7-3a-1-adaptive/`.
+**Lane 7.3A.1 adaptive product discovery:** **PASS** (`NOBU_LANE_7_3A_1_PASS`) - mode selector removed; one product-details form; Find my product gated on usable product clue; adaptive single/multi/no-results review with radio selection UI; no auto-select or auto-confirm; monitoring still fingerprint-locked. Runtime commit `b2d99b2`; 2026-07-20 closeout re-verified (323 unit tests, typecheck, build, adaptive + consumer e2e). Production `dpl_45D4kWZijbj2HGdSXQE3jpgBqK8k` / `usenobu-63qlryu08…` remains the adaptive runtime on `usenobu.vercel.app`. ASP #5541 read-only unchanged (under review). Evidence: `docs/proof/lane-7-3a-1-adaptive/`.
 
 ## Locked decisions
 
