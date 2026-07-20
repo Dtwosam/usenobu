@@ -1,35 +1,40 @@
 openapi: 3.1.0
 info:
-  title: Nobu Agent-Native Paid Monitoring API (MOSTLY PROPOSED — PARTIALLY IMPLEMENTED)
-  version: 0.4.0-proposed
+  title: Nobu Agent-Native Paid Monitoring API (MOSTLY IMPLEMENTED — NOT DEPLOYED/REGISTERED)
+  version: 0.5.0-proposed
   description: >-
-    MOSTLY PROPOSED, RESEARCH-STAGE CONTRACT — with two implemented slices.
-    As of Lane 7.4B, `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, and
+    Ten of thirteen actions are IMPLEMENTED in the codebase; the remaining
+    three (LIST_ACTIVE_MONITORS, ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS,
+    STOP_MONITORING — Lane 7.4E) remain PROPOSED / NOT IMPLEMENTED. As of
+    Lane 7.4B, `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, and
     `REVOKE_AGENT_CONNECTION` are IMPLEMENTED on the live `/v1/agent` route
     (`app/v1/agent/route.ts` -> `runAgentAction`). As of Lane 7.4C,
     `DISCOVER_PRODUCT`, `CONFIRM_PRODUCT`, and `PREFLIGHT_MONITORING` are also
     IMPLEMENTED on the same route, reusing existing matching
     (`src/matching/discovery-candidates.ts`, `src/matching/confirm.ts`),
     policy (`src/policy/evaluate-target-policy.ts`), and the Lane 7.4B
-    connection-authorization helper — no parallel implementation. All six are
+    connection-authorization helper — no parallel implementation. As of Lane
+    7.4D, `POST /v1/agent/start-monitoring` (the paid activation path) is
+    also IMPLEMENTED — a separate, private, **unregistered** route
+    (`app/v1/agent/start-monitoring/route.ts`), not advertised, not part of
+    ASP #5541's listing, and not deployed. Every action on `/v1/agent` is
     additive and backward-compatible with the three pre-existing live
-    actions. Every other action in this document (LIST_ACTIVE_MONITORS,
-    ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS, STOP_MONITORING, and the entire
-    paid `/v1/agent/start-monitoring` path) remains PROPOSED / NOT
-    IMPLEMENTED. Each schema below is marked `x-nobu-implementation-status`
-    to disambiguate. ASP #5541's registered listing is unchanged by Lane
-    7.4B/7.4C (free actions on the same already-free endpoint; no
-    marketplace/listing modification).
+    actions. Each schema below is marked `x-nobu-implementation-status` to
+    disambiguate "implemented in code" from "deployed" from "registered with
+    OKX" — those are three different, independently tracked facts. ASP
+    #5541's registered listing is unchanged by Lane 7.4B/7.4C/7.4D (free
+    actions on the same already-free endpoint; no marketplace/listing
+    modification; the paid service is registered only at Lane 8R).
 
     This file is an internal design artifact originating from Lane 7.4A / 7.4A.1
-    (`docs/nobu-okx-agent-native-paid-monitoring-architecture.md`), now partially
-    realized by Lane 7.4B and Lane 7.4C. It shows the *logical* shape of a
-    proposed free agent-native discovery/preflight surface and a proposed
-    paid activation surface. As of Lane 7.4D.0, the marketplace topology is
-    RESOLVED (see `x-nobu-topology-status` on the paid path below): separate
-    free and paid A2MCP services, co-located under the existing Agent #5541
-    identity — not a single listing branching per request, and not a second
-    ASP.
+    (`docs/nobu-okx-agent-native-paid-monitoring-architecture.md`), now largely
+    realized by Lane 7.4B, Lane 7.4C, and Lane 7.4D. It shows the shape of the
+    free agent-native discovery/preflight surface and the paid activation
+    surface, both now implemented against real code. As of Lane 7.4D.0, the
+    marketplace topology is RESOLVED (see `x-nobu-topology-status` on the
+    paid path below): separate free and paid A2MCP services, co-located
+    under the existing Agent #5541 identity — not a single listing branching
+    per request, and not a second ASP.
 
     Source purity: every OKX-specific fact this file assumes (registration is
     one price per call per endpoint; price 0 = free; an endpoint is either
@@ -101,12 +106,15 @@ paths:
           description: Provider unavailable
   /v1/agent/start-monitoring:
     post:
-      operationId: nobuAgentProposedPaidActivation
+      operationId: nobuAgentPaidActivation
       summary: >-
-        PROPOSED, PAID activation only, NOT YET IMPLEMENTED. Marketplace
-        topology resolved (Lane 7.4D.0) — see x-nobu-topology-status below
-        and Lane 7.4D in the architecture document. Do not treat this path as
-        reachable from the live #5541 listing until Lane 8R registers it.
+        IMPLEMENTED (Lane 7.4D) — a private, UNREGISTERED endpoint. Exists
+        and is unit-tested in the codebase (`app/v1/agent/start-monitoring/route.ts`)
+        but is not deployed and not part of ASP #5541's marketplace listing.
+        Marketplace topology resolved (Lane 7.4D.0) — see
+        x-nobu-topology-status below and Lane 7.4D in the architecture
+        document. Do not treat this path as reachable from the live #5541
+        listing until Lane 8R registers it.
       description: >-
         Consumes a settled OKX x402 payment against a previously issued,
         unexpired monitoring_enrollment_quotes row (minted by a prior free
@@ -114,14 +122,24 @@ paths:
         activation. Activation identity is derived entirely server-side from
         the quote id, the OKX-verified settlement reference, the confirmed
         purchase, and the locked fingerprint — this endpoint does not accept
-        or trust any caller-supplied idempotency key. First valid paid replay
-        creates exactly one monitor; a valid replay that resolves to an
-        already-consumed quote returns HTTP 200 with status ALREADY_ACTIVE and
-        the original monitor_id — never HTTP 409, and never a duplicate
-        monitor. Altered or expired quotes fail closed (CONNECTION_EXPIRED)
-        and are never re-priced or re-matched on the fly. This action never
-        overrides deterministic eligibility, matching, or consent — those were
-        already enforced by PREFLIGHT_MONITORING before the quote existed.
+        or trust any caller-supplied idempotency key (architecture document
+        §7.3–§7.4). Activation is a durable two-phase saga, not one
+        cross-store transaction: settlement/quote-consumption/ledger-insert
+        commit in one AuthStore transaction; projecting purchases.status to
+        MONITORING_ACTIVE in the separate purchases database is a second,
+        best-effort step that can fail independently and is retried by a
+        reconciliation job — never by requesting a second payment
+        (architecture §7.4/§7.6). First valid paid replay creates exactly one
+        monitor; a valid replay that resolves to an already-active quote
+        returns HTTP 200 with status ALREADY_ACTIVE and the original
+        monitor_id — never HTTP 409, and never a duplicate monitor. A replay
+        while durable settlement is recorded but projection has not yet
+        succeeded returns HTTP 200 with status ACTIVATION_PENDING (truthful,
+        never re-requests payment). Altered or expired quotes fail closed
+        (CONNECTION_EXPIRED) before any payment attempt exists, and are never
+        re-priced or re-matched on the fly. This action never overrides
+        deterministic eligibility, matching, or consent — those were already
+        enforced by PREFLIGHT_MONITORING before the quote existed.
       x-nobu-topology-status: >-
         RESOLVED as of Lane 7.4D.0 (2026-07-20). Selected: separate free and
         paid A2MCP services, co-located under the existing Agent #5541
@@ -151,30 +169,44 @@ paths:
               $ref: '#/components/schemas/StartMonitoringRequest'
       responses:
         '200':
-          description: MONITORING_STARTED or ALREADY_ACTIVE (both HTTP 200 — a valid replay is never a 409)
+          description: >-
+            MONITORING_STARTED (first successful activation), ALREADY_ACTIVE
+            (valid replay of an already-active quote — never a 409), or
+            ACTIVATION_PENDING (settlement durably recorded, projection to
+            the purchases database not yet complete; never re-requests
+            payment — see description above and architecture §7.4/§7.6).
         '400':
-          description: Invalid input
+          description: Invalid input (schema violation — only quote_id/connection_id/connection_token are ever accepted)
+        '401':
+          description: >-
+            ACTION_NOT_AUTHORIZED — missing/invalid/expired connection_token,
+            or a quote this connection did not create. Identical shape
+            regardless of the underlying reason.
         '402':
           description: >-
-            OKX x402 Payment Required challenge for this protected resource.
-            Exact accepts[]/network/asset shape follows the official X Layer
-            example recorded in docs/external-source-registry.md
-            (OKX-XLAYER-EXAMPLE: eip155:196, USD₮0,
-            0x779ded0c9e1022225f8e0630b35a9b54be713736, 6 decimals, 990000
-            base units = $0.99) pending Lane 7.4D confirming this is the asset
-            Nobu's own listing will actually use.
+            OKX x402 Payment Required challenge (PAYMENT-REQUIRED header,
+            base64 {x402Version, resource, accepts}) bound to this exact
+            quote_id and resource — never reusable across quotes. Also
+            returned (re-challenging) when a submitted PAYMENT-SIGNATURE
+            header fails verification; an invalid/altered payment never
+            activates. Exact accepts[]/network/asset shape follows the
+            official X Layer example recorded in
+            docs/external-source-registry.md (OKX-XLAYER-EXAMPLE:
+            eip155:196, USD₮0, 0x779ded0c9e1022225f8e0630b35a9b54be713736, 6
+            decimals, 990000 base units = $0.99); the production verifier
+            always reports not-configured/fails closed until an official
+            OKX seller-side settlement-verification contract is confirmed
+            (see architecture §7.4 / src/payments/x402.ts).
         '404':
-          description: Quote not found
-        '409':
           description: >-
-            Genuine conflict only — e.g. a request whose purchase_id,
-            fingerprint_id, or price do not match the stored quote at all.
-            Never used for a valid replay of an already-settled activation
-            (that is 200 ALREADY_ACTIVE — see description above).
-        '422':
-          description: Quote failed re-validation (eligibility no longer holds — fail closed, no silent re-check)
-        '423':
-          description: CONNECTION_EXPIRED — quote altered or expired; caller must re-run PREFLIGHT_MONITORING for a fresh quote
+            CONNECTION_EXPIRED — as implemented, this single status covers
+            every case where the quote is not genuinely payable right now:
+            not found, not owned by this connection's prior quote issuance,
+            not status=issued, expired, price/fingerprint altered from what
+            was issued, or the underlying purchase is missing or no longer
+            MONITORING_PAYMENT_READY. Fails closed uniformly rather than
+            distinguishing 404/409/422/423 — the caller must re-run
+            PREFLIGHT_MONITORING for a fresh quote in every case.
 components:
   schemas:
     ContinuationStatus:
@@ -190,7 +222,11 @@ components:
         for DISCOVER_PRODUCT / CONFIRM_PRODUCT / PREFLIGHT_MONITORING (Lane
         7.4C) — the last four are the existing locked policy statuses
         (`docs/nobu-clean-master-spec.md` §8), returned as-is rather than
-        wrapped. The rest remain PROPOSED / NOT IMPLEMENTED.
+        wrapped. PAYMENT_PENDING, MONITORING_STARTED, ACTIVATION_PENDING, and
+        ALREADY_ACTIVE are IMPLEMENTED for the private, unregistered
+        `POST /v1/agent/start-monitoring` (Lane 7.4D; not deployed, not
+        registered with OKX). The rest remain PROPOSED / NOT IMPLEMENTED
+        (Lane 7.4E).
       enum:
         - MORE_INFORMATION_REQUIRED
         - PRODUCT_CONFIRMATION_REQUIRED
@@ -206,6 +242,7 @@ components:
         - MONITORING_PAYMENT_READY
         - PAYMENT_PENDING
         - MONITORING_STARTED
+        - ACTIVATION_PENDING
         - MONITORING_ACTIVE
         - PRICE_DROP_DETECTED
         - ALREADY_ACTIVE
@@ -644,22 +681,42 @@ components:
           description: Present only on success.
     StartMonitoringRequest:
       type: object
-      required: [quote_id]
+      required: [quote_id, connection_id, connection_token]
       additionalProperties: false
-      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4D — topology resolved by Lane 7.4D.0, implementation not yet started)
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4D) — private, unregistered route; not deployed
       properties:
         quote_id:
           type: string
           description: From a prior PREFLIGHT_MONITORING MONITORING_PAYMENT_READY response.
+        connection_id:
+          type: string
+          description: Non-secret handle. Never sufficient alone to authorize activation.
+        connection_token:
+          type: string
+          description: Required secret credential from VERIFY_EMAIL_CODE — connection_id alone is not authorization.
       description: >-
-        No caller-supplied idempotency key of any kind. Activation identity
-        is derived entirely server-side from quote_id, the OKX-verified
-        settlement reference, the confirmed purchase, and the locked
-        fingerprint (architecture document §7.3). Any extra field a caller
-        sends here that resembles an idempotency key is ignored, not trusted.
+        The request body carries only these three fields — no
+        amount/purchase-id/fingerprint-id/settlement-reference/transaction-hash/
+        idempotency-key of any kind. The signed payment replay travels
+        separately, in the PAYMENT-SIGNATURE header (never the body). Every
+        other authoritative value (purchase, fingerprint, price, quote
+        validity) is reloaded server-side. Activation identity is derived
+        entirely server-side from quote_id, the OKX-verified settlement
+        reference, the confirmed purchase, and the locked fingerprint
+        (architecture document §7.3). Any extra field a caller sends here
+        that resembles an idempotency key is rejected by the strict schema,
+        not silently ignored.
     StartMonitoringResponse:
       type: object
-      required: [agent_state, status, monitor_id]
+      required: [agent_state, status]
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4D) — private, unregistered route; not deployed
+      description: >-
+        monitor_id is present whenever status is MONITORING_STARTED,
+        ALREADY_ACTIVE, or ACTIVATION_PENDING; absent for
+        PAYMENT_PENDING/ACTION_NOT_AUTHORIZED/CONNECTION_EXPIRED, none of
+        which have a monitor yet. monitoring_deadline is present only
+        alongside MONITORING_STARTED/ALREADY_ACTIVE (projection has visibly
+        completed), never alongside ACTIVATION_PENDING.
       properties:
         agent_state:
           type: string
@@ -672,3 +729,4 @@ components:
         monitoring_deadline:
           type: string
           format: date-time
+          nullable: true

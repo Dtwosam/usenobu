@@ -148,6 +148,49 @@ CREATE INDEX IF NOT EXISTS idx_monitoring_enrollment_quotes_purchase
 CREATE UNIQUE INDEX IF NOT EXISTS idx_monitoring_enrollment_quotes_one_active
   ON monitoring_enrollment_quotes (purchase_id)
   WHERE status = 'issued';
+
+-- Lane 7.4D — $0.99 paid monitoring activation. Same durable store as
+-- monitoring_enrollment_quotes; NOT the same database as the purchases
+-- table (src/web/db.ts's getWebDatabase(), per-instance /tmp SQLite in
+-- production) — the two-phase saga (record settlement here, then project
+-- to purchases separately) exists precisely because no single transaction
+-- can span both stores.
+CREATE TABLE IF NOT EXISTS payment_attempts (
+  id TEXT PRIMARY KEY NOT NULL,
+  quote_id TEXT NOT NULL,
+  x402_challenge_ref TEXT,
+  status TEXT NOT NULL DEFAULT 'challenged', -- challenged | verifying | settled | failed | expired
+  settlement_ref TEXT,
+  created_at TEXT NOT NULL,
+  settled_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_attempts_quote
+  ON payment_attempts (quote_id);
+
+-- At most one settled payment per quote — defense in depth alongside the
+-- monitor_activations UNIQUE(quote_id) below.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_attempts_one_settled
+  ON payment_attempts (quote_id)
+  WHERE status = 'settled';
+
+CREATE TABLE IF NOT EXISTS monitor_activations (
+  id TEXT PRIMARY KEY NOT NULL,
+  quote_id TEXT NOT NULL UNIQUE,
+  activation_key TEXT NOT NULL UNIQUE,
+  payment_attempt_id TEXT NOT NULL,
+  purchase_id TEXT NOT NULL,
+  fingerprint_id TEXT NOT NULL,
+  monitor_id TEXT NOT NULL, -- always equals purchase_id; no parallel id space
+  status TEXT NOT NULL DEFAULT 'pending_projection', -- pending_projection | active
+  created_at TEXT NOT NULL,
+  projected_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_monitor_activations_purchase
+  ON monitor_activations (purchase_id);
+CREATE INDEX IF NOT EXISTS idx_monitor_activations_status
+  ON monitor_activations (status);
 `;
 
 /** Best-effort column adds for existing durable DBs (Postgres / SQLite). */

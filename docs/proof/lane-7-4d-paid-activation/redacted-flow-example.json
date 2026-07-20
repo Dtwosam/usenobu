@@ -1,0 +1,89 @@
+{
+  "note": "Illustrative response shapes only. Every value below is a fabricated placeholder from the local test suite (test-mode SQLite, example.com addresses, a labelled test-only fake x402 verifier). No production data, real payment header, signature, settlement reference, or token is included.",
+  "1_start_monitoring_request_unpaid": {
+    "quote_id": "quote_REDACTED000000000000000000000000",
+    "connection_id": "conn_REDACTED000000000000000000000000",
+    "connection_token": "REDACTED"
+  },
+  "1_start_monitoring_response_402_challenge": {
+    "http_status": 402,
+    "headers": {
+      "PAYMENT-REQUIRED": "REDACTED-BASE64URL(json:{x402Version,resource,accepts})"
+    },
+    "body": {
+      "agent_state": "MONITORING_ACTIVATION",
+      "status": "PAYMENT_PENDING"
+    },
+    "decoded_challenge_shape_for_illustration": {
+      "x402Version": 1,
+      "resource": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:196",
+          "asset": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+          "amount": "990000",
+          "resource": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+          "payTo": null,
+          "extra": { "quote_id": "quote_REDACTED000000000000000000000000" }
+        }
+      ]
+    }
+  },
+  "2_start_monitoring_request_paid_replay": {
+    "quote_id": "quote_REDACTED000000000000000000000000",
+    "connection_id": "conn_REDACTED000000000000000000000000",
+    "connection_token": "REDACTED",
+    "headers": {
+      "PAYMENT-SIGNATURE": "REDACTED — never persisted, logged, or included in this proof bundle"
+    }
+  },
+  "2_start_monitoring_response_first_settlement": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "MONITORING_ACTIVATION",
+      "status": "MONITORING_STARTED",
+      "monitor_id": "purch_REDACTED000000000000000000000000",
+      "monitoring_deadline": "REDACTED-ISO-TIMESTAMP"
+    },
+    "note": "monitor_id equals the underlying purchase_id — no parallel monitor id space."
+  },
+  "3_start_monitoring_response_valid_replay": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "MONITORING_ACTIVATION",
+      "status": "ALREADY_ACTIVE",
+      "monitor_id": "purch_REDACTED000000000000000000000000",
+      "monitoring_deadline": "REDACTED-ISO-TIMESTAMP"
+    },
+    "note": "Same quote_id replayed after activation — HTTP 200, never 409, same monitor_id, no second payment or activation row."
+  },
+  "4_start_monitoring_response_projection_pending_example": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "MONITORING_ACTIVATION",
+      "status": "ACTIVATION_PENDING",
+      "monitor_id": "purch_REDACTED000000000000000000000000"
+    },
+    "note": "Illustrates the test case where the purchases-store write transiently fails right after settlement is durably recorded. Settlement is never discarded and no second payment is ever requested; reconciliation later flips this to MONITORING_STARTED-equivalent (ALREADY_ACTIVE on the next replay) without any new payment."
+  },
+  "5_start_monitoring_response_invalid_payment_example": {
+    "http_status": 402,
+    "headers": {
+      "PAYMENT-REQUIRED": "REDACTED-BASE64URL(json:{x402Version,resource,accepts})"
+    },
+    "body": {
+      "agent_state": "MONITORING_ACTIVATION",
+      "status": "PAYMENT_PENDING"
+    },
+    "note": "A rejecting/invalid test verifier (label test-fake-reject) re-issues the same 402 challenge; no activation is created."
+  },
+  "6_start_monitoring_response_expired_or_altered_quote_example": {
+    "http_status": 404,
+    "body": {
+      "agent_state": "MONITORING_ACTIVATION",
+      "status": "CONNECTION_EXPIRED"
+    },
+    "note": "Covers both an expired quote and a quote whose price no longer matches the required exact $0.99 — fails closed before any payment_attempts row is created."
+  }
+}

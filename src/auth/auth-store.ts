@@ -22,6 +22,20 @@ import { newId, sha256Hex } from "./crypto.js";
 
 const { Pool } = pg;
 
+/**
+ * True for a UNIQUE-constraint conflict (SQLite message shape or Postgres
+ * error code 23505). Used by recordSettledPaymentAndActivation to treat a
+ * concurrent settlement race as "someone else already recorded this" rather
+ * than a hard failure — the post-transaction read then resolves the true
+ * outcome from durable state.
+ */
+function isUniqueViolationError(err: unknown): boolean {
+  const anyErr = err as { code?: string; message?: string } | null;
+  if (!anyErr) return false;
+  if (anyErr.code === "23505") return true;
+  return typeof anyErr.message === "string" && /UNIQUE constraint failed/i.test(anyErr.message);
+}
+
 export type AccountRow = {
   id: string;
   email_normalized: string;
@@ -103,6 +117,29 @@ export type MonitoringEnrollmentQuoteRow = {
   status: string;
   expires_at: string;
   created_at: string;
+};
+
+export type PaymentAttemptRow = {
+  id: string;
+  quote_id: string;
+  x402_challenge_ref: string | null;
+  status: string;
+  settlement_ref: string | null;
+  created_at: string;
+  settled_at: string | null;
+};
+
+export type MonitorActivationRow = {
+  id: string;
+  quote_id: string;
+  activation_key: string;
+  payment_attempt_id: string;
+  purchase_id: string;
+  fingerprint_id: string;
+  monitor_id: string;
+  status: string;
+  created_at: string;
+  projected_at: string | null;
 };
 
 export type PurchaseBlobRow = {
@@ -269,6 +306,51 @@ export interface AuthStore {
     purchaseId: string,
     nowIso: string,
   ): Promise<MonitoringEnrollmentQuoteRow | null>;
+  getMonitoringEnrollmentQuoteById(
+    quoteId: string,
+  ): Promise<MonitoringEnrollmentQuoteRow | null>;
+
+  // --- Lane 7.4D: payment attempts + monitor activations ---
+  /** Reuses the latest non-terminal challenge for a quote when present. */
+  getLatestPaymentAttemptForQuote(
+    quoteId: string,
+  ): Promise<PaymentAttemptRow | null>;
+  insertPaymentAttempt(args: {
+    quoteId: string;
+    challengeRef: string;
+    now?: Date;
+  }): Promise<PaymentAttemptRow>;
+  getMonitorActivationByQuoteId(
+    quoteId: string,
+  ): Promise<MonitorActivationRow | null>;
+  /**
+   * The Lane 7.4D durable saga step 1 — one atomic transaction within this
+   * store only (never spans the separate purchases database): marks the
+   * payment attempt settled, consumes the quote (only if still 'issued'),
+   * and inserts exactly one monitor_activations row (status
+   * 'pending_projection'). Idempotent: a concurrent/duplicate call that
+   * loses the race returns the winner's existing row rather than erroring.
+   */
+  recordSettledPaymentAndActivation(args: {
+    paymentAttemptId: string;
+    quoteId: string;
+    settlementRef: string;
+    activationId: string;
+    activationKey: string;
+    purchaseId: string;
+    fingerprintId: string;
+    nowIso: string;
+  }): Promise<
+    | { outcome: "recorded" | "already_existed"; activation: MonitorActivationRow }
+    | { outcome: "quote_not_issued" }
+  >;
+  /** Idempotent — only transitions pending_projection -> active. */
+  markMonitorActivationActive(args: {
+    activationId: string;
+    nowIso: string;
+  }): Promise<boolean>;
+  /** For reconciliation — every activation still awaiting projection. */
+  listPendingProjectionActivations(): Promise<MonitorActivationRow[]>;
 }
 
 export function mintAccountId(): string {
@@ -863,6 +945,128 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         .get(purchaseId, nowIso) as MonitoringEnrollmentQuoteRow | undefined;
       return row ?? null;
     },
+    async getMonitoringEnrollmentQuoteById(quoteId) {
+      const row = db
+        .prepare(`SELECT * FROM monitoring_enrollment_quotes WHERE id = ?`)
+        .get(quoteId) as MonitoringEnrollmentQuoteRow | undefined;
+      return row ?? null;
+    },
+
+    async getLatestPaymentAttemptForQuote(quoteId) {
+      const row = db
+        .prepare(
+          `SELECT * FROM payment_attempts WHERE quote_id = ?
+           ORDER BY created_at DESC LIMIT 1`,
+        )
+        .get(quoteId) as PaymentAttemptRow | undefined;
+      return row ?? null;
+    },
+    async insertPaymentAttempt(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const id = newId("pay");
+      db.prepare(
+        `INSERT INTO payment_attempts
+         (id, quote_id, x402_challenge_ref, status, settlement_ref, created_at, settled_at)
+         VALUES (?,?,?,'challenged',NULL,?,NULL)`,
+      ).run(id, args.quoteId, args.challengeRef, nowIso);
+      return {
+        id,
+        quote_id: args.quoteId,
+        x402_challenge_ref: args.challengeRef,
+        status: "challenged",
+        settlement_ref: null,
+        created_at: nowIso,
+        settled_at: null,
+      };
+    },
+    async getMonitorActivationByQuoteId(quoteId) {
+      const row = db
+        .prepare(`SELECT * FROM monitor_activations WHERE quote_id = ?`)
+        .get(quoteId) as MonitorActivationRow | undefined;
+      return row ?? null;
+    },
+    async recordSettledPaymentAndActivation(args) {
+      db.exec("BEGIN");
+      try {
+        db.prepare(
+          `UPDATE payment_attempts
+           SET status = 'settled', settlement_ref = ?, settled_at = ?
+           WHERE id = ? AND status != 'settled'`,
+        ).run(args.settlementRef, args.nowIso, args.paymentAttemptId);
+
+        const quoteResult = db
+          .prepare(
+            `UPDATE monitoring_enrollment_quotes
+             SET status = 'consumed'
+             WHERE id = ? AND status = 'issued'`,
+          )
+          .run(args.quoteId);
+
+        // Only insert when THIS call is the one that just consumed the
+        // quote — never insert an activation for a quote that was not (by
+        // this transaction) legitimately transitioned from 'issued'.
+        if (Number(quoteResult.changes ?? 0) > 0) {
+          db.prepare(
+            `INSERT INTO monitor_activations
+             (id, quote_id, activation_key, payment_attempt_id, purchase_id,
+              fingerprint_id, monitor_id, status, created_at, projected_at)
+             VALUES (?,?,?,?,?,?,?,'pending_projection',?,NULL)
+             ON CONFLICT(quote_id) DO NOTHING`,
+          ).run(
+            args.activationId,
+            args.quoteId,
+            args.activationKey,
+            args.paymentAttemptId,
+            args.purchaseId,
+            args.fingerprintId,
+            args.purchaseId,
+            args.nowIso,
+          );
+        }
+
+        db.exec("COMMIT");
+      } catch (err) {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        // A concurrent replay can lose a UNIQUE-constraint race (e.g. two
+        // requests each settling their own payment_attempts row for the
+        // same quote) after already losing the quote-consumption race —
+        // that is a lost race, not a failure: fall through to the
+        // post-transaction read, which resolves the true durable outcome.
+        if (!isUniqueViolationError(err)) throw err;
+      }
+
+      const existing = await this.getMonitorActivationByQuoteId(args.quoteId);
+      if (existing && existing.id === args.activationId) {
+        return { outcome: "recorded" as const, activation: existing };
+      }
+      if (existing) {
+        return { outcome: "already_existed" as const, activation: existing };
+      }
+      return { outcome: "quote_not_issued" as const };
+    },
+    async markMonitorActivationActive(args) {
+      const r = db
+        .prepare(
+          `UPDATE monitor_activations
+           SET status = 'active', projected_at = ?
+           WHERE id = ? AND status != 'active'`,
+        )
+        .run(args.nowIso, args.activationId);
+      return Number(r.changes ?? 0) === 1;
+    },
+    async listPendingProjectionActivations() {
+      return db
+        .prepare(
+          `SELECT * FROM monitor_activations WHERE status = 'pending_projection'
+           ORDER BY created_at ASC`,
+        )
+        .all() as MonitorActivationRow[];
+    },
   };
 }
 
@@ -1449,6 +1653,137 @@ export function createPostgresAuthStore(
         [purchaseId, nowIso],
       );
       return r.rows[0] ?? null;
+    },
+    async getMonitoringEnrollmentQuoteById(quoteId) {
+      const r = await q<MonitoringEnrollmentQuoteRow>(
+        `SELECT * FROM monitoring_enrollment_quotes WHERE id = $1`,
+        [quoteId],
+      );
+      return r.rows[0] ?? null;
+    },
+
+    async getLatestPaymentAttemptForQuote(quoteId) {
+      const r = await q<PaymentAttemptRow>(
+        `SELECT * FROM payment_attempts WHERE quote_id = $1
+         ORDER BY created_at DESC LIMIT 1`,
+        [quoteId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async insertPaymentAttempt(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const id = newId("pay");
+      await q(
+        `INSERT INTO payment_attempts
+         (id, quote_id, x402_challenge_ref, status, settlement_ref, created_at, settled_at)
+         VALUES ($1,$2,$3,'challenged',NULL,$4,NULL)`,
+        [id, args.quoteId, args.challengeRef, nowIso],
+      );
+      return {
+        id,
+        quote_id: args.quoteId,
+        x402_challenge_ref: args.challengeRef,
+        status: "challenged",
+        settlement_ref: null,
+        created_at: nowIso,
+        settled_at: null,
+      };
+    },
+    async getMonitorActivationByQuoteId(quoteId) {
+      const r = await q<MonitorActivationRow>(
+        `SELECT * FROM monitor_activations WHERE quote_id = $1`,
+        [quoteId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async recordSettledPaymentAndActivation(args) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        await client.query(
+          `UPDATE payment_attempts
+           SET status = 'settled', settlement_ref = $1, settled_at = $2
+           WHERE id = $3 AND status != 'settled'`,
+          [args.settlementRef, args.nowIso, args.paymentAttemptId],
+        );
+
+        const quoteResult = await client.query(
+          `UPDATE monitoring_enrollment_quotes
+           SET status = 'consumed'
+           WHERE id = $1 AND status = 'issued'`,
+          [args.quoteId],
+        );
+
+        // Only insert when THIS call is the one that just consumed the
+        // quote — never insert an activation for a quote that was not (by
+        // this transaction) legitimately transitioned from 'issued'.
+        if ((quoteResult.rowCount ?? 0) > 0) {
+          await client.query(
+            `INSERT INTO monitor_activations
+             (id, quote_id, activation_key, payment_attempt_id, purchase_id,
+              fingerprint_id, monitor_id, status, created_at, projected_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,'pending_projection',$8,NULL)
+             ON CONFLICT (quote_id) DO NOTHING`,
+            [
+              args.activationId,
+              args.quoteId,
+              args.activationKey,
+              args.paymentAttemptId,
+              args.purchaseId,
+              args.fingerprintId,
+              args.purchaseId,
+              args.nowIso,
+            ],
+          );
+        }
+
+        await client.query("COMMIT");
+      } catch (err) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        // A concurrent replay can lose a UNIQUE-constraint race after
+        // already losing the quote-consumption race — a lost race, not a
+        // failure: fall through to the post-transaction read below.
+        if (!isUniqueViolationError(err)) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("nobu_auth_postgres_error", {
+            message: message.slice(0, 200),
+          });
+          throw new Error("auth_postgres_error");
+        }
+      } finally {
+        client.release();
+      }
+
+      const existing = await this.getMonitorActivationByQuoteId(args.quoteId);
+      if (existing && existing.id === args.activationId) {
+        return { outcome: "recorded" as const, activation: existing };
+      }
+      if (existing) {
+        return { outcome: "already_existed" as const, activation: existing };
+      }
+      return { outcome: "quote_not_issued" as const };
+    },
+    async markMonitorActivationActive(args) {
+      const r = await q(
+        `UPDATE monitor_activations
+         SET status = 'active', projected_at = $1
+         WHERE id = $2 AND status != 'active'`,
+        [args.nowIso, args.activationId],
+      );
+      return (r.rowCount ?? 0) === 1;
+    },
+    async listPendingProjectionActivations() {
+      const r = await q<MonitorActivationRow>(
+        `SELECT * FROM monitor_activations WHERE status = 'pending_projection'
+         ORDER BY created_at ASC`,
+      );
+      return r.rows;
     },
   };
 }
