@@ -1,7 +1,7 @@
 /**
  * Magic-link email delivery.
  * Production: Resend HTTP API (or EMAIL_PROVIDER_API_KEY compatible).
- * Tests: capture links in-memory — never require a real inbox.
+ * Tests: capture links in-memory + sqlite — never require a real inbox.
  */
 import { isAuthTestMode } from "./config.js";
 
@@ -36,6 +36,26 @@ export function peekLastCapturedToken(emailNormalized: string): string | null {
   return testCaptures.get(emailNormalized)?.rawToken ?? null;
 }
 
+/** Prefer memory, then durable sqlite test table (e2e multi-isolate). */
+export async function peekLastCapturedTokenAsync(
+  emailNormalized: string,
+): Promise<string | null> {
+  const mem = peekLastCapturedToken(emailNormalized);
+  if (mem) return mem;
+  try {
+    const { getWebDatabase } = await import("../web/db.js");
+    const db = getWebDatabase();
+    const row = db
+      .prepare(
+        `SELECT raw_token FROM auth_test_tokens WHERE email_normalized = ?`,
+      )
+      .get(emailNormalized) as { raw_token: string } | undefined;
+    return row?.raw_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function hashEmail(email: string): string {
   // short opaque marker for diagnostics (not reversible identity in logs)
   let h = 0;
@@ -68,6 +88,27 @@ export async function sendMagicLinkEmail(args: {
       rawToken: args.rawToken,
       at: new Date().toISOString(),
     });
+    // Also persist for multi-worker Next/e2e (in-memory map is process-local).
+    try {
+      const { getWebDatabase } = await import("../web/db.js");
+      const db = getWebDatabase();
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS auth_test_tokens (
+          email_normalized TEXT PRIMARY KEY NOT NULL,
+          raw_token TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+      `);
+      db.prepare(
+        `INSERT INTO auth_test_tokens (email_normalized, raw_token, created_at)
+         VALUES (?,?,?)
+         ON CONFLICT(email_normalized) DO UPDATE SET
+           raw_token = excluded.raw_token,
+           created_at = excluded.created_at`,
+      ).run(args.emailNormalized, args.rawToken, new Date().toISOString());
+    } catch {
+      /* ignore */
+    }
     return { ok: true, mode: "test" };
   }
 

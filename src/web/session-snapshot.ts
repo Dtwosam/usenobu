@@ -26,11 +26,6 @@ type Snapshot = {
   search_budget_ledger: Array<Record<string, unknown>>;
   /** Enrollment discovery (live or fixture) for review/confirm. */
   enrollment_discovery: Array<Record<string, unknown>>;
-  /** Passwordless auth tables (compact; Lane 7.3A.2A.1). */
-  accounts?: Array<Record<string, unknown>>;
-  auth_login_tokens?: Array<Record<string, unknown>>;
-  auth_sessions?: Array<Record<string, unknown>>;
-  auth_claim_events?: Array<Record<string, unknown>>;
 };
 
 function emptySnapshot(): Snapshot {
@@ -44,10 +39,6 @@ function emptySnapshot(): Snapshot {
     monitor_runs: [],
     search_budget_ledger: [],
     enrollment_discovery: [],
-    accounts: [],
-    auth_login_tokens: [],
-    auth_sessions: [],
-    auth_claim_events: [],
   };
 }
 
@@ -362,35 +353,7 @@ export function exportSnapshot(db: NobuDatabase): Snapshot {
       .slice(-1)
       .map(slimRow),
     enrollment_discovery: discovery,
-    // Auth rows — compact; email is private (normalized only). Never store raw magic tokens.
-    accounts: tableRows(db, "accounts").slice(-3).map(slimRow),
-    auth_login_tokens: tableRows(db, "auth_login_tokens")
-      .slice(-4)
-      .map((t) =>
-        slimRow({
-          id: t.id,
-          email_normalized: t.email_normalized,
-          token_hash: t.token_hash,
-          expires_at: t.expires_at,
-          used_at: t.used_at,
-          created_at: t.created_at,
-          guest_owner_ref: t.guest_owner_ref,
-        }),
-      ),
-    auth_sessions: tableRows(db, "auth_sessions")
-      .slice(-3)
-      .map((s) =>
-        slimRow({
-          id: s.id,
-          account_id: s.account_id,
-          token_hash: s.token_hash,
-          expires_at: s.expires_at,
-          revoked_at: s.revoked_at,
-          created_at: s.created_at,
-          last_seen_at: s.last_seen_at,
-        }),
-      ),
-    auth_claim_events: tableRows(db, "auth_claim_events").slice(-5).map(slimRow),
+    // Auth tables intentionally excluded — durable AuthStore only (Lane 7.3A.2A.1R).
   };
 }
 
@@ -482,11 +445,6 @@ export function importSnapshot(db: NobuDatabase, snapshot: Snapshot): void {
     /* ignore */
   }
   insertRows(db, "enrollment_discovery", snapshot.enrollment_discovery ?? []);
-  // Auth tables (no FK from purchases — order: accounts first)
-  insertRows(db, "accounts", snapshot.accounts ?? []);
-  insertRows(db, "auth_login_tokens", snapshot.auth_login_tokens ?? []);
-  insertRows(db, "auth_sessions", snapshot.auth_sessions ?? []);
-  insertRows(db, "auth_claim_events", snapshot.auth_claim_events ?? []);
 }
 
 /** Clear demo tables so cookie snapshot is authoritative across warm instances. */
@@ -505,17 +463,7 @@ export function clearDemoTables(db: NobuDatabase): void {
   } catch {
     /* table may not exist yet */
   }
-  try {
-    db.exec(`
-      DELETE FROM auth_claim_events;
-      DELETE FROM auth_sessions;
-      DELETE FROM auth_login_tokens;
-      DELETE FROM auth_rate_limits;
-      DELETE FROM accounts;
-    `);
-  } catch {
-    /* auth tables may not exist on very old DBs before migrate */
-  }
+  // Do not clear durable auth tables (if present on shared sqlite) — owned by AuthStore.
 }
 
 /**
@@ -650,11 +598,11 @@ export async function persistDatabaseToCookie(
       };
     }
 
-    const hasAuth =
-      (snapshot.accounts?.length ?? 0) > 0 ||
-      (snapshot.auth_login_tokens?.length ?? 0) > 0 ||
-      (snapshot.auth_sessions?.length ?? 0) > 0;
-    if (!snapshot.purchases.length && !hasAuth) {
+    if (!snapshot.purchases.length) {
+      // Auth is durable (not cookie). Empty purchase snapshot is a no-op success off-Vercel.
+      if (!isVercelRuntime()) {
+        return { ok: true, length: 0 };
+      }
       return { ok: false, reason: "no_purchase_in_snapshot" };
     }
 

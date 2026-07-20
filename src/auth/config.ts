@@ -15,6 +15,15 @@ export function isAuthTestMode(
 ): boolean {
   if (env.NOBU_AUTH_TEST_MODE === "1") return true;
   if (env.VITEST === "true" || env.NODE_ENV === "test") return true;
+  // Local e2e webServer (fixture mode, not production Vercel)
+  if (
+    env.NOBU_FIXTURE_MODE === "1" &&
+    env.VERCEL !== "1" &&
+    env.VERCEL !== "true" &&
+    env.NODE_ENV !== "production"
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -29,15 +38,24 @@ export function getSessionSecret(
   return null;
 }
 
+/** Canonical consumer origin for magic links (not the A2MCP agent host). */
+export const CANONICAL_CONSUMER_ORIGIN = "https://www.usenobu.xyz";
+
+/**
+ * Base URL for magic-link emails.
+ * Prefer APP_BASE_URL; in production default to www.usenobu.xyz.
+ * A2MCP agent endpoint remains https://usenobu.vercel.app/v1/agent (unchanged).
+ */
 export function getAppBaseUrl(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
 ): string {
-  const raw =
-    env.APP_BASE_URL?.trim() ||
-    env.NEXT_PUBLIC_APP_URL?.trim() ||
-    (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : "") ||
-    "http://127.0.0.1:3456";
-  return raw.replace(/\/$/, "");
+  const configured = env.APP_BASE_URL?.trim() || env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+  if (env.VERCEL === "1" || env.VERCEL === "true" || env.NODE_ENV === "production") {
+    return CANONICAL_CONSUMER_ORIGIN;
+  }
+  if (env.VERCEL_URL) return `https://${env.VERCEL_URL}`.replace(/\/$/, "");
+  return "http://127.0.0.1:3456";
 }
 
 export function isEmailDeliveryConfigured(

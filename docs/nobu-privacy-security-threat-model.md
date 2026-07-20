@@ -82,6 +82,7 @@ If receipt images are added:
 
 - **Guests** use browser-scoped ownership via server-minted `usr_*` in httpOnly `nobu_owner_v1` (middleware + actions). Guest storage is **not** a full account.
 - **Verified accounts** use stable server-side `acct_*` IDs after passwordless email magic-link verification. Auth session is a separate httpOnly cookie (`nobu_auth_session_v1`); sessions rotate on login/logout; magic tokens are one-time and expiring.
+- **Durable auth (7.3A.2A.1R):** accounts, login tokens, sessions, claim events, and account purchase blobs live in shared Postgres (not the browser purchase cookie snapshot). GET `/auth/verify` only peeks; POST confirmation consumes the token (email link previews cannot burn it).
 - **Every new purchase has exactly one server-assigned owner** written to `purchases.user_ref` (account id when signed in, else guest id). Client-supplied user/owner/email fields are ignored.
 - **Guest claim:** only the browser holding the guest cookie may transfer that guest’s eligible purchases to the verified account; atomic and idempotent; never claims ownerless, legacy `demo-user`, or another account’s rows; guest cookie is rotated after claim.
 - **Logout** invalidates the auth session and does not delete purchase history or move account purchases back to guest ownership.

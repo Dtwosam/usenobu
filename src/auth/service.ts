@@ -1,9 +1,8 @@
 /**
- * Passwordless magic-link auth service (Lane 7.3A.2A.1).
+ * Passwordless magic-link auth (Lane 7.3A.2A.1R).
  *
- * - Guest identity remains nobu_owner_v1 (usr_*).
- * - Verified accounts use stable acct_* IDs as purchases.user_ref.
- * - Client never supplies owner or account IDs for assignment.
+ * Durable tokens/sessions in AuthStore (Postgres prod / SQLite tests).
+ * GET only peeks; POST consumes. Never store auth rows in browser cookies.
  */
 import type { NobuDatabase } from "../db/index.js";
 import {
@@ -22,22 +21,12 @@ import {
 } from "./crypto.js";
 import { sendMagicLinkEmail } from "./email.js";
 import {
-  claimGuestPurchasesAtomic,
-  createSession,
-  findLoginTokenByHash,
-  findSessionByTokenHash,
-  getAccountByEmail,
-  getAccountById,
-  insertLoginToken,
+  durableDbManualActions,
+  getAuthStore,
   isAccountOwnerRef,
-  markAccountVerified,
-  markLoginTokenUsed,
-  revokeSession,
-  touchSession,
-  upsertAccountForEmail,
-  consumeRateLimit,
+  type AuthStore,
   type AccountRow,
-} from "./store.js";
+} from "./auth-store.js";
 import {
   clearAuthSessionCookie,
   readAuthSessionToken,
@@ -52,6 +41,11 @@ import {
 } from "../web/session-owner.js";
 import { isVercelRuntime } from "../web/db.js";
 import { cookies } from "next/headers";
+import {
+  exportPurchaseBlob,
+  importPurchaseBlobs,
+  reassignGuestPurchasesLocally,
+} from "./purchase-blobs.js";
 
 export type AuthAccountView = {
   id: string;
@@ -62,7 +56,18 @@ export type AuthAccountView = {
 
 export type RequestLoginResult =
   | { ok: true; status: "sent"; resend_after_seconds: number }
-  | { ok: false; error: "invalid_email" | "rate_limited" | "not_configured" | "send_failed" };
+  | {
+      ok: false;
+      error:
+        | "invalid_email"
+        | "rate_limited"
+        | "not_configured"
+        | "send_failed";
+    };
+
+export type PeekTokenResult =
+  | { ok: true; email_hint: string }
+  | { ok: false; error: "invalid_token" | "expired" | "used" };
 
 export type VerifyLoginResult =
   | {
@@ -80,16 +85,19 @@ function emailBucket(emailNormalized: string): string {
   return `login:${sha256Hex(emailNormalized).slice(0, 32)}`;
 }
 
+async function resolveStore(sqliteDb?: NobuDatabase): Promise<AuthStore> {
+  return getAuthStore({ sqliteDb });
+}
+
 /**
- * Start passwordless sign-in. Always same success shape when email is valid
- * (does not reveal whether an account already exists).
+ * Start passwordless sign-in. Always same success shape when email is valid.
  */
 export async function requestMagicLinkLogin(args: {
-  db: NobuDatabase;
   email: string;
   guestOwnerRef?: string | null;
   now?: Date;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  sqliteDb?: NobuDatabase;
 }): Promise<RequestLoginResult> {
   const env = args.env ?? process.env;
   const email = normalizeEmail(args.email);
@@ -97,27 +105,28 @@ export async function requestMagicLinkLogin(args: {
     return { ok: false, error: "invalid_email" };
   }
 
-  const manual = authManualActionsRequired(env);
-  if (manual.length && !isAuthTestMode(env)) {
-    // Still allow test/dev paths; production without secrets fails closed here
+  const missing = [
+    ...authManualActionsRequired(env),
+    ...durableDbManualActions(env),
+  ];
+  if (missing.length && !isAuthTestMode(env)) {
     if (env.NODE_ENV === "production" || env.VERCEL === "1") {
       return { ok: false, error: "not_configured" };
     }
   }
 
+  const store = await resolveStore(args.sqliteDb);
   const now = args.now ?? new Date();
   if (
-    !consumeRateLimit({
-      db: args.db,
+    !(await store.consumeRateLimit({
       bucketKey: emailBucket(email),
       now,
-    })
+    }))
   ) {
     return { ok: false, error: "rate_limited" };
   }
 
-  // Upsert account row (unverified until magic link succeeds).
-  upsertAccountForEmail(args.db, email, now.toISOString());
+  await store.upsertAccountForEmail(email, now.toISOString());
 
   const rawToken = randomToken(32);
   const guest =
@@ -125,8 +134,7 @@ export async function requestMagicLinkLogin(args: {
       ? args.guestOwnerRef
       : null;
 
-  insertLoginToken({
-    db: args.db,
+  await store.insertLoginToken({
     emailNormalized: email,
     rawToken,
     guestOwnerRef: guest,
@@ -159,43 +167,72 @@ export async function requestMagicLinkLogin(args: {
 }
 
 /**
- * Consume one-time magic link token → verified account + session + guest claim.
+ * Peek token for GET confirmation page — never marks used.
  */
-export function verifyMagicLinkToken(args: {
-  db: NobuDatabase;
+export async function peekMagicLinkToken(args: {
   rawToken: string;
-  /** Guest cookie at verify time (server-read only). */
+  now?: Date;
+  sqliteDb?: NobuDatabase;
+}): Promise<PeekTokenResult> {
+  const raw = String(args.rawToken || "").trim();
+  if (!raw || raw.length < 16) {
+    return { ok: false, error: "invalid_token" };
+  }
+  const store = await resolveStore(args.sqliteDb);
+  const token = await store.findLoginTokenByHash(sha256Hex(raw));
+  if (!token) return { ok: false, error: "invalid_token" };
+  if (token.used_at) return { ok: false, error: "used" };
+  const now = args.now ?? new Date();
+  if (Date.parse(token.expires_at) <= now.getTime()) {
+    return { ok: false, error: "expired" };
+  }
+  const email = token.email_normalized;
+  const at = email.indexOf("@");
+  const hint =
+    at > 1
+      ? `${email[0]}…${email.slice(at)}`
+      : truncateEmail(email, 20);
+  return { ok: true, email_hint: hint };
+}
+
+/**
+ * Consume one-time magic link (POST only).
+ */
+export async function verifyMagicLinkToken(args: {
+  rawToken: string;
   guestOwnerRef?: string | null;
   now?: Date;
-}): VerifyLoginResult {
+  /** Local purchase DB for claim + blob export */
+  purchaseDb?: NobuDatabase;
+  sqliteDb?: NobuDatabase;
+}): Promise<VerifyLoginResult> {
   const raw = String(args.rawToken || "").trim();
   if (!raw || raw.length < 16) {
     return { ok: false, error: "invalid_token" };
   }
 
+  const store = await resolveStore(args.sqliteDb ?? args.purchaseDb);
   const now = args.now ?? new Date();
   const nowIso = now.toISOString();
   const hash = sha256Hex(raw);
-  const token = findLoginTokenByHash(args.db, hash);
+  const token = await store.findLoginTokenByHash(hash);
   if (!token) return { ok: false, error: "invalid_token" };
   if (token.used_at) return { ok: false, error: "used" };
   if (Date.parse(token.expires_at) <= now.getTime()) {
     return { ok: false, error: "expired" };
   }
 
-  // Mark used first (one-time) — fail closed if concurrent race loses
-  if (!markLoginTokenUsed(args.db, token.id, nowIso)) {
+  // Consume first (one-time) — concurrent POST loses
+  if (!(await store.markLoginTokenUsed(token.id, nowIso))) {
     return { ok: false, error: "used" };
   }
 
-  const account = upsertAccountForEmail(
-    args.db,
+  const account = await store.upsertAccountForEmail(
     token.email_normalized,
     nowIso,
   );
-  markAccountVerified(args.db, account.id, nowIso);
+  await store.markAccountVerified(account.id, nowIso);
 
-  // Prefer guest captured on token request; fall back to current cookie guest.
   const guestCandidate =
     (token.guest_owner_ref && isValidSessionOwner(token.guest_owner_ref)
       ? token.guest_owner_ref
@@ -206,15 +243,35 @@ export function verifyMagicLinkToken(args: {
 
   let claimed = 0;
   let already_claimed = false;
-  if (guestCandidate) {
-    const claim = claimGuestPurchasesAtomic({
-      db: args.db,
+
+  if (guestCandidate && args.purchaseDb) {
+    // Local reassignment first (idempotent when guest already empty).
+    const local = reassignGuestPurchasesLocally({
+      db: args.purchaseDb,
       guestOwnerRef: guestCandidate,
       accountId: account.id,
-      now,
+      nowIso,
     });
-    claimed = claim.claimed;
-    already_claimed = claim.already_claimed;
+    const claimRecord = await store.recordClaimEvent({
+      accountId: account.id,
+      guestOwnerRef: guestCandidate,
+      purchasesClaimed: local.claimed,
+      nowIso,
+    });
+    already_claimed = claimRecord.already;
+    claimed = claimRecord.already ? claimRecord.claimed : local.claimed;
+
+    for (const purchaseId of local.purchaseIds) {
+      const blob = exportPurchaseBlob(args.purchaseDb, purchaseId);
+      if (blob) {
+        await store.savePurchaseBlob({
+          accountId: account.id,
+          purchaseId,
+          blobJson: blob,
+          nowIso,
+        });
+      }
+    }
   }
 
   return {
@@ -225,15 +282,14 @@ export function verifyMagicLinkToken(args: {
   };
 }
 
-/** Create session after successful verify; returns raw session token for cookie. */
-export function establishSession(args: {
-  db: NobuDatabase;
+export async function establishSession(args: {
   accountId: string;
   now?: Date;
-}): { rawSessionToken: string; sessionId: string } {
+  sqliteDb?: NobuDatabase;
+}): Promise<{ rawSessionToken: string; sessionId: string }> {
+  const store = await resolveStore(args.sqliteDb);
   const rawSessionToken = randomToken(32);
-  const session = createSession({
-    db: args.db,
+  const session = await store.createSession({
     accountId: args.accountId,
     rawSessionToken,
     now: args.now,
@@ -241,29 +297,29 @@ export function establishSession(args: {
   return { rawSessionToken, sessionId: session.id };
 }
 
-export function resolveSessionAccount(
-  db: NobuDatabase,
+export async function resolveSessionAccount(
   rawSessionToken: string | null | undefined,
   now?: Date,
-): (AccountRow & { session_id: string }) | null {
+  sqliteDb?: NobuDatabase,
+): Promise<(AccountRow & { session_id: string }) | null> {
   const raw = String(rawSessionToken || "").trim();
   if (!raw) return null;
-  const hash = sha256Hex(raw);
-  const session = findSessionByTokenHash(db, hash);
+  const store = await resolveStore(sqliteDb);
+  const session = await store.findSessionByTokenHash(sha256Hex(raw));
   if (!session || session.revoked_at) return null;
   const t = now ?? new Date();
   if (Date.parse(session.expires_at) <= t.getTime()) return null;
-  const account = getAccountById(db, session.account_id);
+  const account = await store.getAccountById(session.account_id);
   if (!account || !account.email_verified_at) return null;
-  touchSession(db, session.id, t.toISOString());
+  await store.touchSession(session.id, t.toISOString());
   return { ...account, session_id: session.id };
 }
 
 export async function getAuthenticatedAccount(
-  db: NobuDatabase,
+  sqliteDb?: NobuDatabase,
 ): Promise<AuthAccountView | null> {
   const raw = await readAuthSessionToken();
-  const row = resolveSessionAccount(db, raw);
+  const row = await resolveSessionAccount(raw, undefined, sqliteDb);
   if (!row) return null;
   const email = row.email_normalized;
   return {
@@ -275,8 +331,8 @@ export async function getAuthenticatedAccount(
 }
 
 /**
- * Effective purchase owner for consumer ops:
- * signed-in account id, else guest usr_*.
+ * Effective purchase owner: account when signed in, else guest.
+ * Hydrates durable account purchase blobs into the local purchase DB when signed in.
  */
 export async function getEffectivePurchaseOwner(args?: {
   db?: NobuDatabase;
@@ -286,12 +342,20 @@ export async function getEffectivePurchaseOwner(args?: {
   kind: "account" | "guest";
   account: AuthAccountView | null;
 }> {
-  const db = args?.db;
-  if (db) {
-    const account = await getAuthenticatedAccount(db);
-    if (account && isAccountOwnerRef(account.id)) {
-      return { owner_ref: account.id, kind: "account", account };
+  const account = await getAuthenticatedAccount(args?.db);
+  if (account && isAccountOwnerRef(account.id)) {
+    if (args?.db) {
+      try {
+        const store = await resolveStore(args.db);
+        const blobs = await store.listPurchaseBlobs(account.id);
+        importPurchaseBlobs(args.db, blobs);
+      } catch (err) {
+        console.error("nobu_account_blob_hydrate_failed", {
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
+    return { owner_ref: account.id, kind: "account", account };
   }
 
   const guest =
@@ -327,19 +391,42 @@ export async function rotateGuestCookie(): Promise<string> {
   return next;
 }
 
-export async function logoutCurrentSession(db: NobuDatabase): Promise<void> {
+export async function logoutCurrentSession(
+  sqliteDb?: NobuDatabase,
+): Promise<void> {
   const raw = await readAuthSessionToken();
   if (raw) {
-    const row = resolveSessionAccount(db, raw);
+    const row = await resolveSessionAccount(raw, undefined, sqliteDb);
     if (row) {
-      revokeSession(db, row.session_id, new Date().toISOString());
+      const store = await resolveStore(sqliteDb);
+      await store.revokeSession(row.session_id, new Date().toISOString());
     }
   }
   await clearAuthSessionCookie();
 }
 
-export async function applySessionCookie(rawSessionToken: string): Promise<void> {
+export async function applySessionCookie(
+  rawSessionToken: string,
+): Promise<void> {
   await writeAuthSessionToken(rawSessionToken);
 }
 
-export { getAccountByEmail, isAccountOwnerRef };
+export { isAccountOwnerRef };
+
+/** Persist account purchase after mutation when signed in. */
+export async function persistAccountPurchaseIfNeeded(args: {
+  purchaseDb: NobuDatabase;
+  purchaseId: string;
+  ownerRef: string;
+}): Promise<void> {
+  if (!isAccountOwnerRef(args.ownerRef)) return;
+  const blob = exportPurchaseBlob(args.purchaseDb, args.purchaseId);
+  if (!blob) return;
+  const store = await resolveStore(args.purchaseDb);
+  await store.savePurchaseBlob({
+    accountId: args.ownerRef,
+    purchaseId: args.purchaseId,
+    blobJson: blob,
+    nowIso: new Date().toISOString(),
+  });
+}

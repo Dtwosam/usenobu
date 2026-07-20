@@ -18,7 +18,10 @@ import {
 } from "./navigation.js";
 import { isFixtureCheckAllowed } from "./manual-check-mode.js";
 import type { FixtureScenario } from "./fixtures.js";
-import { getEffectivePurchaseOwner } from "../auth/service.js";
+import {
+  getEffectivePurchaseOwner,
+  persistAccountPurchaseIfNeeded,
+} from "../auth/service.js";
 
 /** Cookie is source of truth on Vercel — re-hydrate each mutation request. */
 async function prepareActionDb() {
@@ -174,6 +177,12 @@ export async function submitPurchaseAction(formData: FormData) {
       return;
     }
 
+    await persistAccountPurchaseIfNeeded({
+      purchaseDb: db,
+      purchaseId: result.purchase_id,
+      ownerRef,
+    });
+
     const persisted = await persistDatabaseToCookie(db);
     // On multi-instance hosts the cookie is the only shared session store.
     // Never redirect to review without a successful session write.
@@ -234,6 +243,11 @@ export async function confirmCandidateAction(formData: FormData) {
         `/purchases/${purchaseId}/review?error=${encodeURIComponent(result.error)}`,
       );
     }
+    await persistAccountPurchaseIfNeeded({
+      purchaseDb: db,
+      purchaseId,
+      ownerRef,
+    });
     await persistDatabaseToCookie(db);
     redirect(`/purchases/${purchaseId}`);
   } catch (err) {

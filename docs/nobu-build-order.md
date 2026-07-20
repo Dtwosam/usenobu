@@ -158,6 +158,15 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** auth unit tests, privacy regressions, Playwright account-auth + consumer-flow, typecheck, build.
 
+## Lane 7.3A.2A.1R - Magic-link + durable auth repair
+
+- Durable Postgres AuthStore (accounts, tokens, sessions, claims, account purchase blobs).
+- Auth not stored in browser cookie snapshot; cookies are opaque only.
+- GET `/auth/verify` peeks only; POST “Continue signing in” consumes once (email previews safe).
+- Magic-link origin: `https://www.usenobu.xyz`; A2MCP stays on `usenobu.vercel.app`.
+
+**Proof:** focused auth unit tests, purchase-privacy regressions, Playwright 1R flow, typecheck, build.
+
 ## Lane 7.3A.2B — Persistent purchase history and lifecycle interface (next after 7.3A.2A.1 PASS)
 
 ## Lane 7.3B — Consented email price-drop notifications (queued)

@@ -19,7 +19,7 @@ import { getSessionOwner } from "./session-owner.js";
 import { isValidEmail, normalizeEmail } from "../auth/crypto.js";
 import { AUTH_RESEND_COOLDOWN_SECONDS } from "../auth/config.js";
 
-async function prepareAuthDb() {
+async function preparePurchaseDb() {
   const db = getWebDatabase();
   markCookieHydrated(false);
   await hydrateDatabaseFromCookie(db);
@@ -59,15 +59,15 @@ export async function requestLoginAction(
       return { ok: false, error: "invalid_email" };
     }
 
-    const db = await prepareAuthDb();
+    const db = await preparePurchaseDb();
     const guest = await getSessionOwner();
     const result = await requestMagicLinkLogin({
-      db,
       email,
       guestOwnerRef: guest,
+      sqliteDb: db,
     });
 
-    // Persist any token rows into cookie snapshot on Vercel
+    // Purchase cookie only — never persist auth tables into the browser snapshot.
     await persistDatabaseToCookie(db).catch(() => ({ ok: false as const }));
 
     if (!result.ok) {
@@ -88,52 +88,56 @@ export async function requestLoginAction(
 }
 
 /**
- * Complete magic-link verification from route handler.
- * Returns redirect path (never exposes token errors raw).
+ * POST-only consumption of magic link (after user confirms on GET page).
  */
-export async function completeMagicLinkVerification(rawToken: string): Promise<{
-  redirectTo: string;
-}> {
-  const db = await prepareAuthDb();
-  const guest = await getSessionOwner();
-  const verified = verifyMagicLinkToken({
-    db,
-    rawToken,
-    guestOwnerRef: guest,
-  });
+export async function confirmMagicLinkAction(
+  formData: FormData,
+): Promise<void> {
+  const rawToken = String(formData.get("token") ?? "");
+  try {
+    const db = await preparePurchaseDb();
+    const guest = await getSessionOwner();
+    const verified = await verifyMagicLinkToken({
+      rawToken,
+      guestOwnerRef: guest,
+      purchaseDb: db,
+      sqliteDb: db,
+    });
 
-  if (!verified.ok) {
-    const code =
-      verified.error === "expired"
-        ? "expired"
-        : verified.error === "used"
-          ? "used"
-          : "invalid";
-    return { redirectTo: `/sign-in?error=${code}` };
+    if (!verified.ok) {
+      const code =
+        verified.error === "expired"
+          ? "expired"
+          : verified.error === "used"
+            ? "used"
+            : "invalid";
+      redirect(`/sign-in?error=${code}`);
+    }
+
+    const { rawSessionToken } = await establishSession({
+      accountId: verified.account_id,
+      sqliteDb: db,
+    });
+    await applySessionCookie(rawSessionToken);
+    await rotateGuestCookie();
+    await persistDatabaseToCookie(db).catch(() => ({ ok: false as const }));
+
+    if (verified.claimed > 0) {
+      redirect(`/dashboard?claimed=${verified.claimed}`);
+    }
+    redirect("/dashboard");
+  } catch (err) {
+    rethrowIfNavigation(err);
+    console.error("confirmMagicLinkAction_failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+    redirect("/sign-in?error=invalid");
   }
-
-  const { rawSessionToken } = establishSession({
-    db,
-    accountId: verified.account_id,
-  });
-  await applySessionCookie(rawSessionToken);
-
-  // Invalidate prior guest identity so transferred rows are no longer guest-owned.
-  await rotateGuestCookie();
-
-  await persistDatabaseToCookie(db).catch(() => ({ ok: false as const }));
-
-  if (verified.claimed > 0) {
-    return {
-      redirectTo: `/dashboard?claimed=${verified.claimed}`,
-    };
-  }
-  return { redirectTo: "/dashboard" };
 }
 
 export async function logoutAction(): Promise<void> {
   try {
-    const db = await prepareAuthDb();
+    const db = await preparePurchaseDb();
     await logoutCurrentSession(db);
     await persistDatabaseToCookie(db).catch(() => ({ ok: false as const }));
   } catch (err) {
@@ -145,19 +149,21 @@ export async function logoutAction(): Promise<void> {
   redirect("/?signed_out=1");
 }
 
-/** Test/e2e only — completes login with captured token (no email provider). */
+/** Test/e2e — request + capture token, then POST confirm. */
 export async function completeTestLoginAction(formData: FormData): Promise<void> {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   if (!email) redirect("/sign-in?error=invalid");
 
-  // Dynamic import keeps production bundle free of test helpers when unused
-  const { peekLastCapturedToken } = await import("../auth/email.js");
+  const { peekLastCapturedTokenAsync } = await import("../auth/email.js");
   const { isAuthTestMode } = await import("../auth/config.js");
   if (!isAuthTestMode()) {
     redirect("/sign-in?error=invalid");
   }
-  const token = peekLastCapturedToken(email);
+  const token = await peekLastCapturedTokenAsync(email);
   if (!token) redirect("/sign-in?error=invalid");
-  const result = await completeMagicLinkVerification(token);
-  redirect(result.redirectTo);
+
+  // Simulate user POST confirm (never GET-consume)
+  const fd = new FormData();
+  fd.set("token", token);
+  await confirmMagicLinkAction(fd);
 }

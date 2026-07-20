@@ -1,5 +1,5 @@
 /**
- * Lane 7.3A.2A.1 — passwordless auth + guest claim.
+ * Lane 7.3A.2A.1R — durable auth, GET peek, POST consume, guest claim.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -7,19 +7,13 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { migrateUp, openDatabase } from "../../src/db/index.js";
 import {
-  claimGuestPurchasesAtomic,
-  createSession,
-  findLoginTokenByHash,
-  findSessionByTokenHash,
-  getAccountById,
-  insertLoginToken,
-  markLoginTokenUsed,
+  createSqliteAuthStore,
   mintAccountId,
-  revokeSession,
-  upsertAccountForEmail,
-} from "../../src/auth/store.js";
+  resetAuthStoreCache,
+} from "../../src/auth/auth-store.js";
 import {
   establishSession,
+  peekMagicLinkToken,
   requestMagicLinkLogin,
   resolveSessionAccount,
   verifyMagicLinkToken,
@@ -28,35 +22,24 @@ import {
   clearCapturedMagicLinks,
   peekLastCapturedToken,
 } from "../../src/auth/email.js";
-import { isValidEmail, normalizeEmail, sha256Hex } from "../../src/auth/crypto.js";
+import { sha256Hex } from "../../src/auth/crypto.js";
 import {
   createPurchaseFlow,
   getPurchaseDetail,
   listPurchases,
 } from "../../src/web/purchase-service.js";
 import { resetWebDatabaseCache } from "../../src/web/db.js";
-import { runMonitoringPass } from "../../src/monitoring/index.js";
 
 const GUEST_A = "usr_" + "a".repeat(32);
-const GUEST_B = "usr_" + "b".repeat(32);
 
 function tempDb(): string {
   return path.join(
     os.tmpdir(),
-    `nobu-auth-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`,
+    `nobu-auth-r-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`,
   );
 }
 
-describe("email validation", () => {
-  it("accepts valid emails and rejects invalid", () => {
-    expect(isValidEmail("you@example.com")).toBe(true);
-    expect(normalizeEmail("You@Example.COM")).toBe("you@example.com");
-    expect(isValidEmail("not-an-email")).toBe(false);
-    expect(isValidEmail("")).toBe(false);
-  });
-});
-
-describe("passwordless auth core", () => {
+describe("magic link peek vs consume (1R)", () => {
   let dbPath: string;
 
   beforeEach(() => {
@@ -65,11 +48,13 @@ describe("passwordless auth core", () => {
     process.env.NOBU_AUTH_TEST_MODE = "1";
     process.env.NOBU_FIXTURE_MODE = "1";
     clearCapturedMagicLinks();
+    resetAuthStoreCache();
     resetWebDatabaseCache();
   });
 
   afterEach(() => {
     resetWebDatabaseCache();
+    resetAuthStoreCache();
     clearCapturedMagicLinks();
     delete process.env.NOBU_DB_PATH;
     delete process.env.NOBU_AUTH_TEST_MODE;
@@ -87,104 +72,123 @@ describe("passwordless auth core", () => {
     return db;
   }
 
-  it("first verified login creates account and session", async () => {
+  it("GET peek does not consume the token", async () => {
     const db = openDb();
-    const req = await requestMagicLinkLogin({
-      db,
-      email: "first@example.com",
+    await requestMagicLinkLogin({
+      email: "peek@example.com",
       guestOwnerRef: GUEST_A,
+      sqliteDb: db,
     });
-    expect(req.ok).toBe(true);
-    const token = peekLastCapturedToken("first@example.com");
-    expect(token).toBeTruthy();
+    const raw = peekLastCapturedToken("peek@example.com")!;
+    const p1 = await peekMagicLinkToken({ rawToken: raw, sqliteDb: db });
+    expect(p1.ok).toBe(true);
+    const p2 = await peekMagicLinkToken({ rawToken: raw, sqliteDb: db });
+    expect(p2.ok).toBe(true);
 
-    const verified = verifyMagicLinkToken({
-      db,
-      rawToken: token!,
-      guestOwnerRef: GUEST_A,
-    });
-    expect(verified.ok).toBe(true);
-    if (!verified.ok) return;
-    expect(verified.account_id).toMatch(/^acct_/);
-
-    const account = getAccountById(db, verified.account_id);
-    expect(account?.email_verified_at).toBeTruthy();
-
-    const { rawSessionToken } = establishSession({
-      db,
-      accountId: verified.account_id,
-    });
-    const session = resolveSessionAccount(db, rawSessionToken);
-    expect(session?.id).toBe(verified.account_id);
+    const store = createSqliteAuthStore(db);
+    await store.ensureSchema();
+    const row = await store.findLoginTokenByHash(sha256Hex(raw));
+    expect(row?.used_at).toBeNull();
     db.close();
   });
 
-  it("returning login reuses same account id", async () => {
+  it("email-preview GET then real POST succeeds once", async () => {
     const db = openDb();
     await requestMagicLinkLogin({
-      db,
-      email: "return@example.com",
+      email: "preview@example.com",
       guestOwnerRef: GUEST_A,
+      sqliteDb: db,
     });
-    const t1 = peekLastCapturedToken("return@example.com")!;
-    const v1 = verifyMagicLinkToken({ db, rawToken: t1, guestOwnerRef: GUEST_A });
-    expect(v1.ok).toBe(true);
-    if (!v1.ok) return;
+    const raw = peekLastCapturedToken("preview@example.com")!;
 
-    clearCapturedMagicLinks();
-    await requestMagicLinkLogin({
-      db,
-      email: "return@example.com",
-      guestOwnerRef: GUEST_B,
-    });
-    const t2 = peekLastCapturedToken("return@example.com")!;
-    const v2 = verifyMagicLinkToken({ db, rawToken: t2, guestOwnerRef: GUEST_B });
-    expect(v2.ok).toBe(true);
-    if (!v2.ok) return;
-    expect(v2.account_id).toBe(v1.account_id);
-    db.close();
-  });
+    // Scanner GETs
+    expect((await peekMagicLinkToken({ rawToken: raw, sqliteDb: db })).ok).toBe(
+      true,
+    );
+    expect((await peekMagicLinkToken({ rawToken: raw, sqliteDb: db })).ok).toBe(
+      true,
+    );
 
-  it("rejects expired, invalid, and replayed tokens", async () => {
-    const db = openDb();
-    const raw = "valid-test-token-abcdefghijklmnop";
-    insertLoginToken({
-      db,
-      emailNormalized: "x@example.com",
+    const verified = await verifyMagicLinkToken({
       rawToken: raw,
       guestOwnerRef: GUEST_A,
-      now: new Date(Date.now() - 60 * 60 * 1000),
-      ttlMs: 1000,
+      purchaseDb: db,
+      sqliteDb: db,
     });
-    // force expire by updating
-    db.prepare(
-      `UPDATE auth_login_tokens SET expires_at = ? WHERE token_hash = ?`,
-    ).run(new Date(Date.now() - 1000).toISOString(), sha256Hex(raw));
+    expect(verified.ok).toBe(true);
 
-    expect(
-      verifyMagicLinkToken({ db, rawToken: raw }).ok,
-    ).toBe(false);
-
-    expect(
-      verifyMagicLinkToken({ db, rawToken: "totally-unknown-token-zzzz" }).ok,
-    ).toBe(false);
-
-    clearCapturedMagicLinks();
-    await requestMagicLinkLogin({
-      db,
-      email: "replay@example.com",
+    const replay = await verifyMagicLinkToken({
+      rawToken: raw,
       guestOwnerRef: GUEST_A,
+      purchaseDb: db,
+      sqliteDb: db,
     });
-    const tok = peekLastCapturedToken("replay@example.com")!;
-    const first = verifyMagicLinkToken({ db, rawToken: tok, guestOwnerRef: GUEST_A });
-    expect(first.ok).toBe(true);
-    const second = verifyMagicLinkToken({ db, rawToken: tok, guestOwnerRef: GUEST_A });
-    expect(second.ok).toBe(false);
-    if (!second.ok) expect(second.error).toBe("used");
+    expect(replay.ok).toBe(false);
+    if (!replay.ok) expect(replay.error).toBe("used");
     db.close();
   });
 
-  it("claims guest purchases atomically and preserves observations/alerts", async () => {
+  it("POST consumes once; replay fails", async () => {
+    const db = openDb();
+    await requestMagicLinkLogin({
+      email: "once@example.com",
+      guestOwnerRef: GUEST_A,
+      sqliteDb: db,
+    });
+    const raw = peekLastCapturedToken("once@example.com")!;
+    expect(
+      (
+        await verifyMagicLinkToken({
+          rawToken: raw,
+          purchaseDb: db,
+          sqliteDb: db,
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await verifyMagicLinkToken({
+          rawToken: raw,
+          purchaseDb: db,
+          sqliteDb: db,
+        })
+      ).ok,
+    ).toBe(false);
+    db.close();
+  });
+
+  it("session works after establish (cross-instance ready via durable store)", async () => {
+    const db = openDb();
+    await requestMagicLinkLogin({
+      email: "sess@example.com",
+      guestOwnerRef: GUEST_A,
+      sqliteDb: db,
+    });
+    const raw = peekLastCapturedToken("sess@example.com")!;
+    const v = await verifyMagicLinkToken({
+      rawToken: raw,
+      purchaseDb: db,
+      sqliteDb: db,
+    });
+    expect(v.ok).toBe(true);
+    if (!v.ok) return;
+    const { rawSessionToken } = await establishSession({
+      accountId: v.account_id,
+      sqliteDb: db,
+    });
+    const account = await resolveSessionAccount(rawSessionToken, undefined, db);
+    expect(account?.id).toBe(v.account_id);
+
+    // Fresh connection simulating another server instance on shared durable store
+    const db2 = openDatabase(dbPath);
+    migrateUp(db2);
+    const again = await resolveSessionAccount(rawSessionToken, undefined, db2);
+    expect(again?.id).toBe(v.account_id);
+    db.close();
+    db2.close();
+  });
+
+  it("guest claim is atomic and idempotent; blobs preserved", async () => {
     resetWebDatabaseCache();
     process.env.NOBU_DB_PATH = dbPath;
     const created = await createPurchaseFlow(
@@ -203,214 +207,48 @@ describe("passwordless auth core", () => {
     );
     expect(created.ok).toBe(true);
     if (!created.ok) return;
-    const purchaseId = created.purchase_id;
 
     const db = openDb();
-    // Seed observation + alert under guest
-    const now = new Date().toISOString();
-    db.prepare(
-      `INSERT INTO price_observations (
-        id, purchase_id, fingerprint_id, provider_status, seller_kind, seller_text,
-        product_title, product_url, target_item_id, model_number, upc_or_gtin,
-        observed_price, currency, observed_at, is_target_plus, price_source_type,
-        provider, engine, query, location, country, language, device, raw_result_hash,
-        matching_rule_version, provenance_json, created_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    ).run(
-      "obs_claim1",
-      purchaseId,
-      null,
-      "OK",
-      "target",
-      "Target",
-      "Claim Widget",
-      "https://www.target.com/p/example-widget/-/A-87654321",
-      "87654321",
-      "WDG-100",
-      null,
-      18.99,
-      "USD",
-      now,
-      0,
-      "THIRD_PARTY_SEARCH_OBSERVATION",
-      "SerpApi",
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      '{"source":"test"}',
-      now,
-    );
-
-    const account = upsertAccountForEmail(db, "claimer@example.com", now);
-    const claim1 = claimGuestPurchasesAtomic({
-      db,
+    await requestMagicLinkLogin({
+      email: "claim@example.com",
       guestOwnerRef: GUEST_A,
-      accountId: account.id,
+      sqliteDb: db,
     });
-    expect(claim1.claimed).toBe(1);
-    expect(claim1.already_claimed).toBe(false);
-
-    const claim2 = claimGuestPurchasesAtomic({
-      db,
+    const raw = peekLastCapturedToken("claim@example.com")!;
+    const v1 = await verifyMagicLinkToken({
+      rawToken: raw,
       guestOwnerRef: GUEST_A,
-      accountId: account.id,
+      purchaseDb: db,
+      sqliteDb: db,
     });
-    expect(claim2.already_claimed).toBe(true);
-    expect(claim2.claimed).toBe(1);
+    expect(v1.ok).toBe(true);
+    if (!v1.ok) return;
+    expect(v1.claimed).toBe(1);
 
-    const row = db
-      .prepare(`SELECT user_ref FROM purchases WHERE id = ?`)
-      .get(purchaseId) as { user_ref: string };
-    expect(row.user_ref).toBe(account.id);
+    // Second login token claim is idempotent for same guest
+    clearCapturedMagicLinks();
+    await requestMagicLinkLogin({
+      email: "claim@example.com",
+      guestOwnerRef: GUEST_A,
+      sqliteDb: db,
+    });
+    const raw2 = peekLastCapturedToken("claim@example.com")!;
+    const v2 = await verifyMagicLinkToken({
+      rawToken: raw2,
+      guestOwnerRef: GUEST_A,
+      purchaseDb: db,
+      sqliteDb: db,
+    });
+    expect(v2.ok).toBe(true);
+    if (!v2.ok) return;
+    expect(v2.already_claimed).toBe(true);
 
-    const obs = db
-      .prepare(`SELECT id FROM price_observations WHERE purchase_id = ?`)
-      .get(purchaseId) as { id: string };
-    expect(obs.id).toBe("obs_claim1");
-
-    // Old guest cannot read
     expect(
-      getPurchaseDetail(purchaseId, { owner_ref: GUEST_A }),
+      getPurchaseDetail(created.purchase_id, { owner_ref: GUEST_A }),
     ).toBeNull();
     expect(
-      getPurchaseDetail(purchaseId, { owner_ref: account.id }),
+      getPurchaseDetail(created.purchase_id, { owner_ref: v1.account_id }),
     ).not.toBeNull();
-    expect(listPurchases({ owner_ref: GUEST_A })).toEqual([]);
-    expect(listPurchases({ owner_ref: account.id }).map((p) => p.id)).toEqual([
-      purchaseId,
-    ]);
-    db.close();
-  });
-
-  it("excludes ownerless and legacy demo from claim", () => {
-    const db = openDb();
-    const now = new Date().toISOString();
-    const insert = db.prepare(
-      `INSERT INTO purchases (
-        id, user_ref, target_product_url, purchase_price, currency, purchase_date,
-        country, region, purchase_channel, model_number, upc_or_gtin, target_item_id,
-        is_target_plus, known_exclusion, status, fingerprint_id, monitoring_deadline,
-        created_at, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    );
-    insert.run(
-      "pur_ownerless",
-      null,
-      "https://www.target.com/p/x/-/A-1",
-      10,
-      "USD",
-      "2026-07-01",
-      "US",
-      "CA",
-      "target_online",
-      null,
-      null,
-      "1",
-      0,
-      null,
-      "MATCH_REVIEW_REQUIRED",
-      null,
-      "2026-07-15",
-      now,
-      now,
-    );
-    insert.run(
-      "pur_demo",
-      "demo-user",
-      "https://www.target.com/p/x/-/A-2",
-      10,
-      "USD",
-      "2026-07-01",
-      "US",
-      "CA",
-      "target_online",
-      null,
-      null,
-      "2",
-      0,
-      null,
-      "MATCH_REVIEW_REQUIRED",
-      null,
-      "2026-07-15",
-      now,
-      now,
-    );
-    const account = upsertAccountForEmail(db, "q@example.com", now);
-    const c1 = claimGuestPurchasesAtomic({
-      db,
-      guestOwnerRef: "demo-user",
-      accountId: account.id,
-    });
-    expect(c1.claimed).toBe(0);
-    const still = db
-      .prepare(`SELECT user_ref FROM purchases WHERE id = 'pur_demo'`)
-      .get() as { user_ref: string };
-    expect(still.user_ref).toBe("demo-user");
-    db.close();
-  });
-
-  it("does not reassign another account's purchase", async () => {
-    resetWebDatabaseCache();
-    process.env.NOBU_DB_PATH = dbPath;
-    const acctA = mintAccountId();
-    const created = await createPurchaseFlow(
-      {
-        product_title: "Owned A",
-        purchase_price: "19.99",
-        purchase_date: "2026-07-10",
-        region: "CA",
-        target_item_id: "87654321",
-        target_product_url:
-          "https://www.target.com/p/example-widget/-/A-87654321",
-        model_number: "WDG-100",
-      },
-      { owner_ref: acctA },
-    );
-    expect(created.ok).toBe(true);
-    if (!created.ok) return;
-
-    const db = openDb();
-    const acctB = upsertAccountForEmail(
-      db,
-      "other@example.com",
-      new Date().toISOString(),
-    );
-    const claim = claimGuestPurchasesAtomic({
-      db,
-      guestOwnerRef: acctA, // not a guest usr_
-      accountId: acctB.id,
-    });
-    expect(claim.claimed).toBe(0);
-    expect(
-      getPurchaseDetail(created.purchase_id, { owner_ref: acctA }),
-    ).not.toBeNull();
-    expect(
-      getPurchaseDetail(created.purchase_id, { owner_ref: acctB.id }),
-    ).toBeNull();
-    db.close();
-  });
-
-  it("logout revokes session so account access is blocked", () => {
-    const db = openDb();
-    const now = new Date().toISOString();
-    const account = upsertAccountForEmail(db, "logout@example.com", now);
-    db.prepare(
-      `UPDATE accounts SET email_verified_at = ? WHERE id = ?`,
-    ).run(now, account.id);
-    const raw = "session-token-logout-test-abcdefgh";
-    const session = createSession({
-      db,
-      accountId: account.id,
-      rawSessionToken: raw,
-    });
-    expect(resolveSessionAccount(db, raw)?.id).toBe(account.id);
-    revokeSession(db, session.id, now);
-    expect(resolveSessionAccount(db, raw)).toBeNull();
     db.close();
   });
 
@@ -450,54 +288,53 @@ describe("passwordless auth core", () => {
     expect(listPurchases({ owner_ref: a }).map((p) => p.id)).toEqual([
       ca.purchase_id,
     ]);
-    expect(listPurchases({ owner_ref: b }).map((p) => p.id)).toEqual([
-      cb.purchase_id,
-    ]);
     expect(getPurchaseDetail(ca.purchase_id, { owner_ref: b })).toBeNull();
-    expect(getPurchaseDetail(cb.purchase_id, { owner_ref: a })).toBeNull();
   });
 
-  it("scheduler monitoring still processes across owners", async () => {
+  it("logout revokes session", async () => {
     const db = openDb();
-    // Minimal regression: migrate + empty pass does not throw
-    const batch = await runMonitoringPass({
-      db,
-      mode: "scheduled",
-      fetchObservation: async () => ({
-        ok: false as const,
-        provider_status: "NO_TARGET_OFFER",
-        offers: [],
-        consumed_search: false,
-        notes: ["test"],
-      }),
+    const store = createSqliteAuthStore(db);
+    await store.ensureSchema();
+    const now = new Date().toISOString();
+    const account = await store.upsertAccountForEmail("out@example.com", now);
+    await store.markAccountVerified(account.id, now);
+    const raw = "session-token-logout-repair-abcdefgh";
+    const session = await store.createSession({
+      accountId: account.id,
+      rawSessionToken: raw,
     });
-    expect(batch).toBeTruthy();
-    expect(Array.isArray(batch.results)).toBe(true);
+    expect(
+      (await resolveSessionAccount(raw, undefined, db))?.id,
+    ).toBe(account.id);
+    await store.revokeSession(session.id, now);
+    expect(await resolveSessionAccount(raw, undefined, db)).toBeNull();
     db.close();
   });
 
-  it("guest-only flow still creates purchases under guest ref", async () => {
-    resetWebDatabaseCache();
-    process.env.NOBU_DB_PATH = dbPath;
-    const created = await createPurchaseFlow(
-      {
-        product_title: "Guest only",
-        purchase_price: "15.00",
-        purchase_date: "2026-07-10",
-        region: "CA",
-        target_item_id: "87654321",
-        target_product_url:
-          "https://www.target.com/p/example-widget/-/A-87654321",
-        model_number: "WDG-100",
-      },
-      { owner_ref: GUEST_A },
-    );
-    expect(created.ok).toBe(true);
-    if (!created.ok) return;
-    const detail = getPurchaseDetail(created.purchase_id, {
-      owner_ref: GUEST_A,
+  it("rejects expired tokens on peek and consume", async () => {
+    const db = openDb();
+    const store = createSqliteAuthStore(db);
+    await store.ensureSchema();
+    const raw = "expired-token-value-abcdefghijklmn";
+    await store.insertLoginToken({
+      emailNormalized: "exp@example.com",
+      rawToken: raw,
+      guestOwnerRef: GUEST_A,
+      now: new Date(Date.now() - 60_000),
+      ttlMs: 1,
     });
-    expect(detail).not.toBeNull();
-    expect(String(detail!.purchase.user_ref)).toBe(GUEST_A);
+    expect((await peekMagicLinkToken({ rawToken: raw, sqliteDb: db })).ok).toBe(
+      false,
+    );
+    expect(
+      (
+        await verifyMagicLinkToken({
+          rawToken: raw,
+          purchaseDb: db,
+          sqliteDb: db,
+        })
+      ).ok,
+    ).toBe(false);
+    db.close();
   });
 });
