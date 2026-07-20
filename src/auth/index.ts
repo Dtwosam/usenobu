@@ -6,3 +6,4 @@ export * from "./service.js";
 export * from "./session-cookie.js";
 export * from "./purchase-blobs.js";
 export * from "./durable-schema.js";
+export * from "./agent-connections.js";

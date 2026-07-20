@@ -1,19 +1,29 @@
 openapi: 3.1.0
 info:
-  title: Nobu Agent-Native Paid Monitoring API (PROPOSED — NOT LIVE)
-  version: 0.2.0-proposed
+  title: Nobu Agent-Native Paid Monitoring API (MOSTLY PROPOSED — PARTIALLY IMPLEMENTED)
+  version: 0.3.0-proposed
   description: >-
-    PROPOSED, RESEARCH-STAGE CONTRACT ONLY. Nothing in this document is deployed.
-    The only live, truthful Nobu A2MCP contract is `openapi/nobu-a2mcp.openapi.yaml`
-    (free UNDERSTAND_PURCHASE / CHECK_CONFIRMED_PURCHASE / CHECK_MONITORING_STATUS).
+    MOSTLY PROPOSED, RESEARCH-STAGE CONTRACT — with one implemented slice.
+    As of Lane 7.4B, `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, and
+    `REVOKE_AGENT_CONNECTION` are IMPLEMENTED on the live `/v1/agent` route
+    (`app/v1/agent/route.ts` -> `runAgentAction`), additive and
+    backward-compatible with the three pre-existing live actions. Every other
+    action in this document (DISCOVER_PRODUCT, CONFIRM_PRODUCT,
+    PREFLIGHT_MONITORING, LIST_ACTIVE_MONITORS, ENABLE_EMAIL_ALERTS,
+    DISABLE_EMAIL_ALERTS, STOP_MONITORING, and the entire paid
+    `/v1/agent/start-monitoring` path) remains PROPOSED / NOT IMPLEMENTED.
+    Each schema below is marked `x-nobu-implementation-status` to disambiguate.
+    ASP #5541's registered listing is unchanged by Lane 7.4B (free actions on
+    the same already-free endpoint; no marketplace/listing modification).
 
-    This file is an internal design artifact for Lane 7.4A / 7.4A.1
-    (`docs/nobu-okx-agent-native-paid-monitoring-architecture.md`). It shows the
-    *logical* shape of a proposed free agent-native discovery/preflight surface
-    and a proposed paid activation surface. It intentionally does NOT declare,
-    imply, or assume that both paths can be exposed through a single OKX A2MCP
-    listing, or through more than one listing — that marketplace topology is
-    UNDECIDED (see `x-nobu-topology-status` on the paid path below).
+    This file is an internal design artifact originating from Lane 7.4A / 7.4A.1
+    (`docs/nobu-okx-agent-native-paid-monitoring-architecture.md`), now partially
+    realized by Lane 7.4B. It shows the *logical* shape of a proposed free
+    agent-native discovery/preflight surface and a proposed paid activation
+    surface. It intentionally does NOT declare, imply, or assume that both
+    paths can be exposed through a single OKX A2MCP listing, or through more
+    than one listing — that marketplace topology is UNDECIDED (see
+    `x-nobu-topology-status` on the paid path below).
 
     Source purity: every OKX-specific fact this file assumes (registration is
     one price per call per endpoint; price 0 = free; an endpoint is either
@@ -151,13 +161,20 @@ components:
   schemas:
     ContinuationStatus:
       type: string
-      description: Proposed, additive to the live A2mcpStatus/agent-response vocabulary.
+      description: >-
+        Additive to the live A2mcpStatus/agent-response vocabulary.
+        EMAIL_CODE_SENT, EMAIL_VERIFIED, CODE_INVALID, CODE_EXPIRED,
+        ACTION_NOT_AUTHORIZED, and CONNECTION_REVOKED are IMPLEMENTED
+        (Lane 7.4B). The rest remain PROPOSED / NOT IMPLEMENTED.
       enum:
         - MORE_INFORMATION_REQUIRED
         - PRODUCT_CONFIRMATION_REQUIRED
         - EMAIL_VERIFICATION_REQUIRED
         - EMAIL_CODE_SENT
         - EMAIL_VERIFIED
+        - CODE_INVALID
+        - CODE_EXPIRED
+        - CONNECTION_REVOKED
         - CONSENT_REQUIRED
         - MONITORING_PAYMENT_READY
         - PAYMENT_PENDING
@@ -183,6 +200,7 @@ components:
       type: object
       required: [action, purchase_text]
       additionalProperties: false
+      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4C)
       properties:
         action:
           type: string
@@ -220,6 +238,7 @@ components:
       type: object
       required: [action, discovery_session_id, candidate_id]
       additionalProperties: false
+      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4C)
       properties:
         action:
           type: string
@@ -242,6 +261,7 @@ components:
       type: object
       required: [action, email]
       additionalProperties: false
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4B)
       properties:
         action:
           type: string
@@ -249,10 +269,38 @@ components:
         email:
           type: string
           format: email
+      description: >-
+        No connection_id/connection_token required. Creates a pending
+        connection scoped to this email and sends a six-digit code through
+        the existing Resend-backed email provider. Never reveals whether the
+        email already has an account — no account row is touched until
+        VERIFY_EMAIL_CODE succeeds. Rate-limited per-email and per-request-source.
+    BeginEmailVerificationResponse:
+      type: object
+      required: [agent_state, status, connection_id, expires_at, resend_after_seconds]
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4B)
+      properties:
+        agent_state:
+          type: string
+          const: EMAIL_VERIFICATION
+        status:
+          $ref: '#/components/schemas/ContinuationStatus'
+        connection_id:
+          type: string
+          description: >-
+            Non-secret handle for the pending connection. Never sufficient
+            alone to authorize a protected action.
+        expires_at:
+          type: string
+          format: date-time
+          description: Code expiry — 10 minutes from issuance.
+        resend_after_seconds:
+          type: integer
     VerifyEmailCodeRequest:
       type: object
       required: [action, connection_id, code]
       additionalProperties: false
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4B)
       properties:
         action:
           type: string
@@ -263,10 +311,16 @@ components:
         code:
           type: string
           minLength: 6
-          description: At least six numeric digits. Short-lived, single-use, rate-limited, attempt-limited, delivered by email and entered in the agent conversation.
+          description: Exactly six numeric digits. Short-lived (10 min), single-use, rate-limited, attempt-limited (max 5 wrong attempts), delivered by email and entered in the agent conversation.
     VerifyEmailCodeResponse:
       type: object
-      required: [agent_state, status, connection_id, connection_token, credential_expires_at]
+      required: [agent_state, status]
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4B)
+      description: >-
+        connection_id/connection_token/credential_expires_at are present only
+        when status = EMAIL_VERIFIED. A wrong code returns CODE_INVALID; an
+        expired code or one that has exhausted its five wrong attempts
+        returns CODE_EXPIRED (a new BEGIN_EMAIL_VERIFICATION is required).
       properties:
         agent_state:
           type: string
@@ -286,6 +340,7 @@ components:
       type: object
       required: [action, connection_id, connection_token, discovery_session_id, monitoring_consent, email_alert_consent]
       additionalProperties: false
+      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4C)
       properties:
         action:
           type: string
@@ -332,6 +387,7 @@ components:
       type: object
       required: [action, connection_id, connection_token]
       additionalProperties: false
+      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4E)
       properties:
         action:
           type: string
@@ -344,6 +400,7 @@ components:
       type: object
       required: [action, connection_id, connection_token, purchase_id]
       additionalProperties: false
+      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4E)
       properties:
         action:
           type: string
@@ -358,6 +415,7 @@ components:
       type: object
       required: [action, connection_id, connection_token, purchase_id]
       additionalProperties: false
+      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4E)
       properties:
         action:
           type: string
@@ -377,6 +435,7 @@ components:
       type: object
       required: [action, connection_id, connection_token]
       additionalProperties: false
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4B)
       properties:
         action:
           type: string
@@ -386,12 +445,32 @@ components:
         connection_token:
           type: string
       description: >-
-        Revokes the connection and invalidates its token. Never deletes or
-        stops monitors already started, and never implies a refund.
+        Requires valid authorization (both connection_id and connection_token,
+        matching the stored hash, unexpired, not already revoked). Revokes
+        the connection and invalidates its token. Never deletes or stops
+        monitors already started, and never implies a refund.
+    RevokeAgentConnectionResponse:
+      type: object
+      required: [agent_state, status]
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4B)
+      properties:
+        agent_state:
+          type: string
+          const: AGENT_CONNECTION_REVOCATION
+        status:
+          $ref: '#/components/schemas/ContinuationStatus'
+          description: >-
+            CONNECTION_REVOKED on success (HTTP 200). ACTION_NOT_AUTHORIZED
+            (HTTP 401) for any missing/wrong/expired/already-revoked
+            credential — identical shape regardless of the underlying reason.
+        connection_id:
+          type: string
+          description: Present only on success.
     StartMonitoringRequest:
       type: object
       required: [quote_id]
       additionalProperties: false
+      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4D, blocked on OKX topology re-check)
       properties:
         quote_id:
           type: string

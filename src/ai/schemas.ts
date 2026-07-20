@@ -85,6 +85,9 @@ export const AgentActionSchema = z.enum([
   "UNDERSTAND_PURCHASE",
   "CHECK_CONFIRMED_PURCHASE",
   "CHECK_MONITORING_STATUS",
+  "BEGIN_EMAIL_VERIFICATION",
+  "VERIFY_EMAIL_CODE",
+  "REVOKE_AGENT_CONNECTION",
 ]);
 
 export const AgentRequestSchema = z.discriminatedUnion("action", [
@@ -115,6 +118,26 @@ export const AgentRequestSchema = z.discriminatedUnion("action", [
     .object({
       action: z.literal("CHECK_MONITORING_STATUS"),
       purchase_id: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("BEGIN_EMAIL_VERIFICATION"),
+      email: z.string().trim().min(3).max(254),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("VERIFY_EMAIL_CODE"),
+      connection_id: z.string().min(1),
+      code: z.string().min(6).max(32),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("REVOKE_AGENT_CONNECTION"),
+      connection_id: z.string().min(1),
+      connection_token: z.string().min(1),
     })
     .strict(),
 ]);

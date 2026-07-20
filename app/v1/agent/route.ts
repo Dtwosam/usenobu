@@ -85,7 +85,7 @@ export async function POST(req: Request) {
   }
 
   // Never log raw purchase_text
-  const result = await runAgentAction(raw);
+  const result = await runAgentAction(raw, { sourceKey: key });
 
   auditA2mcp({
     at: new Date().toISOString(),

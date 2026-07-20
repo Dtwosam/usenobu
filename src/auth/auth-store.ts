@@ -50,6 +50,30 @@ export type SessionRow = {
   last_seen_at: string;
 };
 
+export type AgentConnectionRow = {
+  id: string;
+  account_id: string | null;
+  email_normalized: string;
+  connection_token_hash: string | null;
+  credential_expires_at: string | null;
+  credential_rotated_at: string | null;
+  status: string;
+  revoked_at: string | null;
+  created_at: string;
+  last_used_at: string | null;
+};
+
+export type AgentEmailCodeRow = {
+  id: string;
+  connection_id: string;
+  email_normalized: string;
+  code_hash: string;
+  expires_at: string;
+  attempt_count: number;
+  used_at: string | null;
+  created_at: string;
+};
+
 export type PurchaseBlobRow = {
   purchase_id: string;
   account_id: string;
@@ -136,6 +160,44 @@ export interface AuthStore {
     accountId: string;
     purchaseId: string;
   }): Promise<boolean>;
+
+  // --- Lane 7.4B: agent connections + conversational email verification ---
+  insertAgentConnection(args: {
+    emailNormalized: string;
+    now?: Date;
+  }): Promise<AgentConnectionRow>;
+  getAgentConnectionById(id: string): Promise<AgentConnectionRow | null>;
+  /** Activation and rotation are the same primitive: replace the credential. */
+  setAgentConnectionCredential(args: {
+    connectionId: string;
+    tokenHash: string;
+    expiresAt: string;
+    nowIso: string;
+    accountId?: string;
+  }): Promise<boolean>;
+  revokeAgentConnection(args: {
+    connectionId: string;
+    nowIso: string;
+  }): Promise<boolean>;
+  touchAgentConnectionLastUsed(args: {
+    connectionId: string;
+    nowIso: string;
+  }): Promise<void>;
+  insertAgentEmailCode(args: {
+    connectionId: string;
+    emailNormalized: string;
+    rawCode: string;
+    now?: Date;
+    ttlMs?: number;
+  }): Promise<AgentEmailCodeRow>;
+  /** Latest not-yet-used challenge for a connection (may be expired/attempt-exhausted). */
+  findLatestAgentEmailCode(
+    connectionId: string,
+  ): Promise<AgentEmailCodeRow | null>;
+  /** Atomic one-time consume. Returns false if already used/missing. */
+  markAgentEmailCodeUsed(codeId: string, nowIso: string): Promise<boolean>;
+  /** Returns the attempt count after incrementing. */
+  incrementAgentEmailCodeAttempt(codeId: string): Promise<number>;
 }
 
 export function mintAccountId(): string {
@@ -513,6 +575,113 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         .run(args.accountId, args.purchaseId);
       return Number(r.changes ?? 0) > 0;
     },
+
+    async insertAgentConnection(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const id = newId("conn");
+      db.prepare(
+        `INSERT INTO agent_connections
+         (id, account_id, email_normalized, connection_token_hash, credential_expires_at,
+          credential_rotated_at, status, revoked_at, created_at, last_used_at)
+         VALUES (?,NULL,?,NULL,NULL,NULL,'pending',NULL,?,NULL)`,
+      ).run(id, args.emailNormalized, nowIso);
+      return (await this.getAgentConnectionById(id))!;
+    },
+    async getAgentConnectionById(id) {
+      return (
+        (db
+          .prepare(`SELECT * FROM agent_connections WHERE id = ?`)
+          .get(id) as AgentConnectionRow | undefined) ?? null
+      );
+    },
+    async setAgentConnectionCredential(args) {
+      const r = db
+        .prepare(
+          `UPDATE agent_connections
+           SET connection_token_hash = ?,
+               credential_expires_at = ?,
+               credential_rotated_at = ?,
+               status = 'active',
+               account_id = COALESCE(?, account_id)
+           WHERE id = ? AND status != 'revoked'`,
+        )
+        .run(
+          args.tokenHash,
+          args.expiresAt,
+          args.nowIso,
+          args.accountId ?? null,
+          args.connectionId,
+        );
+      return Number(r.changes ?? 0) === 1;
+    },
+    async revokeAgentConnection(args) {
+      const r = db
+        .prepare(
+          `UPDATE agent_connections
+           SET status = 'revoked', revoked_at = ?, connection_token_hash = NULL
+           WHERE id = ? AND status != 'revoked'`,
+        )
+        .run(args.nowIso, args.connectionId);
+      return Number(r.changes ?? 0) === 1;
+    },
+    async touchAgentConnectionLastUsed(args) {
+      db.prepare(
+        `UPDATE agent_connections SET last_used_at = ? WHERE id = ?`,
+      ).run(args.nowIso, args.connectionId);
+    },
+    async insertAgentEmailCode(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const expires = new Date(
+        now.getTime() + (args.ttlMs ?? 10 * 60 * 1000),
+      ).toISOString();
+      const id = newId("aec");
+      const code_hash = sha256Hex(args.rawCode);
+      db.prepare(
+        `INSERT INTO agent_email_codes
+         (id, connection_id, email_normalized, code_hash, expires_at, attempt_count, used_at, created_at)
+         VALUES (?,?,?,?,?,0,NULL,?)`,
+      ).run(id, args.connectionId, args.emailNormalized, code_hash, expires, nowIso);
+      return {
+        id,
+        connection_id: args.connectionId,
+        email_normalized: args.emailNormalized,
+        code_hash,
+        expires_at: expires,
+        attempt_count: 0,
+        used_at: null,
+        created_at: nowIso,
+      };
+    },
+    async findLatestAgentEmailCode(connectionId) {
+      return (
+        (db
+          .prepare(
+            `SELECT * FROM agent_email_codes
+             WHERE connection_id = ? AND used_at IS NULL
+             ORDER BY created_at DESC LIMIT 1`,
+          )
+          .get(connectionId) as AgentEmailCodeRow | undefined) ?? null
+      );
+    },
+    async markAgentEmailCodeUsed(codeId, nowIso) {
+      const r = db
+        .prepare(
+          `UPDATE agent_email_codes SET used_at = ? WHERE id = ? AND used_at IS NULL`,
+        )
+        .run(nowIso, codeId);
+      return Number(r.changes ?? 0) === 1;
+    },
+    async incrementAgentEmailCodeAttempt(codeId) {
+      db.prepare(
+        `UPDATE agent_email_codes SET attempt_count = attempt_count + 1 WHERE id = ?`,
+      ).run(codeId);
+      const row = db
+        .prepare(`SELECT attempt_count FROM agent_email_codes WHERE id = ?`)
+        .get(codeId) as { attempt_count: number } | undefined;
+      return row?.attempt_count ?? 0;
+    },
   };
 }
 
@@ -886,6 +1055,110 @@ export function createPostgresAuthStore(
         [args.accountId, args.purchaseId],
       );
       return (r.rowCount ?? 0) > 0;
+    },
+
+    async insertAgentConnection(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const id = newId("conn");
+      await q(
+        `INSERT INTO agent_connections
+         (id, account_id, email_normalized, connection_token_hash, credential_expires_at,
+          credential_rotated_at, status, revoked_at, created_at, last_used_at)
+         VALUES ($1,NULL,$2,NULL,NULL,NULL,'pending',NULL,$3,NULL)`,
+        [id, args.emailNormalized, nowIso],
+      );
+      return (await this.getAgentConnectionById(id))!;
+    },
+    async getAgentConnectionById(id) {
+      const r = await q<AgentConnectionRow>(
+        `SELECT * FROM agent_connections WHERE id = $1`,
+        [id],
+      );
+      return r.rows[0] ?? null;
+    },
+    async setAgentConnectionCredential(args) {
+      const r = await q(
+        `UPDATE agent_connections
+         SET connection_token_hash = $1,
+             credential_expires_at = $2,
+             credential_rotated_at = $3,
+             status = 'active',
+             account_id = COALESCE($4, account_id)
+         WHERE id = $5 AND status != 'revoked'`,
+        [
+          args.tokenHash,
+          args.expiresAt,
+          args.nowIso,
+          args.accountId ?? null,
+          args.connectionId,
+        ],
+      );
+      return (r.rowCount ?? 0) === 1;
+    },
+    async revokeAgentConnection(args) {
+      const r = await q(
+        `UPDATE agent_connections
+         SET status = 'revoked', revoked_at = $1, connection_token_hash = NULL
+         WHERE id = $2 AND status != 'revoked'`,
+        [args.nowIso, args.connectionId],
+      );
+      return (r.rowCount ?? 0) === 1;
+    },
+    async touchAgentConnectionLastUsed(args) {
+      await q(
+        `UPDATE agent_connections SET last_used_at = $1 WHERE id = $2`,
+        [args.nowIso, args.connectionId],
+      );
+    },
+    async insertAgentEmailCode(args) {
+      const now = args.now ?? new Date();
+      const nowIso = now.toISOString();
+      const expires = new Date(
+        now.getTime() + (args.ttlMs ?? 10 * 60 * 1000),
+      ).toISOString();
+      const id = newId("aec");
+      const code_hash = sha256Hex(args.rawCode);
+      await q(
+        `INSERT INTO agent_email_codes
+         (id, connection_id, email_normalized, code_hash, expires_at, attempt_count, used_at, created_at)
+         VALUES ($1,$2,$3,$4,$5,0,NULL,$6)`,
+        [id, args.connectionId, args.emailNormalized, code_hash, expires, nowIso],
+      );
+      return {
+        id,
+        connection_id: args.connectionId,
+        email_normalized: args.emailNormalized,
+        code_hash,
+        expires_at: expires,
+        attempt_count: 0,
+        used_at: null,
+        created_at: nowIso,
+      };
+    },
+    async findLatestAgentEmailCode(connectionId) {
+      const r = await q<AgentEmailCodeRow>(
+        `SELECT * FROM agent_email_codes
+         WHERE connection_id = $1 AND used_at IS NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        [connectionId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async markAgentEmailCodeUsed(codeId, nowIso) {
+      const r = await q(
+        `UPDATE agent_email_codes SET used_at = $1 WHERE id = $2 AND used_at IS NULL`,
+        [nowIso, codeId],
+      );
+      return (r.rowCount ?? 0) === 1;
+    },
+    async incrementAgentEmailCodeAttempt(codeId) {
+      const r = await q<{ attempt_count: number }>(
+        `UPDATE agent_email_codes SET attempt_count = attempt_count + 1
+         WHERE id = $1 RETURNING attempt_count`,
+        [codeId],
+      );
+      return r.rows[0]?.attempt_count ?? 0;
     },
   };
 }

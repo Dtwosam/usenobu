@@ -1,0 +1,52 @@
+{
+  "note": "Illustrative response shapes only. Every value below is a fabricated placeholder — no real email, code, or token was generated, sent, or captured to produce this file.",
+  "1_begin_email_verification_request": {
+    "action": "BEGIN_EMAIL_VERIFICATION",
+    "email": "REDACTED@example.invalid"
+  },
+  "1_begin_email_verification_response": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "EMAIL_VERIFICATION",
+      "status": "EMAIL_CODE_SENT",
+      "connection_id": "conn_REDACTED000000000000000000000000",
+      "expires_at": "REDACTED-ISO-TIMESTAMP",
+      "resend_after_seconds": 45
+    }
+  },
+  "2_verify_email_code_request": {
+    "action": "VERIFY_EMAIL_CODE",
+    "connection_id": "conn_REDACTED000000000000000000000000",
+    "code": "REDACTED"
+  },
+  "2_verify_email_code_response": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "EMAIL_VERIFICATION",
+      "status": "EMAIL_VERIFIED",
+      "connection_id": "conn_REDACTED000000000000000000000000",
+      "connection_token": "REDACTED-RETURNED-EXACTLY-ONCE",
+      "credential_expires_at": "REDACTED-ISO-TIMESTAMP"
+    }
+  },
+  "3_protected_action_with_wrong_token_response": {
+    "http_status": 401,
+    "body": {
+      "agent_state": "AGENT_CONNECTION_REVOCATION",
+      "status": "ACTION_NOT_AUTHORIZED"
+    }
+  },
+  "4_revoke_agent_connection_request": {
+    "action": "REVOKE_AGENT_CONNECTION",
+    "connection_id": "conn_REDACTED000000000000000000000000",
+    "connection_token": "REDACTED"
+  },
+  "4_revoke_agent_connection_response": {
+    "http_status": 200,
+    "body": {
+      "agent_state": "AGENT_CONNECTION_REVOCATION",
+      "status": "CONNECTION_REVOKED",
+      "connection_id": "conn_REDACTED000000000000000000000000"
+    }
+  }
+}

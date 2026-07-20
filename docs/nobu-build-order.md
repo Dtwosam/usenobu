@@ -207,13 +207,13 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `docs/nobu-okx-agent-native-paid-monitoring-architecture.md`, `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml`, and `docs/external-source-registry.md` repaired and internally consistent; non-OKX-source scan of all Lane 7.4 files clean; live `openapi/nobu-a2mcp.openapi.yaml` unchanged; ASP #5541 unchanged. Verdict: `NOBU_LANE_7_4A_1_PASS`.
 
-## Lane 7.4B — Agent connection and conversational email verification
+## Lane 7.4B — Agent connection and conversational email verification COMPLETE
 
-- Durable `agent_connections` / `agent_email_codes` tables (same Postgres store as `auth_accounts`, not per-instance SQLite or the browser cookie snapshot).
-- `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, `REVOKE_AGENT_CONNECTION` actions: at-least-six-digit, short-lived, single-use, attempt-limited, rate-limited, hashed-at-rest codes; `connection_id` (non-secret handle) plus high-entropy `connection_token` (secret credential, returned once, stored only as `connection_token_hash`) with expiry and rotation; a connection cannot authenticate the website and cannot read purchases beyond what it created.
+- Durable `agent_connections` / `agent_email_codes` tables (same durable AuthStore as `auth_accounts` — PostgreSQL production, SQLite tests/local, not per-instance storage or the browser cookie snapshot).
+- `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, `REVOKE_AGENT_CONNECTION` actions: exactly-six-digit cryptographically secure (rejection-sampled), 10-minute-expiry, single-use, 5-attempt-limited, per-email/per-source rate-limited, hashed-at-rest codes; `connection_id` (non-secret handle) plus high-entropy `connection_token` (secret credential, returned once, stored only as `connection_token_hash`) with expiry and an internal rotation helper; a shared `authorizeAgentConnection` helper returns the same generic `ACTION_NOT_AUTHORIZED` for unknown/missing/wrong/expired/revoked credentials. A connection cannot authenticate the website (no session/cookie ever created) and cannot read purchases beyond what it created.
 - Does not require the Lane 7.4D payment-topology decision.
 
-**Proof:** focused auth-pattern unit tests, rate-limit/expiry/single-use/attempt-limit tests, token-vs-handle authorization tests, revocation/rotation tests, typecheck, build.
+**Proof:** `tests/auth/agent-connections.test.ts` (12 focused tests: code expiry/attempt-limit/one-time-consume, token hashed-and-returned-once, handle-only/wrong/expired/revoked rejection, rotation invalidating the old token, revocation, cross-connection isolation, existing `/v1/agent` actions unchanged), focused auth regressions (8 passed), combined targeted run (192 passed / 20 files), typecheck, build, `git diff --check` clean, sensitive-output scan clean. Verdict: `NOBU_LANE_7_4B_PASS`. Evidence: `docs/proof/lane-7-4b-agent-connection/`.
 
 ## Lane 7.4C — Free agent-native discovery, confirmation, consent and monitoring preflight
 

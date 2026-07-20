@@ -69,6 +69,38 @@ CREATE TABLE IF NOT EXISTS account_purchase_blobs (
 
 CREATE INDEX IF NOT EXISTS idx_account_purchase_blobs_account
   ON account_purchase_blobs (account_id);
+
+-- Lane 7.4B — agent-native connection + conversational email verification.
+-- Never stored in the browser cookie snapshot or per-instance SQLite prod.
+CREATE TABLE IF NOT EXISTS agent_connections (
+  id TEXT PRIMARY KEY NOT NULL,
+  account_id TEXT,
+  email_normalized TEXT NOT NULL,
+  connection_token_hash TEXT,
+  credential_expires_at TEXT,
+  credential_rotated_at TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  revoked_at TEXT,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_connections_account
+  ON agent_connections (account_id);
+
+CREATE TABLE IF NOT EXISTS agent_email_codes (
+  id TEXT PRIMARY KEY NOT NULL,
+  connection_id TEXT NOT NULL,
+  email_normalized TEXT NOT NULL,
+  code_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_email_codes_connection
+  ON agent_email_codes (connection_id);
 `;
 
 /** Best-effort column adds for existing durable DBs (Postgres / SQLite). */

@@ -60,3 +60,20 @@ export function safeEqualHex(a: string, b: string): boolean {
     return false;
   }
 }
+
+const SIX_DIGIT_CODE_SPACE = 1_000_000; // 000000–999999
+const UINT32_SPACE = 0x100000000;
+const SIX_DIGIT_REJECTION_THRESHOLD =
+  UINT32_SPACE - (UINT32_SPACE % SIX_DIGIT_CODE_SPACE);
+
+/**
+ * Cryptographically secure, uniformly distributed six-digit numeric code
+ * (rejection sampling avoids modulo bias). Never log or store the raw value.
+ */
+export function randomSixDigitCode(): string {
+  let n: number;
+  do {
+    n = randomBytes(4).readUInt32BE(0);
+  } while (n >= SIX_DIGIT_REJECTION_THRESHOLD);
+  return String(n % SIX_DIGIT_CODE_SPACE).padStart(6, "0");
+}

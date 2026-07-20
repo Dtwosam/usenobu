@@ -56,6 +56,116 @@ export async function peekLastCapturedTokenAsync(
   }
 }
 
+// --- Lane 7.4B — agent connection email verification code ---
+
+type AgentCodeCaptured = {
+  toHash: string;
+  rawCode: string;
+  at: string;
+};
+
+/** Test/e2e only — keyed by connection_id (never by raw code). */
+const agentCodeCaptures = new Map<string, AgentCodeCaptured>();
+
+export function peekCapturedAgentEmailCode(connectionId: string): string | null {
+  return agentCodeCaptures.get(connectionId)?.rawCode ?? null;
+}
+
+export function clearCapturedAgentEmailCodes(): void {
+  agentCodeCaptures.clear();
+}
+
+export type SendAgentEmailCodeResult =
+  | { ok: true; mode: "test" | "resend" | "dev_log" }
+  | { ok: false; error: "not_configured" | "provider_error" };
+
+/**
+ * Send the agent-connection email verification code. Never throws
+ * account-existence signals; the raw code is only ever captured in-memory
+ * for test mode, never logged.
+ */
+export async function sendAgentEmailCode(args: {
+  emailNormalized: string;
+  connectionId: string;
+  rawCode: string;
+  expiresMinutes?: number;
+  env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+}): Promise<SendAgentEmailCodeResult> {
+  const env = args.env ?? process.env;
+  const expiresMinutes = args.expiresMinutes ?? 10;
+
+  if (isAuthTestMode(env)) {
+    agentCodeCaptures.set(args.connectionId, {
+      toHash: hashEmail(args.emailNormalized),
+      rawCode: args.rawCode,
+      at: new Date().toISOString(),
+    });
+    return { ok: true, mode: "test" };
+  }
+
+  const apiKey = String(
+    env.RESEND_API_KEY || env.EMAIL_PROVIDER_API_KEY || "",
+  ).trim();
+  const from = String(
+    env.EMAIL_FROM_ADDRESS || env.AUTH_EMAIL_FROM || "",
+  ).trim();
+
+  if (!apiKey || !from) {
+    if (env.NODE_ENV !== "production" && env.VERCEL !== "1") {
+      console.info("nobu_auth_agent_code_dev", {
+        email_hash: hashEmail(args.emailNormalized),
+      });
+      agentCodeCaptures.set(args.connectionId, {
+        toHash: hashEmail(args.emailNormalized),
+        rawCode: args.rawCode,
+        at: new Date().toISOString(),
+      });
+      return { ok: true, mode: "dev_log" };
+    }
+    return { ok: false, error: "not_configured" };
+  }
+
+  try {
+    const subject = "Your Nobu agent verification code";
+    const text = [
+      "An AI agent is trying to verify this email address to connect to Nobu.",
+      "",
+      `Verification code: ${args.rawCode}`,
+      "",
+      `This code expires in about ${expiresMinutes} minutes and can only be used once.`,
+      "",
+      "If you did not request this, you can ignore this email.",
+    ].join("\n");
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [args.emailNormalized],
+        subject,
+        text,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("nobu_auth_agent_code_provider_error", {
+        status: res.status,
+      });
+      return { ok: false, error: "provider_error" };
+    }
+    return { ok: true, mode: "resend" };
+  } catch (err) {
+    console.error("nobu_auth_agent_code_send_failed", {
+      message: err instanceof Error ? err.message : "send_failed",
+    });
+    return { ok: false, error: "provider_error" };
+  }
+}
+
 function hashEmail(email: string): string {
   // short opaque marker for diagnostics (not reversible identity in logs)
   let h = 0;
