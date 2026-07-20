@@ -3,8 +3,8 @@
 **Verdict:** `NOBU_LANE_7_3A_1_PASS`
 
 **Runtime implementation commit:** `b2d99b2d8036dcc813bb4d861a31484663c60fbe`  
-**Proof/docs commit (original):** `70491a2a0bc6b74a59687dade8b53afe6172216e`  
-**Closeout verification:** 2026-07-20 — local re-verification + residual fixes; see commits after this README update.
+**Closeout commit (residual copy + tests + proof):** `bf803453de39a6c112c8c71c688378761e36caec`  
+**Final repository HEAD after this docs refresh:** recorded at push time (docs-only if separate)
 
 ## Corrected user journey
 
@@ -54,23 +54,30 @@
 
 Live provider ambiguity was **not** fabricated. Multi-candidate selection UI is proven with the labelled fixture scenario in Playwright.
 
-## Deployment (Grok-era production, still canonical at closeout start)
+## Deployment
+
+### Final production (2026-07-20 closeout redeploy)
+
+| Item | Value |
+|---|---|
+| Deployment ID | `dpl_6ymuDrXsEhzjteQo5r3qJw5PxK85` |
+| Unique production URL | https://usenobu-q8b2rrhqj-dtwoflicks-2878s-projects.vercel.app |
+| Status | Ready |
+| Created | 2026-07-20T09:51:51Z (local) |
+| Deployed source | final closeout HEAD including residual error-copy + adaptive runtime |
+| Canonical | https://usenobu.vercel.app → **this** deployment (re-aliased after `--prod` auto-bound `afterbuy.vercel.app`) |
+| `afterbuy.vercel.app` | **removed** after deploy; HTTP **404** |
+
+### Prior Grok production (historical)
 
 | Item | Value |
 |---|---|
 | Deployment ID | `dpl_45D4kWZijbj2HGdSXQE3jpgBqK8k` |
 | Unique production URL | https://usenobu-63qlryu08-dtwoflicks-2878s-projects.vercel.app |
-| Status | Ready |
-| Created | 2026-07-19T22:59:53.712Z |
-| Deployed runtime | Lane 7.3A.1 implementation (`b2d99b2` timing; adaptive bundle present) |
-| Canonical | https://usenobu.vercel.app → same deployment |
-| Unique preview (earlier) | https://usenobu-i4dsbjtbw-dtwoflicks-2878s-projects.vercel.app |
-| `afterbuy.vercel.app` | not a live alias (HTTP 404); not present in `vercel alias ls` as usenobu mapping |
+| Unique preview | https://usenobu-i4dsbjtbw-dtwoflicks-2878s-projects.vercel.app |
+| Note | First adaptive-runtime production; superseded by closeout redeploy |
 
-If a later commit only contains proof/docs or residual copy/tests, distinguish:
-
-- **Deployed runtime commit** (adaptive product discovery code)
-- **Final repository HEAD** (may include verification fixes and proof refresh)
+**Distinction:** adaptive product discovery **runtime** landed in `b2d99b2`. Closeout `bf80345` adds residual error-copy, date-stable A2MCP tests, and proof. Canonical production was redeployed from the closeout commit so live code matches HEAD (except any pure docs-only commit after redeploy).
 
 ## ASP #5541 (read-only, 2026-07-20)
 
