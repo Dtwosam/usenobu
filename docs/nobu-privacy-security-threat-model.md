@@ -78,6 +78,15 @@ If receipt images are added:
 - clear disclaimer that Target verifies and decides;
 - confirmation gate before Find my product / monitoring.
 
+## Purchase ownership (Lane 7.3A.2A)
+
+- **My Purchases is account-private.** Each browser session receives a server-minted `usr_*` owner id in an httpOnly cookie (`nobu_owner_v1`), set by middleware on consumer routes and by server actions when needed.
+- **Every new purchase has exactly one server-assigned owner** written to `purchases.user_ref`. Client-supplied user ID, owner ID, email, or account fields are ignored.
+- **Consumer operations are owner-scoped:** list, read, confirm, manual check, alerts/history. Cross-user and unknown IDs both return the same generic **Purchase not found** result (no existence leak).
+- **Ownerless historical rows** (`user_ref` null/empty) and **legacy shared `demo-user` rows** are quarantined: never assigned to the next user, never listed for consumer sessions, not auto-deleted. Ops may report only a redacted count. Later durable migration can re-home them with an explicit admin path if needed.
+- **Fixtures never appear in normal production accounts.** Fixture discovery/check requires an explicit server gate (`NOBU_FIXTURE_MODE` / tests). Production My Purchases does not show the **Demo data** banner. Honest SerpApi third-party provenance remains visible on live paths.
+- **Scheduler / internal monitoring** uses a separate protected boundary (e.g. cron secret for policy scheduler; monitoring runner is not a public consumer list). It may process eligible purchases across owners; public consumer routes never gain global list access.
+
 ## Platform eligibility
 
 Never provide instructions to bypass OKX, retailer, payment, identity, age, region, or guardian restrictions. Account and agreement steps must be performed by an eligible person under the applicable terms.

@@ -136,9 +136,23 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** unit suite, adaptive Playwright, consumer-flow, typecheck, build, unique + canonical Vercel proof. Evidence: `docs/proof/lane-7-3a-1-adaptive/`.
 
+## Lane 7.3A.2A - Account-private My Purchases + no production demo data COMPLETE
+
+- My Purchases is account-private: every purchase has exactly one server-assigned owner (`usr_*` from httpOnly session cookie).
+- Never trust client-supplied user/owner/email for ownership.
+- Owner-scope consumer list, read, confirm, manual check, observations, alerts; cross-user and missing → generic **Purchase not found**.
+- Ownerless and legacy shared `demo-user` rows quarantined (not reassigned; redacted count only).
+- Remove production **Demo data** banner from My Purchases; fixtures only under explicit test/e2e gate.
+- Scheduler/internal monitoring keeps a separate protected boundary (may process across owners).
+- Small privacy reassurance under My Purchases heading.
+
+**Proof:** privacy unit tests, fixture isolation, scheduler/monitoring regressions, typecheck, build, Playwright two-user privacy + consumer-flow. Verdict: `NOBU_LANE_7_3A_2A_PASS`.
+
+## Lane 7.3A.2B — Persistent purchase history and lifecycle interface (next)
+
 ## Lane 7.3B — Consented email price-drop notifications (queued)
 
-## Return to Lane 8 — reviewer-status monitoring (next after 7.3A.1 PASS)
+## Return to Lane 8 — reviewer-status monitoring (queued; ASP under review)
 
 ## Lane 7.5A — Global Nobu rename
 

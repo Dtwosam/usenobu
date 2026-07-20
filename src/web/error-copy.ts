@@ -203,11 +203,12 @@ export function dashboardError(code: string): UserError {
         nextAction: "Try again in a short moment.",
       };
     case "unauthorized":
+      // Same generic result as missing — do not reveal cross-user existence.
       return {
-        code,
-        heading: "Not available",
-        body: "You can’t check this purchase.",
-        nextAction: "Open a purchase you own.",
+        code: "not_found",
+        heading: "Purchase not found",
+        body: "We couldn’t find that purchase.",
+        nextAction: "Return to your purchases list.",
       };
     case "budget":
       return {

@@ -1,18 +1,20 @@
 import { listPurchases } from "@/web/purchase-service";
 import { prepareWebDatabase } from "@/web/prepare-db";
+import { getOrCreateSessionOwner } from "@/web/session-owner";
 import { formatUsd, statusLabel, statusTone } from "@/web/status-copy";
 import {
   ButtonLink,
   Card,
-  DemoDataBanner,
   EmptyState,
+  IconLock,
   PageHeader,
   StatusBadge,
 } from "@/ui";
 
 export default async function DashboardPage() {
   await prepareWebDatabase();
-  const purchases = listPurchases();
+  const ownerRef = await getOrCreateSessionOwner();
+  const purchases = listPurchases({ owner_ref: ownerRef });
 
   return (
     <div className="n-screen">
@@ -28,13 +30,10 @@ export default async function DashboardPage() {
         }
       />
 
-      <DemoDataBanner data-testid="fixture-banner">
-        <p>
-          <strong>Demo data</strong>
-          <br />
-          This screen uses test fixtures, not a live current retailer price.
-        </p>
-      </DemoDataBanner>
+      <p className="n-privacy-reassurance" data-testid="privacy-reassurance">
+        <IconLock className="n-privacy-reassurance__icon" width={14} height={14} />
+        <span>Only you can see the purchases saved to your Nobu account.</span>
+      </p>
 
       {purchases.length === 0 ? (
         <Card>

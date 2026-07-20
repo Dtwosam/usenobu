@@ -8,7 +8,8 @@ import { prepareWebDatabase } from "@/web/prepare-db";
 import { getWebDatabase } from "@/web/db";
 import { loadEnrollmentDiscovery } from "@/web/discovery-store";
 import { isStrongMatchTier } from "@/matching/rules";
-import { redirect } from "next/navigation";
+import { getOrCreateSessionOwner } from "@/web/session-owner";
+import { notFound, redirect } from "next/navigation";
 import {
   Card,
   DemoDataBanner,
@@ -34,9 +35,11 @@ export default async function ReviewPage({
   const { id } = await params;
   const sp = await searchParams;
   await prepareWebDatabase();
-  const detail = getPurchaseDetail(id);
+  const ownerRef = await getOrCreateSessionOwner();
+  const detail = getPurchaseDetail(id, { owner_ref: ownerRef });
+  // Missing, cross-user, and quarantined are indistinguishable.
   if (!detail) {
-    redirect("/purchases/new?error=session_lost");
+    notFound();
   }
 
   const purchase = detail.purchase;

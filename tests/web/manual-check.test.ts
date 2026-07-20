@@ -176,7 +176,8 @@ describe("manual check guards (fixture)", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error).toBe("unauthorized");
+      // Cross-user is indistinguishable from missing.
+      expect(result.error).toBe("not_found");
       expect(result.provider_called).toBe(false);
     }
     const after = db

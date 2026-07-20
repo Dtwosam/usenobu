@@ -83,8 +83,12 @@ Required cases:
 - full card number rejected/redacted;
 - password/2FA/private-key fields rejected;
 - logging redaction;
-- authorization on purchase records;
-- webhook/cron endpoint protection;
+- authorization on purchase records (owner-scoped list/read/confirm/check/alert; cross-user ≡ not found);
+- two distinct session owners cannot see each other’s purchases (unit + Playwright);
+- client-supplied owner/user/email ignored on create;
+- ownerless / legacy shared rows quarantined;
+- production fixture gate closed without env; Demo data banner absent on My Purchases;
+- webhook/cron endpoint protection (scheduler separate from consumer auth);
 - duplicate/replay resistance.
 
 ## 7. Submission proof bundle

@@ -11,16 +11,14 @@ import {
   hydrateDatabaseFromCookie,
   persistDatabaseToCookie,
 } from "./session-snapshot.js";
-import {
-  runBoundedManualCheck,
-  WEB_DEMO_USER_REF,
-} from "./manual-check.js";
+import { runBoundedManualCheck } from "./manual-check.js";
 import {
   buildReviewRedirectPath,
   isValidPurchaseId,
 } from "./navigation.js";
 import { isFixtureCheckAllowed } from "./manual-check-mode.js";
 import type { FixtureScenario } from "./fixtures.js";
+import { getOrCreateSessionOwner } from "./session-owner.js";
 
 /** Cookie is source of truth on Vercel — re-hydrate each mutation request. */
 async function prepareActionDb() {
@@ -83,6 +81,8 @@ function purchaseErrorRedirect(formData: FormData, error: string, status = "") {
 export async function submitPurchaseAction(formData: FormData) {
   try {
     const db = await prepareActionDb();
+    // Server-assigned owner only — ignore any client user/owner/email fields.
+    const ownerRef = await getOrCreateSessionOwner();
 
     // Fixture scenario is never shown in production UI. Only honor it when the
     // server fixture gate is open (tests/e2e inject a hidden field or env).
@@ -91,25 +91,28 @@ export async function submitPurchaseAction(formData: FormData) {
           undefined) as FixtureScenario | undefined)
       : undefined;
 
-    const result = await createPurchaseFlow({
-      target_product_url: formString(formData, "target_product_url") || undefined,
-      purchase_price: formString(formData, "purchase_price"),
-      purchase_date: formString(formData, "purchase_date"),
-      region: formString(formData, "region") || undefined,
-      model_number: formString(formData, "model_number") || undefined,
-      target_item_id: formString(formData, "target_item_id") || undefined,
-      upc_or_gtin: formString(formData, "upc_or_gtin") || undefined,
-      product_title: formString(formData, "product_title") || undefined,
-      product_description:
-        formString(formData, "product_description") ||
-        formString(formData, "product_title") ||
-        undefined,
-      brand: formString(formData, "brand") || undefined,
-      color: formString(formData, "color") || undefined,
-      size: formString(formData, "size") || undefined,
-      quantity: formString(formData, "quantity") || undefined,
-      fixture_scenario: fixtureScenario,
-    });
+    const result = await createPurchaseFlow(
+      {
+        target_product_url: formString(formData, "target_product_url") || undefined,
+        purchase_price: formString(formData, "purchase_price"),
+        purchase_date: formString(formData, "purchase_date"),
+        region: formString(formData, "region") || undefined,
+        model_number: formString(formData, "model_number") || undefined,
+        target_item_id: formString(formData, "target_item_id") || undefined,
+        upc_or_gtin: formString(formData, "upc_or_gtin") || undefined,
+        product_title: formString(formData, "product_title") || undefined,
+        product_description:
+          formString(formData, "product_description") ||
+          formString(formData, "product_title") ||
+          undefined,
+        brand: formString(formData, "brand") || undefined,
+        color: formString(formData, "color") || undefined,
+        size: formString(formData, "size") || undefined,
+        quantity: formString(formData, "quantity") || undefined,
+        fixture_scenario: fixtureScenario,
+      },
+      { owner_ref: ownerRef },
+    );
 
     if (!result.ok) {
       // Structured diagnostics only — no secrets, no full cookies, no PII dumps.
@@ -208,13 +211,19 @@ export async function confirmCandidateAction(formData: FormData) {
   const purchaseId = formString(formData, "purchase_id");
   try {
     const db = await prepareActionDb();
+    const ownerRef = await getOrCreateSessionOwner();
 
     const candidateId = formString(formData, "candidate_id");
     const result = confirmPurchaseCandidate({
       purchase_id: purchaseId,
       candidate_id: candidateId,
+      owner_ref: ownerRef,
     });
     if (!result.ok) {
+      // Cross-user / missing → generic not found (do not leak existence).
+      if (result.error === "not_found") {
+        redirect(`/dashboard?error=${encodeURIComponent("not_found")}`);
+      }
       redirect(
         `/purchases/${purchaseId}/review?error=${encodeURIComponent(result.error)}`,
       );
@@ -236,12 +245,13 @@ export async function runCheckAction(formData: FormData) {
   const purchaseId = formString(formData, "purchase_id");
   try {
     const db = await prepareActionDb();
+    const ownerRef = await getOrCreateSessionOwner();
 
     // Production: prefer_fixture omitted → LIVE SerpApi (fixture only if gate open, e.g. e2e).
     const result = await runBoundedManualCheck({
       db,
       purchase_id: purchaseId,
-      user_ref: WEB_DEMO_USER_REF,
+      user_ref: ownerRef,
     });
     if (!result.ok) {
       const ds = result.data_source ?? "";

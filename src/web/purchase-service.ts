@@ -58,6 +58,13 @@ import {
   isTargetComUrl,
   parseTargetProductUrl,
 } from "../matching/identity.js";
+import {
+  consumerOwnsPurchase,
+  countQuarantinedPurchases,
+  isUsableOwnerRef,
+  LEGACY_SHARED_DEMO_OWNER,
+  normalizeOwnerRef,
+} from "./session-owner.js";
 
 /** @deprecated Lane 7.3A.1 — adaptive flow; retained for test compatibility only. */
 export type ProductEntryMode = "exact" | "find";
@@ -84,6 +91,34 @@ export interface CreatePurchaseInput {
    * Production never depends on client-selected demo flags.
    */
   fixture_scenario?: FixtureScenario;
+  /**
+   * Ignored if present — ownership is server-assigned only.
+   * Kept optional so malicious form posts cannot set it via cast.
+   */
+  user_ref?: never;
+  owner_id?: never;
+  owner_ref?: never;
+  user_id?: never;
+  email?: never;
+}
+
+/** Server-assigned owner context for purchase mutations and reads. */
+export interface PurchaseOwnerContext {
+  owner_ref: string;
+}
+
+/**
+ * Resolve owner for create. Never trusts client body fields.
+ * Unit tests that omit owner_ctx keep the legacy test identity only under Vitest.
+ */
+function resolveCreateOwner(ownerCtx?: PurchaseOwnerContext): string | null {
+  if (ownerCtx) {
+    return normalizeOwnerRef(ownerCtx.owner_ref);
+  }
+  if (process.env.VITEST === "true" || process.env.NODE_ENV === "test") {
+    return LEGACY_SHARED_DEMO_OWNER;
+  }
+  return null;
 }
 
 function newId(prefix: string): string {
@@ -227,8 +262,20 @@ const PENDING_DISCOVERY_URL =
  * - several plausible Target candidates, or
  * - insufficient / no useful results.
  */
-export async function createPurchaseFlow(raw: CreatePurchaseInput) {
+export async function createPurchaseFlow(
+  raw: CreatePurchaseInput,
+  ownerCtx?: PurchaseOwnerContext,
+) {
   const db = getWebDatabase();
+  const ownerRef = resolveCreateOwner(ownerCtx);
+  if (!ownerRef) {
+    return {
+      ok: false as const,
+      error: "unauthorized",
+      fixture_banner: FIXTURE_BANNER,
+    };
+  }
+
   const discoveryMode = resolveDiscoveryDataSource();
   // Fixture scenario only when gate is open — never from production UI flags
   const scenario: FixtureScenario =
@@ -238,7 +285,21 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
 
   // Live enrollment: never let pre-repair Example Widget defaults ride through.
   // Fixture gate still uses demo identity intentionally for e2e/demo scenarios.
-  let intake: CreatePurchaseInput = raw;
+  // Strip any client ownership fields (typed as never; defend against casts).
+  const {
+    user_ref: _ignoreUser,
+    owner_id: _ignoreOwnerId,
+    owner_ref: _ignoreOwnerRef,
+    user_id: _ignoreUserId,
+    email: _ignoreEmail,
+    ...safeRaw
+  } = raw as CreatePurchaseInput & Record<string, unknown>;
+  void _ignoreUser;
+  void _ignoreOwnerId;
+  void _ignoreOwnerRef;
+  void _ignoreUserId;
+  void _ignoreEmail;
+  let intake: CreatePurchaseInput = safeRaw;
   if (discoveryMode === "LIVE") {
     const scrubbed = scrubDemoDefaults({
       target_product_url: raw.target_product_url,
@@ -434,7 +495,7 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     purchaseId,
-    "demo-user",
+    ownerRef,
     input.target_product_url,
     input.purchase_price,
     input.currency,
@@ -663,12 +724,31 @@ export async function createPurchaseFlow(raw: CreatePurchaseInput) {
   };
 }
 
-export function getPurchaseDetail(purchaseId: string) {
+/**
+ * Load purchase detail.
+ * Consumer paths must pass owner_ref — missing/cross-user/quarantined → null.
+ * Internal paths (A2MCP agent) may omit owner_ref; never expose via consumer UI.
+ */
+export function getPurchaseDetail(
+  purchaseId: string,
+  ownerCtx?: PurchaseOwnerContext,
+) {
   const db = getWebDatabase();
   const purchase = db
     .prepare(`SELECT * FROM purchases WHERE id = ?`)
     .get(purchaseId) as Record<string, unknown> | undefined;
   if (!purchase) return null;
+
+  if (ownerCtx) {
+    if (
+      !consumerOwnsPurchase(
+        purchase.user_ref as string | null | undefined,
+        ownerCtx.owner_ref,
+      )
+    ) {
+      return null;
+    }
+  }
 
   const fingerprint = purchase.fingerprint_id
     ? (db
@@ -719,6 +799,8 @@ export function confirmPurchaseCandidate(args: {
   purchase_id: string;
   /** Candidate id from the server-stored enrollment discovery snapshot. */
   candidate_id: string;
+  /** Server-assigned session owner (required for consumer path). */
+  owner_ref?: string;
   now?: Date;
 }) {
   const db = getWebDatabase();
@@ -726,6 +808,22 @@ export function confirmPurchaseCandidate(args: {
     .prepare(`SELECT * FROM purchases WHERE id = ?`)
     .get(args.purchase_id) as Record<string, unknown> | undefined;
   if (!purchase) {
+    return { ok: false as const, error: "not_found" };
+  }
+  // When owner_ref provided (consumer), enforce ownership. Unit tests may omit.
+  if (args.owner_ref !== undefined) {
+    if (
+      !consumerOwnsPurchase(
+        purchase.user_ref as string | null | undefined,
+        args.owner_ref,
+      )
+    ) {
+      return { ok: false as const, error: "not_found" };
+    }
+  } else if (
+    process.env.VITEST !== "true" &&
+    process.env.NODE_ENV !== "test"
+  ) {
     return { ok: false as const, error: "not_found" };
   }
   if (purchase.fingerprint_id) {
@@ -1092,17 +1190,37 @@ export async function runManualPriceCheck(args: {
   });
 }
 
-export function listPurchases() {
+/**
+ * List purchases for one server-assigned owner only.
+ * Never returns a global list. Ownerless/legacy shared rows are excluded.
+ */
+export function listPurchases(ownerCtx: PurchaseOwnerContext) {
   const db = getWebDatabase();
+  const owner = normalizeOwnerRef(ownerCtx.owner_ref);
+  if (!owner || !isUsableOwnerRef(owner)) {
+    return [] as Array<Record<string, unknown>>;
+  }
+  // Explicit owner match — quarantined rows (null / demo-user) never match usr_* sessions.
   return db
     .prepare(
       `SELECT id, target_product_url, purchase_price, currency, purchase_date, status, fingerprint_id, updated_at
-       FROM purchases ORDER BY updated_at DESC LIMIT 50`,
+       FROM purchases
+       WHERE user_ref = ?
+       ORDER BY updated_at DESC LIMIT 50`,
     )
-    .all() as Array<Record<string, unknown>>;
+    .all(owner) as Array<Record<string, unknown>>;
 }
 
-export function getAlert(purchaseId: string, alertId: string) {
+/** Redacted quarantine report (ops only — not a consumer API). */
+export function getQuarantinedPurchaseCount() {
+  return countQuarantinedPurchases(getWebDatabase());
+}
+
+export function getAlert(
+  purchaseId: string,
+  alertId: string,
+  ownerCtx?: PurchaseOwnerContext,
+) {
   const db = getWebDatabase();
   const alert = db
     .prepare(
@@ -1113,6 +1231,23 @@ export function getAlert(purchaseId: string, alertId: string) {
   const purchase = db
     .prepare(`SELECT * FROM purchases WHERE id = ?`)
     .get(purchaseId) as Record<string, unknown> | undefined;
+  if (!purchase) return null;
+  if (ownerCtx) {
+    if (
+      !consumerOwnsPurchase(
+        purchase.user_ref as string | null | undefined,
+        ownerCtx.owner_ref,
+      )
+    ) {
+      return null;
+    }
+  } else if (
+    process.env.VITEST !== "true" &&
+    process.env.NODE_ENV !== "test"
+  ) {
+    // Consumer must always pass owner; internal callers only in tests without ctx.
+    return null;
+  }
 
   const observation = alert.observation_id
     ? (db

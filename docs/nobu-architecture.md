@@ -59,13 +59,15 @@ Target-specific implementations remain named as Target-specific (Target policy e
 
 Stores:
 
-- user/account reference;
+- user/account reference (**server-assigned owner** — one `user_ref` per purchase; never client-controlled);
 - product URL (Target product URL for the live retailer);
 - user-confirmed purchase price/date;
 - purchase channel and jurisdiction;
 - product fingerprint;
 - monitoring deadline;
 - status.
+
+**Privacy (Lane 7.3A.2A):** Consumer list/read/mutate paths are owner-scoped via session cookie identity. Cross-user access is forbidden (generic not-found). Ownerless/legacy shared rows are quarantined. Production accounts never receive fixture demo lists. The monitoring scheduler is a separate internal boundary and may select active purchases across owners.
 
 ### 3. SerpApi connector
 

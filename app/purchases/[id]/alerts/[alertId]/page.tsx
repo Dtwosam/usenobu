@@ -6,6 +6,7 @@ import {
   FIXTURE_UI_LABEL,
 } from "@/web/action-center";
 import { DEFAULT_POLICY_DISCLAIMER } from "@/policy/target-us-policy";
+import { getOrCreateSessionOwner } from "@/web/session-owner";
 import { notFound } from "next/navigation";
 import {
   ButtonLink,
@@ -22,7 +23,8 @@ export default async function AlertPage({
 }) {
   const { id, alertId } = await params;
   await prepareWebDatabase();
-  const data = getAlert(id, alertId);
+  const ownerRef = await getOrCreateSessionOwner();
+  const data = getAlert(id, alertId, { owner_ref: ownerRef });
   if (!data) notFound();
 
   const { alert, purchase, observation, fingerprint, action, claim_route } =

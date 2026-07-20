@@ -21,9 +21,13 @@ import {
   resolveManualCheckDataSource,
   type ManualCheckDataSource,
 } from "./manual-check-mode.js";
+import {
+  consumerOwnsPurchase,
+  WEB_DEMO_USER_REF,
+} from "./session-owner.js";
 
-/** Demo web session owner (matches createPurchaseFlow). */
-export const WEB_DEMO_USER_REF = "demo-user";
+/** @deprecated Legacy shared identity — tests only; re-exported for compatibility. */
+export { WEB_DEMO_USER_REF };
 
 /** Seconds between manual checks for the same purchase. */
 export const MANUAL_CHECK_COOLDOWN_SECONDS = 30;
@@ -117,12 +121,17 @@ export async function runBoundedManualCheck(args: {
     };
   }
 
-  const owner = String(purchase.user_ref ?? "");
-  if (owner && owner !== args.user_ref) {
+  // Cross-user, ownerless, and legacy shared rows are indistinguishable from missing.
+  if (
+    !consumerOwnsPurchase(
+      purchase.user_ref as string | null | undefined,
+      args.user_ref,
+    )
+  ) {
     return {
       ok: false,
-      error: "unauthorized",
-      outcome: "unauthorized",
+      error: "not_found",
+      outcome: "not_found",
       provider_called: false,
     };
   }

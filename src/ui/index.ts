@@ -17,6 +17,7 @@ export {
   IconChevron,
   IconClose,
   IconInfo,
+  IconLock,
   IconMenu,
   IconPackage,
   IconPlus,

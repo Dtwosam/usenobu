@@ -1896,7 +1896,7 @@ form.n-form-card {
   padding: var(--space-6);
 }
 
-/* —— Lane 7.3A.1 adaptive candidate selection —— */
+/* ï¿½ï¿½ Lane 7.3A.1 adaptive candidate selection ï¿½ï¿½ */
 .n-form-hint-disabled {
   margin: 0 0 var(--space-3);
   font-size: 0.875rem;
@@ -1942,6 +1942,25 @@ form.n-form-card {
   font-size: 15px;
   line-height: 24px;
   color: var(--text-secondary);
+}
+
+/* Lane 7.3A.2A â€” account-private reassurance under My Purchases heading */
+.n-privacy-reassurance {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: -4px 0 16px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.n-privacy-reassurance__icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  color: var(--text-tertiary, var(--text-secondary));
 }
 
 .n-selection-count {

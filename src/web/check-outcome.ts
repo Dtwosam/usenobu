@@ -42,11 +42,11 @@ export function checkOutcomeMessage(code: CheckOutcomeCode): string {
     case "not_confirmed":
       return "More product details are needed.";
     case "not_found":
+    case "unauthorized":
+      // Cross-user and missing are indistinguishable to the consumer.
       return "Purchase not found.";
     case "busy":
       return "Please wait before checking again.";
-    case "unauthorized":
-      return "You can’t check this purchase.";
     case "checked":
       return "No lower price found.";
     default:
