@@ -13,7 +13,6 @@ import {
   type A2mcpCheckResult,
 } from "../a2mcp/check-service.js";
 import { prepareWebDatabase } from "../web/prepare-db.js";
-import { getPurchaseDetail } from "../web/purchase-service.js";
 import type { NobuDatabase } from "../db/index.js";
 import {
   beginAgentEmailVerification,
@@ -25,6 +24,12 @@ import {
   discoverProductForAgent,
   preflightMonitoringForAgent,
 } from "../web/agent-preflight-service.js";
+import {
+  checkMonitoringStatusForAgent,
+  listActiveMonitorsForAgent,
+  setEmailAlertsForAgent,
+  stopMonitoringForAgent,
+} from "../web/agent-monitor-management.js";
 
 export type AgentServiceDeps = UnderstandDeps &
   A2mcpCheckDeps & {
@@ -266,44 +271,141 @@ export async function runAgentAction(
     };
   }
 
-  // CHECK_MONITORING_STATUS
-  await prepareWebDatabase();
-  const detail = getPurchaseDetail(req.purchase_id);
-  if (!detail) {
+  if (req.action === "LIST_ACTIVE_MONITORS") {
+    const result = await listActiveMonitorsForAgent({
+      connectionId: req.connection_id,
+      connectionToken: req.connection_token,
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+      now: deps.connectionNow,
+    });
+    if (!result.ok) {
+      return {
+        http_status: 401,
+        body: {
+          agent_state: "ACTIVE_MONITORS",
+          status: result.status,
+        },
+      };
+    }
     return {
-      http_status: 404,
+      http_status: 200,
       body: {
-        error: "not_found",
-        message: "No purchase found for that id.",
+        agent_state: "ACTIVE_MONITORS",
+        status: "OK",
+        count: result.count,
+        monitors: result.monitors,
       },
     };
   }
 
-  const { purchase, fingerprint, observations, alerts, runs } = detail;
-  return {
-    http_status: 200,
-    body: {
-      agent_state: "MONITORING_STATUS",
-      purchase_id: String(purchase.id),
-      status: String(purchase.status),
-      retailer: "Target",
-      purchase_price: Number(purchase.purchase_price),
-      currency: String(purchase.currency),
-      purchase_date: String(purchase.purchase_date),
-      monitoring_deadline: purchase.monitoring_deadline
-        ? String(purchase.monitoring_deadline)
-        : null,
-      has_locked_fingerprint: Boolean(fingerprint),
-      latest_observed_price:
-        observations[0]?.observed_price != null
-          ? Number(observations[0].observed_price)
-          : null,
-      alert_count: alerts.length,
-      run_count: runs.length,
-      message:
-        String(purchase.status) === "MONITORING_ACTIVE"
-          ? "Nobu is watching this purchase"
-          : `Current status: ${String(purchase.status)}`,
-    },
-  };
+  if (req.action === "ENABLE_EMAIL_ALERTS" || req.action === "DISABLE_EMAIL_ALERTS") {
+    const result = await setEmailAlertsForAgent({
+      connectionId: req.connection_id,
+      connectionToken: req.connection_token,
+      purchaseId: req.purchase_id,
+      enabled: req.action === "ENABLE_EMAIL_ALERTS",
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+      now: deps.connectionNow,
+    });
+    if (!result.ok) {
+      if ("status" in result && result.status === "ACTION_NOT_AUTHORIZED") {
+        return {
+          http_status: 401,
+          body: {
+            agent_state: "EMAIL_ALERT_PREFERENCE",
+            status: "ACTION_NOT_AUTHORIZED",
+          },
+        };
+      }
+      return {
+        http_status: 404,
+        body: {
+          error: "not_found",
+          message: "No purchase found for that id.",
+        },
+      };
+    }
+    return {
+      http_status: 200,
+      body: {
+        agent_state: "EMAIL_ALERT_PREFERENCE",
+        status: result.status,
+        purchase_id: result.purchase_id,
+        email_alerts_enabled: result.email_alerts_enabled,
+      },
+    };
+  }
+
+  if (req.action === "STOP_MONITORING") {
+    const result = await stopMonitoringForAgent({
+      connectionId: req.connection_id,
+      connectionToken: req.connection_token,
+      purchaseId: req.purchase_id,
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+      now: deps.connectionNow,
+    });
+    if (!result.ok) {
+      if ("status" in result && result.status === "ACTION_NOT_AUTHORIZED") {
+        return {
+          http_status: 401,
+          body: {
+            agent_state: "MONITORING_STOP",
+            status: "ACTION_NOT_AUTHORIZED",
+          },
+        };
+      }
+      return {
+        http_status: 404,
+        body: {
+          error: "not_found",
+          message: "No purchase found for that id.",
+        },
+      };
+    }
+    return {
+      http_status: 200,
+      body: {
+        agent_state: "MONITORING_STOP",
+        status: result.status,
+        purchase_id: result.purchase_id,
+        monitoring_stopped_at: result.monitoring_stopped_at,
+        monitoring_stop_reason: result.monitoring_stop_reason,
+        message:
+          "Monitoring stopped for this purchase. Purchase history remains available.",
+      },
+    };
+  }
+
+  // CHECK_MONITORING_STATUS — ownership-safe (Lane 7.4E)
+  await prepareWebDatabase();
+  const statusResult = await checkMonitoringStatusForAgent({
+    purchaseId: req.purchase_id,
+    connectionId: "connection_id" in req ? req.connection_id : undefined,
+    connectionToken: "connection_token" in req ? req.connection_token : undefined,
+    sqliteDb: deps.sqliteDb,
+    env: deps.env,
+    now: deps.connectionNow,
+  });
+  if (!statusResult.ok) {
+    if (statusResult.http_status === 401) {
+      return {
+        http_status: 401,
+        body: {
+          agent_state: "MONITORING_STATUS",
+          status: "ACTION_NOT_AUTHORIZED",
+        },
+      };
+    }
+    return {
+      http_status: 404,
+      body: {
+        error: statusResult.error,
+        message: statusResult.message,
+      },
+    };
+  }
+  return { http_status: 200, body: statusResult.body };
 }

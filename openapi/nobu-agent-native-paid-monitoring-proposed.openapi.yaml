@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: Nobu Agent-Native Paid Monitoring API (MOSTLY IMPLEMENTED — NOT DEPLOYED/REGISTERED)
-  version: 0.5.0-proposed
+  version: 0.6.0-proposed
   description: >-
-    Ten of thirteen actions are IMPLEMENTED in the codebase; the remaining
-    three (LIST_ACTIVE_MONITORS, ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS,
-    STOP_MONITORING — Lane 7.4E) remain PROPOSED / NOT IMPLEMENTED. As of
+    Free agent actions through Lane 7.4E are IMPLEMENTED on `/v1/agent`
+    (including LIST_ACTIVE_MONITORS, ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS,
+    STOP_MONITORING, and ownership-safe CHECK_MONITORING_STATUS). As of
     Lane 7.4B, `BEGIN_EMAIL_VERIFICATION`, `VERIFY_EMAIL_CODE`, and
     `REVOKE_AGENT_CONNECTION` are IMPLEMENTED on the live `/v1/agent` route
     (`app/v1/agent/route.ts` -> `runAgentAction`). As of Lane 7.4C,
@@ -22,7 +22,7 @@ info:
     actions. Each schema below is marked `x-nobu-implementation-status` to
     disambiguate "implemented in code" from "deployed" from "registered with
     OKX" — those are three different, independently tracked facts. ASP
-    #5541's registered listing is unchanged by Lane 7.4B/7.4C/7.4D (free
+    #5541's registered listing is unchanged by Lane 7.4B–7.4E (free
     actions on the same already-free endpoint; no marketplace/listing
     modification; the paid service is registered only at Lane 8R).
 
@@ -600,7 +600,7 @@ components:
       type: object
       required: [action, connection_id, connection_token]
       additionalProperties: false
-      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4E)
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4E)
       properties:
         action:
           type: string
@@ -613,7 +613,7 @@ components:
       type: object
       required: [action, connection_id, connection_token, purchase_id]
       additionalProperties: false
-      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4E)
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4E)
       properties:
         action:
           type: string
@@ -628,7 +628,7 @@ components:
       type: object
       required: [action, connection_id, connection_token, purchase_id]
       additionalProperties: false
-      x-nobu-implementation-status: PROPOSED / NOT IMPLEMENTED (Lane 7.4E)
+      x-nobu-implementation-status: IMPLEMENTED (Lane 7.4E)
       properties:
         action:
           type: string

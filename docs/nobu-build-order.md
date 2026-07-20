@@ -256,13 +256,15 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `tests/payments/start-monitoring.test.ts` (9 focused tests): invalid auth/quote issues no challenge; unpaid request gets a correctly quote-bound 402; a rejecting verifier never activates; first settlement creates exactly one payment+activation; concurrent duplicate settlement produces one settled payment and one activation with both callers resolving to the same monitor id; a purchases-store outage at settlement yields `ACTIVATION_PENDING` (never a second charge) and reconciliation later activates exactly once; expired and price-altered quotes fail closed; existing free `/v1/agent` actions unaffected. Directly-affected regressions (agent-preflight, agent-connections, passwordless-auth, monitoring, a2mcp, locked-fingerprint-monitor) pass unchanged. Typecheck, build, `git diff --check`, and a targeted secret/payment-header scan all clean. Verdict: `NOBU_LANE_7_4D_PASS`. Evidence: `docs/proof/lane-7-4d-paid-activation/`.
 
-## Lane 7.4E — Agent-native monitor management
+## Lane 7.4E — Agent-native monitor management COMPLETE
 
-- `LIST_ACTIVE_MONITORS`, `ENABLE_EMAIL_ALERTS`/`DISABLE_EMAIL_ALERTS`, `STOP_MONITORING`; `CHECK_MONITORING_STATUS` (already live) confirmed compatible.
-- `STOP_MONITORING` sets an explicit `monitoring_stopped_at`/`monitoring_stop_reason = user_requested` state, distinct from the visibility-only Lane 7.3A.2B archive; scheduler selection excludes stopped purchases. No refund promises in any response text.
-- Does not edit or resubmit `#5541`; does not expose unfinished paid behavior publicly.
+- `LIST_ACTIVE_MONITORS`, `ENABLE_EMAIL_ALERTS`/`DISABLE_EMAIL_ALERTS`, `STOP_MONITORING` on free `/v1/agent`.
+- `CHECK_MONITORING_STATUS` ownership-safe for account-owned monitors (connection credentials + hydrate + ownership); legacy non-account read preserved.
+- `STOP_MONITORING` sets `monitoring_stopped_at` / `monitoring_stop_reason = user_requested` (distinct from archive); scheduler selection excludes stopped purchases; idempotent 200 `MONITORING_STOPPED` on replay.
+- Reuses Lane 7.4B `authorizeAgentConnection` and Lane 7.3B `setEmailAlertPreference`; no new scheduler/notification/monitor entity; no payment changes.
+- Did not edit or resubmit `#5541`; did not deploy; paid route remains private/unregistered.
 
-**Proof:** owner-scope, stop-vs-archive, and scheduler-exclusion regression tests, typecheck, build.
+**Proof:** `tests/web/agent-monitor-management.test.ts` (6 focused cases), affected agent/notification/monitoring regressions, typecheck, build, `git diff --check`. Verdict: `NOBU_LANE_7_4E_PASS`. Evidence: `docs/proof/lane-7-4e-monitor-management/`.
 
 ## Lane 7.4F — Scheduler and notification integration
 

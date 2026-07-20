@@ -10,6 +10,7 @@ const ids = [
   "0005_policy_operations_r2a",
   "0006_accounts",
   "0007_email_alerts",
+  "0008_monitor_management",
 ];
 const entries = ids.map((id) => ({
   id,

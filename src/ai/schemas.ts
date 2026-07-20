@@ -91,6 +91,10 @@ export const AgentActionSchema = z.enum([
   "DISCOVER_PRODUCT",
   "CONFIRM_PRODUCT",
   "PREFLIGHT_MONITORING",
+  "LIST_ACTIVE_MONITORS",
+  "ENABLE_EMAIL_ALERTS",
+  "DISABLE_EMAIL_ALERTS",
+  "STOP_MONITORING",
 ]);
 
 /**
@@ -153,6 +157,9 @@ export const AgentRequestSchema = z.discriminatedUnion("action", [
     .object({
       action: z.literal("CHECK_MONITORING_STATUS"),
       purchase_id: z.string().min(1),
+      /** Required for account-owned / agent monitors (Lane 7.4E). */
+      connection_id: z.string().min(1).optional(),
+      connection_token: z.string().min(1).optional(),
     })
     .strict(),
   z
@@ -196,6 +203,37 @@ export const AgentRequestSchema = z.discriminatedUnion("action", [
       discovery_session_id: z.string().min(1),
       monitoring_consent: z.boolean(),
       email_alert_consent: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("LIST_ACTIVE_MONITORS"),
+      connection_id: z.string().min(1),
+      connection_token: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("ENABLE_EMAIL_ALERTS"),
+      connection_id: z.string().min(1),
+      connection_token: z.string().min(1),
+      purchase_id: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("DISABLE_EMAIL_ALERTS"),
+      connection_id: z.string().min(1),
+      connection_token: z.string().min(1),
+      purchase_id: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("STOP_MONITORING"),
+      connection_id: z.string().min(1),
+      connection_token: z.string().min(1),
+      purchase_id: z.string().min(1),
     })
     .strict(),
 ]);

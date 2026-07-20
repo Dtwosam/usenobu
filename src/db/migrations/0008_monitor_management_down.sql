@@ -1,0 +1,2 @@
+-- Reverse Lane 7.4E stop-monitoring columns.
+-- SQLite cannot DROP COLUMN portably; columns left in place on down.

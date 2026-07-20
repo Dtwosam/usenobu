@@ -65,14 +65,26 @@ export function saveSearchBudget(
 }
 
 export function listPurchaseRows(db: NobuDatabase): PurchaseSelectionRow[] {
-  return db
-    .prepare(
-      `SELECT id, status, purchase_price, currency, purchase_date, purchase_channel,
-              country, region, fingerprint_id, monitoring_deadline, is_target_plus,
-              known_exclusion
-       FROM purchases`,
-    )
-    .all() as unknown as PurchaseSelectionRow[];
+  try {
+    return db
+      .prepare(
+        `SELECT id, status, purchase_price, currency, purchase_date, purchase_channel,
+                country, region, fingerprint_id, monitoring_deadline, is_target_plus,
+                known_exclusion, monitoring_stopped_at, monitoring_stop_reason
+         FROM purchases`,
+      )
+      .all() as unknown as PurchaseSelectionRow[];
+  } catch {
+    // Pre-0008 DBs without stop columns
+    return db
+      .prepare(
+        `SELECT id, status, purchase_price, currency, purchase_date, purchase_channel,
+                country, region, fingerprint_id, monitoring_deadline, is_target_plus,
+                known_exclusion
+         FROM purchases`,
+      )
+      .all() as unknown as PurchaseSelectionRow[];
+  }
 }
 
 /** Optional schedule columns (Lane 7.3B). Missing columns → nulls. */

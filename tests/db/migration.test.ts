@@ -10,7 +10,7 @@ import {
 } from "../../src/db/index.js";
 
 describe("database migrations", () => {
-  it("lists 0001–0007 migration pairs", () => {
+  it("lists 0001–0008 migration pairs", () => {
     const migrations = listMigrations();
     expect(migrations.map((m) => m.id)).toEqual([
       "0001_init",
@@ -20,6 +20,7 @@ describe("database migrations", () => {
       "0005_policy_operations_r2a",
       "0006_accounts",
       "0007_email_alerts",
+      "0008_monitor_management",
     ]);
   });
 
@@ -35,6 +36,7 @@ describe("database migrations", () => {
         "0005_policy_operations_r2a",
         "0006_accounts",
         "0007_email_alerts",
+        "0008_monitor_management",
       ]);
       expect(getAppliedMigrations(db)).toEqual([
         "0001_init",
@@ -44,6 +46,7 @@ describe("database migrations", () => {
         "0005_policy_operations_r2a",
         "0006_accounts",
         "0007_email_alerts",
+        "0008_monitor_management",
       ]);
 
       for (const table of TABLE_NAMES) {
@@ -65,6 +68,7 @@ describe("database migrations", () => {
         "0005_policy_operations_r2a",
         "0006_accounts",
         "0007_email_alerts",
+        "0008_monitor_management",
       ]);
     } finally {
       db.close();
@@ -75,6 +79,7 @@ describe("database migrations", () => {
     const db = openDatabase(":memory:");
     try {
       migrateUp(db);
+      expect(migrateDown(db, undefined, 1)).toEqual(["0008_monitor_management"]);
       expect(migrateDown(db, undefined, 1)).toEqual(["0007_email_alerts"]);
       expect(migrateDown(db, undefined, 1)).toEqual(["0006_accounts"]);
       expect(migrateDown(db, undefined, 1)).toEqual([
@@ -114,6 +119,7 @@ describe("database migrations", () => {
         "0005_policy_operations_r2a",
         "0006_accounts",
         "0007_email_alerts",
+        "0008_monitor_management",
       ]);
       for (const table of TABLE_NAMES) {
         expect(tableExists(db, table)).toBe(true);

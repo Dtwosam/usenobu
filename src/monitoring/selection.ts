@@ -18,12 +18,16 @@ export interface PurchaseSelectionRow {
   monitoring_deadline: string | null;
   is_target_plus: number;
   known_exclusion: string | null;
+  /** Lane 7.4E — user/agent stop; distinct from archive. */
+  monitoring_stopped_at?: string | null;
+  monitoring_stop_reason?: string | null;
 }
 
 /**
  * A purchase is monitorable only when:
  * - status is MONITORING_ACTIVE
  * - locked fingerprint_id is present
+ * - not stopped (monitoring_stopped_at is null)
  * - still inside the 14-day policy window (or monitoring_deadline if set)
  */
 export function isWithinMonitoringWindow(
@@ -48,6 +52,15 @@ export function isWithinMonitoringWindow(
   return days <= windowDays;
 }
 
+export function isMonitoringStopped(
+  purchase: Pick<PurchaseSelectionRow, "monitoring_stopped_at">,
+): boolean {
+  return Boolean(
+    purchase.monitoring_stopped_at &&
+      String(purchase.monitoring_stopped_at).trim().length > 0,
+  );
+}
+
 export function selectActivePurchases(
   rows: readonly PurchaseSelectionRow[],
   asOfIso: string,
@@ -56,6 +69,7 @@ export function selectActivePurchases(
   for (const row of rows) {
     if (row.status !== "MONITORING_ACTIVE") continue;
     if (!row.fingerprint_id) continue;
+    if (isMonitoringStopped(row)) continue;
     if (!isWithinMonitoringWindow(row, asOfIso)) continue;
     out.push({
       id: row.id,

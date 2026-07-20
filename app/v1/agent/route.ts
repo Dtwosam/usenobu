@@ -13,7 +13,9 @@ function clientKey(req: Request): string {
 
 /**
  * POST /v1/agent — bounded A2MCP agent actions only.
- * UNDERSTAND_PURCHASE | CHECK_CONFIRMED_PURCHASE | CHECK_MONITORING_STATUS
+ * Free actions include UNDERSTAND_PURCHASE, CHECK_CONFIRMED_PURCHASE,
+ * CHECK_MONITORING_STATUS, Lane 7.4B–7.4E connection/preflight/management.
+ * Paid START_MONITORING is a separate private route (not registered).
  */
 export async function POST(req: Request) {
   const started = Date.now();
