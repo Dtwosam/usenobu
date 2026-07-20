@@ -92,6 +92,17 @@ If receipt images are added:
 - **Fixtures never appear in normal production accounts.** Fixture discovery/check requires an explicit server gate.
 - **Scheduler / internal monitoring** remains a separate protected boundary and may process across owners.
 
+## Agent-native paid monitoring (Lane 7.4A — PROPOSED, not yet implemented)
+
+`docs/nobu-okx-agent-native-paid-monitoring-architecture.md` designs, but does not deploy, an agent-native connection, email-verification, and paid-activation surface. New threats to control for at implementation time (Lane 7.4B onward):
+
+- **Email code brute-force / interception:** short numeric codes are weaker than magic-link tokens; mitigate with short TTL, per-attempt lockout, per-email/IP rate limiting, and hashed-at-rest storage (same posture as existing login tokens).
+- **Connection scope creep:** a verified `agent_connections` row must not become a general-purpose bearer credential — it may create/manage monitors it created and read status for monitor IDs it already holds, never a blanket read of a website account's full purchase history.
+- **Payment-authority confusion:** a settled `$0.99` payment must never be treated as proof of eligibility, matching, or consent — `PREFLIGHT_MONITORING` enforces those deterministically *before* a quote exists; payment only unlocks activation of an already-eligible, already-consented, already-quoted purchase (see architecture §5–§6).
+- **Duplicate settlement / replay:** exactly-once activation via a unique `idempotency_key` and a `UNIQUE(quote_id)` ledger row, independent of whatever replay protection the payment layer itself provides (see external-source-registry's Solana `SettlementCache` note — Nobu does not rely on the payment layer alone).
+- **Revocation misunderstood as refund/stop:** `REVOKE_AGENT_CONNECTION` and `STOP_MONITORING` copy must never imply money back or silent monitor deletion.
+- **Undocumented OKX identity assumptions:** this session found no proof OKX forwards a verified user/email identity to the ASP; the design does not assume one exists now or ever will — Nobu's own email verification remains authoritative for the alert destination regardless.
+
 ## Platform eligibility
 
 Never provide instructions to bypass OKX, retailer, payment, identity, age, region, or guardian restrictions. Account and agreement steps must be performed by an eligible person under the applicable terms.

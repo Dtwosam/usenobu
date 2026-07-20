@@ -108,7 +108,7 @@ MVP requires in-app alerts. Consented email alerts (Lane 7.3B) send only after d
 
 ### 8. A2MCP API
 
-The initial marketplace service performs a one-time Target purchase check and returns structured evidence. Persistent monitoring is available through the web product and may later become a paid ASP service.
+The live marketplace service (`#5541`, free) performs a one-time Target purchase check and returns structured evidence; today's `/v1/agent` also returns stored monitoring status for a purchase already started elsewhere. Persistent monitoring is not web-only: Lane 7.4A (`docs/nobu-okx-agent-native-paid-monitoring-architecture.md`, proposed/research-stage, not deployed) designs a full agent-native path — conversational purchase intake, discovery, confirmation, email verification, consent, and a one-time `$0.99` paid activation — so a user's AI agent can start and manage durable monitoring without visiting the website. The web product remains an optional dashboard, never a requirement for marketplace use. Whether the paid activation step is exposed as a second endpoint under `#5541`, a separate paid ASP listing, or another arrangement is undecided pending Lane 7.4D's OKX capability re-check; see the architecture document for the deferred decision and rejected alternatives.
 
 ## Core tables
 

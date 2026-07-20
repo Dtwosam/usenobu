@@ -106,3 +106,18 @@ Archive:
 - X post URL;
 - form confirmation;
 - known limitations.
+
+## 8. Agent-native paid monitoring (Lane 7.4B–7.4G — PROPOSED, not yet implemented)
+
+Required cases once built (see `docs/nobu-okx-agent-native-paid-monitoring-architecture.md`):
+
+- email verification code: short-lived expiry, single-use, rate-limited, bound to one connection/email, wrong-code lockout, hashed-at-rest, unusable as a browser session token;
+- `CONFIRM_PRODUCT` reload-and-revalidate matches the existing web confirmation guarantees (reject stale/tampered/non-Target/Target Plus/title-only);
+- `PREFLIGHT_MONITORING` never mints a quote for an unsupported/ambiguous/expired-window/missing-consent purchase;
+- quote expiry fails closed (no silent re-price or re-match on activation);
+- first valid paid replay creates exactly one monitor; duplicate settlement/replay returns `ALREADY_ACTIVE` with the same `monitor_id`, never a second row;
+- altered quote (mismatched purchase/fingerprint/price/idempotency key) is rejected, not repaired;
+- revoking an agent connection does not delete or stop an already-activated monitor;
+- `STOP_MONITORING` never implies a refund;
+- agent-originated monitors are indistinguishable from web-originated monitors to the scheduler and notification pipeline (no parallel implementation);
+- no live payment test runs fake/simulated settlement and calls it genuine.

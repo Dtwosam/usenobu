@@ -1,7 +1,7 @@
 # Nobu Current State
 
 **Date:** 2026-07-20
-**Status:** LANE 7.3B PASS — CONSENTED PRICE-DROP EMAIL ALERTS; NEXT LANE 8 (QUEUED)
+**Status:** LANE 7.4A PASS — OKX AGENT-NATIVE PAID MONITORING RESEARCH/ARCHITECTURE (RESEARCH ONLY, NOT DEPLOYED); NEXT LANE 7.4B
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)
@@ -19,6 +19,8 @@
 **Lane 7.3A.2A.1R magic-link + durable auth repair:** Root causes of laptop/phone failures: (1) GET `/auth/verify` consumed one-time tokens (email previews invalidated links in seconds); (2) auth tokens/sessions lived in per-instance SQLite + browser cookie snapshot, so phone/server instances could not see laptop-issued tokens. Repair: durable Postgres AuthStore (`DATABASE_URL` / `POLICY_OPS_DATABASE_URL`) for accounts, tokens, sessions, claims, and account purchase blobs; auth **not** in cookie snapshot; cookies hold only opaque session/guest tokens. Safe verify: GET peeks only → confirmation UI → POST consumes once. Magic-link origin defaults to `https://www.usenobu.xyz` (A2MCP remains `https://usenobu.vercel.app/v1/agent`).
 
 **Lane 7.3A.2B persistent purchase history + lifecycle:** Signed-in purchases remain in durable account blobs after monitoring ends. My Purchases tabs: **Active** / **History** / **Archived** via centralized lifecycle mapper (status + deadline + archive flag). Archive is visibility-only; restore returns to the correct tab. User-reported Target outcomes (not contacted / requested / approved / declined / did not request) store with timestamp and disclosure *Reported by you — not verified by Target* without changing matching, policy, or prices. Owner-authorized archive, restore, delete (confirm required). Guests keep browser-scoped lists; cross-device history requires sign-in.
+
+**Lane 7.4A OKX agent-native paid monitoring research + architecture:** **PASS** (`NOBU_LANE_7_4A_PASS`) — research/documentation-only lane; no implementation, deployment, or ASP #5541 change. This session could not reach `web3.okx.com`/`www.okx.com` (DNS blocked) or `okx.ai` (HTTP 403); four OKX-specific facts (fixed price per call per endpoint; endpoint must be free-200 or x402-402, not a documented hybrid; seller flow is protected-resource → challenge → signed payment → replay) are coordinator-provided, recorded as such in `docs/external-source-registry.md`, and not claimed as self-verified. Generic x402.org and Cloudflare x402/MCP docs were independently fetched and corroborate transport-level mechanics only. Selected: agent-native short-code email verification as Nobu's permanent identity architecture (independent of any future OKX identity signal). Deferred: the paid-service marketplace topology (mixed endpoint vs. separate paid listing vs. second endpoint) — two options documented, neither selected, gated on a new "OKX paid-service topology capability re-check" opening Lane 7.4D; Lane 7.4D returns `NOBU_LANE_7_4D_BLOCKED` if still unresolved. Designed durable records (`agent_connections`, `agent_email_codes`, `monitoring_enrollment_quotes`, `payment_attempts`, `monitor_activations`), a 12-action proposed contract, and continuation statuses, all reusing the existing matching/policy/scheduler/Lane 7.3B notification stack unmodified. Live `openapi/nobu-a2mcp.openapi.yaml` unchanged. Evidence: `docs/nobu-okx-agent-native-paid-monitoring-architecture.md`, `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml`, `docs/external-source-registry.md`.
 
 **Lane 7.3B consented automatic price-drop email alerts:** **PASS** (`NOBU_LANE_7_3B_PASS`) — purchase-level **Email me about possible price drops** consent (off by default, durable timestamp, disable anytime). Emails only to verified account email (masked UI; no second address field). Nobu notification workflow runs only after deterministic new valid opportunity; fail-closed on missing evidence; opportunity-key idempotency prevents duplicates. Anti-spam limits + controlled 24h scheduled cadence + production 6h manual cooldown. UI on purchase detail + My Purchases guest/signed-in states. Evidence: `docs/proof/lane-7-3b-email-alerts/`.
 
@@ -102,7 +104,7 @@ publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
 
 ## Next active lane
 
-**Lane 8 — reviewer-status monitoring** (ASP #5541 under review) is the exact next lane after 7.3B.
-Then: **Lane 9 — Demo and submission closeout**.
+**Lane 7.4B — Agent connection and conversational email verification** is the exact next lane after 7.4A.
+Then: Lane 7.4C, Lane 7.4D (opens with the OKX paid-service topology capability re-check; blocks if unresolved), Lane 7.4E, Lane 7.4F, Lane 7.4G, then return to **Lane 8 — reviewer-status monitoring** (ASP #5541 under review), then **Lane 9 — Demo and submission closeout**.
 
 Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`, `docs/proof/lane-7-3a-purchase-intake/`, `docs/proof/lane-7-3a-1-adaptive/`, `docs/proof/lane-7-3b-email-alerts/`
