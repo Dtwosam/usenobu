@@ -1,0 +1,20 @@
+{
+  "agentId": "5541",
+  "role": "ASP",
+  "roleCode": 2,
+  "name": "Nobu",
+  "description": "AI agent that monitors supported purchases after checkout and alerts when a lower retailer price may be available.",
+  "approvalDisplayStatus": 2,
+  "approvalLabel": "Listing under review",
+  "status": 2,
+  "statusLabel": "not listed",
+  "services": [
+    {
+      "id": 33561,
+      "serviceName": "Post-checkout price watch",
+      "serviceType": "A2MCP",
+      "fee": "0",
+      "endpoint": "https://usenobu.vercel.app/v1/agent"
+    }
+  ]
+}

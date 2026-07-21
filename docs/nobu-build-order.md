@@ -302,17 +302,14 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** doc inventory, OpenAPI validation, consistency scans, homepage check, deploy. Verdict: `NOBU_LANE_8R_2_PASS`. Evidence: `docs/proof/lane-8r-2-documentation-alignment/`.
 
-## Lane 8R — Accurate update and resubmission of ASP #5541
+## Lane 8R — Accurate update and resubmission of ASP #5541 COMPLETE
 
-- First point where `#5541` is edited or resubmitted after free registration — only after 8R.0–8R.2 are proven.
-- **Production OKX seller credentials must be configured before registration proof** (verify/settle/status fail closed without them).
-- Existing **free** service remains on ASP `#5541`.
-- New paid **$0.99** activation service is added under the **same** ASP (no second ASP).
-- Listing copy must match the final website and documentation.
-- Genuine payment proof remains **Lane 7.4G** (not this lane).
-- No fake or aspirational claims; paid-service description must match real, tested activation behavior.
+- Production seller env configured; deployed-runtime 402 proved unpaid challenge (x402 v2, `990000`, eip155:196, non-null valid `payTo`).
+- ASP `#5541` updated once: free service id `33561` preserved (fee `0`, `/v1/agent`); paid service created id `35958` (fee `0.99`, `/v1/agent/start-monitoring`).
+- `newAgentId: null` (no second ASP). Activate once recorded; marketplace **under review** (`approvalStatus: 2`). Public listing URL not yet available.
+- Genuine payment proof remains **Lane 7.4G**.
 
-**Proof:** resubmission record (fields changed, before/after), consistency check against the actually-deployed paid behavior.
+**Proof:** `docs/proof/lane-8r-asp-update/`. Verdict: `NOBU_LANE_8R_PASS`.
 
 ## Lane 7.4G — Live marketplace end-to-end proof
 

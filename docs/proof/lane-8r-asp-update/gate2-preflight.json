@@ -1,0 +1,16 @@
+﻿{
+  "gate": 2,
+  "health": { "url": "https://usenobu.vercel.app/health", "status": 200 },
+  "free_agent": {
+    "action": "UNDERSTAND_PURCHASE",
+    "status": 200,
+    "agent_state": "CONFIRMATION_REQUIRED",
+    "secret_leak_suspect": false
+  },
+  "paid_malformed": { "status": 400, "body": { "error": "invalid_input" } },
+  "paid_unauthorized": {
+    "status": 401,
+    "body": { "agent_state": "MONITORING_ACTIVATION", "status": "ACTION_NOT_AUTHORIZED" }
+  },
+  "result": "PASS"
+}

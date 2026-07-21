@@ -1,0 +1,16 @@
+{
+  "same_agent_id": true,
+  "role_asp": true,
+  "free_exists_once": true,
+  "free_fee_0": true,
+  "free_endpoint_ok": true,
+  "free_id_preserved": true,
+  "paid_exists_once": true,
+  "paid_fee_0_99": true,
+  "paid_endpoint_ok": true,
+  "paid_id": 35958,
+  "service_count_2": true,
+  "no_second_asp": true,
+  "description_updated": true,
+  "all_ok": true
+}

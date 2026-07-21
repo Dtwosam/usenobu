@@ -1,14 +1,15 @@
 openapi: 3.1.0
 info:
-  title: Nobu Agent-Native Paid Monitoring API (IMPLEMENTED + DEPLOYED — ASP REGISTRATION PENDING)
+  title: Nobu Agent-Native Paid Monitoring API (IMPLEMENTED + DEPLOYED — ASP PAID SERVICE REGISTERED, UNDER REVIEW)
   version: 1.0.0
   description: >-
     Filename retained for reference stability (`nobu-agent-native-paid-monitoring-proposed.openapi.yaml`).
-    Status as of Lanes 8R.0–8R.2: free agent actions and paid start-monitoring are
+    Status as of Lane 8R: free agent actions and paid start-monitoring are
     IMPLEMENTED and DEPLOYED on UseNobu production. Official OKX seller verify/settle/status
-    integration is live in code (fails closed without production credentials). The paid
-    service is NOT YET registered on ASP #5541 — registration is Lane 8R. Genuine payment
-    marketplace proof is Lane 7.4G.
+    integration is live (fails closed without production credentials). The paid
+    service is registered on ASP #5541 as a separate A2MCP service (fee 0.99) alongside
+    the free service (fee 0); marketplace approvalStatus under review (not publicly listed).
+    Genuine payment marketplace proof is Lane 7.4G.
 
     Free actions on POST /v1/agent (also documented in openapi/nobu-a2mcp.openapi.yaml):
     UNDERSTAND_PURCHASE, CHECK_CONFIRMED_PURCHASE, CHECK_MONITORING_STATUS,
@@ -33,7 +34,7 @@ servers:
   - url: https://usenobu.vercel.app
     description: >-
       UseNobu production host for free /v1/agent and paid /v1/agent/start-monitoring.
-      Paid ASP marketplace registration remains Lane 8R.
+      Paid service registered on ASP #5541 (Lane 8R); listing under review until marketplace approval.
 paths:
   /v1/agent:
     post:
@@ -171,7 +172,7 @@ components:
         (`docs/nobu-clean-master-spec.md` §8), returned as-is rather than
         wrapped. PAYMENT_PENDING, PAYMENT_SETTLEMENT_PENDING, MONITORING_STARTED,
         ACTIVATION_PENDING, and ALREADY_ACTIVE are IMPLEMENTED for
-        `POST /v1/agent/start-monitoring` (deployed; ASP registration pending
+        `POST /v1/agent/start-monitoring` (deployed; ASP paid service registered, under review
         Lane 8R).
       enum:
         - MORE_INFORMATION_REQUIRED
@@ -630,7 +631,7 @@ components:
       type: object
       required: [quote_id, connection_id, connection_token]
       additionalProperties: false
-      x-nobu-implementation-status: IMPLEMENTED + DEPLOYED (Lanes 7.4D + 8R.0); ASP registration pending Lane 8R
+      x-nobu-implementation-status: IMPLEMENTED + DEPLOYED (Lanes 7.4D + 8R.0); ASP paid service registered Lane 8R (under review)
       properties:
         quote_id:
           type: string
@@ -656,7 +657,7 @@ components:
     StartMonitoringResponse:
       type: object
       required: [agent_state, status]
-      x-nobu-implementation-status: IMPLEMENTED + DEPLOYED (Lanes 7.4D + 8R.0); ASP registration pending Lane 8R
+      x-nobu-implementation-status: IMPLEMENTED + DEPLOYED (Lanes 7.4D + 8R.0); ASP paid service registered Lane 8R (under review)
       description: >-
         monitor_id is present whenever status is MONITORING_STARTED,
         ALREADY_ACTIVE, or ACTIVATION_PENDING; absent for

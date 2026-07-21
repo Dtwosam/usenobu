@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "data": {
+    "activate": {
+      "approvalStatus": 2,
+      "rejectReason": null,
+      "success": false
+    }
+  }
+}

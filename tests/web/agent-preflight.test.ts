@@ -146,6 +146,20 @@ describe("Lane 7.4C agent discovery/confirmation/preflight", () => {
     expect(purchaseCount()).toBe(0);
   });
 
+  it("DISCOVER_PRODUCT with exact Target identity is confirmable when live offers lack Target links", async () => {
+    const result = await discoverProductForAgent(EXACT_IDENTITY_FIELDS, {
+      offersOverride: [],
+      sqliteDb: db,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.status).toBe("PRODUCT_CONFIRMATION_REQUIRED");
+    expect(result.candidates.length).toBe(1);
+    expect(result.candidates[0]!.confirmable).toBe(true);
+    expect(result.candidates[0]!.target_item_id).toBe("87654321");
+    expect(purchaseCount()).toBe(0);
+  });
+
   it("returns bounded Target-only candidates; Target Plus and non-Target excluded", async () => {
     const offers: MatchableOffer[] = [
       ...Array.from({ length: 7 }, (_, i) =>

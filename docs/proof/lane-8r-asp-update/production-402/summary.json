@@ -1,0 +1,17 @@
+﻿{
+  "gate": 3,
+  "result": "PASS",
+  "production_402_proven": true,
+  "controlled_flow_not_customer_traction": true,
+  "preflight_status": "MONITORING_PAYMENT_READY",
+  "price_amount": 0.99,
+  "http_status": 402,
+  "body_status": "PAYMENT_PENDING",
+  "payment_required_header_present": true,
+  "payment_signature_sent": false,
+  "no_side_effects": {
+    "replay_402": true,
+    "active_monitors": 0,
+    "genuine_payment": false
+  }
+}

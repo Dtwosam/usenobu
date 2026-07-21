@@ -26,7 +26,11 @@ import { discoverLiveTargetCandidates } from "./live-discovery.js";
 import type { NormalizedShoppingOffer } from "../serpapi/types.js";
 import { evaluateExactIdentity } from "./exact-identity.js";
 import { assessProductClues, canSubmitFindProduct } from "./product-clue.js";
-import { purchaseHasExactIdentity, PENDING_DISCOVERY_URL } from "./purchase-service.js";
+import {
+  purchaseHasExactIdentity,
+  preferUserProvidedIdentityWhenNeeded,
+  PENDING_DISCOVERY_URL,
+} from "./purchase-service.js";
 import { persistAccountPurchaseIfNeeded } from "../auth/service.js";
 import {
   getAuthStore,
@@ -177,11 +181,23 @@ export async function discoverProductForAgent(
     offers = live.ok ? live.offers : [];
   }
 
-  const evaluation = evaluateUncertainProductDiscovery(ref, offers);
-
   const now = deps.now ?? new Date();
   const nowIso = now.toISOString();
   const expiresAt = new Date(now.getTime() + DISCOVERY_SESSION_TTL_MS).toISOString();
+
+  let evaluation = evaluateUncertainProductDiscovery(ref, offers);
+  // Lane 7.2 parity: exact Target URL/TCIN remains confirmable when live
+  // SerpApi offers lack stable Target identity (Google-only links, etc.).
+  if (clues.has_exact_identity) {
+    const preferred = preferUserProvidedIdentityWhenNeeded({
+      ref,
+      now: nowIso,
+      evaluation,
+      offers: offers as MatchableOffer[],
+    });
+    evaluation = preferred.evaluation;
+    offers = preferred.offers;
+  }
 
   const structuredSnapshot = {
     purchase_price: purchase.purchase_price,
@@ -208,7 +224,6 @@ export async function discoverProductForAgent(
     now,
     ttlMs: DISCOVERY_SESSION_TTL_MS,
   });
-  void nowIso;
   void expiresAt;
 
   const candidates = evaluation.candidates.map(summarizeCandidate);

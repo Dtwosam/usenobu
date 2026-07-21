@@ -194,7 +194,12 @@ function buildUserProvidedIdentityEvaluation(args: {
   };
 }
 
-function preferUserProvidedIdentityWhenNeeded(args: {
+/**
+ * When live third-party discovery has no confirmable Target offer, fall back to
+ * a user-provided exact Target URL/TCIN identity candidate (Lane 7.2).
+ * Shared by consumer web enrollment and agent DISCOVER_PRODUCT.
+ */
+export function preferUserProvidedIdentityWhenNeeded(args: {
   ref: PurchaseMatchReference;
   now: string;
   evaluation: MatchEvaluationResult;

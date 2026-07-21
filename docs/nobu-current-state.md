@@ -1,9 +1,12 @@
 # Nobu Current State
 
-**Date:** 2026-07-20
-**Status:** LANE 8R.2 PASS — ACTIVE PRODUCT DOCUMENTATION ALIGNED; NEXT LANE 8R
+**Date:** 2026-07-21
+**Status:** `NOBU_LANE_8R_PASS` — production 402 proven; ASP `#5541` free+paid services updated; listing under review
 
-ASP #5541 remains free and unchanged while under review — Lane 7.4D did not edit, resubmit, or create an ASP, and did not deploy or register the paid service. Paid `$0.99` agent-native monitoring is now fully implemented in the codebase (durable `payment_attempts`/`monitor_activations`, the official x402 challenge/verification boundary, the two-phase durable saga, and reconciliation) behind a **private, unregistered** route (`app/v1/agent/start-monitoring`) — not advertised, not part of ASP #5541, not deployed. The marketplace topology remains resolved (**separate free and paid A2MCP services, co-located under the existing `#5541` identity** — see below), leaving an accurate edit/resubmit of `#5541` (Lane 8R, after Lane 7.4D–7.4F are built and proven) as the only remaining `#5541` touch-point. Development continues through Lane 7.4E–7.4F without editing or resubmitting `#5541` and without exposing unfinished paid behavior publicly; see "Next active lane" below for the full adopted order.
+**Current product truth:** The paid `$0.99` agent-native start-monitoring route is **implemented and deployed** (`POST /v1/agent/start-monitoring`). Official OKX seller **verify / settle / settle-status** is integrated and production-configured (Sensitive env; runtime 402 proves non-null valid `payTo`). ASP **`#5541`** now has **two** separate A2MCP services under the same identity: free fee `0` at `/v1/agent` (service id `33561`) and paid fee `0.99` at `/v1/agent/start-monitoring` (service id `35958`). Marketplace **`approvalStatus` / display status `2` — Listing under review**; **not** publicly listed (`public_listing_url: not_yet_available`). Production **402** unpaid challenge proven (`production_402_proven: true`). **No genuine payment has been completed** (Lane 7.4G). Topology: **separate free and paid A2MCP services, co-located under `#5541`**. Evidence: `docs/proof/lane-8r-asp-update/`.
+
+**Historical (superseded opening claims):** Older lane notes below may still say the paid route was private/undeployed, verifier always `not_configured`, or paid service unregistered. Lane 8R.0 supersedes “verifier always not_configured / route only proposed.” Lane 8R supersedes “paid service not registered on `#5541`.”
+
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
 **Review-Safe Sprint A:** **NOBU_REVIEW_SAFE_A_PASS** (core monitoring proof UI — safe execution, not end-to-end live price acceptance)
@@ -128,8 +131,8 @@ publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
 
 ## Next active lane
 
-**Lane 8R — Accurate update and resubmission of ASP #5541** is the exact next lane after 8R.2.
+**Lane 8R COMPLETE** (`NOBU_LANE_8R_PASS`). Exact next lane: **Lane 7.4G — Live marketplace end-to-end proof** — do **not** begin until ASP `#5541` and the paid service are officially accessible through OKX.AI.
 
-**Adopted roadmap:** `7.4C.1 → 7.4D.0 → 7.4D → 7.4E → 7.4F → 8R.0 (COMPLETE) → 8R.1 (COMPLETE) → 8R.2 (COMPLETE) → Lane 8R → 7.4G → Lane 9 (product/release closeout)`. Sequence lock: `8R.0 → 8R.1 → 8R.2 → 8R → 7.4G`.
+**Adopted roadmap:** `7.4C.1 → 7.4D.0 → 7.4D → 7.4E → 7.4F → 8R.0 (COMPLETE) → 8R.1 (COMPLETE) → 8R.2 (COMPLETE) → Lane 8R (COMPLETE) → 7.4G → Lane 9`. Sequence lock: `8R.0 → 8R.1 → 8R.2 → 8R → 7.4G`.
 
-Evidence: `docs/proof/okx/`, `docs/proof/ui/core-product-proof/`, `docs/proof/lane-7-3a-purchase-intake/`, `docs/proof/lane-7-3a-1-adaptive/`, `docs/proof/lane-7-3b-email-alerts/`, `docs/proof/lane-7-4b-agent-connection/`, `docs/proof/lane-7-4c-agent-preflight/`, `docs/proof/lane-7-4d-0-okx-topology/`, `docs/proof/lane-7-4d-paid-activation/`, `docs/proof/lane-7-4e-monitor-management/`, `docs/proof/lane-7-4f-scheduler-notifications/`, `docs/proof/lane-8r-0-okx-seller-integration/`
+Evidence: `docs/proof/okx/`, `docs/proof/lane-8r-0-okx-seller-integration/`, `docs/proof/lane-8r-1-public-interface/`, `docs/proof/lane-8r-2-documentation-alignment/`, `docs/proof/lane-8r-asp-update/`

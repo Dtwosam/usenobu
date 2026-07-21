@@ -1,0 +1,52 @@
+{
+  "lane": "8R",
+  "gate": 1,
+  "date": "2026-07-21",
+  "base_commit": "92ef11bd4e37bb8abefc5ed0ab5f5a89d34c5a57",
+  "project": "usenobu",
+  "vercel_scope": "dtwoflicks-2878s-projects",
+  "command": "vercel env ls production",
+  "required_env_names": [
+    "OKX_API_KEY",
+    "OKX_SECRET_KEY",
+    "OKX_PASSPHRASE",
+    "OKX_PAY_TO_or_PAY_TO"
+  ],
+  "optional_env_names": [
+    "OKX_BASE_URL",
+    "OKX_SYNC_SETTLE"
+  ],
+  "presence": {
+    "OKX_API_KEY": false,
+    "OKX_SECRET_KEY": false,
+    "OKX_PASSPHRASE": false,
+    "OKX_PAY_TO": false,
+    "PAY_TO": false,
+    "OKX_BASE_URL": false,
+    "OKX_SYNC_SETTLE": false
+  },
+  "env_local_same_names_present": false,
+  "no_secret_values_recorded": true,
+  "production_smoke": {
+    "health_url": "https://usenobu.vercel.app/health",
+    "health_status": 200,
+    "paid_route": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+    "paid_dummy_auth_status": 401,
+    "paid_dummy_body": {
+      "agent_state": "MONITORING_ACTIVATION",
+      "status": "ACTION_NOT_AUTHORIZED"
+    },
+    "note": "401 proves unauthorized fail-closed only; not a quote-bound 402 proof."
+  },
+  "result": "FAIL",
+  "verdict": "NOBU_LANE_8R_BLOCKED_GATE_1",
+  "stopped_before": [
+    "gate2_production_402",
+    "gate3_asp_5541_inspect",
+    "gate4_6_asp_update",
+    "gate7_resubmit",
+    "gate8_full_after_state"
+  ],
+  "asp_5541_touched": false,
+  "genuine_payment": false
+}

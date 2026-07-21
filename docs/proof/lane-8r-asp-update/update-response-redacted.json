@@ -1,0 +1,6 @@
+{
+  "ok": true,
+  "newAgentId": null,
+  "txHash": "0x002189c52d07486ad3966619f8c0aa3aa9b875e3f23f15cea9b417790ee09b0a",
+  "note": "txHash is public on-chain; not a payment signature"
+}
