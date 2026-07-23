@@ -1,0 +1,33 @@
+{
+  "source": "onchainos agent get-agents --agent-ids 5541 (read-only, after agent activate resubmission)",
+  "agentId": "5541",
+  "name": "Nobu",
+  "role": "ASP",
+  "approvalDisplayStatus": 2,
+  "approvalLabel": "Listing under review",
+  "approvalRemark": "During platform testing, we found that the results returned by your service in actual calls don't match the capabilities stated in your service description.\n\nPlease follow these steps to make changes:\n1. Update your description to match your service's actual functionality, or redeploy your service so it matches the description.\n2. Once done, re-verify that your service is working, then resubmit.",
+  "note": "approvalRemark is the marketplace's last-decision text and is expected to persist as history until the pending re-review produces a new decision; approvalDisplayStatus/approvalLabel are the live fields and now read 2 / \"Listing under review\", not 5 / \"Listing rejected\".",
+  "status": "not listed",
+  "services": [
+    {
+      "id": 33561,
+      "serviceName": "Nobu Purchase Setup",
+      "fee": "0",
+      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "unchanged_from_before": true
+    },
+    {
+      "id": 35958,
+      "serviceName": "Nobu Monitoring Activation",
+      "fee": "0.99",
+      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "unchanged_from_before": true
+    }
+  ],
+  "resubmission_call": {
+    "command": "onchainos agent activate --agent-id 5541 --preferred-language en-US",
+    "asp_update_calls_made": 0,
+    "response_submitApproval": { "approvalStatus": 2, "success": true },
+    "note": "No agent update call was made — service/description content required no change (Lane 8R.3 root cause was runtime behavior, not listing copy). Resubmission used agent activate alone."
+  }
+}

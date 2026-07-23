@@ -1,7 +1,11 @@
 # Nobu Current State
 
-**Date:** 2026-07-21
-**Status:** `NOBU_LANE_8R_PASS` — production 402 proven; ASP `#5541` free+paid services updated; listing under review
+**Date:** 2026-07-23
+**Status:** `NOBU_LANE_8R_3_PASS` — OKX listing-review rejection repaired; ASP `#5541` resubmitted and back under review
+
+**Lane 8R.3 OKX listing-review capability-mismatch repair (2026-07-23):** ASP `#5541` was rejected (`approvalDisplayStatus: 5`) with reason *"the results returned by your service in actual calls don't match the capabilities stated in your service description."* Root cause: **endpoint usability on the paid service (`35958`), not listing copy** — both registered service descriptions were already accurate, but a first call to `POST /v1/agent/start-monitoring` without a pre-existing `quote_id`/`connection_id`/`connection_token` (the most natural way to probe a service literally named "Nobu Monitoring Activation") returned a bare `{"error":"invalid_input"}` (400) or `{"status":"ACTION_NOT_AUTHORIZED"}` (401) with no indication that this was expected, no required-field list, and no pointer to the free flow that produces valid credentials — indistinguishable from a broken service. Repair: additive machine-readable guidance (`message`/`required_fields`/`next_action`/`documentation`) on those two failure shapes only (`app/v1/agent/start-monitoring/route.ts`, `src/payments/start-monitoring-response.ts`); the `ACTION_NOT_AUTHORIZED`/`CONNECTION_EXPIRED` guidance text is deliberately identical for both statuses so the response still never reveals which specific check failed. No auth/payment/matching gate changed; no listing-copy change (both descriptions verified byte-identical before/after); zero ASP updates. Deployed to production (`usenobu.vercel.app` explicitly re-aliased — it does not auto-follow `vercel deploy --prod`), reproduction cases 1–5 re-run against the fix, then resubmitted via `agent activate` alone (no `agent update`). ASP `#5541` now reads `approvalDisplayStatus: 2` ("Listing under review"), both services (`33561` free, `35958` paid) unchanged. Lane 7.4G remains blocked — "under review" is not "officially accessible through OKX.AI." Evidence: `docs/proof/lane-8r-3-review-repair/`.
+
+**Prior status (superseded by the repair above):** `NOBU_LANE_8R_PASS` — production 402 proven; ASP `#5541` free+paid services updated; listing under review
 
 **Current product truth:** The paid `$0.99` agent-native start-monitoring route is **implemented and deployed** (`POST /v1/agent/start-monitoring`). Official OKX seller **verify / settle / settle-status** is integrated and production-configured (Sensitive env; runtime 402 proves non-null valid `payTo`). ASP **`#5541`** now has **two** separate A2MCP services under the same identity: free fee `0` at `/v1/agent` (service id `33561`) and paid fee `0.99` at `/v1/agent/start-monitoring` (service id `35958`). Marketplace **`approvalStatus` / display status `2` — Listing under review**; **not** publicly listed (`public_listing_url: not_yet_available`). Production **402** unpaid challenge proven (`production_402_proven: true`). **No genuine payment has been completed** (Lane 7.4G). Topology: **separate free and paid A2MCP services, co-located under `#5541`**. Evidence: `docs/proof/lane-8r-asp-update/`.
 
@@ -131,8 +135,8 @@ publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
 
 ## Next active lane
 
-**Lane 8R COMPLETE** (`NOBU_LANE_8R_PASS`). Exact next lane: **Lane 7.4G — Live marketplace end-to-end proof** — do **not** begin until ASP `#5541` and the paid service are officially accessible through OKX.AI.
+**Lane 8R.3 COMPLETE** (`NOBU_LANE_8R_3_PASS`). ASP `#5541` is back to `approvalDisplayStatus: 2` ("Listing under review") after the rejection repair above. Exact next lane: **Lane 7.4G — Live marketplace end-to-end proof** — do **not** begin until ASP `#5541` and the paid service are officially accessible through OKX.AI (approved and public, not merely "under review").
 
-**Adopted roadmap:** `7.4C.1 → 7.4D.0 → 7.4D → 7.4E → 7.4F → 8R.0 (COMPLETE) → 8R.1 (COMPLETE) → 8R.2 (COMPLETE) → Lane 8R (COMPLETE) → 7.4G → Lane 9`. Sequence lock: `8R.0 → 8R.1 → 8R.2 → 8R → 7.4G`.
+**Adopted roadmap:** `7.4C.1 → 7.4D.0 → 7.4D → 7.4E → 7.4F → 8R.0 (COMPLETE) → 8R.1 (COMPLETE) → 8R.2 (COMPLETE) → Lane 8R (COMPLETE) → 8R.3 (COMPLETE) → 7.4G → Lane 9`. Sequence lock: `8R.0 → 8R.1 → 8R.2 → 8R → 8R.3 → 7.4G`.
 
-Evidence: `docs/proof/okx/`, `docs/proof/lane-8r-0-okx-seller-integration/`, `docs/proof/lane-8r-1-public-interface/`, `docs/proof/lane-8r-2-documentation-alignment/`, `docs/proof/lane-8r-asp-update/`
+Evidence: `docs/proof/okx/`, `docs/proof/lane-8r-0-okx-seller-integration/`, `docs/proof/lane-8r-1-public-interface/`, `docs/proof/lane-8r-2-documentation-alignment/`, `docs/proof/lane-8r-asp-update/`, `docs/proof/lane-8r-3-review-repair/`

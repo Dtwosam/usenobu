@@ -1,0 +1,13 @@
+HTTP/1.1 400 Bad Request
+Cache-Control: public, max-age=0, must-revalidate
+Content-Type: application/json
+Date: Thu, 23 Jul 2026 10:49:43 GMT
+Server: Vercel
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+X-Matched-Path: /v1/agent
+X-Vercel-Cache: MISS
+X-Vercel-Id: cpt1::iad1::tg8qd-1784803783621-7c3bf9195061
+Transfer-Encoding: chunked
+
+{"error":"invalid_json"}

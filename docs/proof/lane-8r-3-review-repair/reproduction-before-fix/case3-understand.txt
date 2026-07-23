@@ -1,0 +1,13 @@
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=0, must-revalidate
+Content-Type: application/json
+Date: Thu, 23 Jul 2026 10:50:17 GMT
+Server: Vercel
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+X-Matched-Path: /v1/agent
+X-Vercel-Cache: MISS
+X-Vercel-Id: cpt1::iad1::lkmft-1784803815859-cf9fde823116
+Transfer-Encoding: chunked
+
+{"agent_state":"CONFIRMATION_REQUIRED","message":"Review the details Nobu extracted before continuing.","requires_user_action":true,"next_action":"CONFIRM_PURCHASE_DETAILS","extracted_purchase":{"retailer":"Target","product_description":"Apple AirTag","product_url":null,"purchase_price":29.99,"currency":"USD","purchase_date":"2026-07-10","purchase_channel":"target_online","region":null,"model_number":null,"target_item_id":null,"upc_or_gtin":null},"missing_fields":[],"uncertain_fields":["region"],"field_evidence":[{"field":"retailer","confidence":"high","evidence":"Target.com"},{"field":"product_description","confidence":"high","evidence":"Apple AirTag"},{"field":"product_url","confidence":"high","evidence":null},{"field":"purchase_price","confidence":"high","evidence":"$29.99"},{"field":"currency","confidence":"high","evidence":"$"},{"field":"purchase_date","confidence":"high","evidence":"2026-07-10"},{"field":"purchase_channel","confidence":"high","evidence":"Target.com"},{"field":"region","confidence":"uncertain","evidence":null},{"field":"model_number","confidence":"high","evidence":null},{"field":"target_item_id","confidence":"high","evidence":null},{"field":"upc_or_gtin","confidence":"high","evidence":null}],"provider":"groq"}

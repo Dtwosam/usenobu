@@ -1,0 +1,13 @@
+HTTP/1.1 400 Bad Request
+Cache-Control: public, max-age=0, must-revalidate
+Content-Type: application/json
+Date: Thu, 23 Jul 2026 10:50:02 GMT
+Server: Vercel
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+X-Matched-Path: /v1/agent
+X-Vercel-Cache: MISS
+X-Vercel-Id: cpt1::iad1::wftft-1784803802416-70625cb8dadd
+Transfer-Encoding: chunked
+
+{"error":"invalid_input","message":"Invalid agent request.","details":{"formErrors":[],"fieldErrors":{"action":["Invalid discriminator value. Expected 'UNDERSTAND_PURCHASE' | 'CHECK_CONFIRMED_PURCHASE' | 'CHECK_MONITORING_STATUS' | 'BEGIN_EMAIL_VERIFICATION' | 'VERIFY_EMAIL_CODE' | 'REVOKE_AGENT_CONNECTION' | 'DISCOVER_PRODUCT' | 'CONFIRM_PRODUCT' | 'PREFLIGHT_MONITORING' | 'LIST_ACTIVE_MONITORS' | 'ENABLE_EMAIL_ALERTS' | 'DISABLE_EMAIL_ALERTS' | 'STOP_MONITORING'"]}}}

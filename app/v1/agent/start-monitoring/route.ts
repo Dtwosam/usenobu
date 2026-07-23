@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auditA2mcp, defaultA2mcpRateLimiter } from "@/a2mcp/index";
+import { startMonitoringForAgent } from "@/payments/start-monitoring-service";
 import {
-  startMonitoringForAgent,
-  type StartMonitoringResult,
-} from "@/payments/start-monitoring-service";
+  startMonitoringInvalidInputBody,
+  startMonitoringResponseBody,
+} from "@/payments/start-monitoring-response";
 import { X402_CHALLENGE_HEADER_NAME, X402_PAYMENT_HEADER_NAME } from "@/payments/x402";
 
 /**
- * Lane 7.4D — private, UNREGISTERED paid activation endpoint.
- * Not part of ASP #5541, not advertised, no OKX registration performed.
- * Accepts only quote_id/connection_id/connection_token in the body; the
- * signed payment replay travels in the PAYMENT-SIGNATURE header, never the
- * body. Every other authoritative value is reloaded server-side.
+ * Lane 8R — paid activation endpoint, registered on ASP #5541 as
+ * "Nobu Monitoring Activation" (fee 0.99). Accepts only
+ * quote_id/connection_id/connection_token in the body; the signed payment
+ * replay travels in the PAYMENT-SIGNATURE header, never the body. Every
+ * other authoritative value is reloaded server-side.
  */
 
 const StartMonitoringBodySchema = z
@@ -37,27 +38,6 @@ function resolveResourceUrl(env: NodeJS.ProcessEnv = process.env): string {
     env.NOBU_A2MCP_BASE_URL?.trim().replace(/\/$/, "") ||
     "https://usenobu.vercel.app";
   return `${base}/v1/agent/start-monitoring`;
-}
-
-function responseBody(result: StartMonitoringResult): Record<string, unknown> {
-  const base = { agent_state: "MONITORING_ACTIVATION", status: result.status };
-  if (result.ok && result.status === "PAYMENT_SETTLEMENT_PENDING") {
-    return {
-      ...base,
-      note: result.note,
-    };
-  }
-  if (result.ok && "monitoring_deadline" in result) {
-    return {
-      ...base,
-      monitor_id: result.monitor_id,
-      monitoring_deadline: result.monitoring_deadline,
-    };
-  }
-  if (result.ok && "monitor_id" in result) {
-    return { ...base, monitor_id: result.monitor_id };
-  }
-  return base;
 }
 
 export async function POST(req: Request) {
@@ -89,7 +69,7 @@ export async function POST(req: Request) {
       outcome: "invalid_input",
       duration_ms: Date.now() - started,
     });
-    return NextResponse.json({ error: "invalid_input" }, { status: 400 });
+    return NextResponse.json(startMonitoringInvalidInputBody(), { status: 400 });
   }
 
   const limit = defaultA2mcpRateLimiter.check(key);
@@ -133,11 +113,11 @@ export async function POST(req: Request) {
   });
 
   if (!result.ok && "challenge" in result) {
-    return NextResponse.json(responseBody(result), {
+    return NextResponse.json(startMonitoringResponseBody(result), {
       status: 402,
       headers: { [X402_CHALLENGE_HEADER_NAME]: result.challengeHeaderValue },
     });
   }
 
-  return NextResponse.json(responseBody(result), { status: result.http_status });
+  return NextResponse.json(startMonitoringResponseBody(result), { status: result.http_status });
 }

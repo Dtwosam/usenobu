@@ -1,0 +1,17 @@
+{
+  "http_status": 402,
+  "body_status": "PAYMENT_PENDING",
+  "x402Version": 2,
+  "resource": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+  "accepts_count": 1,
+  "scheme": "exact",
+  "network": "eip155:196",
+  "asset": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+  "amount": "990000",
+  "option_resource": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+  "payTo_present": true,
+  "payTo_syntax_valid": true,
+  "payTo": "[REDACTED]",
+  "extra_quote_id_present": true,
+  "extra_quote_id": "[REDACTED]"
+}

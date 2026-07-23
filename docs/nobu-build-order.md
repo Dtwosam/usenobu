@@ -311,6 +311,17 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `docs/proof/lane-8r-asp-update/`. Verdict: `NOBU_LANE_8R_PASS`.
 
+## Lane 8R.3 — Audit and repair OKX listing-review capability mismatch COMPLETE
+
+- ASP `#5541` was rejected (`approvalDisplayStatus: 5`): actual service-call results did not match the capabilities stated in the service description.
+- Audited: read-only ASP inspect, bounded production logs (short retention, no reviewer traffic recoverable), and reproduction of reviewer-facing calls (empty/malformed, generic natural-language, minimum documented free request, direct paid request without prepared credentials, valid unpaid paid request using a controlled payment-ready quote).
+- Root cause: **endpoint usability on the paid service (`35958`)**, not listing copy — both registered descriptions were already accurate. A first call to `POST /v1/agent/start-monitoring` without a pre-existing quote/connection (the natural way to probe a service named "Nobu Monitoring Activation") returned a bare, unguided `400`/`401`.
+- Repair: additive machine-readable guidance (`message`/`required_fields`/`next_action`/`documentation`) on the schema-violation and `ACTION_NOT_AUTHORIZED`/`CONNECTION_EXPIRED` failure shapes only; identical reason-agnostic text for both failure statuses (no gate weakened, no reason leaked). No listing-copy change; zero ASP updates.
+- Deployed to production; reproduction cases re-verified against the fix; resubmitted via `agent activate` alone. ASP `#5541` now `approvalDisplayStatus: 2` ("Listing under review"); both services (`33561`, `35958`) unchanged.
+- Lane 7.4G remains blocked pending genuine marketplace approval (not just "under review").
+
+**Proof:** `tests/payments/start-monitoring-route-guidance.test.ts` (7 focused tests); directly-affected regressions (`start-monitoring.test.ts`, `okx-seller-adapter.test.ts`) unchanged; typecheck; build; `git diff --check`; secret/payment-material scan; before/after production reproduction; before/after ASP `#5541` read-back. Verdict: `NOBU_LANE_8R_3_PASS`. Evidence: `docs/proof/lane-8r-3-review-repair/`.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.

@@ -126,12 +126,19 @@ paths:
             the purchases database not yet complete; never re-requests
             payment — see description above and architecture §7.4/§7.6).
         '400':
-          description: Invalid input (schema violation — only quote_id/connection_id/connection_token are ever accepted)
+          description: >-
+            Invalid input (schema violation — only quote_id/connection_id/connection_token
+            are ever accepted). Body additionally carries `required_fields`,
+            `next_action`, and `documentation` (Lane 8R.3) so a caller who has
+            not yet run the free flow can self-correct without external docs.
         '401':
           description: >-
             ACTION_NOT_AUTHORIZED — missing/invalid/expired connection_token,
             or a quote this connection did not create. Identical shape
-            regardless of the underlying reason.
+            regardless of the underlying reason. Body additionally carries a
+            reason-agnostic `message`, `next_action`, and `documentation`
+            (Lane 8R.3) pointing back to the free-flow PREFLIGHT_MONITORING
+            step — never which specific check failed.
         '402':
           description: >-
             OKX x402 Payment Required challenge (PAYMENT-REQUIRED header,
@@ -154,7 +161,9 @@ paths:
             was issued, or the underlying purchase is missing or no longer
             MONITORING_PAYMENT_READY. Fails closed uniformly rather than
             distinguishing 404/409/422/423 — the caller must re-run
-            PREFLIGHT_MONITORING for a fresh quote in every case.
+            PREFLIGHT_MONITORING for a fresh quote in every case. Body
+            additionally carries the same reason-agnostic `message`,
+            `next_action`, and `documentation` as 401 (Lane 8R.3).
 components:
   schemas:
     ContinuationStatus:
@@ -678,3 +687,23 @@ components:
           type: string
           format: date-time
           nullable: true
+        message:
+          type: string
+          description: >-
+            Lane 8R.3 — present on 400/401/404 only. Reason-agnostic; never
+            distinguishes which specific check failed.
+        required_fields:
+          type: array
+          items:
+            type: string
+          description: Lane 8R.3 — present on 400 (schema violation) only.
+        next_action:
+          type: string
+          description: >-
+            Lane 8R.3 — present on 400/401/404 only. Always points back to
+            completing the free /v1/agent setup flow (PREFLIGHT_MONITORING)
+            for a fresh quote_id/connection_id/connection_token.
+        documentation:
+          type: string
+          format: uri
+          description: Lane 8R.3 — present on 400/401/404 only. The public Nobu-on-OKX.AI customer guide.
