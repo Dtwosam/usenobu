@@ -645,93 +645,33 @@ export function monitoringPassResponseBody(
 ): Record<string, unknown> {
   if (result.ok && result.status === "MONITORING_PASS_ISSUED") {
     return {
-      agent_state: "MONITORING_PASS",
       status: "MONITORING_PASS_ISSUED",
-      completed_step: "MONITORING_PASS_ISSUED",
-      monitoring_active: false,
-      journey_complete: false,
       monitoring_pass_id: result.pass.id,
       pass_continuation_id: result.pass_continuation_id,
-      price_amount: Number(result.pass.price_amount),
-      price_currency: result.pass.price_currency,
-      redeemable_for: MONITORING_PASS_REDEEMABLE_FOR,
       second_payment_required: false,
-      next_action: "UNDERSTAND_PURCHASE",
-      next_service_id: 33561,
-      // Official OKX 4.4.0 field collector reads these after replay success.
-      fields: ["action", "purchase_text"],
-      requiredArgs: ["action", "purchase_text"],
-      required_purchase_input: [
-        "purchase_text",
-        "purchase_price",
-        "purchase_date",
-        "Target online product details",
-      ],
-      required_user_input: {
-        action: "UNDERSTAND_PURCHASE",
-        required_fields: ["purchase_text"],
-        description:
-          "After the user confirms they want to use the pass, a plain-English description of the recent Target online purchase.",
-      },
       message:
-        "Your Monitoring Pass is ready. Would you like to use it now to monitor a recent Target purchase?",
-      guidance:
-        "No second payment is required. After the user says yes, call free service 33561 with UNDERSTAND_PURCHASE and the purchase description only — do not ask for email or consent yet. Keep monitoring_pass_id and pass_continuation_id for later redemption. Monitoring is not active.",
-      documentation: "https://www.usenobu.xyz/okx",
+        "Your Monitoring Pass is ready. No additional payment is required. Continue with free Purchase Setup.",
     };
   }
 
   if (result.ok) {
     return {
-      agent_state: "MONITORING_PASS",
       status: "PAYMENT_SETTLEMENT_PENDING",
-      completed_step: "PAYMENT_SUBMITTED",
-      monitoring_active: false,
-      journey_complete: false,
       pass_continuation_id: result.pass_continuation_id,
       second_payment_required: false,
       message: result.note,
-      next_action: "RESOLVE_MONITORING_PASS",
-      next_service_id: 33561,
-      fields: ["action", "pass_continuation_id"],
-      requiredArgs: ["action", "pass_continuation_id"],
-      required_user_input: {
-        action: "RESOLVE_MONITORING_PASS",
-        required_fields: ["pass_continuation_id"],
-        description:
-          "The pass_continuation_id from this response; free service 33561 action RESOLVE_MONITORING_PASS.",
-      },
-      guidance:
-        "Settlement is not confirmed yet. Do not pay again. Later, free RESOLVE_MONITORING_PASS with pass_continuation_id returns MONITORING_PASS_ISSUED when ready. Do not invent other status-check options.",
-      documentation: "https://www.usenobu.xyz/okx",
     };
   }
 
   return {
-    agent_state: "MONITORING_PASS",
     status: "PAYMENT_PENDING",
-    completed_step: "MONITORING_PASS_EXPLAINED",
-    monitoring_active: false,
-    journey_complete: false,
     x402Version: result.challenge.x402Version,
     resource: result.challenge.resource,
     accepts: result.challenge.accepts,
     message:
-      "The $0.99 payment buys one Monitoring Pass only. It does not start monitoring. Pay the challenge and replay this request to receive the pass.",
-    next_action:
-      "Sign the PAYMENT-REQUIRED challenge and replay this request with the PAYMENT-SIGNATURE header.",
-    fields: [],
-    requiredArgs: [],
-    required_user_input: {
-      action: "PAY_FOR_MONITORING_PASS",
-      required_fields: ["valid OKX x402 signed payment replay"],
-    },
-    guidance:
-      "After the pass is issued, continue with free Purchase Setup service 33561. Monitoring begins only after successful pass redemption.",
-    documentation: "https://www.usenobu.xyz/okx",
+      "The $0.99 payment buys one Monitoring Pass only. It does not start monitoring. Pay the challenge once and replay this request to receive the pass.",
   };
 }
-
 /**
  * Free-service resolution of a Monitoring Pass by continuation id or public
  * pass id. Unknown/guessed ids fail closed with a generic not-found shape.

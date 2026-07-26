@@ -48,7 +48,9 @@ export interface RedeemMonitoringPassArgs {
   monitoringPassId: string;
   quoteId: string;
   connectionId: string;
-  connectionToken: string;
+  connectionToken?: string;
+  /** Internal marketplace route only; never accepted from the HTTP body. */
+  trustedMarketplaceJourney?: true;
   now?: Date;
   sqliteDb?: NobuDatabase;
   env?: EnvRecord;
@@ -86,24 +88,33 @@ export async function redeemMonitoringPassForAgent(
   const nowIso = now.toISOString();
 
   // --- Gate 1: authorized connection (handle alone is never authorization) ---
-  const auth = await authorizeAgentConnection({
-    connectionId: args.connectionId,
-    connectionToken: args.connectionToken,
-    now,
-    sqliteDb: args.sqliteDb,
-    env: args.env,
-  });
-  if (!auth.ok) {
-    return { ok: false, status: "ACTION_NOT_AUTHORIZED", http_status: 401 };
-  }
+  const store = await resolveStore(args.sqliteDb, args.env);
+  const connection = args.trustedMarketplaceJourney
+    ? await store.getAgentConnectionById(args.connectionId)
+    : null;
+  const auth = args.trustedMarketplaceJourney
+    ? null
+    : await authorizeAgentConnection({
+        connectionId: args.connectionId,
+        connectionToken: args.connectionToken ?? "",
+        now,
+        sqliteDb: args.sqliteDb,
+        env: args.env,
+      });
+  const verifiedConnection = args.trustedMarketplaceJourney
+    ? connection
+    : auth?.ok
+      ? auth.connection
+      : null;
   if (
-    !auth.connection.account_id ||
-    !isAccountOwnerRef(auth.connection.account_id)
+    !verifiedConnection ||
+    verifiedConnection.status !== "active" ||
+    verifiedConnection.revoked_at ||
+    !verifiedConnection.account_id ||
+    !isAccountOwnerRef(verifiedConnection.account_id)
   ) {
     return { ok: false, status: "ACTION_NOT_AUTHORIZED", http_status: 401 };
   }
-
-  const store = await resolveStore(args.sqliteDb, args.env);
 
   // --- Gate 2: the quote must belong to this connection ---
   const quote = await store.getMonitoringEnrollmentQuoteById(args.quoteId);

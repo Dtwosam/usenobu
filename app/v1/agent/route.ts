@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { auditA2mcp, defaultA2mcpRateLimiter } from "@/a2mcp/index";
 import {
-  buildFreeServiceInputRequired,
   isFirstContactRequest,
   NOBU_DOCUMENTATION_URL,
 } from "@/a2mcp/service-descriptor";
+import {
+  isMarketplaceJourneyRequest,
+  marketplaceFirstContact,
+  runMarketplaceJourney,
+} from "@/a2mcp/marketplace-journey";
 import { logA2mcpRequest, parseContentLength } from "@/a2mcp/request-log";
 import { runAgentAction } from "@/ai/agent-service";
 import { aiAgentRateLimiter } from "@/ai/rate-limit";
@@ -20,7 +24,7 @@ function clientKey(req: Request): string {
 }
 
 function inputRequiredResponse(): NextResponse {
-  return NextResponse.json(buildFreeServiceInputRequired(), { status: 400 });
+  return NextResponse.json(marketplaceFirstContact().body, { status: 400 });
 }
 
 /**
@@ -142,7 +146,14 @@ export async function POST(req: Request) {
     }
   }
 
-  // Validation/first contact — no recognised action. Pure, no dependencies.
+  // Marketplace Purchase Setup never accepts or exposes Nobu's internal
+  // action enum. Existing low-level action requests remain backward-compatible.
+  if (isMarketplaceJourneyRequest(raw)) {
+    const result = await runMarketplaceJourney(raw, { sourceKey: key });
+    return NextResponse.json(result.body, { status: result.http_status });
+  }
+
+  // Empty validation/first contact routes issued-pass users to free setup.
   if (isFirstContactRequest(raw)) {
     auditA2mcp({
       at: new Date().toISOString(),

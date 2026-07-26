@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { auditA2mcp, defaultA2mcpRateLimiter } from "@/a2mcp/index";
 import { logA2mcpRequest, parseContentLength } from "@/a2mcp/request-log";
 import {
+  isMarketplaceJourneyRequest,
+  runMarketplaceJourney,
+} from "@/a2mcp/marketplace-journey";
+import {
   monitoringPassForAgent,
   monitoringPassResponseBody,
 } from "@/payments/monitoring-pass-service";
@@ -44,6 +48,42 @@ async function handle(req: Request, method: "GET" | "POST") {
   const contentType = req.headers.get("content-type");
   const contentLength = parseContentLength(req.headers.get("content-length"));
   const paymentAuthorizationHeader = req.headers.get(X402_PAYMENT_HEADER_NAME);
+
+  // Existing-pass and post-issuance journey calls are free even on this URL.
+  // Read only the JSON body; structured logging below records key names, not values.
+  let raw: unknown = null;
+  if (method === "POST") {
+    try {
+      const bodyText = await req.text();
+      raw = bodyText.trim() ? JSON.parse(bodyText) : null;
+    } catch {
+      raw = null;
+    }
+  }
+  if (isMarketplaceJourneyRequest(raw)) {
+    const journey = await runMarketplaceJourney(raw, { sourceKey: key });
+    auditA2mcp({
+      at: new Date().toISOString(),
+      route: ROUTE,
+      client_key: key,
+      http_status: journey.http_status,
+      outcome: String(journey.body.status || "marketplace_journey"),
+      duration_ms: Date.now() - started,
+    });
+    logA2mcpRequest({
+      route: ROUTE,
+      method,
+      contentType,
+      contentLength,
+      body: raw,
+      recognisedAction: null,
+      httpStatus: journey.http_status,
+      durationMs: Date.now() - started,
+      outcome: String(journey.body.status || "marketplace_journey"),
+      clientDisconnected: req.signal?.aborted ?? false,
+    });
+    return NextResponse.json(journey.body, { status: journey.http_status });
+  }
 
   // Rate limiting applies only to the paid replay path. An unpaid first
   // contact must always receive its challenge — that is what OKX's validator
@@ -100,9 +140,8 @@ async function handle(req: Request, method: "GET" | "POST") {
     method,
     contentType,
     contentLength,
-    // The request body is never read on this route; the payment travels in a
-    // header and is never logged.
-    body: null,
+    // Payment material stays in its header and is never logged.
+    body: raw,
     recognisedAction: "MONITORING_PASS",
     httpStatus: result.http_status,
     durationMs: Date.now() - started,
@@ -115,6 +154,17 @@ async function handle(req: Request, method: "GET" | "POST") {
       status: 402,
       headers: { [X402_CHALLENGE_HEADER_NAME]: result.challengeHeaderValue },
     });
+  }
+
+  if (result.status === "MONITORING_PASS_ISSUED") {
+    const journey = await runMarketplaceJourney({
+      monitoring_pass_id: result.pass.id,
+    });
+    // Official Onchain OS 4.4.0 handles a non-2xx replay carrying
+    // status=input_required by collecting the returned fields. A 200 replay
+    // is terminalized before that branch, so keep this truthful continuation
+    // non-terminal after the already-settled, exactly-once pass issuance.
+    return NextResponse.json(journey.body, { status: journey.http_status });
   }
 
   return NextResponse.json(monitoringPassResponseBody(result), {

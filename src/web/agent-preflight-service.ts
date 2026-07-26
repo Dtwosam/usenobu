@@ -391,7 +391,9 @@ export type PreflightMonitoringResult =
  */
 export async function preflightMonitoringForAgent(args: {
   connectionId: string;
-  connectionToken: string;
+  connectionToken?: string;
+  /** Internal marketplace route only; never accepted from the HTTP body. */
+  trustedMarketplaceJourney?: true;
   discoverySessionId: string;
   monitoringConsent: boolean;
   emailAlertConsent: boolean;
@@ -399,17 +401,32 @@ export async function preflightMonitoringForAgent(args: {
   sqliteDb?: NobuDatabase;
   env?: EnvRecord;
 }): Promise<PreflightMonitoringResult> {
-  const auth = await authorizeAgentConnection({
-    connectionId: args.connectionId,
-    connectionToken: args.connectionToken,
-    now: args.now,
-    sqliteDb: args.sqliteDb,
-    env: args.env,
-  });
-  if (!auth.ok) {
-    return { ok: false, status: "ACTION_NOT_AUTHORIZED", http_status: 401 };
-  }
-  if (!auth.connection.account_id || !isAccountOwnerRef(auth.connection.account_id)) {
+  const store = await resolveStore(args.sqliteDb, args.env);
+  const now = args.now ?? new Date();
+  const connection = args.trustedMarketplaceJourney
+    ? await store.getAgentConnectionById(args.connectionId)
+    : null;
+  const auth = args.trustedMarketplaceJourney
+    ? null
+    : await authorizeAgentConnection({
+        connectionId: args.connectionId,
+        connectionToken: args.connectionToken ?? "",
+        now,
+        sqliteDb: args.sqliteDb,
+        env: args.env,
+      });
+  const verifiedConnection = args.trustedMarketplaceJourney
+    ? connection
+    : auth?.ok
+      ? auth.connection
+      : null;
+  if (
+    !verifiedConnection ||
+    verifiedConnection.status !== "active" ||
+    verifiedConnection.revoked_at ||
+    !verifiedConnection.account_id ||
+    !isAccountOwnerRef(verifiedConnection.account_id)
+  ) {
     return { ok: false, status: "ACTION_NOT_AUTHORIZED", http_status: 401 };
   }
 
@@ -417,8 +434,6 @@ export async function preflightMonitoringForAgent(args: {
     return { ok: false, status: "CONSENT_REQUIRED", http_status: 400 };
   }
 
-  const store = await resolveStore(args.sqliteDb, args.env);
-  const now = args.now ?? new Date();
   const nowIso = now.toISOString();
 
   const session = await store.getDiscoverySessionById(args.discoverySessionId);
@@ -435,7 +450,7 @@ export async function preflightMonitoringForAgent(args: {
   }
 
   const db = getWebDatabase();
-  const accountId = auth.connection.account_id;
+  const accountId = verifiedConnection.account_id;
 
   let purchaseId: string;
   if (session.status === "materialized" && session.materialized_purchase_id) {

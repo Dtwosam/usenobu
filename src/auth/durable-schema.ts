@@ -252,6 +252,25 @@ CREATE INDEX IF NOT EXISTS idx_monitoring_pass_continuations_status
   ON monitoring_pass_continuations (status);
 CREATE INDEX IF NOT EXISTS idx_monitoring_pass_continuations_pass
   ON monitoring_pass_continuations (monitoring_pass_id);
+
+-- Provider-controlled OKX Purchase Setup journey. The opaque journey id is
+-- continuity only: it is bound to one issued pass and never authorizes
+-- redemption by itself. Internal handles remain server-side.
+CREATE TABLE IF NOT EXISTS marketplace_purchase_journeys (
+  id TEXT PRIMARY KEY NOT NULL,
+  monitoring_pass_id TEXT NOT NULL UNIQUE,
+  pass_continuation_id TEXT,
+  stage TEXT NOT NULL DEFAULT 'confirm_use_pass',
+  discovery_session_id TEXT,
+  fingerprint_id TEXT,
+  connection_id TEXT,
+  quote_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_marketplace_purchase_journeys_stage
+  ON marketplace_purchase_journeys (stage);
 `;
 
 /** Best-effort column adds for existing durable DBs (Postgres / SQLite). */

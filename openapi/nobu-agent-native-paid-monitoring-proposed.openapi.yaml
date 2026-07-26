@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nobu Agent-Native Paid Monitoring API (IMPLEMENTED + DEPLOYED)
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Filename retained for reference stability (`nobu-agent-native-paid-monitoring-proposed.openapi.yaml`).
     Status as of Lane 8R: free agent actions and paid start-monitoring are
@@ -11,15 +11,15 @@ info:
     the free service (fee 0); ASP #5541 is rejected / not listed and is not changed by this contract repair.
     Genuine payment marketplace proof is Lane 7.4G.
 
-    Free actions on POST /v1/agent (also documented in openapi/nobu-a2mcp.openapi.yaml):
-    UNDERSTAND_PURCHASE, CHECK_CONFIRMED_PURCHASE, CHECK_MONITORING_STATUS,
-    DISCOVER_PRODUCT, CONFIRM_PRODUCT, BEGIN_EMAIL_VERIFICATION, VERIFY_EMAIL_CODE,
-    PREFLIGHT_MONITORING, REVOKE_AGENT_CONNECTION, LIST_ACTIVE_MONITORS,
-    ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS, STOP_MONITORING.
+    The free marketplace contract on POST /v1/agent is a durable Purchase Setup
+    journey for an already-issued Monitoring Pass. Nobu infers each operation
+    from journey state; OKX and the user never provide the legacy internal action
+    enum. Existing low-level actions remain backward-compatible outside that
+    marketplace contract.
 
     Paid marketplace path: POST /v1/agent/monitoring-pass sells one $0.99
     Monitoring Pass. Payment issues the pass only and never starts monitoring.
-    Free Purchase Setup and successful REDEEM_MONITORING_PASS are still required.
+    Free Purchase Setup and successful provider-controlled pass redemption are still required.
 
     Topology (resolved Lane 7.4D.0): separate free and paid A2MCP services under
     the existing Agent #5541 identity — not a second ASP.
@@ -37,36 +37,25 @@ paths:
     post:
       operationId: nobuAgentProposedFree
       summary: >-
-        FREE-ONLY actions on /v1/agent (implemented and deployed). Never HTTP 402.
-        Canonical free contract also lives in openapi/nobu-a2mcp.openapi.yaml.
+        FREE Purchase Setup for an existing Monitoring Pass. Never HTTP 402.
+        Canonical contract lives in openapi/nobu-a2mcp.openapi.yaml.
       description: >-
-        Extends the live AgentRequest oneOf (UNDERSTAND_PURCHASE,
-        CHECK_CONFIRMED_PURCHASE, CHECK_MONITORING_STATUS — unchanged, see the
-        live contract) with additive, backward-compatible free actions:
-        DISCOVER_PRODUCT, CONFIRM_PRODUCT, BEGIN_EMAIL_VERIFICATION,
-        VERIFY_EMAIL_CODE, PREFLIGHT_MONITORING, LIST_ACTIVE_MONITORS,
-        ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS, STOP_MONITORING,
-        REVOKE_AGENT_CONNECTION.
-
-        Ordering: DISCOVER_PRODUCT and CONFIRM_PRODUCT operate on an
-        unauthenticated, expiring discovery_session_id and require no
-        connection — discovery never requires prior email verification, and
-        no durable owned purchase or private monitoring state exists yet.
-        BEGIN_EMAIL_VERIFICATION / VERIFY_EMAIL_CODE establish a verified
-        connection_id + one-time connection_token. Every action after
-        VERIFY_EMAIL_CODE requires both connection_id (a non-secret handle)
-        and a valid connection_token (the secret credential) — the handle
-        alone never authorizes anything. PREFLIGHT_MONITORING is the free/paid
-        boundary: on full eligibility + consent pass it materializes the
-        purchase, mints an enrollment quote, and returns
-        MONITORING_PAYMENT_READY (a Nobu status in a 200 body, not an HTTP 402
-        itself); it never takes payment.
+        Marketplace callers provide monitoring_pass_id or pass_continuation_id,
+        then only the fields required by the current durable journey stage.
+        Every incomplete response contains exactly status=input_required,
+        journey_id, fields, requiredArgs and a customer-facing message. Email is
+        not accepted before exact candidate confirmation; consent is not accepted
+        before email-code verification. Provider-controlled preflight and pass
+        redemption run only after all prior stages. No marketplace response
+        exposes action, internal operation names, service ids, discovery session
+        ids, connection credentials, quote ids or payment material. Legacy
+        low-level action handlers remain backward-compatible.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProposedFreeAgentRequest'
+              $ref: './nobu-a2mcp.openapi.yaml#/components/schemas/MarketplaceJourneyRequest'
       responses:
         '200':
           description: Action result (status-bearing body; see ContinuationStatus)
@@ -89,15 +78,15 @@ paths:
       responses:
         '402':
           description: x402 v2 challenge (see POST).
-        '200':
-          description: Issued pass on a signed replay (see POST).
+        '400':
+          description: Issued pass continues as marketplace input_required (see POST).
     post:
       operationId: nobuMonitoringPass
       summary: >-
         Lane 8R.3B — buys one Nobu Monitoring Pass. Replaces
         /v1/agent/start-monitoring as the registered paid service.
       description: >-
-        Every initial call — GET or POST, body or no body — returns HTTP 402
+        Every initial call without an existing-pass journey returns HTTP 402
         with the base64 x402 v2 challenge in the PAYMENT-REQUIRED header,
         before any business execution. Unlike /v1/agent/start-monitoring it
         requires no quote, connection, purchase or consent to issue that
@@ -115,11 +104,10 @@ paths:
         header — the raw header is never stored, logged, or returned.
 
 
-        The pass is redeemed separately, by the free REDEEM_MONITORING_PASS
-        action, which is where identity, confirmation, eligibility and consent
-        gates apply. Pending or lost marketplace deliverables are recovered via
-        free RESOLVE_MONITORING_PASS with pass_continuation_id (or the public
-        monitoring_pass_id once known).
+        Pass use continues through durable free Purchase Setup, where identity,
+        exact product confirmation, eligibility and consent gates apply in order.
+        Pending or lost deliverables resume with pass_continuation_id or the public
+        monitoring_pass_id; they never require another payment.
       responses:
         '402':
           description: >-
@@ -129,18 +117,17 @@ paths:
             990000 base units ($0.99), server-controlled payTo,
             maxTimeoutSeconds, and extra.name/extra.version EIP-712 token
             metadata. No quote binding.
-            The body explains that payment issues a pass only and returns
-            monitoring_active false and journey_complete false.
-        '200':
+            The body explains that payment issues one pass only and does not start monitoring.
+        '400':
           description: >-
-            MONITORING_PASS_ISSUED with monitoring_active false,
-            journey_complete false, pass_continuation_id, monitoring_pass_id,
-            next_action UNDERSTAND_PURCHASE, next_service_id 33561,
-            fields/requiredArgs for official field collection, and user message
-            "Your Monitoring Pass is ready…". No pass token, payment signature,
-            authorization header, digest or settlement ref is returned. Pending
-            settlement returns PAYMENT_SETTLEMENT_PENDING with the same
-            pass_continuation_id for free RESOLVE_MONITORING_PASS.
+            After exactly-once issuance, the signed replay remains non-terminal
+            with the exact marketplace input_required shape. The first field is
+            confirm_use_pass and journey_id is preserved in fields/requiredArgs.
+            No action, internal operation name, service id or payment material is
+            exposed. Existing-pass journey POSTs to this URL also remain free and
+            never return 402.
+        '200':
+          description: PAYMENT_SETTLEMENT_PENDING only when settlement is not yet confirmed; do not pay again.
         '429':
           description: Rate limited (paid replay path only; an unpaid first contact is never rate limited).
   /v1/agent/start-monitoring:

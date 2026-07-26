@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nobu A2MCP API
-  version: 1.2.0
+  version: 1.3.0
   description: >-
     Nobu is an AI post-purchase monitoring agent. Free A2MCP endpoints:
     structured Target price check and bounded free agent actions on POST /v1/agent.
@@ -17,60 +17,59 @@ servers:
 paths:
   /v1/agent:
     get:
-      operationId: nobuAgentInputRequirements
-      summary: Service input requirements for an empty validation probe
+      operationId: nobuPurchaseSetupInputRequirements
+      summary: Start free Purchase Setup for an existing Monitoring Pass
       description: >-
-        Returns HTTP 400 with `status: input_required`, `fields: [action]`,
-        `requiredArgs: [action]`, supported actions with their action-specific
-        required fields, and one working example. Official Onchain OS 4.4.0
-        recognizes this as inputRequired and can continue its service-input
-        flow. This free endpoint never returns a payment requirement.
+        Returns the exact marketplace first-contact input shape. The endpoint
+        never requires Nobu's internal action enum and never returns HTTP 402.
+        A caller may start with monitoring_pass_id or pass_continuation_id;
+        monitoring_pass_id is the first advertised field for Onchain OS.
       responses:
         '400':
-          description: Input required before a Nobu action can run
+          description: Existing Monitoring Pass reference required
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServiceInputRequired'
     post:
-      operationId: nobuAgent
-      summary: Bounded free Nobu agent actions
+      operationId: nobuPurchaseSetup
+      summary: Stateful free Purchase Setup for an existing Monitoring Pass
       description: >-
-        Free actions only (never HTTP 402). Actions include purchase understanding,
-        product discovery and exact confirmation, email verification, preflight
-        (consent + eligibility + quote preparation), Monitoring Pass redemption,
-        monitor list/status, email-alert preference, stop monitoring, and connection
-        revocation. Backward-compatible with the original UNDERSTAND_PURCHASE,
-        CHECK_CONFIRMED_PURCHASE, and CHECK_MONITORING_STATUS actions. Does not
-        expose secrets or internal-only fields.
-
-
-        An empty/bodyless POST, `{}`, or an envelope with no recognised `action`
-        returns HTTP 400 with `status: input_required` and truthful action-input
-        metadata. A recognised `action` keeps its existing behavior. This free
-        service never returns HTTP 402.
+        The marketplace contract infers each internal operation from durable
+        journey state. Incomplete calls return only status, journey_id, fields,
+        requiredArgs and a customer-facing message. The ordered stages are pass
+        confirmation, purchase description, product discovery, exact candidate
+        confirmation, email, verification code, both consents, provider-controlled
+        preflight and provider-controlled pass redemption. Marketplace callers
+        never provide or receive action, service ids, discovery session ids,
+        connection credentials, quote ids or payment material. Legacy low-level
+        action requests remain backward-compatible but are not the marketplace contract.
       requestBody:
         required: false
         content:
           application/json:
             schema:
               oneOf:
+                - $ref: '#/components/schemas/MarketplaceJourneyRequest'
                 - $ref: '#/components/schemas/AgentRequest'
                 - type: object
-                  description: Empty/unshaped validation body; answered with input requirements.
+                  maxProperties: 0
+                  description: Empty validation body; answered with pass requirements.
       responses:
         '200':
-          description: >-
-            Successful action result. Every journey step also returns
-            completed_step, monitoring_active, journey_complete, next_action,
-            required_user_input, and user-facing guidance. Only successful
-            REDEEM_MONITORING_PASS returns status MONITORING_ACTIVE.
+          description: MONITORING_ACTIVE, returned only after successful pass redemption
         '400':
-          description: Input required, invalid JSON, or a recognised action with invalid fields
+          description: Current marketplace stage input required or invalid low-level input
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ServiceInputRequired'
+                  - $ref: '#/components/schemas/MarketplaceJourneyInputRequired'
         '401':
-          description: Missing or invalid connection credentials for a protected action
+          description: Protected legacy action is not authorized
         '404':
-          description: Purchase, session, or resource not found
+          description: Legacy purchase or resource not found
         '429':
           description: Rate limited
         '503':
@@ -108,103 +107,96 @@ components:
   schemas:
     ServiceInputRequired:
       type: object
-      description: >-
-        Empty validation response for the free Nobu service. `action` is the
-        only field common to every valid request; each supported action declares
-        its remaining required fields below.
-      required: [agent_state, status, introduction, fields, requiredArgs, supported_actions, example_request, completed_step, monitoring_active, journey_complete, next_action, required_user_input, guidance]
+      additionalProperties: false
+      description: Exact empty first-contact response for free Purchase Setup.
+      required: [status, journey_id, fields, requiredArgs, message]
       properties:
-        agent_state:
-          type: string
-          const: SERVICE_INPUT
         status:
           type: string
           const: input_required
-        introduction:
+        journey_id:
           type: string
-          description: Nobu is introduced before service details are shown.
+          const: ''
+        fields:
+          type: array
+          prefixItems:
+            - type: string
+              const: monitoring_pass_id
+          minItems: 1
+          maxItems: 1
+        requiredArgs:
+          type: array
+          prefixItems:
+            - type: string
+              const: monitoring_pass_id
+          minItems: 1
+          maxItems: 1
+        message:
+          type: string
+          description: Distinguishes existing-pass free setup from the separate one-time pass purchase.
+    MarketplaceJourneyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        journey_id:
+          type: string
+          pattern: '^journey_[a-f0-9]{32}$'
+        monitoring_pass_id:
+          type: string
+        pass_continuation_id:
+          type: string
+        confirm_use_pass:
+          type: boolean
+        purchase_description:
+          type: string
+        candidate_id:
+          type: string
+        email:
+          type: string
+          format: email
+        verification_code:
+          type: string
+          pattern: '^\\d{6}$'
+        monitoring_consent:
+          type: boolean
+        email_alert_consent:
+          type: boolean
+      anyOf:
+        - required: [monitoring_pass_id]
+        - required: [pass_continuation_id]
+        - required: [journey_id]
+    MarketplaceJourneyInputRequired:
+      type: object
+      additionalProperties: false
+      required: [status, journey_id, fields, requiredArgs, message]
+      properties:
+        status:
+          type: string
+          const: input_required
+        journey_id:
+          type: string
         fields:
           type: array
           minItems: 1
-          maxItems: 1
           items:
             type: string
-            const: action
+            enum:
+              - monitoring_pass_id
+              - pass_continuation_id
+              - confirm_use_pass
+              - purchase_description
+              - candidate_id
+              - email
+              - verification_code
+              - monitoring_consent
+              - email_alert_consent
+              - journey_id
         requiredArgs:
           type: array
           minItems: 1
-          maxItems: 1
           items:
             type: string
-            const: action
-        service:
-          type: string
-        protocol:
-          type: string
-          const: A2MCP
-        request:
-          type: object
-          properties:
-            method:
-              type: string
-            content_type:
-              type: string
-            envelope:
-              type: string
-        supported_actions:
-          type: array
-          items:
-            type: object
-            required: [action, summary, required_fields]
-            properties:
-              action:
-                type: string
-              summary:
-                type: string
-              required_fields:
-                type: array
-                items:
-                  type: string
-              optional_fields:
-                type: array
-                items:
-                  type: string
-        recommended_first_action:
-          type: string
-        example_request:
-          type: object
-          additionalProperties: true
-        paid_service:
-          type: object
-          description: Where to buy the Monitoring Pass that REDEEM_MONITORING_PASS consumes.
-          properties:
-            name:
-              type: string
-            endpoint:
-              type: string
-            price:
-              type: string
-            description:
-              type: string
-        retailer_support:
-          type: string
-        documentation:
-          type: string
-        next_action:
-          type: string
-        completed_step:
-          type: string
-          const: NOBU_INTRODUCED
-        monitoring_active:
-          type: boolean
-          const: false
-        journey_complete:
-          type: boolean
-          const: false
-        required_user_input:
-          type: object
-          additionalProperties: true
-        guidance:
+        message:
           type: string
     TargetPriceCheckRequest:
       type: object

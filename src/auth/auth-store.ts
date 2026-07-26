@@ -183,6 +183,19 @@ export type MonitoringPassContinuationRow = {
   updated_at: string;
 };
 
+export type MarketplacePurchaseJourneyRow = {
+  id: string;
+  monitoring_pass_id: string;
+  pass_continuation_id: string | null;
+  stage: string;
+  discovery_session_id: string | null;
+  fingerprint_id: string | null;
+  connection_id: string | null;
+  quote_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type PurchaseBlobRow = {
   purchase_id: string;
   account_id: string;
@@ -488,6 +501,23 @@ export interface AuthStore {
   getMonitoringPassByPaymentId(
     paymentId: string,
   ): Promise<MonitoringPassRow | null>;
+  ensureMarketplacePurchaseJourney(args: {
+    id: string;
+    monitoringPassId: string;
+    passContinuationId?: string | null;
+    nowIso: string;
+  }): Promise<MarketplacePurchaseJourneyRow>;
+  getMarketplacePurchaseJourneyById(
+    id: string,
+  ): Promise<MarketplacePurchaseJourneyRow | null>;
+  getMarketplacePurchaseJourneyByPassId(
+    passId: string,
+  ): Promise<MarketplacePurchaseJourneyRow | null>;
+  updateMarketplacePurchaseJourney(args: {
+    id: string; stage: string; discoverySessionId?: string | null;
+    fingerprintId?: string | null; connectionId?: string | null;
+    quoteId?: string | null; nowIso: string;
+  }): Promise<MarketplacePurchaseJourneyRow | null>;
   /**
    * Settled payments that have a pass but no continuation row (historical
    * recovery before handoff existed).
@@ -1413,6 +1443,58 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           .prepare(`SELECT * FROM monitoring_passes WHERE payment_id = ?`)
           .get(paymentId) as MonitoringPassRow | undefined) ?? null
       );
+    },
+    async ensureMarketplacePurchaseJourney(args) {
+      db.prepare(
+        `INSERT INTO marketplace_purchase_journeys
+         (id, monitoring_pass_id, pass_continuation_id, stage, created_at, updated_at)
+         VALUES (?,?,?,'confirm_use_pass',?,?)
+         ON CONFLICT(monitoring_pass_id) DO NOTHING`,
+      ).run(
+        args.id,
+        args.monitoringPassId,
+        args.passContinuationId ?? null,
+        args.nowIso,
+        args.nowIso,
+      );
+      return (await this.getMarketplacePurchaseJourneyByPassId(
+        args.monitoringPassId,
+      ))!;
+    },
+    async getMarketplacePurchaseJourneyById(id) {
+      return (
+        (db.prepare(`SELECT * FROM marketplace_purchase_journeys WHERE id = ?`).get(
+          id,
+        ) as MarketplacePurchaseJourneyRow | undefined) ?? null
+      );
+    },
+    async getMarketplacePurchaseJourneyByPassId(passId) {
+      return (
+        (db.prepare(
+          `SELECT * FROM marketplace_purchase_journeys WHERE monitoring_pass_id = ?`,
+        ).get(passId) as MarketplacePurchaseJourneyRow | undefined) ?? null
+      );
+    },
+    async updateMarketplacePurchaseJourney(args) {
+      db.prepare(
+        `UPDATE marketplace_purchase_journeys
+         SET stage = ?,
+             discovery_session_id = COALESCE(?, discovery_session_id),
+             fingerprint_id = COALESCE(?, fingerprint_id),
+             connection_id = COALESCE(?, connection_id),
+             quote_id = COALESCE(?, quote_id),
+             updated_at = ?
+         WHERE id = ?`,
+      ).run(
+        args.stage,
+        args.discoverySessionId ?? null,
+        args.fingerprintId ?? null,
+        args.connectionId ?? null,
+        args.quoteId ?? null,
+        args.nowIso,
+        args.id,
+      );
+      return this.getMarketplacePurchaseJourneyById(args.id);
     },
     async listSettledPassPaymentsMissingContinuation() {
       return db
@@ -2431,6 +2513,60 @@ export function createPostgresAuthStore(
       const r = await q<MonitoringPassRow>(
         `SELECT * FROM monitoring_passes WHERE payment_id = $1`,
         [paymentId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async ensureMarketplacePurchaseJourney(args) {
+      await q(
+        `INSERT INTO marketplace_purchase_journeys
+         (id, monitoring_pass_id, pass_continuation_id, stage, created_at, updated_at)
+         VALUES ($1,$2,$3,'confirm_use_pass',$4,$4)
+         ON CONFLICT (monitoring_pass_id) DO NOTHING`,
+        [
+          args.id,
+          args.monitoringPassId,
+          args.passContinuationId ?? null,
+          args.nowIso,
+        ],
+      );
+      return (await this.getMarketplacePurchaseJourneyByPassId(
+        args.monitoringPassId,
+      ))!;
+    },
+    async getMarketplacePurchaseJourneyById(id) {
+      const r = await q<MarketplacePurchaseJourneyRow>(
+        `SELECT * FROM marketplace_purchase_journeys WHERE id = $1`,
+        [id],
+      );
+      return r.rows[0] ?? null;
+    },
+    async getMarketplacePurchaseJourneyByPassId(passId) {
+      const r = await q<MarketplacePurchaseJourneyRow>(
+        `SELECT * FROM marketplace_purchase_journeys WHERE monitoring_pass_id = $1`,
+        [passId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async updateMarketplacePurchaseJourney(args) {
+      const r = await q<MarketplacePurchaseJourneyRow>(
+        `UPDATE marketplace_purchase_journeys
+         SET stage = $1,
+             discovery_session_id = COALESCE($2, discovery_session_id),
+             fingerprint_id = COALESCE($3, fingerprint_id),
+             connection_id = COALESCE($4, connection_id),
+             quote_id = COALESCE($5, quote_id),
+             updated_at = $6
+         WHERE id = $7
+         RETURNING *`,
+        [
+          args.stage,
+          args.discoverySessionId ?? null,
+          args.fingerprintId ?? null,
+          args.connectionId ?? null,
+          args.quoteId ?? null,
+          args.nowIso,
+          args.id,
+        ],
       );
       return r.rows[0] ?? null;
     },
