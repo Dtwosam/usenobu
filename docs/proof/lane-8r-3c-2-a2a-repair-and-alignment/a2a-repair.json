@@ -1,0 +1,69 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.2",
+  "scope": "Local A2A package and daemon repair only",
+  "before": {
+    "package": "@okxweb3/a2a-node",
+    "installed_version": "0.1.9",
+    "stable_version": "0.1.10",
+    "daemon_count": 1,
+    "daemon_pid": 19332,
+    "daemon_started_at": "2026-07-23T13:10:26+01:00",
+    "launch_configuration": "node <global-npm-root>/@okxweb3/a2a-node/dist/cli.js run",
+    "secrets_in_launch_configuration": false,
+    "doctor": {
+      "ready": false,
+      "blocking_failures": 2,
+      "required_issues": [
+        "Installed CLI version 0.1.9 was behind stable 0.1.10",
+        "Provider binding was claude while the detected runtime was codex"
+      ],
+      "optional_issues": [
+        "Daemon autostart was not configured"
+      ]
+    }
+  },
+  "repair": {
+    "stopped_only_pid": 19332,
+    "daemon_count_after_stop": 0,
+    "upgrade_command": "npm install -g @okxweb3/a2a-node@latest",
+    "upgrade_exit_code": 0,
+    "installed_version_after_upgrade": "0.1.10",
+    "restart_provider": "codex",
+    "restart_autostart": false,
+    "duplicate_start_guard": "After the PowerShell shim returned no output, a process-count guard detected the already-running replacement and refused to launch a duplicate."
+  },
+  "after": {
+    "package": "@okxweb3/a2a-node",
+    "installed_version": "0.1.10",
+    "daemon_count": 1,
+    "daemon_pid": 27124,
+    "daemon_parent_pid": 3472,
+    "daemon_started_at": "2026-07-26T12:04:35+01:00",
+    "launch_configuration": "node <global-npm-root>/@okxweb3/a2a-node/dist/cli.js run",
+    "secrets_in_launch_configuration": false,
+    "old_version_daemon_count": 0,
+    "doctor": {
+      "ok": true,
+      "ready": true,
+      "state": "ready",
+      "blocking_failures": 0,
+      "summary": {
+        "pass": 8,
+        "warn": 0,
+        "fail": 0,
+        "optional": 1,
+        "skipped": 0,
+        "auto_fixable": 0
+      },
+      "agent_refresh": {
+        "agent_count": 1,
+        "active_clients": 1
+      }
+    },
+    "asp_5541_resolves": true,
+    "online_status": 1,
+    "qa_governed_fields_changed": false
+  },
+  "secrets_present": false
+}

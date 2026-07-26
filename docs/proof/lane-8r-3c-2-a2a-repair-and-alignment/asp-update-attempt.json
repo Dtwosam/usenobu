@@ -1,0 +1,45 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.2",
+  "operator_confirmation_received": true,
+  "active_cli": {
+    "path": "C:\\Users\\dtwof\\.local\\bin\\onchainos.exe",
+    "version": "4.4.0"
+  },
+  "readiness_before_attempt": {
+    "a2a_ready": true,
+    "blocking_failures": 0
+  },
+  "payload": {
+    "source": "docs/proof/lane-8r-3c-0-operator-preflight/proposed-service-update.json#payload",
+    "reconstructed": false,
+    "altered": false,
+    "bytes": 1167,
+    "sha256": "deb1edb05368aa092a1d110927709d36317bbe0f2f8723416fb0b1f3be499c0d",
+    "elements": 2,
+    "operations": [
+      "update:33561",
+      "update:35958"
+    ]
+  },
+  "attempt": {
+    "command_shape": "onchainos agent update --agent-id 5541 --service '<exact validated payload>'",
+    "invocations": 1,
+    "exit_code": 1,
+    "ok": false,
+    "error": "failed to parse --service as JSON array: key must be a string at line 1 column 3",
+    "classification": "The active Windows CLI refused the command during local --service argument parsing, before a backend ASP write."
+  },
+  "stop_attestation": {
+    "second_update": false,
+    "alternative_payload": false,
+    "payload_modification": false,
+    "agent_activate": false,
+    "payment": false,
+    "user_role_registration": false,
+    "deployment": false,
+    "separate_resubmission": false
+  },
+  "verdict": "NOBU_LANE_8R_3C_2_BLOCKED_UPDATE_REFUSED",
+  "secrets_present": false
+}

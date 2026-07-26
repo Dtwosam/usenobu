@@ -401,16 +401,18 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 ### Lane 8R.3C.2 — A2A readiness repair and single ASP update retry BLOCKED
 
-- Authorized scope: repair only the local A2A readiness blocker, then run the exact Lane 8R.3C.0 two-service payload once; no activation, payment, User-role registration, deployment, alternative payload, second ASP/service, or additional update.
-- Repository preflight passed at exact commit `baa9c66ef68e29664acd2c95267b08aa65358dae`: branch `master`, tracked worktree/index clean, no untracked files.
-- The mandatory Onchain OS session preflight reported integrity `ok`, no drift, installed CLI `4.2.4`, latest stable `4.4.0`, and a failed verified-binary replacement on Windows (`Access is denied`, OS error 5). It required one `onchainos upgrade --force` retry.
-- The forced retry downloaded and checksum-verified `4.4.0` but failed with the same access-denied replacement error.
-- Per the official workflow's no-auto-reinstall rule and this repository's stop-on-first-material-failure rule, execution stopped before installed-package/doctor-help inspection, daemon inspection or lifecycle changes, A2A upgrade/doctor, ASP read-back, ASP update, QA read-back, or `x402-check`.
-- Exactly zero `agent update` invocations were made in this lane. The exact validated 8R.3C.0 payload remains unspent and unchanged.
+- Resumed from exact commit `c3f2ccac17f457733e2a4c1f4bc3981ba2a4e4ee` after the operator manually repaired the Windows CLI. Clean `master`; `.local\bin\onchainos.exe` resolved first at `4.4.0`; the old `4.2.4` binary remained untouched in second PATH position.
+- Pre-mutation read-back confirmed ASP `#5541`, services `33561`/`35958`, and the production endpoints unchanged. `/v1/agent` returned `200 READY`; `/v1/agent/monitoring-pass` returned the expected x402 v2 `402`.
+- Inspected `@okxweb3/a2a-node@0.1.9`, doctor help, and the one known old daemon (PID `19332`). Official doctor identified only two blocking repairs: upgrade to stable `0.1.10` and bind the detected `codex` provider; autostart was optional.
+- Stopped only PID `19332`, upgraded the package once to `0.1.10`, and restarted exactly one daemon with the existing Nobu configuration and provider `codex` (PID `27124`). Final official doctor: `ready: true`, zero blocking failures, 8 passes, zero warnings/failures, one untouched optional autostart item. No old-version daemon remained; ASP `#5541` resolved with `onlineStatus: 1`; no QA-governed field changed.
+- After explicit operator confirmation, invoked the exact Lane 8R.3C.0 payload once (1167 bytes; sha256 `deb1edb0…99c0d`). Onchain OS `4.4.0` refused it during local Windows `--service` JSON parsing: `key must be a string at line 1 column 3`. No retry, alternative payload, or alteration was attempted.
+- Immediate read-back confirmed no partial state: agent `5541`; exactly services `33561`/`35958`; all names, descriptions, fees, endpoints, and QA fields unchanged; QA not retriggered. `35958` remains `Nobu Monitoring Activation`, fee `0.99`, at `/v1/agent/start-monitoring`.
+- Official read-only `x402-check` against `/v1/agent/monitoring-pass` returned `valid: true` (`x402Version 2`, `exact`, `eip155:196`, `990000` minimal units).
+- No activation, resubmission, payment, User-role registration, production-code change, deployment, or second update occurred.
 
-**Verdict:** `NOBU_LANE_8R_3C_2_BLOCKED_A2A_REPAIR`. **Proof:** `docs/proof/lane-8r-3c-2-a2a-repair-and-alignment/`.
+**Verdict:** `NOBU_LANE_8R_3C_2_BLOCKED_UPDATE_REFUSED`. **Proof:** `docs/proof/lane-8r-3c-2-a2a-repair-and-alignment/`.
 
-**Exact next lane:** Lane 8R.3C.2 remains active and blocked at preflight. An operator must repair or manually update the Onchain OS CLI so its mandatory preflight succeeds, then explicitly authorize a fresh Lane 8R.3C.2 retry from the beginning.
+**Exact next lane/action:** Lane 8R.3C.2 remains blocked and its update authorization is spent. A new operator-controlled lane must determine and read-only validate the documented Windows argument-transport form accepted by Onchain OS `4.4.0`, then obtain explicit authorization before any future ASP write.
 
 ## Lane 7.4G — Live marketplace end-to-end proof
 

@@ -1,0 +1,60 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.2",
+  "readback_timing": "Immediately after the single refused update invocation",
+  "agent": {
+    "agentId": "5541",
+    "name": "Nobu",
+    "role": "ASP",
+    "onlineStatus": 1,
+    "approvalDisplayStatus": 5,
+    "approvalLabel": "Listing rejected",
+    "approvalStatus": 6,
+    "statusLabel": "not listed",
+    "qa_retriggered": false
+  },
+  "services": [
+    {
+      "id": 33561,
+      "serviceName": "Nobu Purchase Setup",
+      "serviceType": "A2MCP",
+      "fee": "0",
+      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "serviceDescription": "Free agent setup for Target post-purchase monitoring: discover and confirm products, verify email, capture consent, check eligibility, prepare quotes, list/status, alert prefs, stop, and revoke. Does not activate paid monitoring.\nUser provides: 1. purchase details 2. exact product confirmation 3. verified email 4. monitoring and email-alert consent.",
+      "changed": false
+    },
+    {
+      "id": 35958,
+      "serviceName": "Nobu Monitoring Activation",
+      "serviceType": "A2MCP",
+      "fee": "0.99",
+      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "serviceDescription": "Activates scheduled monitoring for one confirmed eligible purchase after verified $0.99 OKX payment. Payment does not guarantee a lower price, alert, refund, adjustment, or savings.\nUser provides: 1. verified connection 2. valid enrollment quote 3. completed OKX payment for activation.",
+      "changed": false
+    }
+  ],
+  "service_count": 2,
+  "service_created": false,
+  "service_deleted": false,
+  "qa_governed_fields_changed": false,
+  "partial_state": false,
+  "x402_check": {
+    "tool": "onchainos agent x402-check",
+    "agent_id": "5541",
+    "endpoint": "https://usenobu.vercel.app/v1/agent/monitoring-pass",
+    "ok": true,
+    "valid": true,
+    "x402Version": 2,
+    "scheme": "exact",
+    "network": "eip155:196",
+    "asset": "0x779...3736",
+    "decimals": 6,
+    "amountMinimal": "990000",
+    "amountHuman": "0.99",
+    "tokenSymbol": "USDT",
+    "payTo": "present; redacted"
+  },
+  "conclusion": "The update produced no ASP mutation. Service 35958 remains stale even though the intended /v1/agent/monitoring-pass endpoint independently passes the official read-only x402 check.",
+  "verdict": "NOBU_LANE_8R_3C_2_BLOCKED_UPDATE_REFUSED",
+  "secrets_present": false
+}
