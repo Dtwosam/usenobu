@@ -22,13 +22,18 @@
  *     payment re-verifies to the same settlement reference and therefore
  *     resolves to the same pass;
  *   - a pending settlement is recorded against the sha256 digest of the
- *     replayed header (never the header itself) so it stays recoverable.
+ *     replayed header (never the header itself) so it stays recoverable;
+ *   - provider reconciliation polls official settle/status from the stored
+ *     opaque settlement_ref alone — no signed-header replay and no second
+ *     charge — so marketplace job completion can converge without the buyer
+ *     replaying PAYMENT-SIGNATURE.
  */
 import { randomBytes, randomUUID } from "node:crypto";
 import type { NobuDatabase } from "../db/index.js";
 import {
   getAuthStore,
   type AuthStore,
+  type MonitoringPassPaymentRow,
   type MonitoringPassRow,
 } from "../auth/auth-store.js";
 import { sha256Hex } from "../auth/crypto.js";
@@ -48,6 +53,8 @@ import {
   isOkxSellerConfigured,
   loadOkxSellerConfig,
   OkxSellerClient,
+  type OkxHttpFetch,
+  type OkxSettleStatusResponse,
 } from "./okx-seller-client.js";
 
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
@@ -302,7 +309,7 @@ export async function monitoringPassForAgent(
       ok: true,
       status: "PAYMENT_SETTLEMENT_PENDING",
       http_status: 200,
-      note: "Settlement submitted; awaiting on-chain confirmation. No pass is issued until it confirms. Replay this request to check again.",
+      note: "Settlement submitted; awaiting on-chain confirmation. No pass is issued until it confirms. Do not pay again — provider reconciliation will issue the pass once settle/status confirms.",
     };
   }
 
@@ -328,7 +335,7 @@ export async function monitoringPassForAgent(
 /**
  * Polls the official settle-status API for a settlement that was already
  * submitted. Never re-verifies or re-charges — it only reads the outcome of
- * the payment already recorded against this authorization digest.
+ * the payment already recorded against this authorization digest / payment id.
  */
 async function resumePendingPassSettlement(args: {
   store: AuthStore;
@@ -336,73 +343,225 @@ async function resumePendingPassSettlement(args: {
   resource: string;
   env?: EnvRecord;
   nowIso: string;
+  fetchImpl?: OkxHttpFetch;
 }): Promise<MonitoringPassResult> {
-  const pendingTxHash = args.payment.settlement_ref!;
-  const existing =
-    await args.store.getMonitoringPassBySettlementRef(pendingTxHash);
-  if (existing) {
+  const outcome = await confirmPendingPassPayment({
+    store: args.store,
+    payment: args.payment,
+    env: args.env,
+    nowIso: args.nowIso,
+    fetchImpl: args.fetchImpl,
+  });
+
+  if (outcome.kind === "issued") {
     return {
       ok: true,
       status: "MONITORING_PASS_ISSUED",
       http_status: 200,
-      pass: existing,
+      pass: outcome.pass,
+    };
+  }
+  if (outcome.kind === "failed") {
+    return challengeResult({ resource: args.resource, env: args.env });
+  }
+  return {
+    ok: true,
+    status: "PAYMENT_SETTLEMENT_PENDING",
+    http_status: 200,
+    note: outcome.note,
+  };
+}
+
+type ConfirmPendingOutcome =
+  | { kind: "issued"; pass: MonitoringPassRow }
+  | { kind: "pending"; note: string }
+  | { kind: "failed" };
+
+/**
+ * Confirm one already-submitted settlement from its durable pending record.
+ * Uses only the stored opaque settlement_ref + official settle/status.
+ * Never re-reads a payment header and never creates a second challenge.
+ */
+async function confirmPendingPassPayment(args: {
+  store: AuthStore;
+  payment: { id: string; settlement_ref: string | null; status?: string };
+  env?: EnvRecord;
+  nowIso: string;
+  fetchImpl?: OkxHttpFetch;
+}): Promise<ConfirmPendingOutcome> {
+  const pendingTxHash = String(args.payment.settlement_ref || "").trim();
+  if (!pendingTxHash) {
+    return {
+      kind: "pending",
+      note: "Settlement still pending confirmation.",
+    };
+  }
+
+  const existingByRef =
+    await args.store.getMonitoringPassBySettlementRef(pendingTxHash);
+  if (existingByRef) {
+    // Ensure the payment row is marked settled if a pass already exists.
+    if (args.payment.status !== "settled") {
+      await args.store.updateMonitoringPassPayment({
+        id: args.payment.id,
+        status: "settled",
+        settlementRef: pendingTxHash,
+        nowIso: args.nowIso,
+      });
+    }
+    return { kind: "issued", pass: existingByRef };
+  }
+
+  // Already settled in durable storage but pass insert never completed.
+  if (args.payment.status === "settled") {
+    const issued = await issuePassForSettlement({
+      store: args.store,
+      settlementRef: pendingTxHash,
+      paymentId: args.payment.id,
+      nowIso: args.nowIso,
+    });
+    if (issued.ok && issued.status === "MONITORING_PASS_ISSUED") {
+      return { kind: "issued", pass: issued.pass };
+    }
+    return {
+      kind: "pending",
+      note: "Settlement recorded; Monitoring Pass issuance still completing.",
     };
   }
 
   const cfg = loadOkxSellerConfig(args.env ?? process.env);
   if (!cfg) {
     return {
-      ok: true,
-      status: "PAYMENT_SETTLEMENT_PENDING",
-      http_status: 200,
+      kind: "pending",
       note: "Settlement still pending confirmation.",
     };
   }
 
+  let status: OkxSettleStatusResponse;
   try {
-    const client = new OkxSellerClient(cfg);
-    const status = await client.getSettleStatus(pendingTxHash);
-    if (status.status === "pending" || (!status.success && !status.status)) {
-      return {
-        ok: true,
-        status: "PAYMENT_SETTLEMENT_PENDING",
-        http_status: 200,
-        note: "Settlement still pending confirmation.",
-      };
-    }
-    if (status.status === "failed" || status.success === false) {
-      await args.store.updateMonitoringPassPayment({
-        id: args.payment.id,
-        status: "failed",
-        settlementRef: null,
-        nowIso: args.nowIso,
-      });
-      return challengeResult({ resource: args.resource, env: args.env });
-    }
-
-    const settlementRef = String(
-      status.transaction || pendingTxHash,
-    ).trim();
-    await args.store.updateMonitoringPassPayment({
-      id: args.payment.id,
-      status: "settled",
-      settlementRef,
-      nowIso: args.nowIso,
-    });
-    return issuePassForSettlement({
-      store: args.store,
-      settlementRef,
-      paymentId: args.payment.id,
-      nowIso: args.nowIso,
-    });
+    const client = new OkxSellerClient(cfg, args.fetchImpl);
+    status = await client.getSettleStatus(pendingTxHash);
   } catch {
     return {
-      ok: true,
-      status: "PAYMENT_SETTLEMENT_PENDING",
-      http_status: 200,
+      kind: "pending",
       note: "Settlement status unavailable; still not payment complete.",
     };
   }
+
+  if (status.status === "pending" || (!status.success && !status.status)) {
+    return {
+      kind: "pending",
+      note: "Settlement still pending confirmation.",
+    };
+  }
+  if (status.status === "failed" || status.success === false) {
+    await args.store.updateMonitoringPassPayment({
+      id: args.payment.id,
+      status: "failed",
+      settlementRef: null,
+      nowIso: args.nowIso,
+    });
+    return { kind: "failed" };
+  }
+
+  const settlementRef = String(status.transaction || pendingTxHash).trim();
+  await args.store.updateMonitoringPassPayment({
+    id: args.payment.id,
+    status: "settled",
+    settlementRef,
+    nowIso: args.nowIso,
+  });
+  const issued = await issuePassForSettlement({
+    store: args.store,
+    settlementRef,
+    paymentId: args.payment.id,
+    nowIso: args.nowIso,
+  });
+  if (issued.ok && issued.status === "MONITORING_PASS_ISSUED") {
+    return { kind: "issued", pass: issued.pass };
+  }
+  return {
+    kind: "pending",
+    note: "Settlement confirmed; Monitoring Pass issuance still completing.",
+  };
+}
+
+export type PassSettlementReconciliationResult = {
+  scanned: number;
+  issued: number;
+  still_pending: number;
+  failed: number;
+  /** Public pass ids only — never tokens, digests, headers, or settlement refs. */
+  issued_pass_ids: string[];
+};
+
+/**
+ * Provider-controlled recovery for marketplace-completed payments that
+ * returned `PAYMENT_SETTLEMENT_PENDING` and never received a signed replay.
+ *
+ * Scans durable verifying (and settled-without-pass) Monitoring Pass payment
+ * rows, polls official settle/status using only the stored opaque tx hash,
+ * and issues exactly one pass per confirmed settlement. Concurrent and
+ * repeated runs cannot duplicate issuance (UNIQUE settlement_ref) and never
+ * create a second payment challenge.
+ */
+export async function reconcilePendingPassSettlements(args: {
+  now?: Date;
+  sqliteDb?: NobuDatabase;
+  env?: EnvRecord;
+  limit?: number;
+  /** Tests only — inject settle/status HTTP. Never used to replay payment. */
+  fetchImpl?: OkxHttpFetch;
+} = {}): Promise<PassSettlementReconciliationResult> {
+  const now = args.now ?? new Date();
+  const nowIso = now.toISOString();
+  const store = await resolveStore(args.sqliteDb, args.env);
+
+  const verifying = await store.listVerifyingMonitoringPassPayments();
+  const settledOrphan =
+    await store.listSettledMonitoringPassPaymentsWithoutPass();
+
+  // Prefer verifying rows; then crash-recovery settled-without-pass rows.
+  // Deduplicate by payment id so a row cannot be processed twice in one run.
+  const seen = new Set<string>();
+  const batch: MonitoringPassPaymentRow[] = [];
+  for (const row of [...verifying, ...settledOrphan]) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    batch.push(row);
+  }
+  const limited = args.limit ? batch.slice(0, args.limit) : batch;
+
+  let issued = 0;
+  let stillPending = 0;
+  let failed = 0;
+  const issuedPassIds: string[] = [];
+
+  for (const payment of limited) {
+    const outcome = await confirmPendingPassPayment({
+      store,
+      payment,
+      env: args.env,
+      nowIso,
+      fetchImpl: args.fetchImpl,
+    });
+    if (outcome.kind === "issued") {
+      issued += 1;
+      issuedPassIds.push(outcome.pass.id);
+    } else if (outcome.kind === "failed") {
+      failed += 1;
+    } else {
+      stillPending += 1;
+    }
+  }
+
+  return {
+    scanned: limited.length,
+    issued,
+    still_pending: stillPending,
+    failed,
+    issued_pass_ids: issuedPassIds,
+  };
 }
 
 /** Response body shapes — never include the settlement reference or digest. */
@@ -445,13 +604,13 @@ export function monitoringPassResponseBody(
       journey_complete: false,
       message: result.note,
       next_action:
-        "Replay this request with the same PAYMENT-SIGNATURE header to check settlement again.",
+        "Wait for provider settlement reconciliation. Do not pay again. A signed-header replay is optional recovery only.",
       required_user_input: {
-        action: "CHECK_PAYMENT_SETTLEMENT",
-        required_fields: ["same signed payment replay"],
+        action: "WAIT_FOR_SETTLEMENT_CONFIRMATION",
+        required_fields: [],
       },
       guidance:
-        "Settlement is not confirmed, so no Monitoring Pass has been issued and monitoring is not active.",
+        "Settlement is not confirmed yet, so no Monitoring Pass has been issued and monitoring is not active. Nobu reconciles from the durable pending settlement record via official settle/status without a second charge.",
       documentation: "https://www.usenobu.xyz/okx",
     };
   }

@@ -490,7 +490,17 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Proof:** focused free route 5/5; focused Monitoring Pass/redemption 20/20; typecheck; limited secret scan; Production `400` free probe and x402 v2 `402` unpaid probe. Verdict: `NOBU_MARKETPLACE_JOURNEY_CONTINUITY_PASS`. Evidence: `docs/proof/marketplace-journey-continuity/`.
 
-**Exact next live continuation step:** call free service `33561` with `UNDERSTAND_PURCHASE` and the user's recent Target online purchase description. Do not make another payment or redeem until the guided free flow reaches a current `MONITORING_PAYMENT_READY` quote.
+### Monitoring Pass settlement reconciliation repair COMPLETE
+
+- Live marketplace settlement released `0.99` USDT but Nobu remained at `PAYMENT_SETTLEMENT_PENDING` with no Monitoring Pass because convergence required replaying the same `PAYMENT-SIGNATURE` header; marketplace job completion does not replay.
+- Durable pending row already stores `authorization_digest` (sha256 only) and opaque `settlement_ref` (pending tx). Repair adds AuthStore listing of verifying / settled-without-pass rows and `reconcilePendingPassSettlements`, which polls official `settle/status` from the stored ref alone, marks settled, and issues exactly one pass (`UNIQUE settlement_ref`).
+- Authenticated internal recovery: `POST /v1/owner/pass-settlement-reconcile` (Bearer `OWNER_OPS_SECRET` or `CRON_SECRET`). No second payment challenge; retries and concurrent runs cannot duplicate.
+- Issued response remains `MONITORING_PASS_ISSUED`, `monitoring_active: false`, continuation `UNDERSTAND_PURCHASE` / service `33561`. Secrets and pass tokens never logged or returned.
+- No live payment, signed replay, task, ASP edit, activation, or resubmission in this lane.
+
+**Proof:** `tests/payments/monitoring-pass.test.ts` 22/22 (incl. later-confirm + no-duplicate reconcile); related payment tests 27/27; typecheck; limited secret scan. Verdict: `NOBU_MONITORING_PASS_SETTLEMENT_RECONCILE_PASS`. Evidence: `docs/proof/monitoring-pass-settlement-reconcile/`.
+
+**Exact safe operator recovery after deploy:** one `POST /v1/owner/pass-settlement-reconcile` with Bearer cron/owner secret. Do not pay again or replay a signed payment header. Then continue free `UNDERSTAND_PURCHASE`.
 
 ## Lane 7.4G — Live marketplace end-to-end proof
 

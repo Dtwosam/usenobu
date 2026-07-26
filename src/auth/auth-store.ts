@@ -411,6 +411,20 @@ export interface AuthStore {
     settlementRef: string | null;
     nowIso: string;
   }): Promise<boolean>;
+  /**
+   * Payments still awaiting official settle/status confirmation. Each row
+   * already holds an opaque settlement_ref (pending tx hash). Reconciliation
+   * polls that reference only — never re-verifies a signed payment header.
+   */
+  listVerifyingMonitoringPassPayments(): Promise<MonitoringPassPaymentRow[]>;
+  /**
+   * Settled payments that never received a Monitoring Pass (crash between
+   * mark-settled and issue). Recovery issues from the stored settlement_ref
+   * alone — no second charge, no signed-header replay.
+   */
+  listSettledMonitoringPassPaymentsWithoutPass(): Promise<
+    MonitoringPassPaymentRow[]
+  >;
   getMonitoringPassBySettlementRef(
     settlementRef: string,
   ): Promise<MonitoringPassRow | null>;
@@ -1218,6 +1232,30 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         )
         .run(args.status, args.settlementRef, args.nowIso, args.id);
       return Number(r.changes ?? 0) === 1;
+    },
+    async listVerifyingMonitoringPassPayments() {
+      return db
+        .prepare(
+          `SELECT * FROM monitoring_pass_payments
+           WHERE status = 'verifying' AND settlement_ref IS NOT NULL
+           ORDER BY created_at ASC`,
+        )
+        .all() as MonitoringPassPaymentRow[];
+    },
+    async listSettledMonitoringPassPaymentsWithoutPass() {
+      return db
+        .prepare(
+          `SELECT p.* FROM monitoring_pass_payments p
+           WHERE p.status = 'settled'
+             AND p.settlement_ref IS NOT NULL
+             AND NOT EXISTS (
+               SELECT 1 FROM monitoring_passes m
+               WHERE m.settlement_ref = p.settlement_ref
+                  OR m.payment_id = p.id
+             )
+           ORDER BY p.created_at ASC`,
+        )
+        .all() as MonitoringPassPaymentRow[];
     },
     async getMonitoringPassBySettlementRef(settlementRef) {
       return (
@@ -2134,6 +2172,28 @@ export function createPostgresAuthStore(
         [args.status, args.settlementRef, args.nowIso, args.id],
       );
       return (r.rowCount ?? 0) === 1;
+    },
+    async listVerifyingMonitoringPassPayments() {
+      const r = await q<MonitoringPassPaymentRow>(
+        `SELECT * FROM monitoring_pass_payments
+         WHERE status = 'verifying' AND settlement_ref IS NOT NULL
+         ORDER BY created_at ASC`,
+      );
+      return r.rows;
+    },
+    async listSettledMonitoringPassPaymentsWithoutPass() {
+      const r = await q<MonitoringPassPaymentRow>(
+        `SELECT p.* FROM monitoring_pass_payments p
+         WHERE p.status = 'settled'
+           AND p.settlement_ref IS NOT NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM monitoring_passes m
+             WHERE m.settlement_ref = p.settlement_ref
+                OR m.payment_id = p.id
+           )
+         ORDER BY p.created_at ASC`,
+      );
+      return r.rows;
     },
     async getMonitoringPassBySettlementRef(settlementRef) {
       const r = await q<MonitoringPassRow>(

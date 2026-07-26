@@ -33,6 +33,7 @@ import { MONITORING_PAYMENT_READY_STATUS } from "../../src/matching/store.js";
 import {
   monitoringPassForAgent,
   monitoringPassResponseBody,
+  reconcilePendingPassSettlements,
 } from "../../src/payments/monitoring-pass-service.js";
 import { redeemMonitoringPassForAgent } from "../../src/payments/redeem-monitoring-pass.js";
 import { reconcilePendingActivations } from "../../src/payments/start-monitoring-service.js";
@@ -45,6 +46,8 @@ import {
   type X402Verifier,
   type X402VerifyResult,
 } from "../../src/payments/x402.js";
+import type { OkxHttpFetch } from "../../src/payments/okx-seller-client.js";
+import { sha256Hex } from "../../src/auth/crypto.js";
 import {
   buildFreeServiceDescriptor,
   isFirstContactRequest,
@@ -711,5 +714,205 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(JSON.stringify(wrongConnection.body)).toBe(
       JSON.stringify(unknownPass.body),
     );
+  });
+
+  // ---------------------------------------------------------------------
+  // 12. Pending settlement reconciliation (no signed-header replay)
+  // ---------------------------------------------------------------------
+
+  const RECONCILE_SELLER_ENV = {
+    OKX_API_KEY: "test-key",
+    OKX_SECRET_KEY: "test-secret",
+    OKX_PASSPHRASE: "test-pass",
+    OKX_PAY_TO: "0x1111111111111111111111111111111111111111",
+    OKX_BASE_URL: "https://web3.okx.com",
+  };
+
+  function seedVerifyingPayment(args: {
+    paymentId: string;
+    pendingTxHash: string;
+    /** Opaque digest placeholder — never a real payment header. */
+    authorizationDigest: string;
+  }) {
+    const nowIso = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO monitoring_pass_payments
+       (id, authorization_digest, status, settlement_ref, created_at, updated_at)
+       VALUES (?,?,?,?,?,?)`,
+    ).run(
+      args.paymentId,
+      args.authorizationDigest,
+      "verifying",
+      args.pendingTxHash,
+      nowIso,
+      nowIso,
+    );
+  }
+
+  it("pending settlement later confirms via provider reconciliation and issues exactly one pass", async () => {
+    const pendingTx =
+      "0xpending_settlement_tx_hash_for_pass_recon_001_abcdef";
+    const confirmedTx =
+      "0xconfirmed_settlement_tx_hash_for_pass_recon_001_fedcba";
+    // Digest of a synthetic placeholder only — the raw signed header is not
+    // available after marketplace job completion, which is the recovery case.
+    seedVerifyingPayment({
+      paymentId: "pass_pay_recon_001",
+      pendingTxHash: pendingTx,
+      authorizationDigest: sha256Hex("synthetic-digest-placeholder-recon-001"),
+    });
+    expect(passCount()).toBe(0);
+
+    let statusCalls = 0;
+    const seenUrls: string[] = [];
+    const fetchImpl: OkxHttpFetch = async (url, init) => {
+      statusCalls += 1;
+      seenUrls.push(`${String(init?.method || "GET").toUpperCase()} ${url}`);
+      return new Response(
+        JSON.stringify({
+          code: "0",
+          data: {
+            success: true,
+            status: "success",
+            transaction: confirmedTx,
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    };
+    const first = await reconcilePendingPassSettlements({
+      sqliteDb: db,
+      env: { ...process.env, ...RECONCILE_SELLER_ENV },
+      fetchImpl,
+    });
+
+    expect(first.scanned).toBe(1);
+    expect(first.issued).toBe(1);
+    expect(first.still_pending).toBe(0);
+    expect(first.failed).toBe(0);
+    expect(first.issued_pass_ids).toHaveLength(1);
+    expect(passCount()).toBe(1);
+    expect(statusCalls).toBe(1);
+    expect(seenUrls).toEqual([
+      expect.stringMatching(
+        new RegExp(`^GET .*settle/status\\?txHash=${pendingTx}$`),
+      ),
+    ]);
+
+    const payment = db
+      .prepare(`SELECT status, settlement_ref FROM monitoring_pass_payments WHERE id = ?`)
+      .get("pass_pay_recon_001") as { status: string; settlement_ref: string };
+    expect(payment.status).toBe("settled");
+    expect(payment.settlement_ref).toBe(confirmedTx);
+
+    const pass = db
+      .prepare(`SELECT id, settlement_ref, status FROM monitoring_passes`)
+      .get() as { id: string; settlement_ref: string; status: string };
+    expect(pass.id).toBe(first.issued_pass_ids[0]);
+    expect(pass.settlement_ref).toBe(confirmedTx);
+    expect(pass.status).toBe("issued");
+
+    // Response shape matches a successful paid deliverable — monitoring still
+    // inactive; continuation is free Purchase Setup.
+    const body = monitoringPassResponseBody({
+      ok: true,
+      status: "MONITORING_PASS_ISSUED",
+      http_status: 200,
+      pass: {
+        id: pass.id,
+        pass_token_hash: "internal",
+        settlement_ref: pass.settlement_ref,
+        payment_id: "pass_pay_recon_001",
+        price_amount: 0.99,
+        price_currency: "USD",
+        status: "issued",
+        redeemed_at: null,
+        redeemed_quote_id: null,
+        redeemed_purchase_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    });
+    expect(body.status).toBe("MONITORING_PASS_ISSUED");
+    expect(body.monitoring_active).toBe(false);
+    expect(body.next_action).toBe("UNDERSTAND_PURCHASE");
+    expect(body.next_service_id).toBe(33561);
+    expect(body.monitoring_pass_token).toBeUndefined();
+    const bodyJson = JSON.stringify(body);
+    expect(bodyJson).not.toContain(pendingTx);
+    expect(bodyJson).not.toContain(confirmedTx);
+    // Reconciliation never charges — only settle/status was called.
+    expect(statusCalls).toBe(1);
+  });
+
+  it("repeated reconciliation cannot duplicate the pass or charge again", async () => {
+    const pendingTx =
+      "0xpending_settlement_tx_hash_for_pass_recon_002_abcdef";
+    const confirmedTx =
+      "0xconfirmed_settlement_tx_hash_for_pass_recon_002_fedcba";
+    seedVerifyingPayment({
+      paymentId: "pass_pay_recon_002",
+      pendingTxHash: pendingTx,
+      authorizationDigest: sha256Hex("synthetic-digest-placeholder-recon-002"),
+    });
+
+    let statusCalls = 0;
+    const fetchImpl: OkxHttpFetch = async (url) => {
+      statusCalls += 1;
+      expect(url).toContain("settle/status");
+      return new Response(
+        JSON.stringify({
+          code: "0",
+          data: {
+            success: true,
+            status: "success",
+            transaction: confirmedTx,
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    };
+
+    const env = { ...process.env, ...RECONCILE_SELLER_ENV };
+    const first = await reconcilePendingPassSettlements({
+      sqliteDb: db,
+      env,
+      fetchImpl,
+    });
+    expect(first.issued).toBe(1);
+    expect(passCount()).toBe(1);
+    const firstPassId = first.issued_pass_ids[0]!;
+
+    // Concurrent + sequential re-runs — no second pass, no second charge path.
+    const [a, b] = await Promise.all([
+      reconcilePendingPassSettlements({ sqliteDb: db, env, fetchImpl }),
+      reconcilePendingPassSettlements({ sqliteDb: db, env, fetchImpl }),
+    ]);
+    const third = await reconcilePendingPassSettlements({
+      sqliteDb: db,
+      env,
+      fetchImpl,
+    });
+
+    expect(passCount()).toBe(1);
+    expect(
+      (
+        db
+          .prepare(`SELECT COUNT(*) as c FROM monitoring_pass_payments`)
+          .get() as { c: number }
+      ).c,
+    ).toBe(1);
+    // After first issue, later scans find nothing still verifying / orphaned.
+    expect(a.issued + b.issued + third.issued).toBe(0);
+    expect(a.scanned + b.scanned + third.scanned).toBe(0);
+
+    const pass = db
+      .prepare(`SELECT id FROM monitoring_passes`)
+      .get() as { id: string };
+    expect(pass.id).toBe(firstPassId);
+
+    // Only the first successful confirmation needed settle/status; later runs
+    // short-circuit on empty pending lists (no re-verify, no re-settle).
+    expect(statusCalls).toBe(1);
   });
 });
