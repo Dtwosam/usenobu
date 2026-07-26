@@ -234,6 +234,24 @@ CREATE TABLE IF NOT EXISTS monitoring_passes (
 
 CREATE INDEX IF NOT EXISTS idx_monitoring_passes_status
   ON monitoring_passes (status);
+
+-- Customer-safe pass handoff after marketplace settlement. One high-entropy
+-- continuation id per payment; never a payment header, digest, settlement
+-- ref, or transferable bearer for redemption. Status is pending until a
+-- Monitoring Pass is issued, then issued with monitoring_pass_id set.
+CREATE TABLE IF NOT EXISTS monitoring_pass_continuations (
+  id TEXT PRIMARY KEY NOT NULL,
+  payment_id TEXT NOT NULL UNIQUE,
+  monitoring_pass_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | issued
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_monitoring_pass_continuations_status
+  ON monitoring_pass_continuations (status);
+CREATE INDEX IF NOT EXISTS idx_monitoring_pass_continuations_pass
+  ON monitoring_pass_continuations (monitoring_pass_id);
 `;
 
 /** Best-effort column adds for existing durable DBs (Postgres / SQLite). */

@@ -18,7 +18,7 @@ function expectInputRequired(body: Record<string, unknown>): void {
   expect(body.journey_complete).toBe(false);
   expect(body.next_action).toMatch(/UNDERSTAND_PURCHASE|DISCOVER_PRODUCT/);
   expect(body.required_user_input).toEqual(expect.objectContaining({ action: "UNDERSTAND_PURCHASE" }));
-  expect(body.guidance).toMatch(/successful Monitoring Pass redemption/);
+  expect(body.guidance).toMatch(/Sequential Purchase Setup|redeem existing Monitoring Pass/i);
   expect(body.fields).toEqual(["action"]);
   expect(body.requiredArgs).toEqual(["action"]);
   expect(body.supported_actions).toEqual(

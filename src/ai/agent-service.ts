@@ -25,6 +25,7 @@ import {
   preflightMonitoringForAgent,
 } from "../web/agent-preflight-service.js";
 import { redeemMonitoringPassForAgent } from "../payments/redeem-monitoring-pass.js";
+import { resolveMonitoringPassForAgent } from "../payments/monitoring-pass-service.js";
 import {
   checkMonitoringStatusForAgent,
   listActiveMonitorsForAgent,
@@ -51,6 +52,10 @@ export type AgentServiceResult =
       http_status: 400 | 401 | 404 | 429 | 503;
       body: Record<string, unknown>;
     }
+  | {
+      http_status: 200;
+      body: Record<string, unknown>;
+    }
   | A2mcpCheckResult;
 
 async function runAgentActionCore(
@@ -70,6 +75,23 @@ async function runAgentActionCore(
   }
 
   const req: AgentRequest = parsed.data;
+
+  if (req.action === "RESOLVE_MONITORING_PASS") {
+    const result = await resolveMonitoringPassForAgent({
+      passContinuationId: req.pass_continuation_id,
+      monitoringPassId: req.monitoring_pass_id,
+      now: deps.connectionNow,
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+    });
+    if (result.http_status === 200) {
+      return { http_status: 200, body: result.body };
+    }
+    if (result.http_status === 404) {
+      return { http_status: 404, body: result.body };
+    }
+    return { http_status: 400, body: result.body };
+  }
 
   if (req.action === "UNDERSTAND_PURCHASE") {
     const result = await understandPurchase(req.purchase_text, deps);

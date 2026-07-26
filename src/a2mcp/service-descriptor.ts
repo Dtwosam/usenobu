@@ -100,6 +100,13 @@ export const FREE_AGENT_ACTIONS = [
     optional_fields: [],
   },
   {
+    action: "RESOLVE_MONITORING_PASS",
+    summary:
+      "Look up a paid Monitoring Pass by pass_continuation_id or monitoring_pass_id after settlement. Does not start monitoring and never charges again.",
+    required_fields: ["action"],
+    optional_fields: ["pass_continuation_id", "monitoring_pass_id"],
+  },
+  {
     action: "CHECK_MONITORING_STATUS",
     summary: "Read the current monitoring status for one purchase.",
     required_fields: ["action", "purchase_id"],
@@ -185,6 +192,8 @@ export type FreeServiceDescriptor = {
   completed_step: string;
   monitoring_active: false;
   journey_complete: false;
+  fields?: readonly string[];
+  requiredArgs?: readonly string[];
   required_user_input: Record<string, unknown>;
   guidance: string;
 };
@@ -238,17 +247,19 @@ export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
       "Target is currently the only supported retailer. Target verifies eligibility and makes the final decision.",
     documentation: NOBU_DOCUMENTATION_URL,
     next_action:
-      "Send UNDERSTAND_PURCHASE with the purchase description, or DISCOVER_PRODUCT with structured purchase fields.",
+      "If the user already paid for a Monitoring Pass, RESOLVE_MONITORING_PASS with pass_continuation_id or monitoring_pass_id. Otherwise UNDERSTAND_PURCHASE with the purchase description only.",
     completed_step: "NOBU_INTRODUCED",
     monitoring_active: false,
     journey_complete: false,
+    fields: ["action"],
+    requiredArgs: ["action"],
     required_user_input: {
       action: "UNDERSTAND_PURCHASE",
       required_fields: ["purchase_text"],
-      description: "A plain-English description of the recent Target online purchase.",
+      description: "A plain-English description of the recent Target online purchase. Do not ask for email or consent yet.",
     },
     guidance:
-      "Start with free Purchase Setup. Monitoring begins only after product confirmation, email verification, explicit consent, preflight and successful Monitoring Pass redemption.",
+      "Sequential Purchase Setup: (1) purchase description only, (2) product discovery, (3) exact product confirmation, (4) email, (5) email code, (6) both consents + preflight, (7) redeem existing Monitoring Pass. Never request email or consent during initial purchase intake. Never invent a status-check option after payment.",
   };
 }
 

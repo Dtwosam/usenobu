@@ -34,6 +34,7 @@ import {
   monitoringPassForAgent,
   monitoringPassResponseBody,
   reconcilePendingPassSettlements,
+  resolveMonitoringPassForAgent,
 } from "../../src/payments/monitoring-pass-service.js";
 import { redeemMonitoringPassForAgent } from "../../src/payments/redeem-monitoring-pass.js";
 import { reconcilePendingActivations } from "../../src/payments/start-monitoring-service.js";
@@ -376,11 +377,13 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     const issued = await buyPass("settle_ref_pass_001");
     expect(issued.status).toBe("MONITORING_PASS_ISSUED");
     expect(passCount()).toBe(1);
+    expect(issued.pass_continuation_id).toMatch(/^pass_cont_/);
 
     const body = monitoringPassResponseBody(issued);
     expect(body.agent_state).toBe("MONITORING_PASS");
     expect(body.status).toBe("MONITORING_PASS_ISSUED");
     expect(body.monitoring_pass_id).toBe(issued.pass.id);
+    expect(body.pass_continuation_id).toBe(issued.pass_continuation_id);
     expect(body.monitoring_pass_token).toBeUndefined();
     expect(body.price_amount).toBe(0.99);
     expect(body.price_currency).toBe("USD");
@@ -390,8 +393,12 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(body.journey_complete).toBe(false);
     expect(body.next_action).toBe("UNDERSTAND_PURCHASE");
     expect(body.next_service_id).toBe(33561);
+    expect(body.fields).toEqual(["action", "purchase_text"]);
+    expect(body.requiredArgs).toEqual(["action", "purchase_text"]);
+    expect(body.second_payment_required).toBe(false);
+    expect(String(body.message)).toMatch(/Monitoring Pass is ready/i);
     expect(body.required_purchase_input).toEqual(expect.arrayContaining(["purchase_text", "purchase_price", "purchase_date"]));
-    expect(body.guidance).toMatch(/monitoring has not started/i);
+    expect(body.guidance).toMatch(/not ask for email or consent yet/i);
   });
 
   it("duplicate replay of the same payment returns the same pass", async () => {
@@ -818,6 +825,7 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
       ok: true,
       status: "MONITORING_PASS_ISSUED",
       http_status: 200,
+      pass_continuation_id: "pass_cont_test_only_not_secret",
       pass: {
         id: pass.id,
         pass_token_hash: "internal",
@@ -837,6 +845,8 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(body.monitoring_active).toBe(false);
     expect(body.next_action).toBe("UNDERSTAND_PURCHASE");
     expect(body.next_service_id).toBe(33561);
+    expect(body.fields).toEqual(["action", "purchase_text"]);
+    expect(body.requiredArgs).toEqual(["action", "purchase_text"]);
     expect(body.monitoring_pass_token).toBeUndefined();
     const bodyJson = JSON.stringify(body);
     expect(bodyJson).not.toContain(pendingTx);
@@ -914,5 +924,111 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     // Only the first successful confirmation needed settle/status; later runs
     // short-circuit on empty pending lists (no re-verify, no re-settle).
     expect(statusCalls).toBe(1);
+  });
+
+  // ---------------------------------------------------------------------
+  // 13. Customer-safe pass handoff / RESOLVE_MONITORING_PASS
+  // ---------------------------------------------------------------------
+
+  it("resolve by continuation after reconcile returns the same issued pass", async () => {
+    const pendingTx = "0xpending_handoff_tx_001";
+    const confirmedTx = "0xconfirmed_handoff_tx_001";
+    seedVerifyingPayment({
+      paymentId: "pass_pay_handoff_001",
+      pendingTxHash: pendingTx,
+      authorizationDigest: sha256Hex("handoff-digest-001"),
+    });
+    const store = await getAuthStore({ sqliteDb: db });
+    const cont = await store.ensureMonitoringPassContinuation({
+      id: "pass_cont_handoff_001abcdef",
+      paymentId: "pass_pay_handoff_001",
+      nowIso: new Date().toISOString(),
+    });
+
+    const fetchImpl: OkxHttpFetch = async () =>
+      new Response(
+        JSON.stringify({
+          code: "0",
+          data: { success: true, status: "success", transaction: confirmedTx },
+        }),
+        { status: 200 },
+      );
+
+    const recon = await reconcilePendingPassSettlements({
+      sqliteDb: db,
+      env: { ...process.env, ...RECONCILE_SELLER_ENV },
+      fetchImpl,
+    });
+    expect(recon.issued).toBe(1);
+
+    const resolved = await resolveMonitoringPassForAgent({
+      passContinuationId: cont.id,
+      sqliteDb: db,
+    });
+    expect(resolved.http_status).toBe(200);
+    expect(resolved.body.status).toBe("MONITORING_PASS_ISSUED");
+    expect(resolved.body.monitoring_pass_id).toBe(recon.issued_pass_ids[0]);
+    expect(resolved.body.monitoring_active).toBe(false);
+    expect(resolved.body.next_action).toBe("UNDERSTAND_PURCHASE");
+    expect(resolved.body.fields).toEqual(["action", "purchase_text"]);
+    expect(resolved.body.requiredArgs).toEqual(["action", "purchase_text"]);
+    expect(JSON.stringify(resolved.body)).not.toContain(confirmedTx);
+  });
+
+  it("unknown or cross-handle continuation lookup fails without revealing existence", async () => {
+    const missing = await resolveMonitoringPassForAgent({
+      passContinuationId: "pass_cont_does_not_exist_zzzz",
+      sqliteDb: db,
+    });
+    expect(missing.http_status).toBe(404);
+    expect(missing.body.status).toBe("MONITORING_PASS_NOT_FOUND");
+    expect(missing.body.monitoring_pass_id).toBeUndefined();
+
+    const issued = await buyPass("settle_ref_handoff_unknown", "hdr-unknown");
+    const wrong = await resolveMonitoringPassForAgent({
+      passContinuationId: "pass_cont_wrong_guess_xxxxxxxx",
+      sqliteDb: db,
+    });
+    expect(wrong.http_status).toBe(404);
+    expect(wrong.body.status).toBe("MONITORING_PASS_NOT_FOUND");
+    // Same generic shape — no existence leak of the real pass id.
+    expect(JSON.stringify(wrong.body)).not.toContain(issued.pass.id);
+  });
+
+  it("historical issued pass resolves by public pass id and backfills continuation once", async () => {
+    const issued = await buyPass("settle_ref_historical_001", "hdr-hist-1");
+    // Simulate pre-handoff era: drop continuation rows if any.
+    db.prepare(`DELETE FROM monitoring_pass_continuations`).run();
+    expect(
+      (
+        db
+          .prepare(`SELECT COUNT(*) as c FROM monitoring_pass_continuations`)
+          .get() as { c: number }
+      ).c,
+    ).toBe(0);
+
+    const resolved = await resolveMonitoringPassForAgent({
+      monitoringPassId: issued.pass.id,
+      sqliteDb: db,
+    });
+    expect(resolved.http_status).toBe(200);
+    expect(resolved.body.status).toBe("MONITORING_PASS_ISSUED");
+    expect(resolved.body.monitoring_pass_id).toBe(issued.pass.id);
+    expect(String(resolved.body.pass_continuation_id)).toMatch(/^pass_cont_/);
+
+    const again = await resolveMonitoringPassForAgent({
+      monitoringPassId: issued.pass.id,
+      sqliteDb: db,
+    });
+    expect(again.body.pass_continuation_id).toBe(
+      resolved.body.pass_continuation_id,
+    );
+    expect(
+      (
+        db
+          .prepare(`SELECT COUNT(*) as c FROM monitoring_pass_continuations`)
+          .get() as { c: number }
+      ).c,
+    ).toBe(1);
   });
 });

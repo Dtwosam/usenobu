@@ -123,12 +123,15 @@ export type MonitoringPassResult =
       status: "MONITORING_PASS_ISSUED";
       http_status: 200;
       pass: MonitoringPassRow;
+      /** High-entropy handoff id for free RESOLVE_MONITORING_PASS. */
+      pass_continuation_id: string;
     }
   | {
       ok: true;
       status: "PAYMENT_SETTLEMENT_PENDING";
       http_status: 200;
       note: string;
+      pass_continuation_id: string;
     }
   | {
       ok: false;
@@ -137,6 +140,26 @@ export type MonitoringPassResult =
       challenge: X402Challenge;
       challengeHeaderValue: string;
     };
+
+function newContinuationId(): string {
+  return `pass_cont_${randomUUID().replace(/-/g, "")}`;
+}
+
+async function ensureContinuation(
+  store: AuthStore,
+  paymentId: string,
+  nowIso: string,
+  monitoringPassId?: string | null,
+): Promise<string> {
+  const row = await store.ensureMonitoringPassContinuation({
+    id: newContinuationId(),
+    paymentId,
+    monitoringPassId: monitoringPassId ?? null,
+    status: monitoringPassId ? "issued" : "pending",
+    nowIso,
+  });
+  return row.id;
+}
 
 function challengeResult(args: {
   resource: string;
@@ -168,11 +191,18 @@ async function issuePassForSettlement(args: {
     args.settlementRef,
   );
   if (existing) {
+    const contId = await ensureContinuation(
+      args.store,
+      args.paymentId,
+      args.nowIso,
+      existing.id,
+    );
     return {
       ok: true,
       status: "MONITORING_PASS_ISSUED",
       http_status: 200,
       pass: existing,
+      pass_continuation_id: contId,
     };
   }
 
@@ -187,11 +217,19 @@ async function issuePassForSettlement(args: {
     nowIso: args.nowIso,
   });
 
+  const contId = await ensureContinuation(
+    args.store,
+    args.paymentId,
+    args.nowIso,
+    issued.pass.id,
+  );
+
   return {
     ok: true,
     status: "MONITORING_PASS_ISSUED",
     http_status: 200,
     pass: issued.pass,
+    pass_continuation_id: contId,
   };
 }
 
@@ -305,11 +343,13 @@ export async function monitoringPassForAgent(
       settlementRef: pendingTxHash,
       nowIso,
     });
+    const contId = await ensureContinuation(store, payment.id, nowIso);
     return {
       ok: true,
       status: "PAYMENT_SETTLEMENT_PENDING",
       http_status: 200,
-      note: "Settlement submitted; awaiting on-chain confirmation. No pass is issued until it confirms. Do not pay again — provider reconciliation will issue the pass once settle/status confirms.",
+      pass_continuation_id: contId,
+      note: "Settlement submitted; awaiting on-chain confirmation. No pass is issued until it confirms. Do not pay again — use free RESOLVE_MONITORING_PASS with pass_continuation_id after confirmation.",
     };
   }
 
@@ -354,20 +394,33 @@ async function resumePendingPassSettlement(args: {
   });
 
   if (outcome.kind === "issued") {
+    const contId = await ensureContinuation(
+      args.store,
+      args.payment.id,
+      args.nowIso,
+      outcome.pass.id,
+    );
     return {
       ok: true,
       status: "MONITORING_PASS_ISSUED",
       http_status: 200,
       pass: outcome.pass,
+      pass_continuation_id: contId,
     };
   }
   if (outcome.kind === "failed") {
     return challengeResult({ resource: args.resource, env: args.env });
   }
+  const contId = await ensureContinuation(
+    args.store,
+    args.payment.id,
+    args.nowIso,
+  );
   return {
     ok: true,
     status: "PAYMENT_SETTLEMENT_PENDING",
     http_status: 200,
+    pass_continuation_id: contId,
     note: outcome.note,
   };
 }
@@ -493,6 +546,8 @@ export type PassSettlementReconciliationResult = {
   failed: number;
   /** Public pass ids only — never tokens, digests, headers, or settlement refs. */
   issued_pass_ids: string[];
+  /** Continuations created/linked for settled historical payments. */
+  continuations_backfilled: number;
 };
 
 /**
@@ -548,11 +603,25 @@ export async function reconcilePendingPassSettlements(args: {
     if (outcome.kind === "issued") {
       issued += 1;
       issuedPassIds.push(outcome.pass.id);
+      await ensureContinuation(store, payment.id, nowIso, outcome.pass.id);
     } else if (outcome.kind === "failed") {
       failed += 1;
     } else {
       stillPending += 1;
+      if (payment.settlement_ref) {
+        await ensureContinuation(store, payment.id, nowIso);
+      }
     }
+  }
+
+  // Historical backfill: settled+pass rows created before continuations existed.
+  let continuationsBackfilled = 0;
+  const missing = await store.listSettledPassPaymentsMissingContinuation();
+  for (const payment of missing) {
+    const pass = await store.getMonitoringPassByPaymentId(payment.id);
+    if (!pass) continue;
+    await ensureContinuation(store, payment.id, nowIso, pass.id);
+    continuationsBackfilled += 1;
   }
 
   return {
@@ -561,10 +630,16 @@ export async function reconcilePendingPassSettlements(args: {
     still_pending: stillPending,
     failed,
     issued_pass_ids: issuedPassIds,
+    continuations_backfilled: continuationsBackfilled,
   };
 }
 
-/** Response body shapes — never include the settlement reference or digest. */
+/**
+ * Response body shapes — never include settlement reference, digest, or
+ * payment header. Exposes both custom journey fields and the
+ * `fields`/`requiredArgs` names official Onchain OS 4.4.0 reads from
+ * endpoint bodies after payment replay.
+ */
 export function monitoringPassResponseBody(
   result: MonitoringPassResult,
 ): Record<string, unknown> {
@@ -576,21 +651,32 @@ export function monitoringPassResponseBody(
       monitoring_active: false,
       journey_complete: false,
       monitoring_pass_id: result.pass.id,
+      pass_continuation_id: result.pass_continuation_id,
       price_amount: Number(result.pass.price_amount),
       price_currency: result.pass.price_currency,
       redeemable_for: MONITORING_PASS_REDEEMABLE_FOR,
+      second_payment_required: false,
       next_action: "UNDERSTAND_PURCHASE",
       next_service_id: 33561,
-      required_purchase_input: ["purchase_text", "purchase_price", "purchase_date", "Target online product details"],
+      // Official OKX 4.4.0 field collector reads these after replay success.
+      fields: ["action", "purchase_text"],
+      requiredArgs: ["action", "purchase_text"],
+      required_purchase_input: [
+        "purchase_text",
+        "purchase_price",
+        "purchase_date",
+        "Target online product details",
+      ],
       required_user_input: {
         action: "UNDERSTAND_PURCHASE",
         required_fields: ["purchase_text"],
-        description: "A plain-English description of the recent Target online purchase.",
+        description:
+          "After the user confirms they want to use the pass, a plain-English description of the recent Target online purchase.",
       },
-      guidance:
-        "Your $0.99 purchase issued a Monitoring Pass only; monitoring has not started. Continue with free service 33561: provide purchase details, confirm the exact product, verify email, give both consents, run preflight, then redeem this pass by monitoring_pass_id.",
       message:
-        "Monitoring Pass issued. Monitoring is not active and no price drop, alert, savings, refund or adjustment is guaranteed.",
+        "Your Monitoring Pass is ready. Would you like to use it now to monitor a recent Target purchase?",
+      guidance:
+        "No second payment is required. After the user says yes, call free service 33561 with UNDERSTAND_PURCHASE and the purchase description only — do not ask for email or consent yet. Keep monitoring_pass_id and pass_continuation_id for later redemption. Monitoring is not active.",
       documentation: "https://www.usenobu.xyz/okx",
     };
   }
@@ -602,15 +688,21 @@ export function monitoringPassResponseBody(
       completed_step: "PAYMENT_SUBMITTED",
       monitoring_active: false,
       journey_complete: false,
+      pass_continuation_id: result.pass_continuation_id,
+      second_payment_required: false,
       message: result.note,
-      next_action:
-        "Wait for provider settlement reconciliation. Do not pay again. A signed-header replay is optional recovery only.",
+      next_action: "RESOLVE_MONITORING_PASS",
+      next_service_id: 33561,
+      fields: ["action", "pass_continuation_id"],
+      requiredArgs: ["action", "pass_continuation_id"],
       required_user_input: {
-        action: "WAIT_FOR_SETTLEMENT_CONFIRMATION",
-        required_fields: [],
+        action: "RESOLVE_MONITORING_PASS",
+        required_fields: ["pass_continuation_id"],
+        description:
+          "The pass_continuation_id from this response; free service 33561 action RESOLVE_MONITORING_PASS.",
       },
       guidance:
-        "Settlement is not confirmed yet, so no Monitoring Pass has been issued and monitoring is not active. Nobu reconciles from the durable pending settlement record via official settle/status without a second charge.",
+        "Settlement is not confirmed yet. Do not pay again. Later, free RESOLVE_MONITORING_PASS with pass_continuation_id returns MONITORING_PASS_ISSUED when ready. Do not invent other status-check options.",
       documentation: "https://www.usenobu.xyz/okx",
     };
   }
@@ -628,6 +720,8 @@ export function monitoringPassResponseBody(
       "The $0.99 payment buys one Monitoring Pass only. It does not start monitoring. Pay the challenge and replay this request to receive the pass.",
     next_action:
       "Sign the PAYMENT-REQUIRED challenge and replay this request with the PAYMENT-SIGNATURE header.",
+    fields: [],
+    requiredArgs: [],
     required_user_input: {
       action: "PAY_FOR_MONITORING_PASS",
       required_fields: ["valid OKX x402 signed payment replay"],
@@ -635,5 +729,172 @@ export function monitoringPassResponseBody(
     guidance:
       "After the pass is issued, continue with free Purchase Setup service 33561. Monitoring begins only after successful pass redemption.",
     documentation: "https://www.usenobu.xyz/okx",
+  };
+}
+
+/**
+ * Free-service resolution of a Monitoring Pass by continuation id or public
+ * pass id. Unknown/guessed ids fail closed with a generic not-found shape.
+ * Never returns digests, settlement refs, headers, or pass tokens.
+ */
+export async function resolveMonitoringPassForAgent(args: {
+  passContinuationId?: string | null;
+  monitoringPassId?: string | null;
+  now?: Date;
+  sqliteDb?: NobuDatabase;
+  env?: EnvRecord;
+}): Promise<{
+  http_status: number;
+  body: Record<string, unknown>;
+}> {
+  const nowIso = (args.now ?? new Date()).toISOString();
+  const contId = String(args.passContinuationId || "").trim();
+  const passId = String(args.monitoringPassId || "").trim();
+  const genericMissing = {
+    agent_state: "MONITORING_PASS",
+    status: "MONITORING_PASS_NOT_FOUND",
+    completed_step: "MONITORING_PASS_LOOKUP",
+    monitoring_active: false,
+    journey_complete: false,
+    second_payment_required: false,
+    next_action: "UNDERSTAND_PURCHASE",
+    next_service_id: 33561,
+    fields: ["action", "purchase_text"],
+    requiredArgs: ["action", "purchase_text"],
+    required_user_input: {
+      action: "UNDERSTAND_PURCHASE",
+      required_fields: ["purchase_text"],
+      description: "A plain-English description of a recent Target online purchase.",
+    },
+    message:
+      "No Monitoring Pass was found for that reference. Do not invent a payment or status-check option.",
+    guidance:
+      "If the user just paid, wait briefly and retry RESOLVE_MONITORING_PASS with the same pass_continuation_id. Otherwise start free Purchase Setup only after they confirm they have a pass.",
+    documentation: "https://www.usenobu.xyz/okx",
+  };
+
+  if ((!contId && !passId) || (contId && passId)) {
+    return {
+      http_status: 400,
+      body: {
+        error: "invalid_input",
+        status: "invalid_input",
+        message:
+          "Provide exactly one of pass_continuation_id or monitoring_pass_id.",
+        fields: ["action", "pass_continuation_id"],
+        requiredArgs: ["action", "pass_continuation_id"],
+      },
+    };
+  }
+
+  const store = await resolveStore(args.sqliteDb, args.env);
+  let continuation = contId
+    ? await store.getMonitoringPassContinuationById(contId)
+    : await store.getMonitoringPassContinuationByPassId(passId);
+
+  // Historical issued pass without a continuation yet: allow public pass id
+  // lookup and backfill exactly one continuation (still not a bearer for redeem).
+  if (!continuation && passId) {
+    const pass = await store.getMonitoringPassById(passId);
+    if (pass && pass.status === "issued") {
+      continuation = await store.ensureMonitoringPassContinuation({
+        id: newContinuationId(),
+        paymentId: pass.payment_id,
+        monitoringPassId: pass.id,
+        status: "issued",
+        nowIso,
+      });
+    }
+  }
+
+  if (!continuation) {
+    return { http_status: 404, body: genericMissing };
+  }
+
+  if (continuation.status === "issued" && continuation.monitoring_pass_id) {
+    const pass = await store.getMonitoringPassById(
+      continuation.monitoring_pass_id,
+    );
+    if (pass && (pass.status === "issued" || pass.status === "redeemed")) {
+      return {
+        http_status: 200,
+        body: {
+          agent_state: "MONITORING_PASS",
+          status: "MONITORING_PASS_ISSUED",
+          completed_step: "MONITORING_PASS_ISSUED",
+          monitoring_active: false,
+          journey_complete: false,
+          monitoring_pass_id: pass.id,
+          pass_continuation_id: continuation.id,
+          pass_status: pass.status,
+          second_payment_required: false,
+          next_action: "UNDERSTAND_PURCHASE",
+          next_service_id: 33561,
+          fields: ["action", "purchase_text"],
+          requiredArgs: ["action", "purchase_text"],
+          required_user_input: {
+            action: "UNDERSTAND_PURCHASE",
+            required_fields: ["purchase_text"],
+            description:
+              "After the user confirms they want to use the pass, a plain-English description of the recent Target online purchase.",
+          },
+          message:
+            "Your Monitoring Pass is ready. Would you like to use it now to monitor a recent Target purchase?",
+          guidance:
+            "No second payment is required. After the user says yes, call UNDERSTAND_PURCHASE with purchase_text only. Do not ask for email or consent until product confirmation. Redeem later with this monitoring_pass_id after preflight.",
+          documentation: "https://www.usenobu.xyz/okx",
+        },
+      };
+    }
+  }
+
+  // Pending: optionally attempt settle/status via reconciliation for this payment only.
+  const paymentRows = await store.listVerifyingMonitoringPassPayments();
+  const mine = paymentRows.find((p) => p.id === continuation!.payment_id);
+  if (mine) {
+    await reconcilePendingPassSettlements({
+      sqliteDb: args.sqliteDb,
+      env: args.env,
+      now: args.now,
+      limit: 50,
+    });
+    const refreshed = await store.getMonitoringPassContinuationById(
+      continuation.id,
+    );
+    if (refreshed?.status === "issued" && refreshed.monitoring_pass_id) {
+      return resolveMonitoringPassForAgent({
+        passContinuationId: refreshed.id,
+        sqliteDb: args.sqliteDb,
+        env: args.env,
+        now: args.now,
+      });
+    }
+  }
+
+  return {
+    http_status: 200,
+    body: {
+      agent_state: "MONITORING_PASS",
+      status: "PAYMENT_SETTLEMENT_PENDING",
+      completed_step: "PAYMENT_SUBMITTED",
+      monitoring_active: false,
+      journey_complete: false,
+      pass_continuation_id: continuation.id,
+      second_payment_required: false,
+      next_action: "RESOLVE_MONITORING_PASS",
+      next_service_id: 33561,
+      fields: ["action", "pass_continuation_id"],
+      requiredArgs: ["action", "pass_continuation_id"],
+      required_user_input: {
+        action: "RESOLVE_MONITORING_PASS",
+        required_fields: ["pass_continuation_id"],
+        description: "Retry with the same pass_continuation_id.",
+      },
+      message:
+        "Settlement is still confirming. Your Monitoring Pass is not ready yet. Do not pay again.",
+      guidance:
+        "Keep the pass_continuation_id and call RESOLVE_MONITORING_PASS again shortly. Do not invent other status checks or request email yet.",
+      documentation: "https://www.usenobu.xyz/okx",
+    },
   };
 }

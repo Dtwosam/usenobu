@@ -5,6 +5,9 @@ export type JourneyFields = {
   journey_complete: boolean;
   next_action: string;
   required_user_input: Record<string, unknown> | null;
+  /** Official Onchain OS 4.4.0 field-collector names. */
+  fields: string[] | null;
+  requiredArgs: string[] | null;
   guidance: string;
 };
 
@@ -17,25 +20,75 @@ const step = (
   required_user_input: Record<string, unknown> | null,
   guidance: string,
   monitoring_active = false,
-): JourneyFields => ({
-  completed_step,
-  monitoring_active,
-  journey_complete: monitoring_active,
-  next_action,
-  required_user_input,
-  guidance,
-});
+): JourneyFields => {
+  const required_fields =
+    required_user_input &&
+    Array.isArray((required_user_input as { required_fields?: unknown }).required_fields)
+      ? ((required_user_input as { required_fields: string[] }).required_fields)
+      : null;
+  // Onchain OS reads top-level fields/requiredArgs (not nested required_user_input).
+  const machineFields =
+    required_fields && next_action
+      ? ["action", ...required_fields.filter((f) => f !== "action")]
+      : next_action
+        ? ["action"]
+        : null;
+  return {
+    completed_step,
+    monitoring_active,
+    journey_complete: monitoring_active,
+    next_action,
+    required_user_input,
+    fields: machineFields,
+    requiredArgs: machineFields,
+    guidance,
+  };
+};
 
 function journey(action: string, result: Result): JourneyFields {
   const status = String(result.body.status ?? "");
   const ok = result.http_status === 200;
 
+  if (action === "RESOLVE_MONITORING_PASS") {
+    const status = String(result.body.status ?? "");
+    if (ok && status === "MONITORING_PASS_ISSUED") {
+      return step(
+        "MONITORING_PASS_ISSUED",
+        "UNDERSTAND_PURCHASE",
+        req(
+          "UNDERSTAND_PURCHASE",
+          ["purchase_text"],
+          "After the user confirms they want to use the pass, the purchase description only.",
+        ),
+        "Your Monitoring Pass is ready. Ask if they want to use it now. If yes, collect only the recent Target purchase description — not email or consent yet.",
+      );
+    }
+    if (ok && status === "PAYMENT_SETTLEMENT_PENDING") {
+      return step(
+        "PAYMENT_SUBMITTED",
+        "RESOLVE_MONITORING_PASS",
+        req(
+          "RESOLVE_MONITORING_PASS",
+          ["pass_continuation_id"],
+          "The same pass_continuation_id from the paid response.",
+        ),
+        "Settlement is still confirming. Do not pay again. Retry RESOLVE_MONITORING_PASS later. Do not invent other status checks.",
+      );
+    }
+    return step(
+      "MONITORING_PASS_LOOKUP",
+      "UNDERSTAND_PURCHASE",
+      req("UNDERSTAND_PURCHASE", ["purchase_text"], "A recent Target online purchase description."),
+      "No pass was found for that reference. Do not invent a payment or unofficial status option.",
+    );
+  }
+
   if (action === "UNDERSTAND_PURCHASE") return ok
     ? step("PURCHASE_DETAILS_EXTRACTED", "DISCOVER_PRODUCT", {
         ...req("DISCOVER_PRODUCT", ["purchase"], "User-reviewed structured purchase details."),
         purchase_fields: ["purchase_price", "purchase_date", "purchase_channel", "country", "at least one product clue"],
-      }, "Nobu extracted details only. Ask the user to confirm them, then send DISCOVER_PRODUCT. Monitoring is not active.")
-    : step("NOBU_INTRODUCED", "UNDERSTAND_PURCHASE", req("UNDERSTAND_PURCHASE", ["purchase_text"], "A description of the recent Target online purchase."), "Purchase Setup is free and never uses x402. Ask for the purchase description and retry.");
+      }, "Nobu extracted details only. Ask the user to confirm them, then send DISCOVER_PRODUCT. Do not ask for email or consent yet. Monitoring is not active.")
+    : step("NOBU_INTRODUCED", "UNDERSTAND_PURCHASE", req("UNDERSTAND_PURCHASE", ["purchase_text"], "A description of the recent Target online purchase."), "Purchase Setup is free and never uses x402. Ask only for the purchase description — not email or consent.");
 
   if (action === "DISCOVER_PRODUCT") return ok
     ? step("PRODUCT_CANDIDATES_FOUND", "CONFIRM_PRODUCT", req("CONFIRM_PRODUCT", ["discovery_session_id", "candidate_id"], "The exact Target product selected by the user."), "Show the candidates and require the user to select the exact product. Never choose for them.")

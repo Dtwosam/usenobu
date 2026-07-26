@@ -248,6 +248,16 @@ export const AgentRequestSchema = z.discriminatedUnion("action", [
       connection_token: z.string().min(1),
     })
     .strict(),
+  // Customer-safe handoff when marketplace deliverable was settlement-pending.
+  // Exactly one of pass_continuation_id or monitoring_pass_id is enforced in
+  // resolveMonitoringPassForAgent (Zod discriminatedUnion cannot refine members).
+  z
+    .object({
+      action: z.literal("RESOLVE_MONITORING_PASS"),
+      pass_continuation_id: z.string().min(1).optional(),
+      monitoring_pass_id: z.string().min(1).optional(),
+    })
+    .strict(),
 ]);
 
 export type AgentRequest = z.infer<typeof AgentRequestSchema>;

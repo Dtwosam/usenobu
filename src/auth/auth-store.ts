@@ -170,6 +170,19 @@ export type MonitoringPassRow = {
   updated_at: string;
 };
 
+/**
+ * Customer-safe handoff after paid settlement. High-entropy id is not a
+ * redemption credential — redemption still requires connection + quote.
+ */
+export type MonitoringPassContinuationRow = {
+  id: string;
+  payment_id: string;
+  monitoring_pass_id: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type PurchaseBlobRow = {
   purchase_id: string;
   account_id: string;
@@ -446,6 +459,42 @@ export interface AuthStore {
     outcome: "issued" | "already_existed";
     pass: MonitoringPassRow;
   }>;
+  /**
+   * Ensure exactly one continuation row per payment. Concurrent callers share
+   * the winner. Optionally links an already-issued pass (reconciliation /
+   * historical backfill).
+   */
+  ensureMonitoringPassContinuation(args: {
+    id: string;
+    paymentId: string;
+    monitoringPassId?: string | null;
+    status?: "pending" | "issued";
+    nowIso: string;
+  }): Promise<MonitoringPassContinuationRow>;
+  markMonitoringPassContinuationIssued(args: {
+    paymentId: string;
+    monitoringPassId: string;
+    nowIso: string;
+  }): Promise<MonitoringPassContinuationRow | null>;
+  getMonitoringPassContinuationById(
+    id: string,
+  ): Promise<MonitoringPassContinuationRow | null>;
+  getMonitoringPassContinuationByPaymentId(
+    paymentId: string,
+  ): Promise<MonitoringPassContinuationRow | null>;
+  getMonitoringPassContinuationByPassId(
+    passId: string,
+  ): Promise<MonitoringPassContinuationRow | null>;
+  getMonitoringPassByPaymentId(
+    paymentId: string,
+  ): Promise<MonitoringPassRow | null>;
+  /**
+   * Settled payments that have a pass but no continuation row (historical
+   * recovery before handoff existed).
+   */
+  listSettledPassPaymentsMissingContinuation(): Promise<
+    MonitoringPassPaymentRow[]
+  >;
   /**
    * One atomic transaction inside this store: consume the pass (only if
    * still 'issued'), consume the quote (only if still 'issued'), and insert
@@ -1296,6 +1345,88 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         outcome: pass.id === args.id ? ("issued" as const) : ("already_existed" as const),
         pass,
       };
+    },
+    async ensureMonitoringPassContinuation(args) {
+      const status =
+        args.status ??
+        (args.monitoringPassId ? ("issued" as const) : ("pending" as const));
+      db.prepare(
+        `INSERT INTO monitoring_pass_continuations
+         (id, payment_id, monitoring_pass_id, status, created_at, updated_at)
+         VALUES (?,?,?,?,?,?)
+         ON CONFLICT(payment_id) DO NOTHING`,
+      ).run(
+        args.id,
+        args.paymentId,
+        args.monitoringPassId ?? null,
+        status,
+        args.nowIso,
+        args.nowIso,
+      );
+      if (args.monitoringPassId) {
+        db.prepare(
+          `UPDATE monitoring_pass_continuations
+           SET monitoring_pass_id = ?, status = 'issued', updated_at = ?
+           WHERE payment_id = ? AND (monitoring_pass_id IS NULL OR status != 'issued')`,
+        ).run(args.monitoringPassId, args.nowIso, args.paymentId);
+      }
+      return (await this.getMonitoringPassContinuationByPaymentId(
+        args.paymentId,
+      ))!;
+    },
+    async markMonitoringPassContinuationIssued(args) {
+      db.prepare(
+        `UPDATE monitoring_pass_continuations
+         SET monitoring_pass_id = ?, status = 'issued', updated_at = ?
+         WHERE payment_id = ?`,
+      ).run(args.monitoringPassId, args.nowIso, args.paymentId);
+      return this.getMonitoringPassContinuationByPaymentId(args.paymentId);
+    },
+    async getMonitoringPassContinuationById(id) {
+      return (
+        (db
+          .prepare(`SELECT * FROM monitoring_pass_continuations WHERE id = ?`)
+          .get(id) as MonitoringPassContinuationRow | undefined) ?? null
+      );
+    },
+    async getMonitoringPassContinuationByPaymentId(paymentId) {
+      return (
+        (db
+          .prepare(
+            `SELECT * FROM monitoring_pass_continuations WHERE payment_id = ?`,
+          )
+          .get(paymentId) as MonitoringPassContinuationRow | undefined) ?? null
+      );
+    },
+    async getMonitoringPassContinuationByPassId(passId) {
+      return (
+        (db
+          .prepare(
+            `SELECT * FROM monitoring_pass_continuations WHERE monitoring_pass_id = ?`,
+          )
+          .get(passId) as MonitoringPassContinuationRow | undefined) ?? null
+      );
+    },
+    async getMonitoringPassByPaymentId(paymentId) {
+      return (
+        (db
+          .prepare(`SELECT * FROM monitoring_passes WHERE payment_id = ?`)
+          .get(paymentId) as MonitoringPassRow | undefined) ?? null
+      );
+    },
+    async listSettledPassPaymentsMissingContinuation() {
+      return db
+        .prepare(
+          `SELECT p.* FROM monitoring_pass_payments p
+           INNER JOIN monitoring_passes m ON m.payment_id = p.id
+           WHERE p.status = 'settled'
+             AND NOT EXISTS (
+               SELECT 1 FROM monitoring_pass_continuations c
+               WHERE c.payment_id = p.id
+             )
+           ORDER BY p.created_at ASC`,
+        )
+        .all() as MonitoringPassPaymentRow[];
     },
     async redeemMonitoringPassAndActivate(args) {
       // Idempotent replay: this pass already redeemed for this exact quote.
@@ -2235,6 +2366,86 @@ export function createPostgresAuthStore(
           pass.id === args.id ? ("issued" as const) : ("already_existed" as const),
         pass,
       };
+    },
+    async ensureMonitoringPassContinuation(args) {
+      const status =
+        args.status ??
+        (args.monitoringPassId ? ("issued" as const) : ("pending" as const));
+      await q(
+        `INSERT INTO monitoring_pass_continuations
+         (id, payment_id, monitoring_pass_id, status, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$5)
+         ON CONFLICT (payment_id) DO NOTHING`,
+        [
+          args.id,
+          args.paymentId,
+          args.monitoringPassId ?? null,
+          status,
+          args.nowIso,
+        ],
+      );
+      if (args.monitoringPassId) {
+        await q(
+          `UPDATE monitoring_pass_continuations
+           SET monitoring_pass_id = $1, status = 'issued', updated_at = $2
+           WHERE payment_id = $3
+             AND (monitoring_pass_id IS NULL OR status <> 'issued')`,
+          [args.monitoringPassId, args.nowIso, args.paymentId],
+        );
+      }
+      return (await this.getMonitoringPassContinuationByPaymentId(
+        args.paymentId,
+      ))!;
+    },
+    async markMonitoringPassContinuationIssued(args) {
+      await q(
+        `UPDATE monitoring_pass_continuations
+         SET monitoring_pass_id = $1, status = 'issued', updated_at = $2
+         WHERE payment_id = $3`,
+        [args.monitoringPassId, args.nowIso, args.paymentId],
+      );
+      return this.getMonitoringPassContinuationByPaymentId(args.paymentId);
+    },
+    async getMonitoringPassContinuationById(id) {
+      const r = await q<MonitoringPassContinuationRow>(
+        `SELECT * FROM monitoring_pass_continuations WHERE id = $1`,
+        [id],
+      );
+      return r.rows[0] ?? null;
+    },
+    async getMonitoringPassContinuationByPaymentId(paymentId) {
+      const r = await q<MonitoringPassContinuationRow>(
+        `SELECT * FROM monitoring_pass_continuations WHERE payment_id = $1`,
+        [paymentId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async getMonitoringPassContinuationByPassId(passId) {
+      const r = await q<MonitoringPassContinuationRow>(
+        `SELECT * FROM monitoring_pass_continuations WHERE monitoring_pass_id = $1`,
+        [passId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async getMonitoringPassByPaymentId(paymentId) {
+      const r = await q<MonitoringPassRow>(
+        `SELECT * FROM monitoring_passes WHERE payment_id = $1`,
+        [paymentId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async listSettledPassPaymentsMissingContinuation() {
+      const r = await q<MonitoringPassPaymentRow>(
+        `SELECT p.* FROM monitoring_pass_payments p
+         INNER JOIN monitoring_passes m ON m.payment_id = p.id
+         WHERE p.status = 'settled'
+           AND NOT EXISTS (
+             SELECT 1 FROM monitoring_pass_continuations c
+             WHERE c.payment_id = p.id
+           )
+         ORDER BY p.created_at ASC`,
+      );
+      return r.rows;
     },
     async redeemMonitoringPassAndActivate(args) {
       const before = await this.getMonitoringPassById(args.passId);

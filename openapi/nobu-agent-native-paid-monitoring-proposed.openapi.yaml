@@ -117,7 +117,9 @@ paths:
 
         The pass is redeemed separately, by the free REDEEM_MONITORING_PASS
         action, which is where identity, confirmation, eligibility and consent
-        gates apply.
+        gates apply. Pending or lost marketplace deliverables are recovered via
+        free RESOLVE_MONITORING_PASS with pass_continuation_id (or the public
+        monitoring_pass_id once known).
       responses:
         '402':
           description: >-
@@ -132,12 +134,13 @@ paths:
         '200':
           description: >-
             MONITORING_PASS_ISSUED with monitoring_active false,
-            journey_complete false, next_action UNDERSTAND_PURCHASE,
-            next_service_id 33561, required purchase input and clear
-            continuation guidance. No pass token, payment signature,
-            authorization header or wallet secret is returned. A pending
-            settlement returns PAYMENT_SETTLEMENT_PENDING; no pass is issued
-            until settlement confirms.
+            journey_complete false, pass_continuation_id, monitoring_pass_id,
+            next_action UNDERSTAND_PURCHASE, next_service_id 33561,
+            fields/requiredArgs for official field collection, and user message
+            "Your Monitoring Pass is ready…". No pass token, payment signature,
+            authorization header, digest or settlement ref is returned. Pending
+            settlement returns PAYMENT_SETTLEMENT_PENDING with the same
+            pass_continuation_id for free RESOLVE_MONITORING_PASS.
         '429':
           description: Rate limited (paid replay path only; an unpaid first contact is never rate limited).
   /v1/agent/start-monitoring:

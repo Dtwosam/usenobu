@@ -583,3 +583,20 @@ components:
               type: string
             connection_token:
               type: string
+        - type: object
+          description: >-
+            Customer-safe Monitoring Pass handoff after paid settlement.
+            Provide exactly one of pass_continuation_id or monitoring_pass_id.
+            Never charges again and never starts monitoring.
+          required: [action]
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: RESOLVE_MONITORING_PASS
+            pass_continuation_id:
+              type: string
+              description: High-entropy continuation from the paid pending/issued response.
+            monitoring_pass_id:
+              type: string
+              description: Public pass id once issued (not a redemption bearer alone).
