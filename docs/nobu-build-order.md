@@ -349,6 +349,15 @@ Repair commit `1dac265`; production `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB` with `use
 
 **Verdict:** `NOBU_LANE_8R_3B_READY_FOR_OPERATOR_ALIGNMENT_AND_PROOF` — not `PASS`, because `#5541` still points at the old paid endpoint. **Proof:** `docs/proof/lane-8r-3b-monitoring-pass-repair/`.
 
+## Lane 8R.3B.1 — Suite fixture repair (pre-existing hardcoded-date and migration-list failures) COMPLETE
+
+- Documentation/test-only lane: no production behavior, policy-window logic, payment logic, or ASP `#5541` change.
+- Root cause: `tests/auth/passwordless-auth.test.ts`, `tests/db/embedded-migrations.test.ts`, `tests/matching/store.test.ts`, `tests/web/agent-preflight.test.ts`, `tests/web/purchase-lifecycle.test.ts`, and `tests/web/purchase-privacy.test.ts` pinned `purchase_date` fixtures to fixed 2026-07 dates that aged past Target's price-adjustment window (a "hardcoded-date time bomb," baselined pre-existing at clean `32ddaa0` in Lane 8R.3B), plus `tests/matching/store.test.ts`'s long-known hardcoded migration-list assertion.
+- Repair: moved date fixtures to the shared relative-date helper `tests/helpers/test-dates.ts`; the two frozen migration-list assertions now derive their expected ids from `listMigrationSql()` instead of a literal list.
+- All 19 previously-failing tests across the six files above now pass; no other test file's assertions changed.
+
+**Proof:** full unit suite — **55 test files passed, 453 tests passed, 1 skipped, zero failures**. Verdict: `NOBU_LANE_8R_3B_1_PASS`. Evidence: `docs/proof/lane-8r-3b-monitoring-pass-repair/pre-existing-failures.md` (updated with resolution note).
+
 ## Lane 8R.3C — Operator alignment and genuine proof
 
 Operator-controlled and state-changing. Exact ordered steps and placeholders: `docs/proof/lane-8r-3b-monitoring-pass-repair/operator-runbook.md`.
@@ -364,6 +373,17 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 **Activation or resubmission of `#5541` is a separate, explicit decision and a separate lane.**
 
 **Proof:** ASP + service read-back after the update; QA status; `x402-check valid: true` against the updated listing; genuine payment replay returning a real Monitoring Pass; User-role transcript with no timeout.
+
+### Lane 8R.3C.0 — Operator preflight (read-only) COMPLETE
+
+- Read-only preparation for Lane 8R.3C Step 1 only: no `agent update`, `agent activate`, payment, User-role registration, or resubmission executed.
+- Inspected the installed official Onchain OS CLI's own `agent update --help` / `agent --help` schema to confirm exact update semantics (incremental `--service` delta, fixed agent id, no full-list replace) and that QA review is documented as triggered by `register`/`update`, not by `activate` — so the planned update is expected to re-trigger OKX marketplace QA by itself.
+- Read back ASP `#5541` and both current services (`33561`, `35958`); confirmed byte-for-byte consistency with the existing documented state — no drift since Lane 8R.3B.
+- Validated the proposed two-service update payload (JSON syntax and schema-field correctness against the CLI's documented keys) without submitting it to `agent update`.
+- Re-verified the direct production free (`/v1/agent`, `200` descriptor) and Monitoring Pass (`/v1/agent/monitoring-pass`, `402` challenge) endpoints, plus a fresh official `x402-check` against both the repaired and the still-registered paid endpoint — all unchanged from Lane 8R.3B.
+- Reported the exact state-changing effect expected from Step 1's update.
+
+**Verdict:** `NOBU_LANE_8R_3C_0_READY_FOR_OPERATOR_DECISION`. **Proof:** `docs/proof/lane-8r-3c-0-operator-preflight/`.
 
 ## Lane 7.4G — Live marketplace end-to-end proof
 

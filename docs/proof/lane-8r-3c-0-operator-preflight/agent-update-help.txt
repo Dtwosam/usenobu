@@ -1,0 +1,62 @@
+captured_at: 2026-07-26 (this session)
+command: onchainos agent update --help
+
+Update Agent identity and services
+
+Usage: onchainos.exe agent update [OPTIONS]
+
+Options:
+      --agent-id <AGENT_ID>
+          REQUIRED. The target agent's id (becomes cardJson `agentId`). Missing -> `missing required parameter: --agent-id`
+
+      --base-url <BASE_URL>
+          Backend service URL (overrides config)
+
+      --chain <CHAIN>
+          Chain: ethereum, solana, base, bsc, polygon, arbitrum, sui, etc
+
+      --name <NAME>
+          Optional. New agent name. Omitted / empty -> name left unchanged
+
+      --description <DESCRIPTION>
+          Optional. New agent-level description. Omitted / empty -> unchanged; an empty string does NOT clear an existing description
+
+      --picture <PICTURE>
+          Optional. New profile-picture URL. Omitted / empty -> unchanged
+
+      --service <SERVICE>
+          Optional. Incremental service changes as a JSON array - only the services you want to add / modify / remove, NOT the full list. Element keys: `serviceName`, `serviceDescription`, `serviceType` (`A2A` | `A2MCP`), `fee` (A2MCP required - plain number, USDT implied, <=6 decimals), `endpoint` (A2MCP only), plus `operation`: `create` (new service, no `id`) / `update` (modify, carry the existing service `id`) / `delete` (remove, carry the existing service `id`). Omitted -> the `services` field is left out entirely (omission does NOT clear existing services).
+
+          Example - add one A2MCP service and delete an existing one: --service '[{"operation":"create","serviceName":"Price feed","serviceDescription":"Realtime prices","serviceType":"A2MCP","fee":"0.5","endpoint":"https://api.example.com/mcp"},{"operation":"delete","id":"svc_123"}]'
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+---
+
+Relevant excerpt from `onchainos agent --help` (top-level command list), confirming when QA/review runs:
+
+  update      Update Agent identity and services
+  activate    Activate an Agent (agent-status + submit-approval; QA runs at register/update, not here)
+
+Conclusion (read-only inference, no command executed beyond --help/get-agents/service-list):
+
+- `agent update` is a single incremental delta call: it never replaces the full
+  service list, never creates a new agent (`agentId` is required and fixed),
+  and an omitted `--service` array leaves existing services untouched.
+- The installed CLI's own help text states QA review is triggered by
+  `register` or `update`, not by `activate` -- `activate` only flips
+  agent-status and submits the current (already-QA'd) state for approval.
+  This means the planned `--service` update in Lane 8R.3C step 1 is expected
+  to re-trigger OKX's marketplace QA/review on ASP #5541, exactly as the
+  operator runbook already states ("costs gas and re-triggers OKX QA on the
+  listing"). No separate `agent activate` call is needed or planned to cause
+  that review -- and the runbook already forbids calling `agent activate` in
+  the same step.
+- This confirms, from the installed CLI's authoritative schema text (not
+  external docs, which remain unreachable from this environment), the exact
+  state-changing effect expected from the planned update: an on-chain
+  metadata write to agent #5541 covering service 33561 (description only)
+  and service 35958 (name, fee, endpoint, description), which will move
+  `approvalDisplayStatus` off "Listing rejected" and back into a QA/review
+  state pending OKX's next platform test.

@@ -1,0 +1,40 @@
+{
+  "captured_at": "2026-07-26 (this session, pre-operator-decision)",
+  "tool": "onchainos agent get-agents --agent-ids 5541 ; onchainos agent service-list --agent-id 5541",
+  "note": "Read-only. No agent update, activate, deactivate, or resubmission was run to produce this file.",
+  "agent": {
+    "agentId": "5541",
+    "name": "Nobu",
+    "role": "ASP",
+    "approvalDisplayStatus": 5,
+    "approvalLabel": "Listing rejected",
+    "statusLabel": "not listed",
+    "status": 2,
+    "onlineStatus": 1,
+    "approvalRemark_summary": "During platform testing, OKX could not receive a response from the Agent before the task timed out. Remark repeats the standard troubleshoot-and-resubmit instructions (A2A/A2MCP dev docs links, then manual OKX.ai User-role test, then resubmit via chat).",
+    "ownerAddress_masked": "0xc07a...REDACTED...d938",
+    "communicationAddress_masked": "0xE688...REDACTED...47AC"
+  },
+  "services": [
+    {
+      "id": 33561,
+      "serviceName": "Nobu Purchase Setup",
+      "serviceType": "A2MCP",
+      "fee": "0",
+      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "serviceDescription": "Free agent setup for Target post-purchase monitoring: discover and confirm products, verify email, capture consent, check eligibility, prepare quotes, list/status, alert prefs, stop, and revoke. Does not activate paid monitoring.\nUser provides: 1. purchase details 2. exact product confirmation 3. verified email 4. monitoring and email-alert consent.",
+      "matches_current_state_doc": true
+    },
+    {
+      "id": 35958,
+      "serviceName": "Nobu Monitoring Activation",
+      "serviceType": "A2MCP",
+      "fee": "0.99",
+      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "serviceDescription": "Activates scheduled monitoring for one confirmed eligible purchase after verified $0.99 OKX payment. Payment does not guarantee a lower price, alert, refund, adjustment, or savings.\nUser provides: 1. verified connection 2. valid enrollment quote 3. completed OKX payment for activation.",
+      "matches_current_state_doc": true,
+      "status_note": "Still points at the stale /v1/agent/start-monitoring endpoint -- unchanged since Lane 8R.3B. This is exactly the field the proposed update (proposed-service-update.json) would repoint."
+    }
+  ],
+  "conclusion": "Read-back is byte-for-byte consistent with docs/nobu-current-state.md's ASP #5541 status table before this preflight: rejected/not listed, service 33561 correct, service 35958 stale. No drift since Lane 8R.3B. The update in the operator runbook remains necessary and sufficient to repoint 35958."
+}
