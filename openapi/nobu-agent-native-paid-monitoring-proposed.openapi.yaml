@@ -83,6 +83,62 @@ paths:
           description: Rate limited
         '503':
           description: Provider unavailable
+  /v1/agent/monitoring-pass:
+    get:
+      operationId: nobuMonitoringPassChallengeGet
+      summary: >-
+        Lane 8R.3B — registered paid A2MCP service 35958, "Nobu Monitoring Pass"
+        ($0.99). Identical behaviour to POST.
+      responses:
+        '402':
+          description: x402 v2 challenge (see POST).
+        '200':
+          description: Issued pass on a signed replay (see POST).
+    post:
+      operationId: nobuMonitoringPass
+      summary: >-
+        Lane 8R.3B — buys one Nobu Monitoring Pass. Replaces
+        /v1/agent/start-monitoring as the registered paid service.
+      description: >-
+        Every initial call — GET or POST, body or no body — returns HTTP 402
+        with the base64 x402 v2 challenge in the PAYMENT-REQUIRED header,
+        before any business execution. Unlike /v1/agent/start-monitoring it
+        requires no quote, connection, purchase or consent to issue that
+        challenge: Lane 8R.3A proved that prerequisite-gated first contact is
+        why OKX's validator reported `valid: false` and the review task timed
+        out.
+
+
+        The signed replay travels in the PAYMENT-SIGNATURE header (never the
+        body) and returns the pass. Exactly-once issuance is anchored on the
+        OKX-verified settlement reference (monitoring_passes.settlement_ref is
+        UNIQUE), never on a caller-supplied identifier, so duplicate,
+        concurrent and lost-response replays all resolve to the same pass. A
+        pending settlement is recorded against the sha256 digest of the replay
+        header — the raw header is never stored, logged, or returned.
+
+
+        The pass is redeemed separately, by the free REDEEM_MONITORING_PASS
+        action, which is where identity, confirmation, eligibility and consent
+        gates apply.
+      responses:
+        '402':
+          description: >-
+            PAYMENT-REQUIRED header carries base64 of
+            {x402Version: 2, resource: {url, description, mimeType}, accepts[]}.
+            accepts[0]: scheme exact, network eip155:196, USD₮0 asset, amount
+            990000 base units ($0.99), server-controlled payTo,
+            maxTimeoutSeconds, and extra.name/extra.version EIP-712 token
+            metadata. No quote binding.
+        '200':
+          description: >-
+            MONITORING_PASS_ISSUED with monitoring_pass_id, the one-time
+            monitoring_pass_token (returned only by the call that issued the
+            pass), price_amount, price_currency, redeemable_for and
+            next_action; or PAYMENT_SETTLEMENT_PENDING while settlement is
+            still confirming (no pass is issued until it confirms).
+        '429':
+          description: Rate limited (paid replay path only; an unpaid first contact is never rate limited).
   /v1/agent/start-monitoring:
     post:
       operationId: nobuAgentPaidActivation

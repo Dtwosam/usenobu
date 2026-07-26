@@ -28,61 +28,111 @@ export const DEFAULT_SETTLEMENT_DECIMALS = 6;
 export const MONITORING_PRICE_ATOMIC_UNITS = "990000";
 export const MONITORING_PRICE_USD = 0.99;
 
+/**
+ * EIP-712 domain metadata the buyer needs to sign `exact` + EIP-3009.
+ *
+ * `name` is the literal on-chain `name()` of the settlement asset, read from
+ * the X Layer contract rather than assumed: 7 UTF-8 bytes
+ * `55 53 44 e2 82 ae 30` = U+0055 U+0053 U+0044 U+20AE U+0030 = "USD₮0".
+ * The contract implements no `version()` / `eip712Domain()`, so the official
+ * default documented for the `exact` scheme applies ("version optional,
+ * defaults \"2\"").
+ */
+export const SETTLEMENT_ASSET_EIP712_NAME = "USD₮0";
+export const SETTLEMENT_ASSET_EIP712_VERSION = "2";
+
+/** Window the buyer has to sign and replay before the challenge is stale. */
+export const X402_MAX_TIMEOUT_SECONDS = 300;
+
 export interface X402AcceptOption {
   scheme: string;
   network: string;
   asset: string;
   /** Atomic units, string per the official convention. */
   amount: string;
-  resource: string;
   /** Seller wallet — from server env only (never client-supplied). */
   payTo: string | null;
-  extra: { quote_id: string };
+  maxTimeoutSeconds: number;
+  extra: Record<string, string>;
+}
+
+/** x402 v2 carries a resource object; only legacy v1 used a bare string. */
+export interface X402Resource {
+  url: string;
+  description: string;
+  mimeType: string;
 }
 
 export interface X402Challenge {
   x402Version: number;
-  resource: string;
+  resource: X402Resource;
   accepts: X402AcceptOption[];
 }
 
-/** Builds a challenge bound to one specific quote and resource — never reusable across quotes. */
-export function buildX402Challenge(args: {
+export interface BuildX402ChallengeArgs {
+  /** Absolute HTTPS URL of the paid resource. */
   resource: string;
-  quoteId: string;
+  /** Accurate, human-readable description of exactly what is bought. */
+  description: string;
+  /** Quote-bound challenges carry the quote id; the Monitoring Pass does not. */
+  quoteId?: string;
   payTo?: string | null;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
-}): X402Challenge {
+}
+
+/**
+ * Builds an x402 v2 challenge. Amount, asset, network and payTo are always
+ * server-controlled; a quote id is included only when the challenge is bound
+ * to one specific enrollment quote.
+ */
+export function buildX402Challenge(
+  args: BuildX402ChallengeArgs,
+): X402Challenge {
   const env = args.env ?? process.env;
   const cfg = loadOkxSellerConfig(env);
   const payTo =
-    args.payTo !== undefined
-      ? args.payTo
-      : (cfg?.payTo ?? null);
+    args.payTo !== undefined ? args.payTo : (cfg?.payTo ?? null);
   return {
     x402Version: X402_VERSION,
-    resource: args.resource,
+    resource: {
+      url: args.resource,
+      description: args.description,
+      mimeType: "application/json",
+    },
     accepts: [
       {
         scheme: "exact",
         network: DEFAULT_SETTLEMENT_NETWORK,
         asset: DEFAULT_SETTLEMENT_ASSET,
         amount: MONITORING_PRICE_ATOMIC_UNITS,
-        resource: args.resource,
         payTo,
-        extra: { quote_id: args.quoteId },
+        maxTimeoutSeconds: X402_MAX_TIMEOUT_SECONDS,
+        extra: buildSettlementExtra(args.quoteId),
       },
     ],
   };
 }
 
+/** EIP-712 domain metadata, plus the quote binding when there is one. */
+export function buildSettlementExtra(
+  quoteId?: string,
+): Record<string, string> {
+  const extra: Record<string, string> = {
+    name: SETTLEMENT_ASSET_EIP712_NAME,
+    version: SETTLEMENT_ASSET_EIP712_VERSION,
+  };
+  if (quoteId) extra.quote_id = quoteId;
+  return extra;
+}
+
 export function encodeX402ChallengeHeader(challenge: X402Challenge): string {
-  return Buffer.from(JSON.stringify(challenge), "utf8").toString("base64url");
+  return Buffer.from(JSON.stringify(challenge), "utf8").toString("base64");
 }
 
 export interface X402VerifyInput {
   resource: string;
-  quoteId: string;
+  /** Absent for a Monitoring Pass, which binds to no quote. */
+  quoteId?: string;
   /** Raw header value from the client's replay — never persisted or logged. */
   authorizationHeader: string;
 }

@@ -78,7 +78,13 @@ function targetOffer(overrides: Partial<MatchableOffer> = {}): MatchableOffer {
 
 const EXACT_IDENTITY_FIELDS: DiscoveryPurchaseFields = {
   purchase_price: 24.99,
-  purchase_date: "2026-07-10",
+  // Relative to today: a fixed date ages out of Target's adjustment window
+  // and turns every quote-dependent case here into WINDOW_EXPIRED.
+  purchase_date: (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 3);
+    return d.toISOString().slice(0, 10);
+  })(),
   purchase_channel: "target_online",
   country: "US",
   region: "TX",
@@ -229,11 +235,16 @@ describe("Lane 8R.0 OKX seller adapter", () => {
   it("challenge is x402 v2 exact + quote-bound + server payTo", () => {
     const challenge = buildX402Challenge({
       resource: RESOURCE,
+      description: "Activate Nobu price monitoring for one purchase.",
       quoteId: "quote_abc",
       env: sellerEnv,
     });
     expect(challenge.x402Version).toBe(X402_VERSION);
     expect(challenge.x402Version).toBe(OKX_X402_VERSION);
+    // Lane 8R.3B — v2 carries a resource object; only legacy v1 used a string.
+    expect(challenge.resource.url).toBe(RESOURCE);
+    expect(challenge.resource.mimeType).toBe("application/json");
+    expect(challenge.resource.description.length).toBeGreaterThan(0);
     expect(challenge.accepts[0]!.scheme).toBe("exact");
     expect(challenge.accepts[0]!.network).toBe(DEFAULT_SETTLEMENT_NETWORK);
     expect(challenge.accepts[0]!.asset.toLowerCase()).toBe(
@@ -241,7 +252,11 @@ describe("Lane 8R.0 OKX seller adapter", () => {
     );
     expect(challenge.accepts[0]!.amount).toBe(MONITORING_PRICE_ATOMIC_UNITS);
     expect(challenge.accepts[0]!.payTo).toBe(PAY_TO);
+    expect(challenge.accepts[0]!.maxTimeoutSeconds).toBeGreaterThan(0);
     expect(challenge.accepts[0]!.extra.quote_id).toBe("quote_abc");
+    // EIP-712 domain metadata read from the on-chain token, not assumed.
+    expect(challenge.accepts[0]!.extra.name).toBe("USD₮0");
+    expect(challenge.accepts[0]!.extra.version).toBe("2");
   });
 
   it("unauthorized/invalid quote never calls OKX", async () => {

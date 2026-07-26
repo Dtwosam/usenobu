@@ -24,6 +24,7 @@ import {
   discoverProductForAgent,
   preflightMonitoringForAgent,
 } from "../web/agent-preflight-service.js";
+import { redeemMonitoringPassForAgent } from "../payments/redeem-monitoring-pass.js";
 import {
   checkMonitoringStatusForAgent,
   listActiveMonitorsForAgent,
@@ -375,6 +376,49 @@ export async function runAgentAction(
         monitoring_stop_reason: result.monitoring_stop_reason,
         message:
           "Monitoring stopped for this purchase. Purchase history remains available.",
+      },
+    };
+  }
+
+  if (req.action === "REDEEM_MONITORING_PASS") {
+    const result = await redeemMonitoringPassForAgent({
+      monitoringPassId: req.monitoring_pass_id,
+      monitoringPassToken: req.monitoring_pass_token,
+      quoteId: req.quote_id,
+      connectionId: req.connection_id,
+      connectionToken: req.connection_token,
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+      now: deps.connectionNow,
+    });
+    if (!result.ok) {
+      return {
+        http_status: result.http_status,
+        body: {
+          agent_state: "MONITORING_PASS_REDEMPTION",
+          status: result.status,
+          // Reason-agnostic: never reveals which specific gate failed.
+          message:
+            "This Monitoring Pass could not be redeemed right now. The pass must be unused, and the purchase must still be confirmed, eligible, consented and payment-ready under a current quote from this connection.",
+          next_action:
+            "Re-run PREFLIGHT_MONITORING for a fresh quote_id, then retry REDEEM_MONITORING_PASS with the same pass. An unredeemed pass is not consumed by a failed attempt.",
+          documentation: "https://www.usenobu.xyz/okx",
+        },
+      };
+    }
+    return {
+      http_status: 200,
+      body: {
+        agent_state: "MONITORING_PASS_REDEMPTION",
+        status: result.status,
+        monitor_id: result.monitor_id,
+        ...("monitoring_deadline" in result
+          ? { monitoring_deadline: result.monitoring_deadline }
+          : {}),
+        message:
+          result.status === "ACTIVATION_PENDING"
+            ? "Payment and pass are recorded. Activation is completing; no further payment is required."
+            : "Monitoring is active for this purchase. Nobu will alert you if a safely matched lower price appears.",
       },
     };
   }

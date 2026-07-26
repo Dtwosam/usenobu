@@ -191,10 +191,56 @@ CREATE INDEX IF NOT EXISTS idx_monitor_activations_purchase
   ON monitor_activations (purchase_id);
 CREATE INDEX IF NOT EXISTS idx_monitor_activations_status
   ON monitor_activations (status);
+
+-- Lane 8R.3B — Nobu Monitoring Pass. The paid A2MCP service sells a pass
+-- with no prerequisites, so payment is decoupled from enrollment: the 402
+-- challenge needs no quote, connection, purchase or consent. Exactly-once
+-- issuance is anchored on the OKX-verified settlement reference, not on any
+-- caller-supplied identifier.
+--
+-- authorization_digest is sha256 of the replayed PAYMENT-SIGNATURE header.
+-- The raw header is never stored, logged, or returned; the digest exists
+-- only so a repeated replay of the same signed payment resolves to the same
+-- payment record instead of starting a second settlement.
+CREATE TABLE IF NOT EXISTS monitoring_pass_payments (
+  id TEXT PRIMARY KEY NOT NULL,
+  authorization_digest TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'verifying', -- verifying | settled | failed
+  settlement_ref TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_monitoring_pass_payments_status
+  ON monitoring_pass_payments (status);
+
+-- One verified settlement issues exactly one pass (UNIQUE settlement_ref).
+-- pass_token_hash is sha256 of the opaque token returned once to the buyer;
+-- the token itself is never stored.
+CREATE TABLE IF NOT EXISTS monitoring_passes (
+  id TEXT PRIMARY KEY NOT NULL,
+  pass_token_hash TEXT NOT NULL,
+  settlement_ref TEXT NOT NULL UNIQUE,
+  payment_id TEXT NOT NULL,
+  price_amount NUMERIC NOT NULL,
+  price_currency TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'issued', -- issued | redeemed
+  redeemed_at TEXT,
+  redeemed_quote_id TEXT,
+  redeemed_purchase_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_monitoring_passes_status
+  ON monitoring_passes (status);
 `;
 
 /** Best-effort column adds for existing durable DBs (Postgres / SQLite). */
 export const AUTH_DURABLE_SCHEMA_PATCHES = [
+  // Lane 8R.3B — which payment record authorized this activation when it came
+  // from a Monitoring Pass rather than a quote-bound payment attempt.
+  `ALTER TABLE monitor_activations ADD COLUMN monitoring_pass_id TEXT`,
   `ALTER TABLE account_purchase_blobs ADD COLUMN archived_at TEXT`,
   `ALTER TABLE account_purchase_blobs ADD COLUMN user_outcome TEXT`,
   `ALTER TABLE account_purchase_blobs ADD COLUMN user_outcome_at TEXT`,

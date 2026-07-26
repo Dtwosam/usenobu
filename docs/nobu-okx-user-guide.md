@@ -32,8 +32,8 @@ Use current official OKX / Onchain OS information only. Do not invent marketplac
 6. **Complete free purchase preparation**  
    Describe the purchase, confirm the exact product, verify your alert email, and complete free preflight steps.
 
-7. **Activate monitoring**  
-   Activate scheduled monitoring for one confirmed and eligible purchase with a one-time **$0.99** payment.
+7. **Buy a Monitoring Pass and activate monitoring**  
+   Buy a one-time **$0.99** **Nobu Monitoring Pass**, then redeem it to activate scheduled monitoring for one confirmed and eligible purchase. Buying the pass needs nothing set up first; redeeming it does. If the purchase turns out not to be eligible, the pass is **not** used up.
 
 8. **Manage the monitor**  
    Check status, list active monitors, enable or disable email alerts, or stop monitoring.
@@ -46,17 +46,19 @@ Label as **Example request** only:
 Use Nobu to monitor a recent Target purchase for a possible price difference.
 ```
 
-## One-time monitoring activation — $0.99
+## Nobu Monitoring Pass — one-time $0.99
 
-The payment activates scheduled monitoring for **one confirmed and eligible purchase**. It does **not** guarantee a lower price, alert, refund, adjustment, or savings.
+A Monitoring Pass activates scheduled monitoring for **one confirmed and eligible purchase**. It does **not** guarantee a lower price, alert, refund, adjustment, or savings.
+
+You can buy a pass at any time — no setup is required first. A pass is only used up when it successfully activates monitoring, so a purchase that turns out to be ineligible leaves your pass intact and redeemable.
 
 Payment uses the official OKX agent payment flow (x402). Settlement verification is performed by Nobu’s server using official OKX seller APIs when credentials are configured.
 
 ## Free vs paid
 
-**Free:** discovery, exact confirmation, email verification, preflight/eligibility, status, list monitors, enable/disable email alerts, stop monitoring, revoke connection.
+**Free:** discovery, exact confirmation, email verification, preflight/eligibility, **redeeming a Monitoring Pass**, status, list monitors, enable/disable email alerts, stop monitoring, revoke connection.
 
-**Paid:** activate scheduled monitoring for one confirmed eligible purchase ($0.99).
+**Paid:** one Nobu Monitoring Pass ($0.99), redeemable to activate monitoring for one confirmed eligible purchase.
 
 ## Monitor-management actions
 

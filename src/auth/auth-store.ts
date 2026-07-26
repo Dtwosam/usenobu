@@ -140,6 +140,34 @@ export type MonitorActivationRow = {
   status: string;
   created_at: string;
   projected_at: string | null;
+  /** Lane 8R.3B — set when a Monitoring Pass authorized this activation. */
+  monitoring_pass_id?: string | null;
+};
+
+/** Lane 8R.3B — an in-flight or completed Monitoring Pass payment. */
+export type MonitoringPassPaymentRow = {
+  id: string;
+  authorization_digest: string;
+  status: string;
+  settlement_ref: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Lane 8R.3B — one issued Monitoring Pass. */
+export type MonitoringPassRow = {
+  id: string;
+  pass_token_hash: string;
+  settlement_ref: string;
+  payment_id: string;
+  price_amount: number;
+  price_currency: string;
+  status: string;
+  redeemed_at: string | null;
+  redeemed_quote_id: string | null;
+  redeemed_purchase_id: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type PurchaseBlobRow = {
@@ -360,6 +388,69 @@ export interface AuthStore {
   }): Promise<boolean>;
   /** For reconciliation — every activation still awaiting projection. */
   listPendingProjectionActivations(): Promise<MonitorActivationRow[]>;
+
+  // --- Lane 8R.3B: Nobu Monitoring Pass ---
+  /**
+   * Resolves an in-flight or completed payment by the sha256 digest of the
+   * replayed authorization header. The raw header is never stored — the
+   * digest exists only so a repeated replay of the same signed payment
+   * resolves to the same record instead of settling twice.
+   */
+  getMonitoringPassPaymentByDigest(
+    authorizationDigest: string,
+  ): Promise<MonitoringPassPaymentRow | null>;
+  /** Insert-or-return: a concurrent duplicate returns the winner's row. */
+  upsertMonitoringPassPayment(args: {
+    id: string;
+    authorizationDigest: string;
+    nowIso: string;
+  }): Promise<MonitoringPassPaymentRow>;
+  updateMonitoringPassPayment(args: {
+    id: string;
+    status: "verifying" | "settled" | "failed";
+    settlementRef: string | null;
+    nowIso: string;
+  }): Promise<boolean>;
+  getMonitoringPassBySettlementRef(
+    settlementRef: string,
+  ): Promise<MonitoringPassRow | null>;
+  getMonitoringPassById(passId: string): Promise<MonitoringPassRow | null>;
+  /**
+   * Exactly one pass per verified settlement (UNIQUE settlement_ref). A
+   * duplicate or concurrent replay of the same settlement returns the
+   * existing pass rather than issuing a second one.
+   */
+  issueMonitoringPass(args: {
+    id: string;
+    passTokenHash: string;
+    settlementRef: string;
+    paymentId: string;
+    priceAmount: number;
+    priceCurrency: string;
+    nowIso: string;
+  }): Promise<{
+    outcome: "issued" | "already_existed";
+    pass: MonitoringPassRow;
+  }>;
+  /**
+   * One atomic transaction inside this store: consume the pass (only if
+   * still 'issued'), consume the quote (only if still 'issued'), and insert
+   * exactly one monitor_activations row. Any failure leaves the pass
+   * unconsumed. Mirrors recordSettledPaymentAndActivation's race handling.
+   */
+  redeemMonitoringPassAndActivate(args: {
+    passId: string;
+    quoteId: string;
+    activationId: string;
+    activationKey: string;
+    purchaseId: string;
+    fingerprintId: string;
+    nowIso: string;
+  }): Promise<
+    | { outcome: "recorded" | "already_existed"; activation: MonitorActivationRow }
+    | { outcome: "pass_not_redeemable" }
+    | { outcome: "quote_not_issued" }
+  >;
   /**
    * Lane 7.4F — active agent-originated monitors for scheduler hydrate.
    * Bounded; ordered oldest-first for fairness.
@@ -1097,6 +1188,163 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         )
         .all() as MonitorActivationRow[];
     },
+    async getMonitoringPassPaymentByDigest(authorizationDigest) {
+      return (
+        (db
+          .prepare(
+            `SELECT * FROM monitoring_pass_payments WHERE authorization_digest = ?`,
+          )
+          .get(authorizationDigest) as MonitoringPassPaymentRow | undefined) ??
+        null
+      );
+    },
+    async upsertMonitoringPassPayment(args) {
+      db.prepare(
+        `INSERT INTO monitoring_pass_payments
+         (id, authorization_digest, status, settlement_ref, created_at, updated_at)
+         VALUES (?,?,'verifying',NULL,?,?)
+         ON CONFLICT(authorization_digest) DO NOTHING`,
+      ).run(args.id, args.authorizationDigest, args.nowIso, args.nowIso);
+      return (await this.getMonitoringPassPaymentByDigest(
+        args.authorizationDigest,
+      ))!;
+    },
+    async updateMonitoringPassPayment(args) {
+      const r = db
+        .prepare(
+          `UPDATE monitoring_pass_payments
+           SET status = ?, settlement_ref = ?, updated_at = ?
+           WHERE id = ?`,
+        )
+        .run(args.status, args.settlementRef, args.nowIso, args.id);
+      return Number(r.changes ?? 0) === 1;
+    },
+    async getMonitoringPassBySettlementRef(settlementRef) {
+      return (
+        (db
+          .prepare(`SELECT * FROM monitoring_passes WHERE settlement_ref = ?`)
+          .get(settlementRef) as MonitoringPassRow | undefined) ?? null
+      );
+    },
+    async getMonitoringPassById(passId) {
+      return (
+        (db
+          .prepare(`SELECT * FROM monitoring_passes WHERE id = ?`)
+          .get(passId) as MonitoringPassRow | undefined) ?? null
+      );
+    },
+    async issueMonitoringPass(args) {
+      db.prepare(
+        `INSERT INTO monitoring_passes
+         (id, pass_token_hash, settlement_ref, payment_id, price_amount,
+          price_currency, status, redeemed_at, redeemed_quote_id,
+          redeemed_purchase_id, created_at, updated_at)
+         VALUES (?,?,?,?,?,?,'issued',NULL,NULL,NULL,?,?)
+         ON CONFLICT(settlement_ref) DO NOTHING`,
+      ).run(
+        args.id,
+        args.passTokenHash,
+        args.settlementRef,
+        args.paymentId,
+        args.priceAmount,
+        args.priceCurrency,
+        args.nowIso,
+        args.nowIso,
+      );
+      const pass = (await this.getMonitoringPassBySettlementRef(
+        args.settlementRef,
+      ))!;
+      return {
+        outcome: pass.id === args.id ? ("issued" as const) : ("already_existed" as const),
+        pass,
+      };
+    },
+    async redeemMonitoringPassAndActivate(args) {
+      // Idempotent replay: this pass already redeemed for this exact quote.
+      const before = await this.getMonitoringPassById(args.passId);
+      if (
+        before &&
+        before.status === "redeemed" &&
+        before.redeemed_quote_id === args.quoteId
+      ) {
+        const existing = await this.getMonitorActivationByQuoteId(args.quoteId);
+        if (existing) {
+          return { outcome: "already_existed" as const, activation: existing };
+        }
+      }
+
+      db.exec("BEGIN");
+      try {
+        const passResult = db
+          .prepare(
+            `UPDATE monitoring_passes
+             SET status = 'redeemed', redeemed_at = ?, redeemed_quote_id = ?,
+                 redeemed_purchase_id = ?, updated_at = ?
+             WHERE id = ? AND status = 'issued'`,
+          )
+          .run(
+            args.nowIso,
+            args.quoteId,
+            args.purchaseId,
+            args.nowIso,
+            args.passId,
+          );
+        if (Number(passResult.changes ?? 0) === 0) {
+          db.exec("ROLLBACK");
+          return { outcome: "pass_not_redeemable" as const };
+        }
+
+        const quoteResult = db
+          .prepare(
+            `UPDATE monitoring_enrollment_quotes
+             SET status = 'consumed'
+             WHERE id = ? AND status = 'issued'`,
+          )
+          .run(args.quoteId);
+        if (Number(quoteResult.changes ?? 0) === 0) {
+          // Never consume a pass for a quote this transaction could not claim.
+          db.exec("ROLLBACK");
+          return { outcome: "quote_not_issued" as const };
+        }
+
+        db.prepare(
+          `INSERT INTO monitor_activations
+           (id, quote_id, activation_key, payment_attempt_id, purchase_id,
+            fingerprint_id, monitor_id, status, created_at, projected_at,
+            monitoring_pass_id)
+           VALUES (?,?,?,?,?,?,?,'pending_projection',?,NULL,?)
+           ON CONFLICT(quote_id) DO NOTHING`,
+        ).run(
+          args.activationId,
+          args.quoteId,
+          args.activationKey,
+          args.passId,
+          args.purchaseId,
+          args.fingerprintId,
+          args.purchaseId,
+          args.nowIso,
+          args.passId,
+        );
+
+        db.exec("COMMIT");
+      } catch (err) {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        if (!isUniqueViolationError(err)) throw err;
+      }
+
+      const existing = await this.getMonitorActivationByQuoteId(args.quoteId);
+      if (existing && existing.id === args.activationId) {
+        return { outcome: "recorded" as const, activation: existing };
+      }
+      if (existing) {
+        return { outcome: "already_existed" as const, activation: existing };
+      }
+      return { outcome: "quote_not_issued" as const };
+    },
     async listActiveMonitorActivations(args) {
       const limit = Math.min(Math.max(1, args?.limit ?? 50), 200);
       return db
@@ -1124,6 +1372,15 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
 let pgPool: pg.Pool | null = null;
 let pgSchemaReady = false;
 
+/**
+ * Lane 8R.3B bounded database waits. Chosen so the worst case still leaves
+ * an A2MCP caller a usable response well inside a request window, and so no
+ * registered endpoint can hang indefinitely on an unhealthy database.
+ */
+export const AUTH_DB_CONNECTION_TIMEOUT_MS = 5_000;
+export const AUTH_DB_STATEMENT_TIMEOUT_MS = 8_000;
+export const AUTH_DB_IDLE_TIMEOUT_MS = 30_000;
+
 function getPool(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
 ): pg.Pool {
@@ -1137,6 +1394,13 @@ function getPool(
         ? undefined
         : { rejectUnauthorized: false },
     max: 4,
+    // Lane 8R.3B — bounded waits. `pg` defaults connectionTimeoutMillis to 0
+    // (wait forever), which Lane 8R.3A identified as the only genuinely
+    // unbounded path on both registered A2MCP endpoints.
+    connectionTimeoutMillis: AUTH_DB_CONNECTION_TIMEOUT_MS,
+    idleTimeoutMillis: AUTH_DB_IDLE_TIMEOUT_MS,
+    statement_timeout: AUTH_DB_STATEMENT_TIMEOUT_MS,
+    query_timeout: AUTH_DB_STATEMENT_TIMEOUT_MS,
   });
   return pgPool;
 }
@@ -1842,6 +2106,159 @@ export function createPostgresAuthStore(
          ORDER BY created_at ASC`,
       );
       return r.rows;
+    },
+    async getMonitoringPassPaymentByDigest(authorizationDigest) {
+      const r = await q<MonitoringPassPaymentRow>(
+        `SELECT * FROM monitoring_pass_payments WHERE authorization_digest = $1`,
+        [authorizationDigest],
+      );
+      return r.rows[0] ?? null;
+    },
+    async upsertMonitoringPassPayment(args) {
+      await q(
+        `INSERT INTO monitoring_pass_payments
+         (id, authorization_digest, status, settlement_ref, created_at, updated_at)
+         VALUES ($1,$2,'verifying',NULL,$3,$3)
+         ON CONFLICT (authorization_digest) DO NOTHING`,
+        [args.id, args.authorizationDigest, args.nowIso],
+      );
+      return (await this.getMonitoringPassPaymentByDigest(
+        args.authorizationDigest,
+      ))!;
+    },
+    async updateMonitoringPassPayment(args) {
+      const r = await q(
+        `UPDATE monitoring_pass_payments
+         SET status = $1, settlement_ref = $2, updated_at = $3
+         WHERE id = $4`,
+        [args.status, args.settlementRef, args.nowIso, args.id],
+      );
+      return (r.rowCount ?? 0) === 1;
+    },
+    async getMonitoringPassBySettlementRef(settlementRef) {
+      const r = await q<MonitoringPassRow>(
+        `SELECT * FROM monitoring_passes WHERE settlement_ref = $1`,
+        [settlementRef],
+      );
+      return r.rows[0] ?? null;
+    },
+    async getMonitoringPassById(passId) {
+      const r = await q<MonitoringPassRow>(
+        `SELECT * FROM monitoring_passes WHERE id = $1`,
+        [passId],
+      );
+      return r.rows[0] ?? null;
+    },
+    async issueMonitoringPass(args) {
+      await q(
+        `INSERT INTO monitoring_passes
+         (id, pass_token_hash, settlement_ref, payment_id, price_amount,
+          price_currency, status, redeemed_at, redeemed_quote_id,
+          redeemed_purchase_id, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,'issued',NULL,NULL,NULL,$7,$7)
+         ON CONFLICT (settlement_ref) DO NOTHING`,
+        [
+          args.id,
+          args.passTokenHash,
+          args.settlementRef,
+          args.paymentId,
+          args.priceAmount,
+          args.priceCurrency,
+          args.nowIso,
+        ],
+      );
+      const pass = (await this.getMonitoringPassBySettlementRef(
+        args.settlementRef,
+      ))!;
+      return {
+        outcome:
+          pass.id === args.id ? ("issued" as const) : ("already_existed" as const),
+        pass,
+      };
+    },
+    async redeemMonitoringPassAndActivate(args) {
+      const before = await this.getMonitoringPassById(args.passId);
+      if (
+        before &&
+        before.status === "redeemed" &&
+        before.redeemed_quote_id === args.quoteId
+      ) {
+        const existing = await this.getMonitorActivationByQuoteId(args.quoteId);
+        if (existing) {
+          return { outcome: "already_existed" as const, activation: existing };
+        }
+      }
+
+      const client = await pool.connect();
+      let claimFailure: "pass_not_redeemable" | "quote_not_issued" | null = null;
+      try {
+        await client.query("BEGIN");
+        const passResult = await client.query(
+          `UPDATE monitoring_passes
+           SET status = 'redeemed', redeemed_at = $1, redeemed_quote_id = $2,
+               redeemed_purchase_id = $3, updated_at = $1
+           WHERE id = $4 AND status = 'issued'`,
+          [args.nowIso, args.quoteId, args.purchaseId, args.passId],
+        );
+        if ((passResult.rowCount ?? 0) === 0) {
+          await client.query("ROLLBACK");
+          claimFailure = "pass_not_redeemable";
+        } else {
+          const quoteResult = await client.query(
+            `UPDATE monitoring_enrollment_quotes
+             SET status = 'consumed'
+             WHERE id = $1 AND status = 'issued'`,
+            [args.quoteId],
+          );
+          if ((quoteResult.rowCount ?? 0) === 0) {
+            // Never consume a pass for a quote this transaction could not claim.
+            await client.query("ROLLBACK");
+            claimFailure = "quote_not_issued";
+          } else {
+            await client.query(
+              `INSERT INTO monitor_activations
+               (id, quote_id, activation_key, payment_attempt_id, purchase_id,
+                fingerprint_id, monitor_id, status, created_at, projected_at,
+                monitoring_pass_id)
+               VALUES ($1,$2,$3,$4,$5,$6,$5,'pending_projection',$7,NULL,$4)
+               ON CONFLICT (quote_id) DO NOTHING`,
+              [
+                args.activationId,
+                args.quoteId,
+                args.activationKey,
+                args.passId,
+                args.purchaseId,
+                args.fingerprintId,
+                args.nowIso,
+              ],
+            );
+            await client.query("COMMIT");
+          }
+        }
+      } catch (err) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        if (!isUniqueViolationError(err)) {
+          client.release();
+          throw err;
+        }
+      } finally {
+        client.release();
+      }
+
+      if (claimFailure) return { outcome: claimFailure };
+
+      const existing = await this.getMonitorActivationByQuoteId(args.quoteId);
+      if (existing && existing.id === args.activationId) {
+        return { outcome: "recorded" as const, activation: existing };
+      }
+      if (existing) {
+        return { outcome: "already_existed" as const, activation: existing };
+      }
+      return { outcome: "quote_not_issued" as const };
     },
     async listActiveMonitorActivations(args) {
       const limit = Math.min(Math.max(1, args?.limit ?? 50), 200);

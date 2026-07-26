@@ -11,9 +11,11 @@
  * Does not replace the durable activation saga — only supplies a verified settlement ref.
  */
 import {
+  buildSettlementExtra,
   DEFAULT_SETTLEMENT_ASSET,
   DEFAULT_SETTLEMENT_NETWORK,
   MONITORING_PRICE_ATOMIC_UNITS,
+  X402_MAX_TIMEOUT_SECONDS,
   type X402Verifier,
   type X402VerifyInput,
   type X402VerifyResult,
@@ -71,9 +73,15 @@ export function parsePaymentPayloadFromHeader(
   }
 }
 
+/**
+ * Server-built requirements. These must mirror the accepts entry the buyer
+ * signed, so they carry the same maxTimeoutSeconds and EIP-712 token
+ * metadata. `quoteId` is absent for a Monitoring Pass, which is sold with no
+ * prerequisites and therefore binds to no quote.
+ */
 export function buildServerPaymentRequirements(args: {
   resource: string;
-  quoteId: string;
+  quoteId?: string;
   payTo: string;
   amount?: string;
   network?: string;
@@ -86,7 +94,8 @@ export function buildServerPaymentRequirements(args: {
     amount: args.amount ?? MONITORING_PRICE_ATOMIC_UNITS,
     resource: args.resource,
     payTo: args.payTo,
-    extra: { quote_id: args.quoteId },
+    maxTimeoutSeconds: X402_MAX_TIMEOUT_SECONDS,
+    extra: buildSettlementExtra(args.quoteId),
   };
 }
 

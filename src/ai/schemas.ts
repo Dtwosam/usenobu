@@ -236,6 +236,19 @@ export const AgentRequestSchema = z.discriminatedUnion("action", [
       purchase_id: z.string().min(1),
     })
     .strict(),
+  // Lane 8R.3B — redeem a paid Nobu Monitoring Pass. The pass is bought at
+  // the separate paid service; every identity, confirmation, eligibility and
+  // consent gate is enforced here, before the pass is consumed.
+  z
+    .object({
+      action: z.literal("REDEEM_MONITORING_PASS"),
+      monitoring_pass_id: z.string().min(1),
+      monitoring_pass_token: z.string().min(1),
+      quote_id: z.string().min(1),
+      connection_id: z.string().min(1),
+      connection_token: z.string().min(1),
+    })
+    .strict(),
 ]);
 
 export type AgentRequest = z.infer<typeof AgentRequestSchema>;

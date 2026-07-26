@@ -105,7 +105,8 @@ export type StartMonitoringResult =
       http_status: 402;
     };
 
-async function projectActivation(args: {
+/** Exported for Lane 8R.3B pass redemption — same projection, no duplicate saga. */
+export async function projectActivation(args: {
   purchaseId: string;
   nowIso: string;
 }): Promise<{ ok: boolean; monitoringDeadline: string | null }> {
@@ -141,7 +142,14 @@ async function projectActivation(args: {
   }
 }
 
-async function resolveActivationResponse(args: {
+/**
+ * Exported for Lane 8R.3B pass redemption. Phases 2 and 3 of the durable
+ * saga: project the activation to the purchases store, then mark it active
+ * only once that projection has genuinely succeeded. A failed projection
+ * stays `pending_projection` and is retried by
+ * `reconcilePendingActivations` — never by taking another payment.
+ */
+export async function resolveActivationResponse(args: {
   activation: MonitorActivationRow;
   sqliteDb?: NobuDatabase;
   env?: EnvRecord;
@@ -263,6 +271,8 @@ export async function startMonitoringForAgent(
 
   const challenge = buildX402Challenge({
     resource: args.resource,
+    description:
+      "Activate Nobu price monitoring for one confirmed, eligible Target purchase ($0.99). Payment does not guarantee a price drop, alert, refund, adjustment or savings.",
     quoteId: args.quoteId,
     env: args.env,
   });

@@ -57,9 +57,20 @@ function targetOffer(overrides: Partial<MatchableOffer> = {}): MatchableOffer {
   };
 }
 
+/**
+ * Relative to today, not hardcoded: a fixed date silently ages out of
+ * Target's adjustment window and turns every quote-dependent case in this
+ * file into a WINDOW_EXPIRED failure once enough wall-clock time passes.
+ */
+function recentPurchaseDate(daysAgo = 3): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+}
+
 const EXACT_IDENTITY_FIELDS: DiscoveryPurchaseFields = {
   purchase_price: 24.99,
-  purchase_date: "2026-07-10",
+  purchase_date: recentPurchaseDate(),
   purchase_channel: "target_online",
   country: "US",
   region: "TX",
@@ -240,7 +251,9 @@ describe("Lane 7.4D $0.99 paid monitoring activation", () => {
     expect(result.ok).toBe(false);
     if (result.ok || !("challenge" in result)) throw new Error("expected a 402 challenge");
     expect(result.http_status).toBe(402);
-    expect(result.challenge.resource).toBe(RESOURCE);
+    // Lane 8R.3B — x402 v2 carries a resource object, not a bare string.
+    expect(result.challenge.resource.url).toBe(RESOURCE);
+    expect(result.challenge.resource.mimeType).toBe("application/json");
     expect(result.challenge.accepts[0]!.extra.quote_id).toBe(quoteId);
     expect(result.challenge.accepts[0]!.amount).toBe("990000");
     expect(result.challengeHeaderValue.length).toBeGreaterThan(0);

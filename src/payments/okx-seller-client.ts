@@ -34,6 +34,8 @@ export type PaymentRequirements = {
   amount: string;
   resource: string;
   payTo: string;
+  /** Must mirror the accepts entry the buyer signed (Lane 8R.3B). */
+  maxTimeoutSeconds?: number;
   extra?: Record<string, unknown>;
 };
 

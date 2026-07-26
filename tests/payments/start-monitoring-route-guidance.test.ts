@@ -111,7 +111,11 @@ describe("responseBody — ACTION_NOT_AUTHORIZED / CONNECTION_EXPIRED guidance (
       status: "PAYMENT_PENDING",
       challenge: {
         x402Version: 2,
-        resource: "https://usenobu.vercel.app/v1/agent/start-monitoring",
+        resource: {
+          url: "https://usenobu.vercel.app/v1/agent/start-monitoring",
+          description: "Activate Nobu price monitoring for one purchase.",
+          mimeType: "application/json",
+        },
         accepts: [],
       },
       challengeHeaderValue: "redacted",

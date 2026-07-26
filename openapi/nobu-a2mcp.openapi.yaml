@@ -16,27 +16,54 @@ servers:
     description: Local Next.js dev only — not external proof
 paths:
   /v1/agent:
+    get:
+      operationId: nobuAgentDescriptor
+      summary: Service descriptor (Lane 8R.3B first-contact compatibility path)
+      description: >-
+        Returns the same `status: READY` descriptor as an unshaped POST:
+        supported actions with their required fields, the recommended first
+        action, and one working example request. Computed purely — no AI,
+        search, email, or database work — so first contact cannot inherit any
+        dependency's latency or failure mode.
+      responses:
+        '200':
+          description: Service descriptor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceDescriptor'
     post:
       operationId: nobuAgent
       summary: Bounded free Nobu agent actions
       description: >-
         Free actions only (never HTTP 402). Actions include purchase understanding,
         product discovery and exact confirmation, email verification, preflight
-        (consent + eligibility + quote preparation), monitor list/status, email-alert
-        preference, stop monitoring, and connection revocation. Backward-compatible
-        with the original UNDERSTAND_PURCHASE, CHECK_CONFIRMED_PURCHASE, and
-        CHECK_MONITORING_STATUS actions. Does not expose secrets or internal-only fields.
+        (consent + eligibility + quote preparation), Monitoring Pass redemption,
+        monitor list/status, email-alert preference, stop monitoring, and connection
+        revocation. Backward-compatible with the original UNDERSTAND_PURCHASE,
+        CHECK_CONFIRMED_PURCHASE, and CHECK_MONITORING_STATUS actions. Does not
+        expose secrets or internal-only fields.
+
+
+        Lane 8R.3B first contact: a bodyless POST, `{}`, or any envelope with no
+        recognised `action` (for example `message`, `query`, or `prompt`) returns
+        HTTP 200 with the service descriptor instead of a 400, so a caller can
+        always discover what to send. A recognised `action` with invalid fields
+        still returns its existing guided 400 — valid-action behaviour is unchanged.
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AgentRequest'
+              oneOf:
+                - $ref: '#/components/schemas/AgentRequest'
+                - type: object
+                  description: Any unshaped first-contact body; answered with the descriptor.
       responses:
         '200':
-          description: Agent action result
+          description: Agent action result, or the service descriptor on first contact
         '400':
-          description: Invalid input
+          description: Invalid JSON, or a recognised action with invalid fields
         '401':
           description: Missing or invalid connection credentials for a protected action
         '404':
@@ -76,6 +103,74 @@ paths:
           description: Service health
 components:
   schemas:
+    ServiceDescriptor:
+      type: object
+      description: >-
+        Lane 8R.3B — the free service's first-contact response. Everything a
+        caller needs to construct a valid request without external docs.
+      required: [agent_state, status, supported_actions, example_request, next_action]
+      properties:
+        agent_state:
+          type: string
+          const: SERVICE_DESCRIPTOR
+        status:
+          type: string
+          const: READY
+        service:
+          type: string
+        protocol:
+          type: string
+          const: A2MCP
+        request:
+          type: object
+          properties:
+            method:
+              type: string
+            content_type:
+              type: string
+            envelope:
+              type: string
+        supported_actions:
+          type: array
+          items:
+            type: object
+            required: [action, summary, required_fields]
+            properties:
+              action:
+                type: string
+              summary:
+                type: string
+              required_fields:
+                type: array
+                items:
+                  type: string
+              optional_fields:
+                type: array
+                items:
+                  type: string
+        recommended_first_action:
+          type: string
+        example_request:
+          type: object
+          additionalProperties: true
+        paid_service:
+          type: object
+          description: Where to buy the Monitoring Pass that REDEEM_MONITORING_PASS consumes.
+          properties:
+            name:
+              type: string
+            endpoint:
+              type: string
+            price:
+              type: string
+            description:
+              type: string
+        retailer_support:
+          type: string
+        documentation:
+          type: string
+        next_action:
+          type: string
     TargetPriceCheckRequest:
       type: object
       required:
@@ -426,5 +521,35 @@ components:
             connection_token:
               type: string
             purchase_id:
+              type: string
+        - type: object
+          description: >-
+            Lane 8R.3B — redeems a paid Nobu Monitoring Pass bought at
+            POST /v1/agent/monitoring-pass. Every identity, confirmation,
+            eligibility and consent gate is enforced here; a failed redemption
+            never consumes the pass, and one pass activates exactly one monitor.
+          required:
+            - action
+            - monitoring_pass_id
+            - monitoring_pass_token
+            - quote_id
+            - connection_id
+            - connection_token
+          additionalProperties: false
+          properties:
+            action:
+              type: string
+              const: REDEEM_MONITORING_PASS
+            monitoring_pass_id:
+              type: string
+            monitoring_pass_token:
+              type: string
+              description: One-time opaque pass credential; never log or store it.
+            quote_id:
+              type: string
+              description: From a prior PREFLIGHT_MONITORING MONITORING_PAYMENT_READY response.
+            connection_id:
+              type: string
+            connection_token:
               type: string
 
