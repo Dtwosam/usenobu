@@ -1,0 +1,47 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.4",
+  "source": "docs/proof/lane-8r-3c-4-payload-schema-repair/corrected-payload-candidate.json#payload",
+  "serialization": "JSON.stringify(payload)",
+  "json_parse": true,
+  "element_count": 2,
+  "ids": [
+    {
+      "value": "33561",
+      "type": "string"
+    },
+    {
+      "value": "35958",
+      "type": "string"
+    }
+  ],
+  "operations": [
+    "update",
+    "update"
+  ],
+  "service_types": [
+    "A2MCP",
+    "A2MCP"
+  ],
+  "fees": [
+    "0",
+    "0.99"
+  ],
+  "endpoints": [
+    "https://usenobu.vercel.app/v1/agent",
+    "https://usenobu.vercel.app/v1/agent/monitoring-pass"
+  ],
+  "description_non_empty_lines": [
+    3,
+    3
+  ],
+  "required_keys_present": true,
+  "intended_values_present": true,
+  "urls_in_descriptions": false,
+  "test_markers_in_descriptions": false,
+  "guaranteed_profit_or_return_wording": false,
+  "utf8_bytes": 1162,
+  "sha256": "4926b9d2afb790a71d45b32ef0c81ae9114666bf9c9da40ea1fa1b64b9215fa9",
+  "state_changing_command_run": false,
+  "secrets_present": false
+}

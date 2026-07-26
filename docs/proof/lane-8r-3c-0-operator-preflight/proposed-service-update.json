@@ -36,5 +36,40 @@
       "serviceDescription": "changed -- describes the pass-issuance flow instead of direct activation"
     }
   },
-  "expected_state_changing_effect": "One on-chain agent-identity write against #5541 covering both services in a single call. Per agent-update-help.txt, this is expected to: (1) leave agentId=5541 and both service ids unchanged, matching the runbook's 'no second ASP / no new service ids' requirement; (2) re-trigger OKX marketplace QA/review on the listing (the installed CLI documents QA as running at register/update, not at activate), moving approvalDisplayStatus off 'Listing rejected' (5) into a new pending-review state; (3) cost gas on the configured wallet. It does not itself call agent activate, submit a payment, register a User-role identity, or resubmit -- those remain separate operator steps (2 onward) in the runbook."
+  "expected_state_changing_effect": "One on-chain agent-identity write against #5541 covering both services in a single call. Per agent-update-help.txt, this is expected to: (1) leave agentId=5541 and both service ids unchanged, matching the runbook's 'no second ASP / no new service ids' requirement; (2) re-trigger OKX marketplace QA/review on the listing (the installed CLI documents QA as running at register/update, not at activate), moving approvalDisplayStatus off 'Listing rejected' (5) into a new pending-review state; (3) cost gas on the configured wallet. It does not itself call agent activate, submit a payment, register a User-role identity, or resubmit -- those remain separate operator steps (2 onward) in the runbook.",
+  "onchainos_4_4_candidate": {
+    "status": "VALIDATED_READ_ONLY_NOT_EXECUTED",
+    "warning": "This is a new Onchain OS 4.4.0-compatible candidate produced and validated locally in Lane 8R.3C.4. It has not been submitted to agent update or any other state-changing command. The historical Lane 8R.3C.0 payload above is preserved unchanged.",
+    "serialization": "JSON.stringify(onchainos_4_4_candidate.payload)",
+    "utf8_bytes": 1162,
+    "sha256": "4926b9d2afb790a71d45b32ef0c81ae9114666bf9c9da40ea1fa1b64b9215fa9",
+    "validation": {
+      "command": "agent validate-listing",
+      "transport": "Node.js child_process.spawnSync with shell:false and an explicit argument array",
+      "invocations": 1,
+      "exit_code": 0,
+      "pass": true,
+      "findings": []
+    },
+    "payload": [
+      {
+        "operation": "update",
+        "id": "33561",
+        "serviceName": "Nobu Purchase Setup",
+        "serviceDescription": "Sets up and manages Target post-purchase monitoring through product confirmation, email verification, consent, eligibility, Monitoring Pass redemption, status, alerts, stopping and revocation.\nUser provides purchase details, exact product confirmation, a verified email, and monitoring and email-alert consent.\nReturns supported actions and next steps; paid monitoring activation requires a valid Monitoring Pass.",
+        "serviceType": "A2MCP",
+        "fee": "0",
+        "endpoint": "https://usenobu.vercel.app/v1/agent"
+      },
+      {
+        "operation": "update",
+        "id": "35958",
+        "serviceName": "Nobu Monitoring Pass",
+        "serviceDescription": "Issues one Nobu Monitoring Pass after a verified $0.99 OKX x402 payment for later activation of one eligible Target purchase.\nUser provides the payment replay; free setup separately confirms the exact product, eligibility, verified email and consent before redemption.\nReturns one redeemable pass; Target verifies any lower price and makes the final adjustment decision.",
+        "serviceType": "A2MCP",
+        "fee": "0.99",
+        "endpoint": "https://usenobu.vercel.app/v1/agent/monitoring-pass"
+      }
+    ]
+  }
 }

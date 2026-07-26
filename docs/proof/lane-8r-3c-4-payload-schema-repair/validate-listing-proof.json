@@ -1,0 +1,32 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.4",
+  "executable": "C:\\Users\\dtwof\\.local\\bin\\onchainos.exe",
+  "transport": "Node.js child_process.spawnSync with shell:false and an explicit argument array",
+  "command": "agent validate-listing",
+  "role": "asp",
+  "current_agent_name": "Nobu",
+  "current_agent_description_utf8_bytes": 414,
+  "current_agent_description_sha256": "4be59f7d9c15d80b2092e793afdb84c7fe63a998d30e65f220622ffd9f329417",
+  "argument_count": 10,
+  "payload_argument_index_zero_based": 9,
+  "payload_argument_occurrences": 1,
+  "payload_bytes_immediately_before_spawn": 1162,
+  "payload_sha256_immediately_before_spawn": "4926b9d2afb790a71d45b32ef0c81ae9114666bf9c9da40ea1fa1b64b9215fa9",
+  "exit_code": 0,
+  "signal": null,
+  "spawn_error": null,
+  "stdout": {
+    "pass": true,
+    "findings": []
+  },
+  "stderr": "",
+  "parse_finding_present": false,
+  "key_must_be_a_string_error_present": false,
+  "pass": true,
+  "blocking_findings": 0,
+  "validation_invocations": 1,
+  "additional_transport_methods_tested": 0,
+  "state_changing_command_run": false,
+  "secrets_present": false
+}

@@ -430,6 +430,24 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Exact next lane/action:** A new explicitly authorized read-only operator lane must use the official Onchain OS `4.4.0` implementation to distinguish Windows argv corruption from validator service-schema rejection. It must not alter the canonical payload or run an ASP write. No update authorization exists.
 
+### Lane 8R.3C.4 — Onchain OS 4.4.0 payload-schema repair proof COMPLETE
+
+- Strictly read-only lane from exact commit `bda75526917929d150cb184ddf9eaaf8fd75859d`; clean `master`, tracked worktree and index.
+- Selected `C:\Users\dtwof\.local\bin\onchainos.exe` reported `4.4.0`; preflight stable/current `4.4.0`, integrity `ok`, `updated: false`. Stale instruction-bundle maintenance was not run because the lane was read-only.
+- Official A2A doctor remained ready: zero blockers, package `0.1.10`, existing daemon PID `27124`, identity refresh unchanged, no fixes applied.
+- Official `okx/onchainos-skills` tag `v4.4.0` at commit `782b5a05d9b0af797383009b0e5f0d4022b010e5` was inspected at `identity/models.rs`, `identity/args.rs`, `identity/validate.rs`, and `identity/utils.rs`.
+- Source diagnosis confirmed: `AgentService.id` is `Option<String>`; create/update/validate use the same model; any serde/model failure is surfaced as `service/PARSE`; update operation requires an id; descriptions require at least separate capability and user-input lines, with a delivery line recommended.
+- Built exactly one corrected candidate preserving `operation: "update"`, ids `"33561"`/`"35958"`, A2MCP types, fees `"0"`/`"0.99"`, intended endpoints and intended capabilities. Both descriptions have three non-empty truthful sections without URLs, test markers or outcome promises.
+- Local invariants passed before CLI invocation: JSON parse, exactly two elements, string ids, required keys and locked values. Exact serialization: 1162 UTF-8 bytes, sha256 `4926b9d2afb790a71d45b32ef0c81ae9114666bf9c9da40ea1fa1b64b9215fa9`.
+- Invoked `agent validate-listing` exactly once using Node `child_process.spawnSync`, `shell: false`, explicit ten-element argument array. The payload appeared once at index 9 and was checked against the recorded bytes/hash immediately before spawn.
+- Validation exit `0`, stderr empty, `pass: true`, zero findings, no `service/PARSE`, and no `key must be a string`. No second validation or alternative transport method ran.
+- Immediate ASP readback remained unchanged: agent `5541`, exactly services `33561`/`35958`, all registered names/descriptions/fees/endpoints, online `1`, QA `approvalDisplayStatus 5` / `approvalStatus 6` / `not listed`; only heartbeat timestamps advanced.
+- No `agent update`, activation, payment, User registration, A2A package/daemon change, deployment or resubmission occurred.
+
+**Verdict:** `NOBU_LANE_8R_3C_4_READY_FOR_OPERATOR_DECISION`. **Proof:** `docs/proof/lane-8r-3c-4-payload-schema-repair/`.
+
+**Exact next lane/action:** Lane 8R.3C.5 — a separately authorized single corrected ASP metadata update and immediate read-only proof using the exact Lane 8R.3C.4 candidate unchanged. No ASP write is authorized by Lane 8R.3C.4.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.

@@ -1,0 +1,36 @@
+{
+  "lane": "8R.3C.4",
+  "candidate_for": "Onchain OS 4.4.0",
+  "status": "VALIDATED_READ_ONLY_NOT_EXECUTED",
+  "warning": "This Onchain OS 4.4.0 candidate passed one read-only validate-listing call in Lane 8R.3C.4. It has not been submitted to agent update or any other state-changing command.",
+  "serialization": "JSON.stringify(payload)",
+  "utf8_bytes": 1162,
+  "sha256": "4926b9d2afb790a71d45b32ef0c81ae9114666bf9c9da40ea1fa1b64b9215fa9",
+  "validation": {
+    "invocations": 1,
+    "exit_code": 0,
+    "pass": true,
+    "findings": [],
+    "parse_finding_present": false
+  },
+  "payload": [
+    {
+      "operation": "update",
+      "id": "33561",
+      "serviceName": "Nobu Purchase Setup",
+      "serviceDescription": "Sets up and manages Target post-purchase monitoring through product confirmation, email verification, consent, eligibility, Monitoring Pass redemption, status, alerts, stopping and revocation.\nUser provides purchase details, exact product confirmation, a verified email, and monitoring and email-alert consent.\nReturns supported actions and next steps; paid monitoring activation requires a valid Monitoring Pass.",
+      "serviceType": "A2MCP",
+      "fee": "0",
+      "endpoint": "https://usenobu.vercel.app/v1/agent"
+    },
+    {
+      "operation": "update",
+      "id": "35958",
+      "serviceName": "Nobu Monitoring Pass",
+      "serviceDescription": "Issues one Nobu Monitoring Pass after a verified $0.99 OKX x402 payment for later activation of one eligible Target purchase.\nUser provides the payment replay; free setup separately confirms the exact product, eligibility, verified email and consent before redemption.\nReturns one redeemable pass; Target verifies any lower price and makes the final adjustment decision.",
+      "serviceType": "A2MCP",
+      "fee": "0.99",
+      "endpoint": "https://usenobu.vercel.app/v1/agent/monitoring-pass"
+    }
+  ]
+}

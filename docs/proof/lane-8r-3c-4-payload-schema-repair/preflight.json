@@ -1,0 +1,43 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.4",
+  "repository": {
+    "head": "bda75526917929d150cb184ddf9eaaf8fd75859d",
+    "expected": "bda75526917929d150cb184ddf9eaaf8fd75859d",
+    "head_matches": true,
+    "branch": "master",
+    "origin_master": "bda75526917929d150cb184ddf9eaaf8fd75859d",
+    "worktree_clean": true,
+    "index_clean": true
+  },
+  "onchainos": {
+    "selected_executable": "C:\\Users\\dtwof\\.local\\bin\\onchainos.exe",
+    "version": "4.4.0",
+    "stable_version": "4.4.0",
+    "integrity": "ok",
+    "updated": false,
+    "skill_version_reported": "4.2.4",
+    "instruction_bundle_maintenance_executed": false,
+    "note": "The stale instruction-bundle maintenance recommendation was not executed because the lane is strictly read-only."
+  },
+  "a2a_doctor": {
+    "authoritative_run": "official Windows native launcher outside the restricted workspace sandbox",
+    "ok": true,
+    "ready": true,
+    "blocking_failures": 0,
+    "cli_version": "0.1.10",
+    "daemon_pid": 27124,
+    "daemon_ready": true,
+    "agent_count": 1,
+    "active_clients": 1,
+    "identity_refresh_changed": false,
+    "summary": {
+      "pass": 8,
+      "warn": 0,
+      "fail": 0,
+      "optional": 1
+    },
+    "fixes_applied": []
+  },
+  "secrets_present": false
+}
