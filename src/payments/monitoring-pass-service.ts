@@ -64,13 +64,18 @@ function newId(prefix: string): string {
 }
 
 /**
- * Opaque, high-entropy, single-use pass credential. Only its sha256 digest is
- * stored — the same pattern Lane 7.4B uses for `connection_token`. The token
- * is returned exactly once, in the issuance response.
+ * The durable schema retains a hash column from the original token-bearing
+ * contract. New passes store a server-only random digest there, but no pass
+ * token is returned or accepted. The public pass id now carries full UUID
+ * entropy and redemption still requires the authorized connection + quote.
  */
-function mintPassToken(): { token: string; hash: string } {
-  const token = randomBytes(32).toString("base64url");
-  return { token, hash: sha256Hex(token) };
+function mintInternalPassSecretHash(): string {
+  return sha256Hex(randomBytes(32).toString("base64url"));
+}
+
+/** Public pass ids carry full UUID entropy; no separate pass token is exposed. */
+function newPassId(): string {
+  return `pass_${randomUUID().replace(/-/g, "")}`;
 }
 
 async function resolveStore(
@@ -111,8 +116,6 @@ export type MonitoringPassResult =
       status: "MONITORING_PASS_ISSUED";
       http_status: 200;
       pass: MonitoringPassRow;
-      /** Returned exactly once, only when this call issued the pass. */
-      passToken: string | null;
     }
   | {
       ok: true;
@@ -147,7 +150,6 @@ function challengeResult(args: {
 
 /**
  * Issues (or re-resolves) exactly one pass for a verified settlement.
- * The token is only ever returned by the call that actually created the row.
  */
 async function issuePassForSettlement(args: {
   store: AuthStore;
@@ -164,13 +166,12 @@ async function issuePassForSettlement(args: {
       status: "MONITORING_PASS_ISSUED",
       http_status: 200,
       pass: existing,
-      passToken: null,
     };
   }
 
-  const { token, hash } = mintPassToken();
+  const hash = mintInternalPassSecretHash();
   const issued = await args.store.issueMonitoringPass({
-    id: newId("pass"),
+    id: newPassId(),
     passTokenHash: hash,
     settlementRef: args.settlementRef,
     paymentId: args.paymentId,
@@ -184,9 +185,6 @@ async function issuePassForSettlement(args: {
     status: "MONITORING_PASS_ISSUED",
     http_status: 200,
     pass: issued.pass,
-    // A concurrent caller that lost the UNIQUE race never learns a token it
-    // did not mint; it still receives the same pass id.
-    passToken: issued.outcome === "issued" ? token : null,
   };
 }
 
@@ -348,7 +346,6 @@ async function resumePendingPassSettlement(args: {
       status: "MONITORING_PASS_ISSUED",
       http_status: 200,
       pass: existing,
-      passToken: null,
     };
   }
 
@@ -413,35 +410,48 @@ export function monitoringPassResponseBody(
   result: MonitoringPassResult,
 ): Record<string, unknown> {
   if (result.ok && result.status === "MONITORING_PASS_ISSUED") {
-    const body: Record<string, unknown> = {
+    return {
       agent_state: "MONITORING_PASS",
       status: "MONITORING_PASS_ISSUED",
+      completed_step: "MONITORING_PASS_ISSUED",
+      monitoring_active: false,
+      journey_complete: false,
       monitoring_pass_id: result.pass.id,
       price_amount: Number(result.pass.price_amount),
       price_currency: result.pass.price_currency,
       redeemable_for: MONITORING_PASS_REDEEMABLE_FOR,
-      next_action:
-        "Complete the free setup flow on https://usenobu.vercel.app/v1/agent (DISCOVER_PRODUCT, CONFIRM_PRODUCT, BEGIN_EMAIL_VERIFICATION, VERIFY_EMAIL_CODE, PREFLIGHT_MONITORING) to obtain a quote_id, then call REDEEM_MONITORING_PASS with this pass.",
+      next_action: "UNDERSTAND_PURCHASE",
+      next_service_id: 33561,
+      required_purchase_input: ["purchase_text", "purchase_price", "purchase_date", "Target online product details"],
+      required_user_input: {
+        action: "UNDERSTAND_PURCHASE",
+        required_fields: ["purchase_text"],
+        description: "A plain-English description of the recent Target online purchase.",
+      },
+      guidance:
+        "Your $0.99 purchase issued a Monitoring Pass only; monitoring has not started. Continue with free service 33561: provide purchase details, confirm the exact product, verify email, give both consents, run preflight, then redeem this pass by monitoring_pass_id.",
+      message:
+        "Monitoring Pass issued. Monitoring is not active and no price drop, alert, savings, refund or adjustment is guaranteed.",
       documentation: "https://www.usenobu.xyz/okx",
     };
-    if (result.passToken) {
-      body.monitoring_pass_token = result.passToken;
-      body.message =
-        "Store monitoring_pass_token now — it is returned exactly once and is required to redeem this pass.";
-    } else {
-      body.message =
-        "This pass was already issued for this payment. The one-time monitoring_pass_token was returned with the original response and is not repeated.";
-    }
-    return body;
   }
 
   if (result.ok) {
     return {
       agent_state: "MONITORING_PASS",
       status: "PAYMENT_SETTLEMENT_PENDING",
+      completed_step: "PAYMENT_SUBMITTED",
+      monitoring_active: false,
+      journey_complete: false,
       message: result.note,
       next_action:
         "Replay this request with the same PAYMENT-SIGNATURE header to check settlement again.",
+      required_user_input: {
+        action: "CHECK_PAYMENT_SETTLEMENT",
+        required_fields: ["same signed payment replay"],
+      },
+      guidance:
+        "Settlement is not confirmed, so no Monitoring Pass has been issued and monitoring is not active.",
       documentation: "https://www.usenobu.xyz/okx",
     };
   }
@@ -449,13 +459,22 @@ export function monitoringPassResponseBody(
   return {
     agent_state: "MONITORING_PASS",
     status: "PAYMENT_PENDING",
+    completed_step: "MONITORING_PASS_EXPLAINED",
+    monitoring_active: false,
+    journey_complete: false,
     x402Version: result.challenge.x402Version,
     resource: result.challenge.resource,
     accepts: result.challenge.accepts,
     message:
-      "Payment required for one Nobu Monitoring Pass. Pay the challenge in the PAYMENT-REQUIRED header and replay this request with the signed PAYMENT-SIGNATURE header.",
+      "The $0.99 payment buys one Monitoring Pass only. It does not start monitoring. Pay the challenge and replay this request to receive the pass.",
     next_action:
       "Sign the PAYMENT-REQUIRED challenge and replay this request with the PAYMENT-SIGNATURE header.",
+    required_user_input: {
+      action: "PAY_FOR_MONITORING_PASS",
+      required_fields: ["valid OKX x402 signed payment replay"],
+    },
+    guidance:
+      "After the pass is issued, continue with free Purchase Setup service 33561. Monitoring begins only after successful pass redemption.",
     documentation: "https://www.usenobu.xyz/okx",
   };
 }

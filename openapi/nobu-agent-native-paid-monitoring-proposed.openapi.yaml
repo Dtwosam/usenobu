@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Nobu Agent-Native Paid Monitoring API (IMPLEMENTED + DEPLOYED — ASP PAID SERVICE REGISTERED, UNDER REVIEW)
+  title: Nobu Agent-Native Paid Monitoring API (IMPLEMENTED + DEPLOYED)
   version: 1.0.0
   description: >-
     Filename retained for reference stability (`nobu-agent-native-paid-monitoring-proposed.openapi.yaml`).
@@ -8,7 +8,7 @@ info:
     IMPLEMENTED and DEPLOYED on UseNobu production. Official OKX seller verify/settle/status
     integration is live (fails closed without production credentials). The paid
     service is registered on ASP #5541 as a separate A2MCP service (fee 0.99) alongside
-    the free service (fee 0); marketplace approvalStatus under review (not publicly listed).
+    the free service (fee 0); ASP #5541 is rejected / not listed and is not changed by this contract repair.
     Genuine payment marketplace proof is Lane 7.4G.
 
     Free actions on POST /v1/agent (also documented in openapi/nobu-a2mcp.openapi.yaml):
@@ -17,12 +17,9 @@ info:
     PREFLIGHT_MONITORING, REVOKE_AGENT_CONNECTION, LIST_ACTIVE_MONITORS,
     ENABLE_EMAIL_ALERTS, DISABLE_EMAIL_ALERTS, STOP_MONITORING.
 
-    Paid path: POST /v1/agent/start-monitoring — one confirmed eligible purchase;
-    $0.99; x402 v2 exact; network eip155:196 (X Layer); asset USD₮0; amount 990000
-    base units; payTo server-owned only; official OKX verify then settle (status
-    for pending); responses MONITORING_STARTED, ACTIVATION_PENDING, ALREADY_ACTIVE,
-    PAYMENT_SETTLEMENT_PENDING as applicable. Exactly-once durable activation saga.
-    Payment does not guarantee a lower price, alert, refund, or adjustment.
+    Paid marketplace path: POST /v1/agent/monitoring-pass sells one $0.99
+    Monitoring Pass. Payment issues the pass only and never starts monitoring.
+    Free Purchase Setup and successful REDEEM_MONITORING_PASS are still required.
 
     Topology (resolved Lane 7.4D.0): separate free and paid A2MCP services under
     the existing Agent #5541 identity — not a second ASP.
@@ -33,8 +30,8 @@ info:
 servers:
   - url: https://usenobu.vercel.app
     description: >-
-      UseNobu production host for free /v1/agent and paid /v1/agent/start-monitoring.
-      Paid service registered on ASP #5541 (Lane 8R); listing under review until marketplace approval.
+      UseNobu production host for free /v1/agent and paid /v1/agent/monitoring-pass.
+      Paid service is registered on ASP #5541; the agent remains rejected / not listed.
 paths:
   /v1/agent:
     post:
@@ -130,13 +127,17 @@ paths:
             990000 base units ($0.99), server-controlled payTo,
             maxTimeoutSeconds, and extra.name/extra.version EIP-712 token
             metadata. No quote binding.
+            The body explains that payment issues a pass only and returns
+            monitoring_active false and journey_complete false.
         '200':
           description: >-
-            MONITORING_PASS_ISSUED with monitoring_pass_id, the one-time
-            monitoring_pass_token (returned only by the call that issued the
-            pass), price_amount, price_currency, redeemable_for and
-            next_action; or PAYMENT_SETTLEMENT_PENDING while settlement is
-            still confirming (no pass is issued until it confirms).
+            MONITORING_PASS_ISSUED with monitoring_active false,
+            journey_complete false, next_action UNDERSTAND_PURCHASE,
+            next_service_id 33561, required purchase input and clear
+            continuation guidance. No pass token, payment signature,
+            authorization header or wallet secret is returned. A pending
+            settlement returns PAYMENT_SETTLEMENT_PENDING; no pass is issued
+            until settlement confirms.
         '429':
           description: Rate limited (paid replay path only; an unpaid first contact is never rate limited).
   /v1/agent/start-monitoring:

@@ -1,7 +1,9 @@
 # Nobu Current State
 
 **Date:** 2026-07-26
-**Status:** `NOBU_LANE_8R_3C_6_PASS` — the free `Nobu Purchase Setup` endpoint now returns truthful `400 input_required` validation responses recognized by official Onchain OS 4.4.0; valid actions and the paid Monitoring Pass remain unchanged
+**Status:** `NOBU_MARKETPLACE_JOURNEY_CONTINUITY_PASS` — provider-controlled responses now guide continuously from Nobu introduction and free Purchase Setup through pass issuance, product confirmation, verification, consent, preflight and successful redemption
+
+**Marketplace journey continuity repair (2026-07-26):** **PASS** (`NOBU_MARKETPLACE_JOURNEY_CONTINUITY_PASS`). Began from the exact clean baseline `0088ea8c2b2344a0982c3cee6cb9f4799356bfad`. Ownership was proven before editing: Nobu owns its API introduction, service guidance, paid deliverable and continuation fields; installed Onchain OS `4.4.0` contains the literal `Endpoint returned 200 — no payment required` warning and its own `[Job Completed]` / `[x402 Job Completed]` wrappers, so those strings are platform-controlled and were not altered. Nobu now introduces itself before its service details; free service `33561` explicitly says it is free and x402 does not apply; paid service `35958` explains before payment that `$0.99` buys a Monitoring Pass only. Successful paid replay remains exactly-once but returns `MONITORING_PASS_ISSUED`, `monitoring_active: false`, `journey_complete: false`, `next_action: UNDERSTAND_PURCHASE`, `next_service_id: 33561`, required purchase input and continuation guidance. No pass token is returned or required; new pass ids use full UUID entropy, while redemption still requires the authorized connection, current owned quote, confirmed locked fingerprint, current eligibility, both durable consents and atomic unused-pass consumption. Every provider-controlled setup response adds `completed_step`, `monitoring_active`, `journey_complete`, `next_action`, `required_user_input` and `guidance`; only successful redemption normalizes the journey response to `MONITORING_ACTIVE`. Focused proof: free route 5/5; Monitoring Pass/redemption 20/20; typecheck clean; limited secret scan clean. Deployment `dpl_WJjvs2hQTfUzVSZqfXAKTrnUahvU` is READY, and `usenobu.vercel.app` was explicitly re-aliased. One free Production probe returned truthful `400 input_required`; one unpaid paid probe returned x402 v2 `402` with pass-only guidance. No ASP edit/activation/resubmission, payment, task, paid replay, pass issuance or redemption occurred. Evidence: `docs/proof/marketplace-journey-continuity/`.
 
 **Lane 8R.3C.6 free A2MCP input-required validation repair (2026-07-26):** **PASS** (`NOBU_LANE_8R_3C_6_PASS`). Began from exact requested commit `3021f1a033408ccd5157153b81d7fcee1ed79e19` on clean `master`. Official Onchain OS `4.4.0` behavior was established directly: a `400` JSON response with `status: "input_required"` and `requiredArgs: ["action"]` is reported as `inputRequired: true`, `fields: ["action"]`. The free `/v1/agent` route now returns that shape for GET, bodyless POST, `{}`, and other requests with no supported action; it also retains the full truthful `supported_actions` list with action-specific required fields. Requests carrying a supported action still bypass this validation response and use the existing dispatcher. No `402` or payment requirement was added to the free service. Code/test commit `7a4ef1e` deployed successfully as Vercel deployment `B4DsuLSbWcR3S2b23XQv3nknXiPQ` (`usenobu-95yc8u3kt-dtwoflicks-2878s-projects.vercel.app`), and `usenobu.vercel.app` was explicitly re-aliased to it. Local and Production proof both passed: empty GET and `{}` POST return `400 input_required`, official `agent x402-check` reports `inputRequired: true` for both methods, valid `UNDERSTAND_PURCHASE` returns `200 CONFIRMATION_REQUIRED`, and `/v1/agent/monitoring-pass` remains an official-checker-valid x402 v2 `402` (`exact`, `eip155:196`, `990000`). Verification: focused validation tests 5/5; focused Monitoring Pass tests 20/20; full suite 56 files / 458 tests passed / 1 skipped; typecheck and production build clean; `git diff --check` clean. No paid-route file changed. No ASP update, activation, resubmission, payment, A2A change, or production-data mutation occurred. Evidence: `docs/proof/lane-8r-3c-6-free-input-validation/`.
 
@@ -37,7 +39,7 @@
 |---|---|
 | ASP `#5541` marketplace status | **Rejected / not listed** — `approvalDisplayStatus: 5` ("Listing rejected"), service-list `approvalStatus: 6`, `statusLabel: "not listed"`. **Not** under review, **not** publicly listed. |
 | Rejection reason | Platform testing could not receive a response before the task timed out. Diagnosed in Lane 8R.3A; repaired in Lane 8R.3B. |
-| Production repair | **Deployed** — deployment `B4DsuLSbWcR3S2b23XQv3nknXiPQ`, alias `usenobu.vercel.app` (re-aliased explicitly; it does not auto-follow `vercel deploy --prod`). |
+| Production repair | **Deployed** — deployment `dpl_WJjvs2hQTfUzVSZqfXAKTrnUahvU`, alias `usenobu.vercel.app` (re-aliased explicitly). |
 | Free service `33561` | Registered at `/v1/agent` (endpoint unchanged): empty GET/POST validation probes return `400`, `status: input_required`, `fields`/`requiredArgs: ["action"]`; official Onchain OS 4.4.0 reports `inputRequired: true`. Supported actions retain their existing behavior and the service remains free. |
 | Paid service `35958` | **Registered as `Nobu Monitoring Pass` at `/v1/agent/monitoring-pass`**, fee `0.99`, with the exact validated multiline description. Official x402 validation is `valid: true`. |
 | `/v1/agent/monitoring-pass` | **Code-complete, deployed, Production-proven, and registered on `#5541`** — always `402` + `PAYMENT-REQUIRED` on first contact; official `x402-check` returns **`valid: true`** with and without `{}`. |
@@ -115,10 +117,10 @@
 ## Production
 
 **Current deployment (2026-07-26):** `https://usenobu.vercel.app` points to
-deployment `B4DsuLSbWcR3S2b23XQv3nknXiPQ` (`usenobu-95yc8u3kt`), built from
-Lane 8R.3C.6 code commit `7a4ef1e` and re-aliased explicitly. The free
-`/v1/agent` input-required behavior and unchanged paid
-`/v1/agent/monitoring-pass` challenge are live on it.
+deployment `dpl_WJjvs2hQTfUzVSZqfXAKTrnUahvU` (`usenobu-4dqzxqa7s`),
+re-aliased explicitly. Provider-controlled journey continuity, the free
+`/v1/agent` input-required behavior, and the paid
+`/v1/agent/monitoring-pass` pass-only challenge guidance are live on it.
 
 **Historical — identity release (2026-07-19), superseded by the deployment above:** `https://usenobu.vercel.app` then pointed to
 the verified, unique Lane 7.2 deployment (`dpl_DQ9ULj9uukY1Kdtujxqkf8sppeUw`,
@@ -196,7 +198,9 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 
 ## Next active lane
 
-**Lane 8R.3C.5 wrote the corrected service metadata but is BLOCKED on QA state** (`NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED`). ASP `#5541` now carries the correct free and Monitoring Pass services, designated routing is correct, and both official x402 checks pass. The listing nevertheless remains rejected/not listed with its prior remark; no activation or separate resubmission was attempted.
+**The provider-controlled marketplace journey repair is complete.** The exact next live continuation step for an already-issued pass journey is free service `33561` action `UNDERSTAND_PURCHASE` with the user's recent Target online purchase description. No additional payment or redemption should occur until the guided free flow reaches a current `MONITORING_PAYMENT_READY` quote.
+
+**ASP `#5541` remains rejected / not listed.** Lane 8R.3C.5 wrote the corrected service metadata but remains blocked on unchanged QA state (`NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED`). No ASP update, activation or resubmission occurred in this repair.
 
 **Lane 8R.3C.0 operator preflight (read-only) — COMPLETE** (`NOBU_LANE_8R_3C_0_READY_FOR_OPERATOR_DECISION`): the installed CLI's own `agent update` schema and QA-retrigger behavior were inspected, `#5541` and both services were read back and confirmed unchanged since Lane 8R.3B, the exact Step 1 two-service update payload was validated (not executed), and both production endpoints plus a fresh official `x402-check` were re-verified. Evidence: `docs/proof/lane-8r-3c-0-operator-preflight/`.
 
@@ -211,6 +215,8 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 **Lane 8R.3C.5 is BLOCKED** (`NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED`): the single corrected update succeeded and all registered service metadata, designated routing, and x402 checks are correct, but QA remained `approvalDisplayStatus 5` / `approvalStatus 6` / rejected and not listed. Evidence: `docs/proof/lane-8r-3c-5-asp-metadata-update/`.
 
 **Lane 8R.3C.6 is COMPLETE** (`NOBU_LANE_8R_3C_6_PASS`): the free endpoint's empty validation response is now `400 input_required` and official Onchain OS 4.4.0 reports `inputRequired: true`; valid free actions and the paid Monitoring Pass were regression-proven unchanged locally and in Production. Evidence: `docs/proof/lane-8r-3c-6-free-input-validation/`.
+
+**Marketplace journey continuity is COMPLETE** (`NOBU_MARKETPLACE_JOURNEY_CONTINUITY_PASS`): Nobu-controlled responses now carry continuous truthful guidance through successful pass redemption. The exact next live continuation step for the already-issued pass journey is free service `33561` action `UNDERSTAND_PURCHASE` with the user's recent Target online purchase description; do not make another payment or redeem until product confirmation, email verification, both consents and preflight produce a current quote. Evidence: `docs/proof/marketplace-journey-continuity/`.
 
 **Nobu now awaits an operator decision on the unchanged QA state.** No further update, activation, resubmission, payment, User registration, A2A mutation, deployment, or production-code change is authorized.
 

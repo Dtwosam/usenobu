@@ -93,7 +93,6 @@ export const FREE_AGENT_ACTIONS = [
     required_fields: [
       "action",
       "monitoring_pass_id",
-      "monitoring_pass_token",
       "quote_id",
       "connection_id",
       "connection_token",
@@ -161,8 +160,9 @@ export const FREE_AGENT_ACTION_NAMES: readonly string[] =
 export type FreeServiceDescriptor = {
   agent_state: "SERVICE_DESCRIPTOR";
   status: "READY";
-  service: string;
   agent: string;
+  introduction: string;
+  service: string;
   message: string;
   protocol: string;
   request: {
@@ -182,6 +182,11 @@ export type FreeServiceDescriptor = {
   retailer_support: string;
   documentation: string;
   next_action: string;
+  completed_step: string;
+  monitoring_active: false;
+  journey_complete: false;
+  required_user_input: Record<string, unknown>;
+  guidance: string;
 };
 
 export type FreeServiceInputRequired = Omit<
@@ -203,10 +208,12 @@ export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
   return {
     agent_state: "SERVICE_DESCRIPTOR",
     status: "READY",
+    introduction:
+      "Nobu is an AI post-purchase monitoring agent for confirmed Target online purchases. It guides product confirmation, consent and activation without guaranteeing a price drop or adjustment.",
     service: "Nobu Purchase Setup",
     agent: "Nobu — AI post-purchase monitoring agent",
     message:
-      "Nobu is ready. Send a JSON body with an `action` field and that action's required fields. This response lists every supported action and a working example.",
+      "Nobu Purchase Setup is free. x402 payment does not apply to service 33561 or any action on this endpoint.",
     protocol: "A2MCP",
     request: {
       method: "POST",
@@ -225,13 +232,23 @@ export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
       endpoint: "https://usenobu.vercel.app/v1/agent/monitoring-pass",
       price: "0.99 USDT",
       description:
-        "Buys one Nobu Monitoring Pass. Redeem it here with REDEEM_MONITORING_PASS to activate monitoring for one confirmed eligible Target purchase.",
+        "Buys one Monitoring Pass only. Payment does not start monitoring; complete Purchase Setup and redeem the pass for one confirmed eligible Target purchase.",
     },
     retailer_support:
       "Target is currently the only supported retailer. Target verifies eligibility and makes the final decision.",
     documentation: NOBU_DOCUMENTATION_URL,
     next_action:
       "Send UNDERSTAND_PURCHASE with the purchase description, or DISCOVER_PRODUCT with structured purchase fields.",
+    completed_step: "NOBU_INTRODUCED",
+    monitoring_active: false,
+    journey_complete: false,
+    required_user_input: {
+      action: "UNDERSTAND_PURCHASE",
+      required_fields: ["purchase_text"],
+      description: "A plain-English description of the recent Target online purchase.",
+    },
+    guidance:
+      "Start with free Purchase Setup. Monitoring begins only after product confirmation, email verification, explicit consent, preflight and successful Monitoring Pass redemption.",
   };
 }
 
@@ -248,7 +265,7 @@ export function buildFreeServiceInputRequired(): FreeServiceInputRequired {
     agent_state: "SERVICE_INPUT",
     status: "input_required",
     message:
-      "Choose one supported Nobu action and provide the fields required by that action.",
+      "Nobu Purchase Setup is free and x402 payment does not apply to service 33561. Choose one supported action and provide its required fields.",
     fields: ["action"],
     requiredArgs: ["action"],
   };

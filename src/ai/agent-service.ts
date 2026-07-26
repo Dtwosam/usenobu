@@ -31,6 +31,7 @@ import {
   setEmailAlertsForAgent,
   stopMonitoringForAgent,
 } from "../web/agent-monitor-management.js";
+import { addJourneyFields } from "../a2mcp/journey.js";
 
 export type AgentServiceDeps = UnderstandDeps &
   A2mcpCheckDeps & {
@@ -52,7 +53,7 @@ export type AgentServiceResult =
     }
   | A2mcpCheckResult;
 
-export async function runAgentAction(
+async function runAgentActionCore(
   raw: unknown,
   deps: AgentServiceDeps = {},
 ): Promise<AgentServiceResult> {
@@ -383,7 +384,6 @@ export async function runAgentAction(
   if (req.action === "REDEEM_MONITORING_PASS") {
     const result = await redeemMonitoringPassForAgent({
       monitoringPassId: req.monitoring_pass_id,
-      monitoringPassToken: req.monitoring_pass_token,
       quoteId: req.quote_id,
       connectionId: req.connection_id,
       connectionToken: req.connection_token,
@@ -452,4 +452,15 @@ export async function runAgentAction(
     };
   }
   return { http_status: 200, body: statusResult.body };
+}
+
+export async function runAgentAction(
+  raw: unknown,
+  deps: AgentServiceDeps = {},
+): Promise<AgentServiceResult> {
+  const result = await runAgentActionCore(raw, deps);
+  return addJourneyFields(raw, {
+    http_status: result.http_status,
+    body: result.body as Record<string, unknown>,
+  }) as AgentServiceResult;
 }

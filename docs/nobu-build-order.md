@@ -479,6 +479,19 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Exact next lane/action:** operator decision on the unchanged rejected/not-listed QA state. No additional ASP update, activation, resubmission, payment, User registration, A2A change, deployment, or production-code change is authorized.
 
+### Marketplace journey continuity repair COMPLETE
+
+- Proved visible-message ownership: Nobu owns its wire introduction, service guidance, paid deliverable and continuation fields; installed Onchain OS `4.4.0` owns `Endpoint returned 200 — no payment required` and `[Job Completed]` / `[x402 Job Completed]` wrappers. Platform strings were not changed.
+- Free service `33561` introduces Nobu first, explicitly says Purchase Setup is free and x402 does not apply, and keeps its `400 input_required` first-contact contract (never `402`).
+- Paid service `35958` explains before payment that `$0.99` buys a Monitoring Pass only. Successful replay returns `MONITORING_PASS_ISSUED`, non-active/incomplete journey flags, `UNDERSTAND_PURCHASE`, service `33561`, required purchase input and continuation guidance.
+- Provider-controlled setup steps expose `completed_step`, `monitoring_active`, `journey_complete`, `next_action`, `required_user_input` and `guidance`; only successful pass redemption returns journey status `MONITORING_ACTIVE`.
+- No pass token is exposed or accepted. Pass ids use full UUID entropy; authorization, quote ownership, fingerprint, eligibility, consent, atomic redemption, exactly-once issuance/settlement and activation remain enforced.
+- Deployed `dpl_WJjvs2hQTfUzVSZqfXAKTrnUahvU`; canonical alias explicitly updated. One free Production probe and one unpaid paid challenge probe passed. No task, payment, paid replay, pass issuance, redemption or ASP mutation ran.
+
+**Proof:** focused free route 5/5; focused Monitoring Pass/redemption 20/20; typecheck; limited secret scan; Production `400` free probe and x402 v2 `402` unpaid probe. Verdict: `NOBU_MARKETPLACE_JOURNEY_CONTINUITY_PASS`. Evidence: `docs/proof/marketplace-journey-continuity/`.
+
+**Exact next live continuation step:** call free service `33561` with `UNDERSTAND_PURCHASE` and the user's recent Target online purchase description. Do not make another payment or redeem until the guided free flow reaches a current `MONITORING_PAYMENT_READY` quote.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.

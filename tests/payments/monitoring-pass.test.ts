@@ -345,6 +345,11 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(body.status).toBe("PAYMENT_PENDING");
     expect(body.x402Version).toBe(2);
     expect(body.next_action).toMatch(/PAYMENT-SIGNATURE/);
+    expect(body.completed_step).toBe("MONITORING_PASS_EXPLAINED");
+    expect(body.monitoring_active).toBe(false);
+    expect(body.journey_complete).toBe(false);
+    expect(body.message).toMatch(/does not start monitoring/i);
+    expect(body.guidance).toMatch(/service 33561/);
   });
 
   // ---------------------------------------------------------------------
@@ -364,24 +369,29 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(passCount()).toBe(0);
   });
 
-  it("a settled payment issues exactly one pass and returns the token once", async () => {
+  it("a settled payment issues exactly one pass with continuous setup guidance and no exposed token", async () => {
     const issued = await buyPass("settle_ref_pass_001");
     expect(issued.status).toBe("MONITORING_PASS_ISSUED");
-    expect(issued.passToken).toBeTruthy();
     expect(passCount()).toBe(1);
 
     const body = monitoringPassResponseBody(issued);
     expect(body.agent_state).toBe("MONITORING_PASS");
     expect(body.status).toBe("MONITORING_PASS_ISSUED");
     expect(body.monitoring_pass_id).toBe(issued.pass.id);
-    expect(body.monitoring_pass_token).toBe(issued.passToken);
+    expect(body.monitoring_pass_token).toBeUndefined();
     expect(body.price_amount).toBe(0.99);
     expect(body.price_currency).toBe("USD");
     expect(body.redeemable_for).toMatch(/REDEEM_MONITORING_PASS/);
-    expect(body.next_action).toMatch(/PREFLIGHT_MONITORING/);
+    expect(body.completed_step).toBe("MONITORING_PASS_ISSUED");
+    expect(body.monitoring_active).toBe(false);
+    expect(body.journey_complete).toBe(false);
+    expect(body.next_action).toBe("UNDERSTAND_PURCHASE");
+    expect(body.next_service_id).toBe(33561);
+    expect(body.required_purchase_input).toEqual(expect.arrayContaining(["purchase_text", "purchase_price", "purchase_date"]));
+    expect(body.guidance).toMatch(/monitoring has not started/i);
   });
 
-  it("duplicate replay of the same payment returns the same pass and never a second token", async () => {
+  it("duplicate replay of the same payment returns the same pass", async () => {
     const first = await buyPass("settle_ref_pass_002", "same-signed-header");
     const second = await monitoringPassForAgent({
       paymentAuthorizationHeader: "same-signed-header",
@@ -393,7 +403,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
       throw new Error("expected the same pass");
     }
     expect(second.pass.id).toBe(first.pass.id);
-    expect(second.passToken).toBeNull();
     expect(passCount()).toBe(1);
   });
 
@@ -422,8 +431,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     }
     expect(a.pass.id).toBe(b.pass.id);
     expect(passCount()).toBe(1);
-    // Exactly one caller ever learns the one-time token.
-    expect([a.passToken, b.passToken].filter(Boolean).length).toBe(1);
   });
 
   it("a different settlement issues a genuinely different pass", async () => {
@@ -441,20 +448,8 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     const issued = await buyPass("settle_ref_pass_006");
     const { verified, quoteId } = await establishReadyQuote("redeemgates");
 
-    const wrongToken = await redeemMonitoringPassForAgent({
-      monitoringPassId: issued.pass.id,
-      monitoringPassToken: "not-the-real-token",
-      quoteId,
-      connectionId: verified.connection_id,
-      connectionToken: verified.connection_token,
-      sqliteDb: db,
-    });
-    expect(wrongToken.ok).toBe(false);
-    expect(wrongToken.status).toBe("ACTION_NOT_AUTHORIZED");
-
     const wrongConnectionToken = await redeemMonitoringPassForAgent({
       monitoringPassId: issued.pass.id,
-      monitoringPassToken: issued.passToken!,
       quoteId,
       connectionId: verified.connection_id,
       connectionToken: "not-the-real-connection-token",
@@ -465,7 +460,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
 
     const unknownQuote = await redeemMonitoringPassForAgent({
       monitoringPassId: issued.pass.id,
-      monitoringPassToken: issued.passToken!,
       quoteId: "quote_does_not_exist",
       connectionId: verified.connection_id,
       connectionToken: verified.connection_token,
@@ -491,7 +485,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
 
     const result = await redeemMonitoringPassForAgent({
       monitoringPassId: issued.pass.id,
-      monitoringPassToken: issued.passToken!,
       quoteId,
       connectionId: verified.connection_id,
       connectionToken: verified.connection_token,
@@ -506,23 +499,27 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(activationCount()).toBe(0);
   });
 
-  it("a valid redemption consumes the pass exactly once and activates exactly one monitor", async () => {
+  it("only successful redemption returns MONITORING_ACTIVE and completes the journey", async () => {
     const issued = await buyPass("settle_ref_pass_008");
     const { verified, quoteId } = await establishReadyQuote("redeemok");
 
-    const result = await redeemMonitoringPassForAgent({
-      monitoringPassId: issued.pass.id,
-      monitoringPassToken: issued.passToken!,
-      quoteId,
-      connectionId: verified.connection_id,
-      connectionToken: verified.connection_token,
-      sqliteDb: db,
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
-    expect(result.status).toBe("MONITORING_STARTED");
+    const result = await runAgentAction({
+      action: "REDEEM_MONITORING_PASS",
+      monitoring_pass_id: issued.pass.id,
+      quote_id: quoteId,
+      connection_id: verified.connection_id,
+      connection_token: verified.connection_token,
+    }, { sqliteDb: db });
+    expect(result.http_status).toBe(200);
+    const activeBody = result.body as Record<string, unknown>;
+    expect(activeBody.status).toBe("MONITORING_ACTIVE");
+    expect(activeBody.activation_result).toBe("MONITORING_STARTED");
+    expect(activeBody.completed_step).toBe("MONITORING_PASS_REDEEMED");
+    expect(activeBody.monitoring_active).toBe(true);
+    expect(activeBody.journey_complete).toBe(true);
+    const monitorId = String(activeBody.monitor_id);
     expect(activationCount()).toBe(1);
-    expect(purchaseStatus(result.monitor_id)).toBe("MONITORING_ACTIVE");
+    expect(purchaseStatus(monitorId)).toBe("MONITORING_ACTIVE");
 
     const row = db
       .prepare(`SELECT status, redeemed_quote_id FROM monitoring_passes WHERE id = ?`)
@@ -533,7 +530,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     // A genuine replay resolves to the same monitor and creates nothing new.
     const replay = await redeemMonitoringPassForAgent({
       monitoringPassId: issued.pass.id,
-      monitoringPassToken: issued.passToken!,
       quoteId,
       connectionId: verified.connection_id,
       connectionToken: verified.connection_token,
@@ -542,7 +538,7 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(replay.ok).toBe(true);
     if (!replay.ok) throw new Error("unreachable");
     expect(replay.status).toBe("ALREADY_ACTIVE");
-    expect(replay.monitor_id).toBe(result.monitor_id);
+    expect(replay.monitor_id).toBe(monitorId);
     expect(activationCount()).toBe(1);
   });
 
@@ -551,7 +547,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     const first = await establishReadyQuote("reuse-one");
     const redeemed = await redeemMonitoringPassForAgent({
       monitoringPassId: issued.pass.id,
-      monitoringPassToken: issued.passToken!,
       quoteId: first.quoteId,
       connectionId: first.verified.connection_id,
       connectionToken: first.verified.connection_token,
@@ -562,7 +557,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     const second = await establishReadyQuote("reuse-two");
     const reuse = await redeemMonitoringPassForAgent({
       monitoringPassId: issued.pass.id,
-      monitoringPassToken: issued.passToken!,
       quoteId: second.quoteId,
       connectionId: second.verified.connection_id,
       connectionToken: second.verified.connection_token,
@@ -585,7 +579,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     const [a, b] = await Promise.all([
       redeemMonitoringPassForAgent({
         monitoringPassId: issued.pass.id,
-        monitoringPassToken: issued.passToken!,
         quoteId,
         connectionId: verified.connection_id,
         connectionToken: verified.connection_token,
@@ -593,7 +586,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
       }),
       redeemMonitoringPassForAgent({
         monitoringPassId: issued.pass.id,
-        monitoringPassToken: issued.passToken!,
         quoteId,
         connectionId: verified.connection_id,
         connectionToken: verified.connection_token,
@@ -621,7 +613,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
 
     const result = await redeemMonitoringPassForAgent({
       monitoringPassId: issued.pass.id,
-      monitoringPassToken: issued.passToken!,
       quoteId,
       connectionId: verified.connection_id,
       connectionToken: verified.connection_token,
@@ -678,8 +669,7 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     );
     expect(paymentRows).not.toContain(header);
     expect(passRows).not.toContain(header);
-    // The one-time token is never stored in plaintext either.
-    expect(passRows).not.toContain(issued.passToken!);
+    expect((JSON.parse(passRows) as Array<Record<string, unknown>>)[0]?.pass_token_hash).toBeTruthy();
 
     // Nor does the response echo the settlement reference or any digest.
     const body = JSON.stringify(monitoringPassResponseBody(issued));
@@ -691,14 +681,13 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     const issued = await buyPass("settle_ref_pass_013");
     const { verified, quoteId } = await establishReadyQuote("reasonagnostic");
 
-    const wrongToken = await runAgentAction(
+    const wrongConnection = await runAgentAction(
       {
         action: "REDEEM_MONITORING_PASS",
         monitoring_pass_id: issued.pass.id,
-        monitoring_pass_token: "wrong",
         quote_id: quoteId,
         connection_id: verified.connection_id,
-        connection_token: verified.connection_token,
+        connection_token: "wrong",
       },
       { sqliteDb: db },
     );
@@ -706,17 +695,20 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
       {
         action: "REDEEM_MONITORING_PASS",
         monitoring_pass_id: "pass_does_not_exist",
-        monitoring_pass_token: issued.passToken!,
         quote_id: quoteId,
         connection_id: verified.connection_id,
         connection_token: verified.connection_token,
       },
       { sqliteDb: db },
     );
-    expect(wrongToken.http_status).toBe(401);
+    expect(wrongConnection.http_status).toBe(401);
     expect(unknownPass.http_status).toBe(401);
+    const failedBody = wrongConnection.body as Record<string, unknown>;
+    expect(failedBody.status).not.toBe("MONITORING_ACTIVE");
+    expect(failedBody.monitoring_active).toBe(false);
+    expect(failedBody.journey_complete).toBe(false);
     // Byte-identical bodies: an attacker cannot distinguish the two cases.
-    expect(JSON.stringify(wrongToken.body)).toBe(
+    expect(JSON.stringify(wrongConnection.body)).toBe(
       JSON.stringify(unknownPass.body),
     );
   });

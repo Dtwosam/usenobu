@@ -243,7 +243,6 @@ export const AgentRequestSchema = z.discriminatedUnion("action", [
     .object({
       action: z.literal("REDEEM_MONITORING_PASS"),
       monitoring_pass_id: z.string().min(1),
-      monitoring_pass_token: z.string().min(1),
       quote_id: z.string().min(1),
       connection_id: z.string().min(1),
       connection_token: z.string().min(1),

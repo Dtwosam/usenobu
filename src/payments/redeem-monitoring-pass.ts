@@ -3,7 +3,7 @@
  *
  * This is where every gate that the paid endpoint deliberately no longer
  * enforces still applies, unchanged from Lane 7.4D:
- *   - a valid, unused pass (id + one-time token, still `issued`);
+ *   - a valid, unused pass id (full UUID entropy, still `issued`);
  *   - an authorized connection (handle + secret token);
  *   - a valid enrollment quote this connection created, still issued and
  *     unexpired, at the locked $0.99 / USD terms;
@@ -46,7 +46,6 @@ function newId(prefix: string): string {
 
 export interface RedeemMonitoringPassArgs {
   monitoringPassId: string;
-  monitoringPassToken: string;
   quoteId: string;
   connectionId: string;
   connectionToken: string;
@@ -112,10 +111,9 @@ export async function redeemMonitoringPassForAgent(
     return { ok: false, status: "ACTION_NOT_AUTHORIZED", http_status: 401 };
   }
 
-  // --- Gate 3: the pass must exist and its one-time token must match ---
+  // --- Gate 3: the high-entropy pass id must resolve to an issued pass ---
   const pass = await store.getMonitoringPassById(args.monitoringPassId);
-  if (!pass || pass.pass_token_hash !== sha256Hex(args.monitoringPassToken)) {
-    // Unknown pass and wrong token are indistinguishable to the caller.
+  if (!pass) {
     return { ok: false, status: "ACTION_NOT_AUTHORIZED", http_status: 401 };
   }
 

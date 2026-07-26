@@ -10,6 +10,15 @@ async function responseBody(
 
 function expectInputRequired(body: Record<string, unknown>): void {
   expect(body.status).toBe("input_required");
+  expect(body.introduction).toMatch(/Nobu is an AI post-purchase monitoring agent/);
+  expect(body.message).toMatch(/free/i);
+  expect(body.message).toMatch(/x402 payment does not apply/i);
+  expect(body.completed_step).toBe("NOBU_INTRODUCED");
+  expect(body.monitoring_active).toBe(false);
+  expect(body.journey_complete).toBe(false);
+  expect(body.next_action).toMatch(/UNDERSTAND_PURCHASE|DISCOVER_PRODUCT/);
+  expect(body.required_user_input).toEqual(expect.objectContaining({ action: "UNDERSTAND_PURCHASE" }));
+  expect(body.guidance).toMatch(/successful Monitoring Pass redemption/);
   expect(body.fields).toEqual(["action"]);
   expect(body.requiredArgs).toEqual(["action"]);
   expect(body.supported_actions).toEqual(
@@ -80,5 +89,11 @@ describe("free /v1/agent validation probes", () => {
     expect(response.status).toBe(200);
     expect(body.agent_state).toBe("CONFIRMATION_REQUIRED");
     expect(body.status).not.toBe("input_required");
+    expect(body.completed_step).toBe("PURCHASE_DETAILS_EXTRACTED");
+    expect(body.monitoring_active).toBe(false);
+    expect(body.journey_complete).toBe(false);
+    expect(body.next_action).toBe("DISCOVER_PRODUCT");
+    expect(body.required_user_input).toEqual(expect.objectContaining({ action: "DISCOVER_PRODUCT" }));
+    expect(body.guidance).toMatch(/Monitoring is not active/);
   });
 });
