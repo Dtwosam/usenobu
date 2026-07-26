@@ -320,7 +320,33 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 - Deployed to production; reproduction cases re-verified against the fix; resubmitted via `agent activate` alone. ASP `#5541` now `approvalDisplayStatus: 2` ("Listing under review"); both services (`33561`, `35958`) unchanged.
 - Lane 7.4G remains blocked pending genuine marketplace approval (not just "under review").
 
-**Proof:** `tests/payments/start-monitoring-route-guidance.test.ts` (7 focused tests); directly-affected regressions (`start-monitoring.test.ts`, `okx-seller-adapter.test.ts`) unchanged; typecheck; build; `git diff --check`; secret/payment-material scan; before/after production reproduction; before/after ASP `#5541` read-back. Verdict: `NOBU_LANE_8R_3_PASS`. Evidence: `docs/proof/lane-8r-3-review-repair/`.
+**Proof:** `tests/payments/start-monitoring-route-guidance.test.ts` (7 focused tests); directly-affected regressions (`start-monitoring.test.ts`, `okx-seller-adapter.test.ts`) unchanged; typecheck; build; `git diff --check`; secret/payment-material scan; before/after production reproduction; before/after ASP `#5541` read-back. Verdict: `NOBU_LANE_8R_3_PASS`. Evidence: `docs/proof/lane-8r-3-review-repair/`. **Superseded:** the resubmission was rejected again — see Lane 8R.3A.
+
+## Lane 8R.3A — Diagnose OKX A2MCP review timeout COMPLETE
+
+- Diagnosis only: no code, deployment, ASP `#5541` update, activation, resubmission, or genuine payment. Read-only OKX CLI and read-only production probes throughout.
+- ASP `#5541` rejected a second time (`approvalDisplayStatus: 5`, service-list `approvalStatus: 6`, `statusLabel: "not listed"`): *"During platform testing, we were unable to receive a response from your Agent, causing the task to time out and be stopped"*, citing both the A2A and A2MCP developer docs.
+- **Primary cause: request-envelope / first-contact protocol incompatibility.** Reachability, DNS/TLS, production routing, response parseability and free action schemas all `PASS`; requests reach `dpl_AUMLVaTCynKxqPL5HMMBT5ERsq6b` and are answered in 0.5–2.5 s (worst single 8.6 s), always parseable JSON. But `GET`/`HEAD`/`PUT` → `405` with an empty body, MCP `initialize`/`tools/list` → `400`, MCP SSE open → `405`, A2A `message/send` → `400`, every natural-language envelope → `400`, and all six discovery documents → `404`. OKX's own `agent x402-check` returns `valid: false` for **both** services (`405` no-body, `400` with `{}`).
+- Contributing causes: paid `402`+`PAYMENT-REQUIRED` only after a quote, never on first contact; neither service description names a wire input, action, or example request; bodyless `405` on `GET`/`HEAD`; the A2A/task channel has never routed or answered anything (0 tasks incl. terminal, 0 chat sessions, 3 inbound messages parked `invalid-json`, no daemon autostart, registration-time doctor `ready: false`) while a 60 s heartbeat advertises `onlineStatus: 1`; search-invisible while rejected; auth `pg.Pool` with no `connectionTimeoutMillis`/`statement_timeout` (the one unbounded wait).
+- `NOT_PROVEN`: cold start, Groq latency (20 s × 2 ceiling), SerpApi latency (15 s × 2 ceiling), rate limiting, client disconnect, platform-side failure — first contact fails at parse in under a second, before any of those paths.
+- **The official A2MCP doc could not be read from this environment** (`web3.okx.com` DNS-blocked locally; DoH resolves but TCP:443 blocked to both edge IPs while a control host returns `200`; `www.okx.ai` does not mirror it). Those contract items are `UNRESOLVED_FROM_DOCS`, not inferred.
+- Observability gap recorded (not implemented): production request-log retention under one hour, and no logging of method, content type, content length, body key names, recognised `action`, or client disconnect.
+
+**Proof:** `docs/proof/lane-8r-3a-timeout-diagnosis/`. Verdict: `NOBU_LANE_8R_3A_PASS`.
+
+## Lane 8R.3B — First-contact A2MCP/A2A compatibility repair
+
+Scope is exactly the five-step minimum repair in `docs/proof/lane-8r-3a-timeout-diagnosis/README.md` §7:
+
+1. Read `https://web3.okx.com/onchainos/dev-docs/okxai/howtomcp` and `.../how-to-become-a2a` from a network that can reach `web3.okx.com`, and treat them as the authority. **Do not implement from inference.**
+2. Unshaped `POST` to a registered endpoint returns a `200` machine-readable self-description (service, available actions, required fields per action, example request) instead of a `400` Zod discriminator dump.
+3. `GET` on a registered endpoint returns that same descriptor instead of a bodyless `405`.
+4. The paid endpoint emits its already-correct x402 `402` + `PAYMENT-REQUIRED` challenge on **first contact**, so `agent x402-check` returns `valid: true`.
+5. Serve whichever discovery document the official docs require — decided from the docs, not guessed.
+
+Then rewrite both service descriptions to name their exact inputs and an example request, add the minimum safe instrumentation from §4.4, and only then resubmit `#5541`.
+
+**Proof:** official `agent x402-check` returning `valid: true` for both services; first-contact probes answered with a usable descriptor; before/after production reproduction; unchanged auth/payment/matching gates.
 
 ## Lane 7.4G — Live marketplace end-to-end proof
 

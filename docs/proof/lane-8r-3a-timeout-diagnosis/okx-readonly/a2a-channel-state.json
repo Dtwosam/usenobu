@@ -1,0 +1,67 @@
+﻿{
+    "captured_at":  "2026-07-26 01:32:41Z",
+    "purpose":  "State of the A2A/XMTP task channel that OKX platform testing uses to reach an ASP. Metadata only; no message content, addresses, or identifiers recorded.",
+    "a2a_cli_version":  "0.1.9",
+    "daemon_status":  "running pid=19332",
+    "daemon_os_autostart_installed":  false,
+    "daemon_current_process_started_utc":  "2026-07-23 12:10:26Z",
+    "registration_time_a2a_doctor_ready":  false,
+    "registration_time_a2a_doctor_evidence":  "docs/proof/okx/gate4-a2a-doctor-redacted.json (2026-07-14: ready=false, no AI runtime bound, daemon refresh failed)",
+    "heartbeat_interval_seconds":  60,
+    "okx_sessions_total":  1,
+    "okx_session_keys":  [
+                             "system-notification"
+                         ],
+    "agent_to_agent_chat_sessions":  0,
+    "pending_xmtp_task_requests":  0,
+    "marketplace_tasks_including_terminal":  0,
+    "provider_tasks_in_progress":  0,
+    "buyer_tasks_in_progress":  0,
+    "inbound_xmtp_messages_all_time":  3,
+    "inbound_xmtp_messages":  [
+                                  {
+                                      "chat_type":  "dm",
+                                      "direction":  "inbound",
+                                      "route":  "backup",
+                                      "route_reason":  "invalid-json",
+                                      "sender_is_okx_system_account":  true,
+                                      "xmtp_sent_at_utc":  "2026-07-17 06:16:12Z",
+                                      "received_at_utc":  "2026-07-17 09:19:56Z",
+                                      "receive_lag_seconds":  11024,
+                                      "parses_as_structured_envelope":  false,
+                                      "raw_text_length":  934,
+                                      "content_recorded":  "omitted by lane policy"
+                                  },
+                                  {
+                                      "chat_type":  "dm",
+                                      "direction":  "inbound",
+                                      "route":  "backup",
+                                      "route_reason":  "invalid-json",
+                                      "sender_is_okx_system_account":  true,
+                                      "xmtp_sent_at_utc":  "2026-07-23 10:17:31Z",
+                                      "received_at_utc":  "2026-07-23 12:10:43Z",
+                                      "receive_lag_seconds":  6792,
+                                      "parses_as_structured_envelope":  false,
+                                      "raw_text_length":  561,
+                                      "content_recorded":  "omitted by lane policy"
+                                  },
+                                  {
+                                      "chat_type":  "dm",
+                                      "direction":  "inbound",
+                                      "route":  "backup",
+                                      "route_reason":  "invalid-json",
+                                      "sender_is_okx_system_account":  true,
+                                      "xmtp_sent_at_utc":  "2026-07-25 15:00:42Z",
+                                      "received_at_utc":  "2026-07-25 15:00:43Z",
+                                      "receive_lag_seconds":  1,
+                                      "parses_as_structured_envelope":  false,
+                                      "raw_text_length":  1127,
+                                      "content_recorded":  "omitted by lane policy"
+                                  }
+                              ],
+    "interpretation":  [
+                           "Every inbound XMTP message ever received on the registered communication channel came from the OKX system account and was routed to the local backup bucket with routeReason=invalid-json, i.e. none was dispatched to an AI runtime and none was answered.",
+                           "No agent-to-agent chat session was ever created, no XMTP task request is pending, and no marketplace task exists against #5541 even when terminal statuses are included.",
+                           "onlineStatus=1 is produced by a 60s heartbeat from the local daemon and therefore does not evidence any ability to answer an inbound request."
+                       ]
+}

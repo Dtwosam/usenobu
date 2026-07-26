@@ -1,0 +1,8 @@
+﻿{
+    "captured_at":  "2026-07-26 01:30:49Z",
+    "purpose":  "Approved, publicly listed A2MCP ASP used only as a description-format reference. No values copied into Nobu.",
+    "agent_id":  "2013",
+    "name":  "CoinAnk OpenAPI",
+    "service_count":  80,
+    "sample_service_description":  "summary: US BTC ETF data.\nfeature list:\n- Query CoinAnk market API\n- Return structured JSON\n- Support crypto analysis\nexample prompts:\n- Get US BTC ETF data"
+}

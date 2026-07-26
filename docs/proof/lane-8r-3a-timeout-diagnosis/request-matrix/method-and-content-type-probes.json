@@ -1,0 +1,187 @@
+﻿{
+    "captured_at":  "2026-07-26 01:31:42Z",
+    "probes":  [
+                   {
+                       "label":  "method-GET",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  405,
+                       "response_content_type":  "",
+                       "duration_s":  0.592049,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       null
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-OPTIONS",
+                       "method":  "OPTIONS",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  204,
+                       "response_content_type":  "",
+                       "duration_s":  1.41413,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       null
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-PUT",
+                       "method":  "PUT",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  405,
+                       "response_content_type":  "",
+                       "duration_s":  0.561745,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       null
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-POST-form",
+                       "method":  "POST",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  400,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.544018,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "error"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-POST-textplain",
+                       "method":  "POST",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  1.754094,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "message",
+                                                       "requires_user_action",
+                                                       "next_action",
+                                                       "extracted_purchase",
+                                                       "missing_fields",
+                                                       "uncertain_fields",
+                                                       "field_evidence",
+                                                       "provider"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-POST-no-content-type",
+                       "method":  "POST",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  1.656891,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "message",
+                                                       "requires_user_action",
+                                                       "next_action",
+                                                       "extracted_purchase",
+                                                       "missing_fields",
+                                                       "uncertain_fields",
+                                                       "field_evidence",
+                                                       "provider"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-GET",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "http_status":  405,
+                       "response_content_type":  "",
+                       "duration_s":  0.886679,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       null
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-OPTIONS",
+                       "method":  "OPTIONS",
+                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "http_status":  204,
+                       "response_content_type":  "",
+                       "duration_s":  0.572528,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       null
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-PUT",
+                       "method":  "PUT",
+                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "http_status":  405,
+                       "response_content_type":  "",
+                       "duration_s":  0.533722,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       null
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-POST-form",
+                       "method":  "POST",
+                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "http_status":  400,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.543715,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "error"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-POST-textplain",
+                       "method":  "POST",
+                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "http_status":  400,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.571572,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "error",
+                                                       "agent_state",
+                                                       "message",
+                                                       "required_fields",
+                                                       "next_action",
+                                                       "documentation"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "method-POST-no-content-type",
+                       "method":  "POST",
+                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "http_status":  400,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.633293,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "error",
+                                                       "agent_state",
+                                                       "message",
+                                                       "required_fields",
+                                                       "next_action",
+                                                       "documentation"
+                                                   ],
+                       "payment_required_header":  false
+                   }
+               ]
+}

@@ -1,0 +1,184 @@
+﻿{
+    "captured_at":  "2026-07-26 01:31:52Z",
+    "purpose":  "Establish how the registered A2MCP endpoint answers a standards-shaped MCP client and an A2A client.",
+    "probes":  [
+                   {
+                       "label":  "mcp-initialize",
+                       "method":  "POST",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  400,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.729182,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "error",
+                                                       "message",
+                                                       "details"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "mcp-tools-list",
+                       "method":  "POST",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  400,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.573591,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "error",
+                                                       "message",
+                                                       "details"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "mcp-sse-stream-open",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  405,
+                       "response_content_type":  "",
+                       "duration_s":  0.646846,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       null
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "a2a-message-send",
+                       "method":  "POST",
+                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "http_status":  400,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.583658,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "error",
+                                                       "message",
+                                                       "details"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "discovery/.well-known/agent-card.json",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/.well-known/agent-card.json",
+                       "http_status":  404,
+                       "response_content_type":  "text/html; charset=utf-8",
+                       "duration_s":  0.703454,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "discovery/.well-known/agent.json",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/.well-known/agent.json",
+                       "http_status":  404,
+                       "response_content_type":  "text/html; charset=utf-8",
+                       "duration_s":  0.640161,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "discovery/.well-known/ai-plugin.json",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/.well-known/ai-plugin.json",
+                       "http_status":  404,
+                       "response_content_type":  "text/html; charset=utf-8",
+                       "duration_s":  0.61225,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "discovery/.well-known/oauth-protected-resource",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/.well-known/oauth-protected-resource",
+                       "http_status":  404,
+                       "response_content_type":  "text/html; charset=utf-8",
+                       "duration_s":  0.63244,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "discovery/.well-known/oauth-protected-resource/v1/agent",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/.well-known/oauth-protected-resource/v1/agent",
+                       "http_status":  404,
+                       "response_content_type":  "text/html; charset=utf-8",
+                       "duration_s":  0.543564,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "discovery/.well-known/mcp.json",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/.well-known/mcp.json",
+                       "http_status":  404,
+                       "response_content_type":  "text/html; charset=utf-8",
+                       "duration_s":  0.547092,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "discovery/health",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/health",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.622669,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+                                                       "status",
+                                                       "service",
+                                                       "version",
+                                                       "checked_at",
+                                                       "price_source_type",
+                                                       "provider",
+                                                       "serpapi_configured",
+                                                       "provider_ready",
+                                                       "groq_configured",
+                                                       "nobu_ai_model",
+                                                       "policy_id",
+                                                       "policy_version",
+                                                       "policy_review_state",
+                                                       "policy_warning",
+                                                       "policy_ops_store",
+                                                       "policy_ops_store_kind",
+                                                       "note"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "label":  "discovery/v1/agent/health",
+                       "method":  "GET",
+                       "url":  "https://usenobu.vercel.app/v1/agent/health",
+                       "http_status":  404,
+                       "response_content_type":  "text/html; charset=utf-8",
+                       "duration_s":  0.547451,
+                       "within_10s":  true,
+                       "response_top_level_keys":  [
+
+                                                   ],
+                       "payment_required_header":  false
+                   }
+               ]
+}

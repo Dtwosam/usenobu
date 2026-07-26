@@ -1,0 +1,34 @@
+﻿{
+    "tool":  "onchainos agent x402-check (official Onchain OS CLI v4.2.4)",
+    "captured_at":  "2026-07-26 01:30:43Z",
+    "note":  "With no --body the validator issues GET (Nobu answers 405). With --body it issues POST (Nobu answers 400). Neither yields the 402 challenge the validator requires.",
+    "checks":  [
+                   {
+                       "target":  "33561 free /v1/agent",
+                       "cli_body_arg":  "(none)",
+                       "result":  {
+                                      "reason":  "Endpoint returned HTTP 405 (not 402); not a valid x402 service.",
+                                      "statusCode":  405,
+                                      "valid":  false
+                                  }
+                   },
+                   {
+                       "target":  "35958 paid /start-monitoring",
+                       "cli_body_arg":  "(none)",
+                       "result":  {
+                                      "reason":  "Endpoint returned HTTP 405 (not 402); not a valid x402 service.",
+                                      "statusCode":  405,
+                                      "valid":  false
+                                  }
+                   },
+                   {
+                       "target":  "35958 paid /start-monitoring",
+                       "cli_body_arg":  "{}",
+                       "result":  {
+                                      "reason":  "Endpoint returned HTTP 400 (not 402); not a valid x402 service.",
+                                      "statusCode":  400,
+                                      "valid":  false
+                                  }
+                   }
+               ]
+}
