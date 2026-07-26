@@ -1,0 +1,23 @@
+{
+  "requested_base": "3021f1a033408ccd5157153b81d7fcee1ed79e19",
+  "deployed_code_commit": "7a4ef1ef8f933c58f330ec34d78845f4836d1ea0",
+  "deployed_code_changed_files": [
+    "app/v1/agent/route.ts",
+    "openapi/nobu-a2mcp.openapi.yaml",
+    "src/a2mcp/service-descriptor.ts",
+    "tests/a2mcp/free-agent-validation.test.ts"
+  ],
+  "paid_route_files_changed": false,
+  "paid_route_sha256": {
+    "app/v1/agent/monitoring-pass/route.ts": "65600AB91279AA84836D9B946B78DA3997F744AF3D84F359ECED109FECFE1CEC",
+    "app/v1/agent/start-monitoring/route.ts": "81F88A050C95678FA1EA64C577873461806C06D9CC3B72F6B8F0769D13C43B72"
+  },
+  "forbidden_actions_performed": {
+    "asp_update": false,
+    "asp_activation": false,
+    "asp_resubmission": false,
+    "payment": false,
+    "a2a_change": false,
+    "production_data_mutation": false
+  }
+}

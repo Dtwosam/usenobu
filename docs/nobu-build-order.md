@@ -464,6 +464,21 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Exact next lane/action:** operator decision on the unchanged rejected/not-listed QA state. No further update, activation, resubmission, payment, User registration, A2A change, deployment, or production-code change is authorized.
 
+### Lane 8R.3C.6 — Free A2MCP input-required validation repair COMPLETE
+
+- Started from exact commit `3021f1a033408ccd5157153b81d7fcee1ed79e19`; changed only the free `/v1/agent` validation path, its pure response builder, focused tests, free OpenAPI, and proof/current-state documentation.
+- Empty GET, bodyless POST, `{}`, and other requests with no supported `action` return HTTP `400` with `status: "input_required"`, `fields: ["action"]`, and `requiredArgs: ["action"]`.
+- The response retains the truthful supported-action list and each action's required fields, allowing the official Onchain OS service-input flow to continue.
+- Requests containing a supported action bypass this response and preserve the existing dispatcher behavior; valid `UNDERSTAND_PURCHASE` remains successful.
+- The free service remains free: no `402`, payment challenge, or payment requirement was added.
+- No paid-route file changed; the Monitoring Pass remains x402 v2 `402` and official-checker `valid: true` with and without `{}`.
+- Deployed code commit `7a4ef1e` as Vercel deployment `B4DsuLSbWcR3S2b23XQv3nknXiPQ`; explicitly re-aliased `usenobu.vercel.app` and repeated all required checks in Production.
+- No ASP update, activation, resubmission, payment, User registration, A2A change, or production-data mutation occurred.
+
+**Proof:** focused validation 5/5; focused Monitoring Pass 20/20; full suite 56 files / 458 tests passed / 1 skipped; typecheck; production build; local and Production direct probes; official Onchain OS 4.4.0 `x402-check` (`inputRequired: true` on the free endpoint, `valid: true` on the paid endpoint). Verdict: `NOBU_LANE_8R_3C_6_PASS`. Evidence: `docs/proof/lane-8r-3c-6-free-input-validation/`.
+
+**Exact next lane/action:** operator decision on the unchanged rejected/not-listed QA state. No additional ASP update, activation, resubmission, payment, User registration, A2A change, deployment, or production-code change is authorized.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.

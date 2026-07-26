@@ -1,0 +1,39 @@
+{
+  "captured_at": "2026-07-26T14:15:23Z",
+  "results": [
+    {
+      "command": "npx vitest run tests/a2mcp/free-agent-validation.test.ts",
+      "result": "PASS",
+      "test_files_passed": 1,
+      "tests_passed": 5
+    },
+    {
+      "command": "npx vitest run tests/payments/monitoring-pass.test.ts",
+      "result": "PASS",
+      "test_files_passed": 1,
+      "tests_passed": 20
+    },
+    {
+      "command": "npm test",
+      "result": "PASS",
+      "test_files_passed": 56,
+      "tests_passed": 458,
+      "tests_skipped": 1,
+      "tests_failed": 0
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "result": "PASS",
+      "compiled": true,
+      "routes_present": ["/v1/agent", "/v1/agent/monitoring-pass"]
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ]
+}

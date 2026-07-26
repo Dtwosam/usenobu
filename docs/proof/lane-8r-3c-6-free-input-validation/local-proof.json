@@ -1,0 +1,59 @@
+{
+  "captured_at": "2026-07-26T14:04:00Z",
+  "onchainos_version": "4.4.0",
+  "base_url": "http://127.0.0.1:43195",
+  "official_free_checks": [
+    {
+      "method": "GET",
+      "statusCode": 400,
+      "inputRequired": true,
+      "valid": false,
+      "fields": ["action"],
+      "requiredAnyOf": []
+    },
+    {
+      "method": "POST",
+      "body": {},
+      "statusCode": 400,
+      "inputRequired": true,
+      "valid": false,
+      "fields": ["action"],
+      "requiredAnyOf": []
+    }
+  ],
+  "direct_probes": [
+    {
+      "name": "empty_get",
+      "http_status": 400,
+      "status": "input_required",
+      "agent_state": "SERVICE_INPUT",
+      "fields": ["action"],
+      "requiredArgs": ["action"],
+      "payment_required": false
+    },
+    {
+      "name": "empty_post",
+      "body": {},
+      "http_status": 400,
+      "status": "input_required",
+      "agent_state": "SERVICE_INPUT",
+      "fields": ["action"],
+      "requiredArgs": ["action"],
+      "payment_required": false
+    },
+    {
+      "name": "understand_purchase",
+      "http_status": 200,
+      "agent_state": "CONFIRMATION_REQUIRED",
+      "payment_required": false
+    },
+    {
+      "name": "monitoring_pass",
+      "http_status": 402,
+      "status": "PAYMENT_PENDING",
+      "agent_state": "MONITORING_PASS",
+      "x402Version": 2,
+      "payment_required": true
+    }
+  ]
+}

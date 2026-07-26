@@ -1,0 +1,85 @@
+{
+  "captured_at": "2026-07-26T14:15:23Z",
+  "deployed_code_commit": "7a4ef1ef8f933c58f330ec34d78845f4836d1ea0",
+  "vercel_deployment_id": "B4DsuLSbWcR3S2b23XQv3nknXiPQ",
+  "unique_url": "https://usenobu-95yc8u3kt-dtwoflicks-2878s-projects.vercel.app",
+  "registered_alias": "https://usenobu.vercel.app",
+  "onchainos_version": "4.4.0",
+  "official_free_checks": [
+    {
+      "method": "GET",
+      "statusCode": 400,
+      "inputRequired": true,
+      "valid": false,
+      "fields": ["action"],
+      "requiredAnyOf": []
+    },
+    {
+      "method": "POST",
+      "body": {},
+      "statusCode": 400,
+      "inputRequired": true,
+      "valid": false,
+      "fields": ["action"],
+      "requiredAnyOf": []
+    }
+  ],
+  "direct_probes": [
+    {
+      "name": "empty_get",
+      "http_status": 400,
+      "status": "input_required",
+      "agent_state": "SERVICE_INPUT",
+      "fields": ["action"],
+      "requiredArgs": ["action"],
+      "payment_required": false
+    },
+    {
+      "name": "empty_post",
+      "body": {},
+      "http_status": 400,
+      "status": "input_required",
+      "agent_state": "SERVICE_INPUT",
+      "fields": ["action"],
+      "requiredArgs": ["action"],
+      "payment_required": false
+    },
+    {
+      "name": "understand_purchase",
+      "http_status": 200,
+      "agent_state": "CONFIRMATION_REQUIRED",
+      "payment_required": false
+    },
+    {
+      "name": "monitoring_pass",
+      "http_status": 402,
+      "status": "PAYMENT_PENDING",
+      "agent_state": "MONITORING_PASS",
+      "x402Version": 2,
+      "payment_required": true
+    }
+  ],
+  "official_paid_checks": [
+    {
+      "method": "GET",
+      "valid": true,
+      "x402Version": 2,
+      "scheme": "exact",
+      "network": "eip155:196",
+      "amountMinimal": "990000",
+      "amountHuman": 0.99,
+      "payTo": "[REDACTED_VALID_ADDRESS]"
+    },
+    {
+      "method": "POST",
+      "body": {},
+      "valid": true,
+      "x402Version": 2,
+      "scheme": "exact",
+      "network": "eip155:196",
+      "amountMinimal": "990000",
+      "amountHuman": 0.99,
+      "payTo": "[REDACTED_VALID_ADDRESS]"
+    }
+  ]
+}
