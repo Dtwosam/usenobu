@@ -1,0 +1,46 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.2",
+  "verdict": "NOBU_LANE_8R_3C_2_BLOCKED_A2A_REPAIR",
+  "repository": {
+    "head": "baa9c66ef68e29664acd2c95267b08aa65358dae",
+    "expected": "baa9c66ef68e29664acd2c95267b08aa65358dae",
+    "branch": "master",
+    "tracked_worktree_and_index": "clean",
+    "untracked_count": 0
+  },
+  "onchainos_preflight": {
+    "command": "onchainos preflight --skill-version 4.2.4",
+    "ok": true,
+    "currentVersion": "4.2.4",
+    "latestVersion": "4.4.0",
+    "channel": "stable",
+    "integrity": "ok",
+    "drift": null,
+    "status": "update_failed",
+    "updated": false,
+    "failure": "Access is denied. (os error 5)",
+    "required_action": "Retry once with onchainos upgrade --force"
+  },
+  "required_retry": {
+    "command": "onchainos upgrade --force",
+    "invocations": 1,
+    "exit_code": 1,
+    "checksum_verified": true,
+    "ok": false,
+    "error": "failed to replace binary: Access is denied. (os error 5)"
+  },
+  "stop_rule": "Stopped on the first material failure. No reinstall, replacement workaround, A2A mutation, ASP read/write, or update retry followed.",
+  "mutations": {
+    "a2a_package_upgrade": false,
+    "daemon_stop": false,
+    "daemon_restart": false,
+    "doctor_run": false,
+    "asp_update_invocations": 0,
+    "agent_activate": false,
+    "payment": false,
+    "user_role_registration": false,
+    "production_code_or_deployment": false
+  },
+  "secrets_present": false
+}

@@ -399,6 +399,19 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Next action is an operator decision, not a build step.** Recorded, unexecuted options: (a) upgrade `@okxweb3/a2a-node` and restart the daemon, then retry the single update — briefly drops `#5541`'s A2A availability; (b) `okx-a2a doctor --fix` (same upgrade/restart); (c) establish whether a supported CLI path updates identity/services without the A2A readiness gate — **not established**.
 
+### Lane 8R.3C.2 — A2A readiness repair and single ASP update retry BLOCKED
+
+- Authorized scope: repair only the local A2A readiness blocker, then run the exact Lane 8R.3C.0 two-service payload once; no activation, payment, User-role registration, deployment, alternative payload, second ASP/service, or additional update.
+- Repository preflight passed at exact commit `baa9c66ef68e29664acd2c95267b08aa65358dae`: branch `master`, tracked worktree/index clean, no untracked files.
+- The mandatory Onchain OS session preflight reported integrity `ok`, no drift, installed CLI `4.2.4`, latest stable `4.4.0`, and a failed verified-binary replacement on Windows (`Access is denied`, OS error 5). It required one `onchainos upgrade --force` retry.
+- The forced retry downloaded and checksum-verified `4.4.0` but failed with the same access-denied replacement error.
+- Per the official workflow's no-auto-reinstall rule and this repository's stop-on-first-material-failure rule, execution stopped before installed-package/doctor-help inspection, daemon inspection or lifecycle changes, A2A upgrade/doctor, ASP read-back, ASP update, QA read-back, or `x402-check`.
+- Exactly zero `agent update` invocations were made in this lane. The exact validated 8R.3C.0 payload remains unspent and unchanged.
+
+**Verdict:** `NOBU_LANE_8R_3C_2_BLOCKED_A2A_REPAIR`. **Proof:** `docs/proof/lane-8r-3c-2-a2a-repair-and-alignment/`.
+
+**Exact next lane:** Lane 8R.3C.2 remains active and blocked at preflight. An operator must repair or manually update the Onchain OS CLI so its mandatory preflight succeeds, then explicitly authorize a fresh Lane 8R.3C.2 retry from the beginning.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.
