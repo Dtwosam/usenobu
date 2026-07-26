@@ -385,6 +385,20 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Verdict:** `NOBU_LANE_8R_3C_0_READY_FOR_OPERATOR_DECISION`. **Proof:** `docs/proof/lane-8r-3c-0-operator-preflight/`.
 
+### Lane 8R.3C.1 — ASP metadata alignment BLOCKED (update refused before execution)
+
+- Attempted Lane 8R.3C Step 1: **exactly one** `agent update --agent-id 5541 --service '<8R.3C.0 payload>'`. No retry, no alternative payload, no `agent activate`, no payment, no User-role registration, no resubmission, no code change, no deploy.
+- Full read-only preflight passed first at base commit `cc320d5`: clean tracked worktree on `master`; production free `/v1/agent` → `200` `status: READY` (1.12 s); production `/v1/agent/monitoring-pass` → `402` with a valid x402 v2 challenge (`exact`, `eip155:196`, USD₮0, `990000`, `maxTimeoutSeconds 300`) (0.84 s); `#5541` read back with zero drift from 8R.3C.0; payload confirmed **byte-identical** to the validated 8R.3C.0 payload (sha256 `deb1edb0…99c0d`, 1167 bytes, 2 elements, both `operation: "update"` against existing ids `33561`/`35958`, both descriptions byte-identical to the operator runbook).
+- **Process disclosure:** one Onchain OS process was active — the official OKX A2A daemon, PID `19332`, `@okxweb3/a2a-node@0.1.9`, started 2026-07-23, orphaned from an exited parent shell. Identified as the **known, documented** daemon already present during Lanes 8R.3A/8R.3B/8R.3B.1 and the 8R.3C.0 preflight; escalated rather than silently interpreted; by operator decision left running and **not** killed, restarted or upgraded. Attested: exactly one instance, no child processes, no `onchainos.exe` executing.
+- **Refusal:** the CLI's own **client-side preflight gate** aborted the call before any network or on-chain write — `[onchainos] checking A2A communication readiness (okx-a2a doctor)...` → `{"ok": false, "error": "A2A communication is not ready, so this operation was not executed. … Upgrade to @okxweb3/a2a-node@latest and restart the daemon on the new version …"}`. Not a backend, marketplace or payload rejection; the payload was never transmitted.
+- **Read-back confirms a clean no-op:** agent id `5541`, no `newAgentId`, service ids `33561`/`35958` unchanged (total still 2, none created or deleted), `33561` unchanged in name/fee/endpoint/description, `35958` still `Nobu Monitoring Activation` at the stale `/v1/agent/start-monitoring` with its original description and fee `0.99`, and QA status still `approvalDisplayStatus 5` / `approvalStatus 6` / `not listed` — **QA not re-triggered**. Only `lastOnlineTime`/`updatedAt` moved (0–2 ms apart across three samples, still advancing with no further attempt): the known ~60 s daemon heartbeat, disclosed explicitly.
+- **Blocker is the local A2A environment only.** The CLI's remedy (upgrade `@okxweb3/a2a-node` to latest, restart the daemon) is mutually exclusive with the standing "do not kill or restart the daemon" instruction and is outside this lane's authorized action, so the lane stopped rather than mutate the environment or guess around the gate. `agent update --help` documents no bypass flag; none was invented.
+- Downstream immediate-proof steps (designated routing, `x402-check` against the *updated* listing, post-update QA capture) correctly **not** performed — there is no updated listing to validate.
+
+**Verdict:** `NOBU_LANE_8R_3C_1_BLOCKED_UPDATE_REFUSED`. **Proof:** `docs/proof/lane-8r-3c-1-asp-alignment/`.
+
+**Next action is an operator decision, not a build step.** Recorded, unexecuted options: (a) upgrade `@okxweb3/a2a-node` and restart the daemon, then retry the single update — briefly drops `#5541`'s A2A availability; (b) `okx-a2a doctor --fix` (same upgrade/restart); (c) establish whether a supported CLI path updates identity/services without the A2A readiness gate — **not established**.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.

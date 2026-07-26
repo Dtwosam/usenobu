@@ -1,0 +1,44 @@
+{
+  "captured_at": "2026-07-26 (this session)",
+  "note": "Exactly one `agent update` invocation was attempted against ASP #5541. It was REFUSED by the CLI's own local preflight gate and did NOT execute. No retry, no second payload, no `agent activate`, no payment, no User-role registration, no resubmission was run. Secrets redacted; error codes and messages preserved verbatim.",
+
+  "command": {
+    "executable": "C:/Users/dtwof/.onchainos/bin/onchainos.exe",
+    "argv": ["agent", "update", "--agent-id", "5541", "--service", "<PAYLOAD>"],
+    "payload_source": "docs/proof/lane-8r-3c-0-operator-preflight/proposed-service-update.json (.payload), serialized compact",
+    "payload_sha256": "deb1edb05368aa092a1d110927709d36317bbe0f2f8723416fb0b1f3be499c0d",
+    "payload_bytes": 1167,
+    "payload_byte_identical_to_8r_3c_0": true,
+    "payload_elements": 2,
+    "payload_operations": ["update:33561", "update:35958"],
+    "shell": "Git Bash; payload passed via \"$PAYLOAD\" variable expansion (no re-expansion, so the literal $0.99 in the description was preserved verbatim)"
+  },
+
+  "stdout_verbatim": [
+    "[onchainos] checking A2A communication readiness (okx-a2a doctor)...",
+    "[onchainos] A2A communication is NOT ready: 1 issue(s) found; all are auto-fixable. Run: okx-a2a doctor --fix 1 optional enhancement(s) available but not required (see nextActions with optional=true).",
+    "{\"ok\":false,\"error\":\"A2A communication is not ready, so this operation was not executed. 1 issue(s) found; all are auto-fixable. Run: okx-a2a doctor --fix 1 optional enhancement(s) available but not required (see nextActions with optional=true).\\n- Upgrade to @okxweb3/a2a-node@latest and restart the daemon on the new version. (run: npm install -g @okxweb3/a2a-node@latest)\\nRun `okx-a2a doctor --fix` to repair the local A2A environment, then retry.\"}"
+  ],
+
+  "stderr_verbatim": "(none observed; the two `[onchainos] ...` readiness lines and the JSON result were captured together through a combined stdout/stderr pipe, so they are recorded above without separation)",
+
+  "response_object": {
+    "ok": false,
+    "error": "A2A communication is not ready, so this operation was not executed. 1 issue(s) found; all are auto-fixable. Run: okx-a2a doctor --fix 1 optional enhancement(s) available but not required (see nextActions with optional=true).\n- Upgrade to @okxweb3/a2a-node@latest and restart the daemon on the new version. (run: npm install -g @okxweb3/a2a-node@latest)\nRun `okx-a2a doctor --fix` to repair the local A2A environment, then retry."
+  },
+
+  "exit_code": {
+    "observed": 0,
+    "honesty_note": "The captured `0` is the exit status of the `tee` at the end of the pipeline, NOT the onchainos process's own exit code. The CLI's true exit code was therefore not reliably captured. It was NOT re-run to obtain it, because re-running `agent update` is explicitly forbidden for this lane. The authoritative failure signal is the `\"ok\": false` response object above, which states in its own words that the operation was not executed."
+  },
+
+  "blocking_issue": {
+    "class": "local A2A environment readiness, not payload and not ASP state",
+    "required_remedy_per_cli": "npm install -g @okxweb3/a2a-node@latest, then restart the daemon on the new version (or `okx-a2a doctor --fix`)",
+    "installed_version_observed": "@okxweb3/a2a-node@0.1.9 (global, C:/Users/dtwof/AppData/Roaming/npm)",
+    "why_not_remedied_in_this_lane": "The documented remedy requires upgrading the package AND restarting the running A2A daemon. The operator decision governing this lane explicitly directed: do not kill or restart PID 19332. Upgrading and restarting is also outside this lane's authorized action (exactly one `agent update`). Therefore the lane stops here rather than mutating the local A2A environment.",
+    "optional_enhancement": "1 optional enhancement reported as available but NOT required (`nextActions with optional=true`); not inspected further, since the blocking issue alone prevents execution."
+  },
+
+  "payload_verdict": "The payload was never transmitted for on-chain write. The refusal happened in the CLI's local preflight gate, before any network or on-chain operation. Nothing about the payload was rejected; it remains validated and unchanged."
+}

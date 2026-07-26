@@ -1,0 +1,85 @@
+{
+  "captured_at": "2026-07-26 (this session, after the refused `agent update`)",
+  "tool": "onchainos agent get-agents --agent-ids 5541 ; onchainos agent service-list --agent-id 5541",
+  "note": "Read-only. Addresses masked by lane policy. Compared field-by-field against the pre-attempt baseline captured earlier in this same session and against docs/proof/lane-8r-3c-0-operator-preflight/asp-readback.json.",
+
+  "agent": {
+    "agentId": "5541",
+    "name": "Nobu",
+    "roleLabel": "ASP",
+    "approvalDisplayStatus": 5,
+    "approvalLabel": "Listing rejected",
+    "approvalStatus": 6,
+    "statusLabel": "not listed",
+    "status": 2,
+    "onlineStatus": 1,
+    "soldCount": 0,
+    "createdAt": 1783987306325,
+    "newAgentId_present": false,
+    "ownerAddress_masked": "0xc07a...REDACTED...d938",
+    "communicationAddress_masked": "0xE688...REDACTED...47AC",
+    "approvalRemark_summary": "Unchanged — the same 2026-07-25 platform-test timeout remark, verbatim, including the A2A/A2MCP dev-doc links and the resubmit-via-chat instruction."
+  },
+
+  "services": [
+    {
+      "id": 33561,
+      "serviceId": "de5eb51b-102b-450e-95f4-7bf5d0822e25",
+      "serviceName": "Nobu Purchase Setup",
+      "serviceType": "A2MCP",
+      "fee": "0",
+      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "serviceDescription": "Free agent setup for Target post-purchase monitoring: discover and confirm products, verify email, capture consent, check eligibility, prepare quotes, list/status, alert prefs, stop, and revoke. Does not activate paid monitoring.\nUser provides: 1. purchase details 2. exact product confirmation 3. verified email 4. monitoring and email-alert consent.",
+      "changed": false,
+      "note": "Still the ORIGINAL description. The intended new description was never applied."
+    },
+    {
+      "id": 35958,
+      "serviceId": "5e438a2f-1c47-4852-b553-9781f025ad50",
+      "serviceName": "Nobu Monitoring Activation",
+      "serviceType": "A2MCP",
+      "fee": "0.99",
+      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "serviceDescription": "Activates scheduled monitoring for one confirmed eligible purchase after verified $0.99 OKX payment. Payment does not guarantee a lower price, alert, refund, adjustment, or savings.\nUser provides: 1. verified connection 2. valid enrollment quote 3. completed OKX payment for activation.",
+      "changed": false,
+      "note": "Still the ORIGINAL name, endpoint and description — still stale at /v1/agent/start-monitoring. The intended rename to `Nobu Monitoring Pass` and repoint to /v1/agent/monitoring-pass were never applied."
+    }
+  ],
+
+  "field_by_field_comparison": {
+    "agentId": "unchanged (5541)",
+    "newAgentId": "absent — no second ASP created",
+    "service_ids": "unchanged (33561, 35958) — no service created or deleted; total still 2",
+    "serviceId_uuids": "unchanged (de5eb51b-…, 5e438a2f-…)",
+    "33561.serviceName": "unchanged",
+    "33561.serviceDescription": "unchanged (original text)",
+    "33561.fee": "unchanged (0)",
+    "33561.endpoint": "unchanged (/v1/agent)",
+    "35958.serviceName": "unchanged (`Nobu Monitoring Activation`, NOT `Nobu Monitoring Pass`)",
+    "35958.serviceDescription": "unchanged (original text)",
+    "35958.fee": "unchanged (0.99)",
+    "35958.endpoint": "unchanged (/v1/agent/start-monitoring, still stale)",
+    "approvalDisplayStatus": "unchanged (5, `Listing rejected`)",
+    "approvalStatus": "unchanged (6)",
+    "statusLabel": "unchanged (`not listed`)",
+    "approvalRemark": "unchanged (same 2026-07-25 timeout remark)",
+    "soldCount": "unchanged (0)",
+    "createdAt": "unchanged",
+    "profileDescription / profilePicture / categoryCode / chainIndex": "unchanged"
+  },
+
+  "fields_that_did_move_and_why": {
+    "lastOnlineTime / updatedAt": {
+      "samples": [
+        { "when": "pre-attempt", "lastOnlineTime": 1785058653063, "updatedAt": 1785058653063, "delta_ms": 0 },
+        { "when": "post-refusal #1", "lastOnlineTime": 1785059198092, "updatedAt": 1785059198094, "delta_ms": 2 },
+        { "when": "post-refusal #2", "lastOnlineTime": 1785060092724, "updatedAt": 1785060092725, "delta_ms": 1 }
+      ],
+      "assessment": "NOT a state change caused by the refused call. `updatedAt` tracks `lastOnlineTime` to within 0–2 ms in every sample, and both kept advancing across post-refusal reads while no further update was attempted. This is the known ~60 s A2A daemon heartbeat writing liveness, exactly the behaviour Lane 8R.3A documented (`a 60 s heartbeat keeps reporting onlineStatus: 1`). No QA-governed field moved with it.",
+      "disclosure_reason": "Recorded explicitly rather than omitted, so the no-state-change claim is auditable."
+    }
+  },
+
+  "conclusion": "Every QA-governed field — agent id, both service ids, both names, both descriptions, both fees, both endpoints, service type, and the approval/QA status — is byte-for-byte unchanged from the pre-attempt baseline and from the Lane 8R.3C.0 readback. The only movement is the heartbeat-driven liveness timestamp pair. This is a clean no-op: the refusal happened before any write.",
+  "verdict": "NOBU_LANE_8R_3C_1_BLOCKED_UPDATE_REFUSED"
+}

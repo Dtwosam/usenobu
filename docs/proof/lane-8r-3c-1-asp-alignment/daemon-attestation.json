@@ -1,0 +1,37 @@
+{
+  "captured_at": "2026-07-26 (this session)",
+  "note": "Attestation of the known, documented OKX A2A daemon that was active throughout this lane. Per the governing operator decision it was NOT killed, restarted, upgraded, or otherwise modified.",
+
+  "daemon": {
+    "pid": 19332,
+    "process": "node.exe",
+    "command_line": "\"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\dtwof\\AppData\\Roaming\\npm\\node_modules\\@okxweb3\\a2a-node\\dist\\cli.js run",
+    "package": "@okxweb3/a2a-node",
+    "installed_version": "0.1.9",
+    "start_time": "2026-07-23 13:10:26",
+    "parent_pid": 24600,
+    "parent_state": "exited — the daemon is orphaned from a prior shell",
+    "instances_running": 1,
+    "child_processes": "none"
+  },
+
+  "attestation_checks": {
+    "pid_and_command_still_match_a2a_node": "PASS",
+    "start_time_remains_2026_07_23": "PASS (13:10:26)",
+    "exactly_one_such_daemon_running": "PASS (count = 1)",
+    "no_child_agent_update_payment_registration_or_activation_process": "PASS (zero child processes)",
+    "no_onchainos_exe_process_executing": "PASS (no process whose executable is onchainos.exe was running at check time)",
+    "repository_head_and_worktree": "PASS (HEAD cc320d554a44cd33b82e59816d3e2d4b43c8ded2 = cc320d5, branch master, tracked worktree and index clean)"
+  },
+
+  "classification": "KNOWN, not unknown. This is the official OKX A2A daemon, documented in `docs/proof/okx/gate4-a2a-doctor-redacted.json` (`okx-a2a daemon start` / `okx-a2a daemon autostart install`) and discussed in the Lane 8R.3A diagnosis. It is a continuously running availability process that was already present during Lane 8R.3C.0's read-only preflight, and during Lanes 8R.3A, 8R.3B and 8R.3B.1.",
+
+  "role": "It routes inbound A2A messages/tasks and sustains the ~60 s liveness heartbeat that keeps `#5541` at `onlineStatus: 1` — the availability OKX's platform test depends on. It does not issue agent-identity metadata writes.",
+
+  "other_processes_observed": {
+    "codex_mcp_runtime": "PIDs 24560 / 32196 / 32496 / 10148 — Codex app-server MCP/node runtime under codex.exe (PID 28800). Unrelated to Onchain OS.",
+    "leftover_read_only_search_shells": "PIDs 27296 / 29752 / 30236 — bash + `find / -iname onchainos*` and a `grep -ril onchainos docs`, left over from a prior context. These match the string `onchainos` only as a SEARCH TERM; they do not execute the Onchain OS CLI and cannot mutate ASP state. Recorded for completeness; not killed."
+  },
+
+  "irony_note": "The daemon attested here as safe-to-leave-running is also, at version 0.1.9, the exact reason the CLI's local readiness gate refused the update: the gate requires @okxweb3/a2a-node@latest with the daemon restarted on the new version. Honouring 'do not kill or restart it' and executing the update are therefore mutually exclusive under the current CLI build — see README.md."
+}
