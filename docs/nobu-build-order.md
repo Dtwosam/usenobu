@@ -414,6 +414,22 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Exact next lane/action:** Lane 8R.3C.2 remains blocked and its update authorization is spent. A new operator-controlled lane must determine and read-only validate the documented Windows argument-transport form accepted by Onchain OS `4.4.0`, then obtain explicit authorization before any future ASP write.
 
+### Lane 8R.3C.3 — Windows `--service` argument transport proof BLOCKED
+
+- Strictly read-only lane from exact commit `0fecf578a125b3ad843fa539a36ad2d3c9c4fccf`; clean `master`, worktree, and index.
+- Selected executable `C:\Users\dtwof\.local\bin\onchainos.exe`, version `4.4.0`; preflight stable/current `4.4.0`, integrity `ok`, no CLI update. Instruction-bundle maintenance was not run because the lane was read-only.
+- Official A2A doctor passed read-only outside the restricted workspace sandbox: `ready: true`, zero blocking failures, `0.1.10`, existing daemon PID `27124`, identity refresh unchanged. The first sandboxed doctor's `EPERM`/read-only-database failures were environmental only and triggered no repair.
+- Pre/post ASP reads matched: agent `5541`, exactly services `33561`/`35958`, all names/descriptions/fees/endpoints, `onlineStatus: 1`, and QA `approvalDisplayStatus 5` / `approvalStatus 6` / `not listed` unchanged.
+- Installed `4.4.0` help says `validate-listing` is pure-local/no-network and its `--service` uses the same JSON element shape as create/update. Read-only binary strings contain the `PARSE`, `failed to parse --service as JSON array`, and `key must be a string` diagnostics.
+- Loaded the exact Lane 8R.3C.0 payload inside Node. Immediately before spawn: 1167 UTF-8 bytes, sha256 `deb1edb0…99c0d`, two entries (`update:33561`, `update:35958`), both descriptions byte-identical to the operator runbook.
+- Invoked `agent validate-listing` exactly once via Node `child_process.spawnSync`, `shell: false`, explicit ten-element argument array. Payload appeared once as argument index 9 and was never interpolated through PowerShell.
+- Validation exit code `0`, stderr empty. Parser result failed: stdout returned `pass: false` with blocking `field: service`, `code: PARSE`, `--service is not a valid JSON array of service objects.` The earlier `key must be a string` error did not recur, but the required no-`PARSE` criterion did not pass.
+- Stopped immediately: no second validation, no alternative transport, no payload alteration, no `agent update`, no activation, payment, User registration, A2A mutation, deployment, or resubmission.
+
+**Verdict:** `NOBU_LANE_8R_3C_3_BLOCKED_ARGUMENT_TRANSPORT`. **Proof:** `docs/proof/lane-8r-3c-3-windows-argument-transport/`.
+
+**Exact next lane/action:** A new explicitly authorized read-only operator lane must use the official Onchain OS `4.4.0` implementation to distinguish Windows argv corruption from validator service-schema rejection. It must not alter the canonical payload or run an ASP write. No update authorization exists.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.

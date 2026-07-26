@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.3",
+  "source": "docs/proof/lane-8r-3c-0-operator-preflight/proposed-service-update.json#payload",
+  "operator_runbook": "docs/proof/lane-8r-3b-monitoring-pass-repair/operator-runbook.md",
+  "serialization": "JSON.stringify(payload)",
+  "utf8_bytes": 1167,
+  "sha256": "deb1edb05368aa092a1d110927709d36317bbe0f2f8723416fb0b1f3be499c0d",
+  "element_count": 2,
+  "operations": [
+    "update:33561",
+    "update:35958"
+  ],
+  "ids": [
+    33561,
+    35958
+  ],
+  "runbook_descriptions_byte_identical": true,
+  "canonical_matches_expected": true,
+  "altered": false,
+  "secrets_present": false
+}

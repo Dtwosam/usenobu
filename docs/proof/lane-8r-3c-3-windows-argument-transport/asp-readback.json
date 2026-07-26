@@ -1,0 +1,45 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.3",
+  "comparison": "before versus immediately after the single read-only validate-listing invocation",
+  "agent": {
+    "agentId": "5541",
+    "name": "Nobu",
+    "role": "ASP",
+    "onlineStatus": 1,
+    "approvalDisplayStatus": 5,
+    "approvalLabel": "Listing rejected",
+    "approvalStatus": 6,
+    "statusLabel": "not listed",
+    "qa_retriggered": false,
+    "changed": false
+  },
+  "services": [
+    {
+      "id": 33561,
+      "serviceName": "Nobu Purchase Setup",
+      "serviceType": "A2MCP",
+      "fee": "0",
+      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "description": "Original registered description unchanged",
+      "changed": false
+    },
+    {
+      "id": 35958,
+      "serviceName": "Nobu Monitoring Activation",
+      "serviceType": "A2MCP",
+      "fee": "0.99",
+      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "description": "Original registered description unchanged",
+      "changed": false
+    }
+  ],
+  "service_count": 2,
+  "service_created": false,
+  "service_deleted": false,
+  "qa_governed_fields_changed": false,
+  "only_heartbeat_timestamps_advanced": true,
+  "state_changing_commands_run": [],
+  "verdict": "NOBU_LANE_8R_3C_3_BLOCKED_ARGUMENT_TRANSPORT",
+  "secrets_present": false
+}

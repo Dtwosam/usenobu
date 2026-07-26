@@ -1,0 +1,27 @@
+captured_at: 2026-07-26
+lane: 8R.3C.3
+executable: C:\Users\dtwof\.local\bin\onchainos.exe
+version: 4.4.0
+executable_sha256: 4a7141bf7c60d2f60c927c285e9e2e306c77213347acd44165e77ff834b73c42
+
+Read-only help inspected:
+
+1. `agent update --help`
+   - `--service <SERVICE>` is an incremental JSON array of service changes.
+   - Update entries carry `operation: "update"` and the existing service id.
+
+2. `agent validate-listing --help`
+   - Described as "pure-local, no network".
+   - `--service <SERVICE>` is a JSON array string with the same element shape
+     as create/update.
+
+3. Installed binary-string inspection
+   - Found `PARSE`.
+   - Found `failed to parse --service as JSON array`.
+   - Found `key must be a string`.
+   - Found the pure-local validate-listing description and same-shape help.
+
+No `agent update`, mutation, source patch, undocumented flag, or bypass was
+used. The help/schema tension exposed by the proof remains unresolved:
+validate-listing documented the create/update element shape but returned a
+blocking `service/PARSE` finding for the exact canonical two-update payload.

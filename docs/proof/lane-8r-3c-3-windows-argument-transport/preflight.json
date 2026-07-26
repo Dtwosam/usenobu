@@ -1,0 +1,45 @@
+{
+  "captured_at": "2026-07-26",
+  "lane": "8R.3C.3",
+  "repository": {
+    "head": "0fecf578a125b3ad843fa539a36ad2d3c9c4fccf",
+    "expected": "0fecf578a125b3ad843fa539a36ad2d3c9c4fccf",
+    "head_matches": true,
+    "branch": "master",
+    "worktree_clean": true,
+    "index_clean": true
+  },
+  "onchainos": {
+    "selected_executable": "C:\\Users\\dtwof\\.local\\bin\\onchainos.exe",
+    "second_path_entry_untouched": "C:\\Users\\dtwof\\.onchainos\\bin\\onchainos.exe",
+    "version": "4.4.0",
+    "stable_version": "4.4.0",
+    "integrity": "ok",
+    "preflight_status": "ok",
+    "updated": false,
+    "skill_version_reported": "4.2.4",
+    "skill_drift_recommendation_executed": false,
+    "note": "Instruction-bundle maintenance was not executed because the lane is strictly read-only."
+  },
+  "a2a_doctor": {
+    "authoritative_run": "official native launcher outside the restricted workspace sandbox",
+    "ok": true,
+    "ready": true,
+    "blocking_failures": 0,
+    "cli_version": "0.1.10",
+    "daemon_pid": 27124,
+    "daemon_ready": true,
+    "agent_count": 1,
+    "active_clients": 1,
+    "identity_refresh_changed": false,
+    "summary": {
+      "pass": 8,
+      "warn": 0,
+      "fail": 0,
+      "optional": 1
+    },
+    "fixes_applied": [],
+    "sandbox_false_negative": "The first sandboxed run could not spawn subprocesses or write the doctor refresh database (EPERM/read-only database). No repair was run; the unrestricted read-only rerun passed."
+  },
+  "secrets_present": false
+}
