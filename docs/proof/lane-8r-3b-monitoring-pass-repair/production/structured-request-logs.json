@@ -1,0 +1,13 @@
+﻿{
+    "captured_at":  "2026-07-26 08:32:41Z",
+    "purpose":  "Lane 8R.3A recorded that nothing logged method, content type, content length, body key names, recognised action, status, duration or disconnect. These lines close that gap and carry no field VALUES.",
+    "sample_count":  18,
+    "samples":  [
+                    "nobu_a2mcp_request {\"at\":\"2026-07-26T08:32:32.548Z\",\"route\":\"/v1/agent/monitoring-pass\",\"method\":\"POST\",\"content_type\":null,\"content_length\":null,\"top_level_keys\":[],\"recognised_action\":\"MONITORING_PASS\",\"http_status\":402,\"duration_ms\":0,\"outcome\":\"PAYMENT_PENDING\",\"client_disconnected\":false}",
+                    "nobu_a2mcp_request {\"at\":\"2026-07-26T08:32:04.505Z\",\"route\":\"/v1/agent/monitoring-pass\",\"method\":\"POST\",\"content_type\":\"application/json\",\"content_length\":2,\"top_level_keys\":[],\"recognised_action\":\"MONITORING_PASS\",\"http_status\":402,\"duration_ms\":0,\"outcome\":\"PAYMENT_PENDING\",\"client_disconnected\":false}",
+                    "nobu_a2mcp_request {\"at\":\"2026-07-26T08:32:02.808Z\",\"route\":\"/v1/agent/monitoring-pass\",\"method\":\"GET\",\"content_type\":null,\"content_length\":null,\"top_level_keys\":[],\"recognised_action\":\"MONITORING_PASS\",\"http_status\":402,\"duration_ms\":0,\"outcome\":\"PAYMENT_PENDING\",\"client_disconnected\":false}",
+                    "nobu_a2mcp_request {\"at\":\"2026-07-26T08:31:32.288Z\",\"route\":\"/v1/agent/monitoring-pass\",\"method\":\"POST\",\"content_type\":null,\"content_length\":null,\"top_level_keys\":[],\"recognised_action\":\"MONITORING_PASS\",\"http_status\":402,\"duration_ms\":917,\"outcome\":\"PAYMENT_PENDING\",\"client_disconnected\":false}",
+                    "nobu_a2mcp_request {\"at\":\"2026-07-26T08:31:30.363Z\",\"route\":\"/v1/agent/monitoring-pass\",\"method\":\"POST\",\"content_type\":\"application/json\",\"content_length\":5,\"top_level_keys\":[],\"recognised_action\":\"MONITORING_PASS\",\"http_status\":402,\"duration_ms\":0,\"outcome\":\"PAYMENT_PENDING\",\"client_disconnected\":false}",
+                    "nobu_a2mcp_request {\"at\":\"2026-07-26T08:31:29.507Z\",\"route\":\"/v1/agent/monitoring-pass\",\"method\":\"GET\",\"content_type\":null,\"content_length\":null,\"top_level_keys\":[],\"recognised_action\":\"MONITORING_PASS\",\"http_status\":402,\"duration_ms\":0,\"outcome\":\"PAYMENT_PENDING\",\"client_disconnected\":false}"
+                ]
+}

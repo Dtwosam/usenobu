@@ -1,0 +1,47 @@
+﻿{
+    "captured_at":  "2026-07-26 08:32:06Z",
+    "tool":  "onchainos agent x402-check (official Onchain OS CLI v4.2.4)",
+    "note":  "payTo masked by lane policy. Lane 8R.3A recorded valid:false for both registered services; the new paid endpoint now validates.",
+    "new_paid_endpoint_no_body":  {
+                                      "valid":  true,
+                                      "reason":  null,
+                                      "statusCode":  null,
+                                      "x402Version":  2,
+                                      "scheme":  "exact",
+                                      "network":  "eip155:196",
+                                      "asset":  "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+                                      "decimals":  6,
+                                      "tokenSymbol":  "USDT",
+                                      "amountMinimal":  "990000",
+                                      "amountHuman":  0.99,
+                                      "payTo":  "0x2746...REDACTED...B70B"
+                                  },
+    "new_paid_endpoint_body_empty_object":  {
+                                                "valid":  true,
+                                                "reason":  null,
+                                                "statusCode":  null,
+                                                "x402Version":  2,
+                                                "scheme":  "exact",
+                                                "network":  "eip155:196",
+                                                "asset":  "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+                                                "decimals":  6,
+                                                "tokenSymbol":  "USDT",
+                                                "amountMinimal":  "990000",
+                                                "amountHuman":  0.99,
+                                                "payTo":  "0x2746...REDACTED...B70B"
+                                            },
+    "old_paid_endpoint_still_registered_on_5541":  {
+                                                       "valid":  false,
+                                                       "reason":  "Endpoint returned HTTP 405 (not 402); not a valid x402 service.",
+                                                       "statusCode":  405,
+                                                       "x402Version":  null,
+                                                       "scheme":  null,
+                                                       "network":  null,
+                                                       "asset":  null,
+                                                       "decimals":  null,
+                                                       "tokenSymbol":  null,
+                                                       "amountMinimal":  null,
+                                                       "amountHuman":  null,
+                                                       "payTo":  null
+                                                   }
+}

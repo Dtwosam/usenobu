@@ -334,19 +334,36 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 **Proof:** `docs/proof/lane-8r-3a-timeout-diagnosis/`. Verdict: `NOBU_LANE_8R_3A_PASS`.
 
-## Lane 8R.3B — First-contact A2MCP/A2A compatibility repair
+## Lane 8R.3B — A2MCP and Monitoring Pass repair CODE-COMPLETE (awaiting operator alignment)
 
-Scope is exactly the five-step minimum repair in `docs/proof/lane-8r-3a-timeout-diagnosis/README.md` §7:
+Repair commit `1dac265`; production `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB` with `usenobu.vercel.app` explicitly re-aliased.
 
-1. Read `https://web3.okx.com/onchainos/dev-docs/okxai/howtomcp` and `.../how-to-become-a2a` from a network that can reach `web3.okx.com`, and treat them as the authority. **Do not implement from inference.**
-2. Unshaped `POST` to a registered endpoint returns a `200` machine-readable self-description (service, available actions, required fields per action, example request) instead of a `400` Zod discriminator dump.
-3. `GET` on a registered endpoint returns that same descriptor instead of a bodyless `405`.
-4. The paid endpoint emits its already-correct x402 `402` + `PAYMENT-REQUIRED` challenge on **first contact**, so `agent x402-check` returns `valid: true`.
-5. Serve whichever discovery document the official docs require — decided from the docs, not guessed.
+- **Free `33561`** (endpoint unchanged): bodyless `POST`, `{}`, and any unrecognised envelope (`message`/`query`/`prompt`) return `200` with a `status: READY` descriptor — supported actions + required fields, recommended first action, one working example, paid-service pointer, clear `next_action`. `GET` returns the same. Pure: no Groq, SerpApi, email or Postgres; 1–3 ms server time. Malformed JSON → guided `400`; recognised action with invalid fields → existing `400` unchanged.
+- **Paid `35958` → new endpoint `/v1/agent/monitoring-pass`**: one `$0.99` Nobu Monitoring Pass. Every initial call (GET or POST, body or none) returns `402` + base64 x402 v2 `PAYMENT-REQUIRED` **before any business execution**, with no quote/connection/purchase/consent required. Challenge: `x402Version: 2`, `resource{url,description,mimeType}`, `exact`, `eip155:196`, USD₮0, server-controlled `990000` + `payTo`, `maxTimeoutSeconds`, `extra.name`/`version` read from the on-chain token.
+- **Exactly-once issuance** anchored on the OKX-verified settlement ref (`UNIQUE`), never a caller id. Duplicate/concurrent/lost-response replays return the same pass; only the minting call learns the one-time token. Pending settlement recorded against the sha256 digest of the replay header (never the header) and recoverable without re-charging.
+- **`REDEEM_MONITORING_PASS`** (free) keeps every identity/confirmation/eligibility/consent gate; a failed validation never consumes the pass; valid redemption consumes it atomically and reuses the Lane 7.4D saga + reconciliation.
+- **Reliability:** bounded Postgres connection/statement timeouts (the only unbounded path 8R.3A found); safe structured logs closing 8R.3A's observability gap — verified live.
+- **Official `agent x402-check`: `valid: true`** for the new paid endpoint (with and without a body). The still-registered `/v1/agent/start-monitoring` remains `valid: false` (`HTTP 405`) — hence the operator update.
+- 20 new focused tests; `tests/payments/` 47/47; typecheck and build clean. The suite's remaining 19 failures were baselined **identical at clean `32ddaa0`** (pre-existing hardcoded-date time bomb + known `store.test.ts` assertion).
+- **No `agent update`, activation, resubmission, second ASP, or genuine payment performed.**
 
-Then rewrite both service descriptions to name their exact inputs and an example request, add the minimum safe instrumentation from §4.4, and only then resubmit `#5541`.
+**Verdict:** `NOBU_LANE_8R_3B_READY_FOR_OPERATOR_ALIGNMENT_AND_PROOF` — not `PASS`, because `#5541` still points at the old paid endpoint. **Proof:** `docs/proof/lane-8r-3b-monitoring-pass-repair/`.
 
-**Proof:** official `agent x402-check` returning `valid: true` for both services; first-contact probes answered with a usable descriptor; before/after production reproduction; unchanged auth/payment/matching gates.
+## Lane 8R.3C — Operator alignment and genuine proof
+
+Operator-controlled and state-changing. Exact ordered steps and placeholders: `docs/proof/lane-8r-3b-monitoring-pass-repair/operator-runbook.md`.
+
+1. Execute the single ASP metadata update covering both services (`33561` description; `35958` name, description, `/v1/agent/monitoring-pass` endpoint, fee `0.99`).
+2. Read back `#5541` and both service records immediately.
+3. Record the resulting QA/review status and run no further state-changing command without explicit authorization.
+4. Designated routing + official `x402-check`.
+5. One genuine `$0.99` Monitoring Pass payment and replay by an eligible adult operator using their own funded wallet.
+6. A legitimate OKX.ai User-role identity sends exactly `I would like to use the services of agent ID 5541`.
+7. Review all evidence.
+
+**Activation or resubmission of `#5541` is a separate, explicit decision and a separate lane.**
+
+**Proof:** ASP + service read-back after the update; QA status; `x402-check valid: true` against the updated listing; genuine payment replay returning a real Monitoring Pass; User-role transcript with no timeout.
 
 ## Lane 7.4G — Live marketplace end-to-end proof
 

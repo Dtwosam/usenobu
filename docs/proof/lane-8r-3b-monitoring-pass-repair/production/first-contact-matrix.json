@@ -1,0 +1,283 @@
+﻿{
+    "captured_at":  "2026-07-26 08:31:32Z",
+    "deployment":  "dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB",
+    "alias":  "usenobu.vercel.app",
+    "probes":  [
+                   {
+                       "case":  "free-bodyless-POST",
+                       "method":  "POST",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.852399,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "service",
+                                                       "agent",
+                                                       "message",
+                                                       "protocol",
+                                                       "request",
+                                                       "supported_actions",
+                                                       "recommended_first_action",
+                                                       "example_request",
+                                                       "paid_service",
+                                                       "retailer_support",
+                                                       "documentation",
+                                                       "next_action"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "case":  "free-GET",
+                       "method":  "GET",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.832819,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "service",
+                                                       "agent",
+                                                       "message",
+                                                       "protocol",
+                                                       "request",
+                                                       "supported_actions",
+                                                       "recommended_first_action",
+                                                       "example_request",
+                                                       "paid_service",
+                                                       "retailer_support",
+                                                       "documentation",
+                                                       "next_action"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "case":  "free-empty-object",
+                       "method":  "POST",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.903361,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "service",
+                                                       "agent",
+                                                       "message",
+                                                       "protocol",
+                                                       "request",
+                                                       "supported_actions",
+                                                       "recommended_first_action",
+                                                       "example_request",
+                                                       "paid_service",
+                                                       "retailer_support",
+                                                       "documentation",
+                                                       "next_action"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "case":  "free-message-envelope",
+                       "method":  "POST",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.692427,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "service",
+                                                       "agent",
+                                                       "message",
+                                                       "protocol",
+                                                       "request",
+                                                       "supported_actions",
+                                                       "recommended_first_action",
+                                                       "example_request",
+                                                       "paid_service",
+                                                       "retailer_support",
+                                                       "documentation",
+                                                       "next_action"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "case":  "free-query-envelope",
+                       "method":  "POST",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.803346,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "service",
+                                                       "agent",
+                                                       "message",
+                                                       "protocol",
+                                                       "request",
+                                                       "supported_actions",
+                                                       "recommended_first_action",
+                                                       "example_request",
+                                                       "paid_service",
+                                                       "retailer_support",
+                                                       "documentation",
+                                                       "next_action"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "case":  "free-prompt-envelope",
+                       "method":  "POST",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.718967,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "service",
+                                                       "agent",
+                                                       "message",
+                                                       "protocol",
+                                                       "request",
+                                                       "supported_actions",
+                                                       "recommended_first_action",
+                                                       "example_request",
+                                                       "paid_service",
+                                                       "retailer_support",
+                                                       "documentation",
+                                                       "next_action"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "case":  "free-malformed-json-guided-400",
+                       "method":  "POST",
+                       "http_status":  400,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.743885,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "error",
+                                                       "status",
+                                                       "message",
+                                                       "next_action",
+                                                       "documentation"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "case":  "free-valid-UNDERSTAND_PURCHASE",
+                       "method":  "POST",
+                       "http_status":  200,
+                       "response_content_type":  "application/json",
+                       "duration_s":  4.240739,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "message",
+                                                       "requires_user_action",
+                                                       "next_action",
+                                                       "extracted_purchase",
+                                                       "missing_fields",
+                                                       "uncertain_fields",
+                                                       "field_evidence",
+                                                       "provider"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "case":  "free-recognised-action-missing-fields-400",
+                       "method":  "POST",
+                       "http_status":  400,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.708561,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "error",
+                                                       "message",
+                                                       "details"
+                                                   ],
+                       "payment_required_header":  false
+                   },
+                   {
+                       "case":  "paid-bodyless-POST",
+                       "method":  "POST",
+                       "http_status":  402,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.531854,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "x402Version",
+                                                       "resource",
+                                                       "accepts",
+                                                       "message",
+                                                       "next_action",
+                                                       "documentation"
+                                                   ],
+                       "payment_required_header":  true
+                   },
+                   {
+                       "case":  "paid-GET",
+                       "method":  "GET",
+                       "http_status":  402,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.688328,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "x402Version",
+                                                       "resource",
+                                                       "accepts",
+                                                       "message",
+                                                       "next_action",
+                                                       "documentation"
+                                                   ],
+                       "payment_required_header":  true
+                   },
+                   {
+                       "case":  "paid-empty-object",
+                       "method":  "POST",
+                       "http_status":  402,
+                       "response_content_type":  "application/json",
+                       "duration_s":  0.750625,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "x402Version",
+                                                       "resource",
+                                                       "accepts",
+                                                       "message",
+                                                       "next_action",
+                                                       "documentation"
+                                                   ],
+                       "payment_required_header":  true
+                   },
+                   {
+                       "case":  "paid-bogus-signature-fails-closed",
+                       "method":  "POST",
+                       "http_status":  402,
+                       "response_content_type":  "application/json",
+                       "duration_s":  1.830735,
+                       "within_5s":  true,
+                       "response_top_level_keys":  [
+                                                       "agent_state",
+                                                       "status",
+                                                       "x402Version",
+                                                       "resource",
+                                                       "accepts",
+                                                       "message",
+                                                       "next_action",
+                                                       "documentation"
+                                                   ],
+                       "payment_required_header":  true
+                   }
+               ]
+}
