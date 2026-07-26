@@ -1,0 +1,51 @@
+{
+  "lane": "8R.3C.5",
+  "designated_route": {
+    "ok": true,
+    "provider": "5541",
+    "providerName": "Nobu",
+    "onlineStatus": 1,
+    "route": "x402",
+    "primaryEndpoint": "https://usenobu.vercel.app/v1/agent",
+    "services": [
+      {
+        "serviceName": "Nobu Purchase Setup",
+        "feeAmount": "0",
+        "endpoint": "https://usenobu.vercel.app/v1/agent"
+      },
+      {
+        "serviceName": "Nobu Monitoring Pass",
+        "feeAmount": "0.99",
+        "endpoint": "https://usenobu.vercel.app/v1/agent/monitoring-pass"
+      }
+    ]
+  },
+  "x402_checks": [
+    {
+      "request_body": "omitted",
+      "valid": true,
+      "x402Version": 2,
+      "scheme": "exact",
+      "network": "eip155:196",
+      "asset": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+      "tokenSymbol": "USDT",
+      "decimals": 6,
+      "amountMinimal": "990000",
+      "amountHuman": 0.99,
+      "payTo": "0x27463FD6F0a3a8220aC5bB612360B2958662B70B"
+    },
+    {
+      "request_body": "{}",
+      "valid": true,
+      "x402Version": 2,
+      "scheme": "exact",
+      "network": "eip155:196",
+      "asset": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+      "tokenSymbol": "USDT",
+      "decimals": 6,
+      "amountMinimal": "990000",
+      "amountHuman": 0.99,
+      "payTo": "0x27463FD6F0a3a8220aC5bB612360B2958662B70B"
+    }
+  ]
+}

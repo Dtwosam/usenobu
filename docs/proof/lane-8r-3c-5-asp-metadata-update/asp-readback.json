@@ -1,0 +1,55 @@
+{
+  "lane": "8R.3C.5",
+  "readback_timing": "immediately after the single update",
+  "update_result": {
+    "newAgentId": null,
+    "txHash": "0xea8dbdaf7d2f821e0638ff1f5da809d571619016ad36adf3872392a5a3cec45b"
+  },
+  "agent": {
+    "agentId": "5541",
+    "name": "Nobu",
+    "roleLabel": "ASP",
+    "statusLabel": "not listed",
+    "onlineStatus": 1,
+    "approvalDisplayStatus": 5,
+    "approvalLabel": "Listing rejected",
+    "approvalStatus": 6,
+    "approvalRemarkSummary": "Prior platform-testing timeout rejection remained unchanged; QA/review was not retriggered.",
+    "profileDescription": "Nobu is an AI post-purchase monitoring agent. It confirms the exact product, monitors eligible Target purchases, and alerts users when a safely matched lower price may create an opportunity to request the difference from the retailer. Users can set up and manage monitoring through an AI-agent conversation. Target is currently the only supported retailer; Target verifies eligibility and makes the final decision.",
+    "serviceCount": 2
+  },
+  "services": [
+    {
+      "id": "33561",
+      "serviceId": "de5eb51b-102b-450e-95f4-7bf5d0822e25",
+      "serviceName": "Nobu Purchase Setup",
+      "serviceDescription": "Sets up and manages Target post-purchase monitoring through product confirmation, email verification, consent, eligibility, Monitoring Pass redemption, status, alerts, stopping and revocation.\nUser provides purchase details, exact product confirmation, a verified email, and monitoring and email-alert consent.\nReturns supported actions and next steps; paid monitoring activation requires a valid Monitoring Pass.",
+      "serviceType": "A2MCP",
+      "fee": "0",
+      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "subscription": [],
+      "freeTrial": null,
+      "chainIndex": 196,
+      "contractAddress": "0x779ded0c9e1022225f8e0630b35a9b54be713736"
+    },
+    {
+      "id": "35958",
+      "serviceId": "5e438a2f-1c47-4852-b553-9781f025ad50",
+      "serviceName": "Nobu Monitoring Pass",
+      "serviceDescription": "Issues one Nobu Monitoring Pass after a verified $0.99 OKX x402 payment for later activation of one eligible Target purchase.\nUser provides the payment replay; free setup separately confirms the exact product, eligibility, verified email and consent before redemption.\nReturns one redeemable pass; Target verifies any lower price and makes the final adjustment decision.",
+      "serviceType": "A2MCP",
+      "fee": "0.99",
+      "endpoint": "https://usenobu.vercel.app/v1/agent/monitoring-pass",
+      "subscription": [],
+      "freeTrial": null,
+      "chainIndex": 196,
+      "contractAddress": "0x779ded0c9e1022225f8e0630b35a9b54be713736"
+    }
+  ],
+  "candidate_descriptions_match_byte_for_byte": true,
+  "service_ids_preserved": true,
+  "service_count_preserved": true,
+  "service_created_or_deleted": false,
+  "qa_retriggered": false,
+  "verdict": "NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED"
+}

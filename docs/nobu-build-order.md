@@ -448,6 +448,22 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Exact next lane/action:** Lane 8R.3C.5 — a separately authorized single corrected ASP metadata update and immediate read-only proof using the exact Lane 8R.3C.4 candidate unchanged. No ASP write is authorized by Lane 8R.3C.4.
 
+### Lane 8R.3C.5 — Single corrected ASP metadata update BLOCKED ON QA STATE
+
+- Began at exact commit `60a27b6ca82ca9ad3ab51504d6c98b5d715c3597` with clean tracked worktree and index; selected `C:\Users\dtwof\.local\bin\onchainos.exe` version `4.4.0`.
+- Completed the required instruction-bundle preflight maintenance to `4.4.0`. Official A2A doctor remained ready with zero blockers, package `0.1.10`, exactly one known daemon PID `27124`, and unchanged identity refresh; no A2A fix or mutation ran.
+- Pre-update production proof passed: `/v1/agent` returned `200 READY`; `/v1/agent/monitoring-pass` returned `402`; official x402 validation returned `valid: true`.
+- After the mandatory update diff card and explicit confirmation `1`, invoked exactly one update using the unchanged Lane 8R.3C.4 payload loaded directly from its artifact, guarded immediately before spawn at 1162 UTF-8 bytes / sha256 `4926b9d2afb790a71d45b32ef0c81ae9114666bf9c9da40ea1fa1b64b9215fa9`.
+- Transport was Node `child_process.spawnSync`, `shell: false`, explicit six-element argument array. Exit `0`; `newAgentId: null`; transaction `0xea8dbdaf7d2f821e0638ff1f5da809d571619016ad36adf3872392a5a3cec45b`.
+- Immediate readback proved a complete expected write with no partial state or identity drift: agent `5541`; exactly services `33561`/`35958`; `33561` preserved as free `Nobu Purchase Setup` at `/v1/agent` with the corrected multiline description; `35958` became `Nobu Monitoring Pass`, fee `0.99`, endpoint `/v1/agent/monitoring-pass`, with the exact corrected multiline description. No service was created or deleted.
+- Designated routing resolved online with both corrected services. Both official x402 checks (no body and `{}`) returned `valid: true`, x402 v2, `exact`, `eip155:196`, `990000`.
+- **QA did not retrigger:** the immediate readback remained `approvalDisplayStatus 5`, `approvalStatus 6`, `Listing rejected` / `not listed`, with the prior timeout remark. The required pending-QA outcome therefore did not occur.
+- No retry, second update, alternate payload, activation, resubmission, payment, User registration, A2A mutation, deployment, or production-code change occurred.
+
+**Verdict:** `NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED`. **Proof:** `docs/proof/lane-8r-3c-5-asp-metadata-update/`.
+
+**Exact next lane/action:** operator decision on the unchanged rejected/not-listed QA state. No further update, activation, resubmission, payment, User registration, A2A change, deployment, or production-code change is authorized.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.

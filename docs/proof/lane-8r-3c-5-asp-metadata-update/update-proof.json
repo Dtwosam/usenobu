@@ -1,0 +1,41 @@
+{
+  "lane": "8R.3C.5",
+  "state_changing_invocations": 1,
+  "update_invocations": 1,
+  "executable": "C:\\Users\\dtwof\\.local\\bin\\onchainos.exe",
+  "transport": "Node child_process.spawnSync; shell:false; explicit argument array",
+  "argument_count": 6,
+  "payload_argument_index": 5,
+  "arguments_redacted": [
+    "agent",
+    "update",
+    "--agent-id",
+    "5541",
+    "--service",
+    "[EXACT_LANE_8R_3C_4_PAYLOAD]"
+  ],
+  "payload_source": "docs/proof/lane-8r-3c-4-payload-schema-repair/corrected-payload-candidate.json",
+  "payload_utf8_bytes": 1162,
+  "payload_sha256": "4926b9d2afb790a71d45b32ef0c81ae9114666bf9c9da40ea1fa1b64b9215fa9",
+  "started_at_utc": "2026-07-26T12:33:37.395Z",
+  "ended_at_utc": "2026-07-26T12:34:21.784Z",
+  "duration_ms": 44389,
+  "exit_code": 0,
+  "signal": null,
+  "spawn_error": null,
+  "stdout_redacted": {
+    "ok": true,
+    "data": {
+      "newAgentId": null,
+      "txHash": "0xea8dbdaf7d2f821e0638ff1f5da809d571619016ad36adf3872392a5a3cec45b"
+    }
+  },
+  "stderr_redacted": [
+    "checking A2A communication readiness",
+    "A2A communication is ready"
+  ],
+  "retry_attempted": false,
+  "second_payload_attempted": false,
+  "manual_payload_reconstruction": false,
+  "activation_or_resubmission_attempted": false
+}

@@ -1,7 +1,9 @@
 # Nobu Current State
 
 **Date:** 2026-07-26
-**Status:** `NOBU_LANE_8R_3C_4_READY_FOR_OPERATOR_DECISION` — one corrected Onchain OS `4.4.0` service-update candidate passed the single read-only Node explicit-argument-array validation with `pass: true`, zero findings and no `service/PARSE`; ASP `#5541` remains unchanged and no write authorization exists
+**Status:** `NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED` — the single corrected ASP metadata update succeeded and the registered services now match the Monitoring Pass product truth, but QA remained rejected/not listed instead of retriggering; no activation or separate resubmission ran
+
+**Lane 8R.3C.5 single corrected ASP metadata update (2026-07-26):** **BLOCKED** (`NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED`) after the metadata write itself succeeded completely. Repository preflight passed at exact base `60a27b6ca82ca9ad3ab51504d6c98b5d715c3597`: clean `master`, worktree and index; selected `C:\Users\dtwof\.local\bin\onchainos.exe` version `4.4.0`; required global instruction-bundle maintenance completed to `4.4.0`; official A2A doctor ready with zero blockers, package `0.1.10`, exactly one known daemon PID `27124`, and identity refresh unchanged. Production `/v1/agent` returned `200 READY`; `/v1/agent/monitoring-pass` returned the expected `402`; the pre-update official x402 check was `valid: true`. After the required confirmation card and explicit `1`, exactly one update invocation loaded the unchanged Lane 8R.3C.4 artifact, rechecked 1162 UTF-8 bytes / sha256 `4926b9d2…9215fa9`, and used Node `child_process.spawnSync`, `shell: false`, with an explicit six-element argument array. It exited `0`, returned `newAgentId: null`, and produced tx `0xea8dbdaf…cec45b`. Immediate readback proved agent `5541`, exactly services `33561`/`35958`, no create/delete or identity drift, and exact candidate descriptions: `33561` remains `Nobu Purchase Setup`, fee `0`, endpoint `/v1/agent`; `35958` is now `Nobu Monitoring Pass`, fee `0.99`, endpoint `/v1/agent/monitoring-pass`. Designated routing returned both corrected services online, and both official read-only x402 checks (no body and `{}`) returned `valid: true`, x402 v2, `exact`, `eip155:196`, `990000`. **QA did not retrigger:** `approvalDisplayStatus 5`, `approvalStatus 6`, `Listing rejected` / `not listed`, and the prior timeout remark remained. Per the locked outcome rule, the lane cannot return pending-QA success. No retry, second payload, activation, resubmission, payment, User registration, A2A mutation, deployment or production-code change occurred. Evidence: `docs/proof/lane-8r-3c-5-asp-metadata-update/`.
 
 **Lane 8R.3C.4 Onchain OS 4.4.0 payload-schema repair proof (2026-07-26):** **COMPLETE** (`NOBU_LANE_8R_3C_4_READY_FOR_OPERATOR_DECISION`). Repository preflight passed at exact base `bda75526917929d150cb184ddf9eaaf8fd75859d`: clean `master`, worktree and index. The selected `C:\Users\dtwof\.local\bin\onchainos.exe` reported `4.4.0`; preflight reported stable/current `4.4.0`, integrity `ok` and `updated: false`. Official A2A doctor remained `ready: true` with zero blockers, package `0.1.10`, existing daemon PID `27124`, and identity refresh unchanged. Official `okx/onchainos-skills` tag `v4.4.0` at commit `782b5a05d9b0af797383009b0e5f0d4022b010e5` confirmed `AgentService.id` is a string, create/update/validate share the same service model, model-deserialization failure is reported as `service/PARSE`, and service descriptions require separate capability and user-input lines with a recommended delivery line. One corrected candidate preserves both `operation: "update"` entries, string ids `"33561"`/`"35958"`, A2MCP types, fees `0`/`0.99`, intended endpoints and capabilities, with three truthful newline-separated description sections. Local invariants passed: two entries, string ids, required keys/values, 1162 UTF-8 bytes, sha256 `4926b9d2…9215fa9`. Exactly one read-only `agent validate-listing` invocation used Node `child_process.spawnSync`, `shell: false`, and an explicit ten-element argument array; it exited `0` with `pass: true`, empty findings, no `service/PARSE`, no `key must be a string`, and empty stderr. No second validation or transport method ran. Immediate ASP readback confirms agent `5541`, exactly services `33561`/`35958`, all registered names/descriptions/fees/endpoints, `onlineStatus: 1`, and QA `approvalDisplayStatus 5` / `approvalStatus 6` / `not listed` unchanged; only heartbeat timestamps advanced. No `agent update`, activation, payment, User registration, A2A change, deployment or resubmission occurred. Evidence: `docs/proof/lane-8r-3c-4-payload-schema-repair/`.
 
@@ -35,15 +37,17 @@
 | Rejection reason | Platform testing could not receive a response before the task timed out. Diagnosed in Lane 8R.3A; repaired in Lane 8R.3B. |
 | Production repair | **Deployed** — `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB`, alias `usenobu.vercel.app` (re-aliased explicitly; it does not auto-follow `vercel deploy --prod`). |
 | Free service `33561` | Registered at `/v1/agent` (endpoint unchanged) and **repaired in Production**: bodyless `POST`, `{}`, unrecognised envelopes and `GET` all return `200` with a `status: READY` descriptor. |
-| Paid service `35958` | **Still registered as `Nobu Monitoring Activation` against `/v1/agent/start-monitoring`**, fee `0.99`. The single Lane 8R.3C.2 update was refused during local CLI argument parsing, so the registered listing is still not repaired. |
-| `/v1/agent/monitoring-pass` | **Code-complete, deployed and Production-proven** — always `402` + `PAYMENT-REQUIRED` on first contact, official `x402-check` returns **`valid: true`** — but **not yet registered** on `#5541`. |
+| Paid service `35958` | **Registered as `Nobu Monitoring Pass` at `/v1/agent/monitoring-pass`**, fee `0.99`, with the exact validated multiline description. Official x402 validation is `valid: true`. |
+| `/v1/agent/monitoring-pass` | **Code-complete, deployed, Production-proven, and registered on `#5541`** — always `402` + `PAYMENT-REQUIRED` on first contact; official `x402-check` returns **`valid: true`** with and without `{}`. |
 | `/v1/agent/start-monitoring` | Unchanged, internal, retained until safely retired. |
 | Official OKX seller verify / settle / settle-status | Integrated and production-configured; fails closed without credentials. |
 | Genuine payment | **None completed.** |
-| ASP metadata update (Lane 8R.3C Step 1) | A2A is repaired and ready. The one newly authorized exact update was then **refused during Onchain OS `4.4.0` local Windows `--service` JSON parsing**. Nothing was written; `#5541` and QA remain unchanged. No retry authorization remains. |
-| Next step | **Blocked on a new read-only operator lane.** Inspect the official Onchain OS `4.4.0` implementation to distinguish Windows argv corruption from validator service-schema rejection; any new validation or ASP write requires fresh explicit authorization. |
+| ASP metadata update (Lane 8R.3C Step 1) | **Complete.** Exactly one corrected update succeeded (`newAgentId: null`); both service IDs were preserved and the registered metadata now matches the Lane 8R.3C.4 candidate. QA did not retrigger and remains rejected/not listed. |
+| Next step | **Operator decision on the unchanged QA rejection state.** No activation, resubmission, update, payment, User registration, A2A change, or deployment is currently authorized. |
 
 **Historical (superseded opening claims):** Older lane notes below may still say the paid route was private/undeployed, the verifier always `not_configured`, the paid service unregistered, or the listing "under review" / "pending review". Lane 8R.0 supersedes “verifier always not_configured / route only proposed.” Lane 8R supersedes “paid service not registered on `#5541`.” **Lane 8R.3A supersedes every "under review" / "pending review" / `approvalStatus: 2` claim — the listing is rejected.** Lane 8R.3B supersedes “the paid service endpoint is `/v1/agent/start-monitoring`” as a statement of what Nobu *serves*, though it remains true of what `#5541` currently *points at*.
+
+**Lane 8R.3C.5 supersession:** any historical statement that `#5541` still points service `35958` at `/v1/agent/start-monitoring` is no longer current. It now points at `/v1/agent/monitoring-pass`.
 
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
@@ -131,8 +135,8 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 |---|---|
 | URL | https://usenobu.vercel.app |
 | Free agent endpoint | `/v1/agent` (registered) |
-| Paid endpoint served | `/v1/agent/monitoring-pass` (**not yet registered**) |
-| Paid endpoint registered on `#5541` | `/v1/agent/start-monitoring` (**stale**) |
+| Paid endpoint served | `/v1/agent/monitoring-pass` (**registered and validated**) |
+| Paid endpoint registered on `#5541` | `/v1/agent/monitoring-pass` |
 | Lane 7.5E.2 | **PASS** (live Groq) |
 | Lane 8 preflight | **PASS** |
 | Sprint A core proof | **PASS** — bounded Check price now + Monitoring Proof panel |
@@ -159,12 +163,12 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 | Marketplace status | **Rejected / not listed** — `approvalDisplayStatus: 5`, service-list `approvalStatus: 6` |
 | Latest rejection | Platform testing could not receive a response before the task timed out (2026-07-25) |
 | Free service `33561` | A2MCP, fee **0**, endpoint `https://usenobu.vercel.app/v1/agent` — repaired and Production-proven |
-| Paid service `35958` | A2MCP, fee **0.99**, endpoint still `https://usenobu.vercel.app/v1/agent/start-monitoring` — **stale**, `x402-check` `valid: false` |
+| Paid service `35958` | A2MCP, **Nobu Monitoring Pass**, fee **0.99**, endpoint `https://usenobu.vercel.app/v1/agent/monitoring-pass`; `x402-check` `valid: true` with and without `{}` |
 | Public listing URL | **None** — not claimed live |
-| Metadata update attempt | 2026-07-26 — A2A repaired and doctor-ready; one exact `agent update` then attempted and **refused during local Windows `--service` JSON parsing**; no field changed, QA not retriggered |
+| Metadata update | 2026-07-26 — one exact corrected update succeeded; `newAgentId: null`; service IDs preserved; expected metadata written completely; QA not retriggered |
 | Windows transport proof | 2026-07-26 — exact payload preserved at 1167 bytes / sha256 `deb1edb0…99c0d` before Node explicit-array spawn, but pure-local `validate-listing` returned blocking `service/PARSE`; no ASP mutation |
-| 4.4.0 payload-schema proof | 2026-07-26 — one corrected 1162-byte candidate / sha256 `4926b9d2…9215fa9` passed one Node explicit-array validation: exit `0`, `pass: true`, zero findings, no `service/PARSE`; candidate not executed |
-| Verdict | **`NOBU_LANE_8R_3C_4_READY_FOR_OPERATOR_DECISION`** |
+| 4.4.0 payload-schema proof | 2026-07-26 — the corrected 1162-byte candidate / sha256 `4926b9d2…9215fa9` passed validation in Lane 8R.3C.4 and was executed unchanged exactly once in Lane 8R.3C.5 |
+| Verdict | **`NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED`** |
 
 ### Historical Lane 8 milestones (superseded)
 
@@ -180,7 +184,7 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 - Create another ASP
 - Run `agent update`, `agent activate`, or any resubmission outside an explicitly authorized operator step
 - Claim public live listing or Lane 9 closeout yet
-- Claim the registered paid service is repaired before the ASP metadata update has run
+- Claim the ASP is under review or publicly live before QA actually changes
 
 ### Monitor
 
@@ -189,7 +193,7 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 
 ## Next active lane
 
-**Lane 8R.3B CODE-COMPLETE AND PRODUCTION-PROVEN** (`NOBU_LANE_8R_3B_READY_FOR_OPERATOR_ALIGNMENT_AND_PROOF` — still the overall status; unaffected by the test-only Lane 8R.3B.1 fixture repair above). The repaired endpoints are live and OKX's own validator passes the new paid endpoint, but ASP `#5541` still points service `35958` at the old `/v1/agent/start-monitoring`, so the registered listing is not yet repaired.
+**Lane 8R.3C.5 wrote the corrected service metadata but is BLOCKED on QA state** (`NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED`). ASP `#5541` now carries the correct free and Monitoring Pass services, designated routing is correct, and both official x402 checks pass. The listing nevertheless remains rejected/not listed with its prior remark; no activation or separate resubmission was attempted.
 
 **Lane 8R.3C.0 operator preflight (read-only) — COMPLETE** (`NOBU_LANE_8R_3C_0_READY_FOR_OPERATOR_DECISION`): the installed CLI's own `agent update` schema and QA-retrigger behavior were inspected, `#5541` and both services were read back and confirmed unchanged since Lane 8R.3B, the exact Step 1 two-service update payload was validated (not executed), and both production endpoints plus a fresh official `x402-check` were re-verified. Evidence: `docs/proof/lane-8r-3c-0-operator-preflight/`.
 
@@ -201,10 +205,12 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 
 **Lane 8R.3C.4 is COMPLETE** (`NOBU_LANE_8R_3C_4_READY_FOR_OPERATOR_DECISION`): official source inspection identified string service ids and multiline service descriptions as the required schema repair. The one corrected candidate is 1162 UTF-8 bytes, sha256 `4926b9d2…9215fa9`, and its single explicit-array `validate-listing` invocation returned exit `0`, `pass: true`, and zero findings. ASP `#5541` and both registered services remain unchanged; the candidate is clearly labelled validated-read-only and not executed. Evidence: `docs/proof/lane-8r-3c-4-payload-schema-repair/`.
 
-**Lane 8R.3C now awaits operator decision.** The exact next lane is **Lane 8R.3C.5 — separately authorized single corrected ASP metadata update and immediate read-only proof** using the exact Lane 8R.3C.4 candidate unchanged. This lane grants no update, activation, resubmission, payment, User-registration or deployment authorization.
+**Lane 8R.3C.5 is BLOCKED** (`NOBU_LANE_8R_3C_5_BLOCKED_QA_NOT_RETRIGGERED`): the single corrected update succeeded and all registered service metadata, designated routing, and x402 checks are correct, but QA remained `approvalDisplayStatus 5` / `approvalStatus 6` / rejected and not listed. Evidence: `docs/proof/lane-8r-3c-5-asp-metadata-update/`.
+
+**Lane 8R.3C now awaits an operator decision on the unchanged QA state.** No further update, activation, resubmission, payment, User registration, A2A mutation, deployment, or production-code change is authorized.
 
 **Lane 7.4G — Live marketplace end-to-end proof** stays blocked until ASP `#5541` and the paid service are officially accessible through OKX.AI (approved and public, not merely "under review").
 
-**Adopted roadmap:** `7.4C.1 → 7.4D.0 → 7.4D → 7.4E → 7.4F → 8R.0 (COMPLETE) → 8R.1 (COMPLETE) → 8R.2 (COMPLETE) → Lane 8R (COMPLETE) → 8R.3 (COMPLETE) → 8R.3A (COMPLETE) → 8R.3B (CODE-COMPLETE, awaiting operator alignment) → 8R.3B.1 (COMPLETE) → 8R.3C.0 (COMPLETE, read-only preflight) → 8R.3C.1 (BLOCKED — update refused by local A2A readiness gate) → 8R.3C.2 (A2A REPAIRED; BLOCKED — single update refused during local Windows parsing) → 8R.3C.3 (BLOCKED — old schema returned service/PARSE) → 8R.3C.4 (COMPLETE — corrected 4.4.0 candidate validated read-only) → operator decision / separately authorized 8R.3C.5 → 7.4G → Lane 9`. Sequence lock: `8R.0 → 8R.1 → 8R.2 → 8R → 8R.3 → 8R.3A → 8R.3B → 8R.3B.1 → 8R.3C.0 → 8R.3C.1 → 8R.3C.2 → 8R.3C.3 → 8R.3C.4 → operator decision → 8R.3C.5 → 7.4G`.
+**Adopted roadmap:** `7.4C.1 → 7.4D.0 → 7.4D → 7.4E → 7.4F → 8R.0 (COMPLETE) → 8R.1 (COMPLETE) → 8R.2 (COMPLETE) → Lane 8R (COMPLETE) → 8R.3 (COMPLETE) → 8R.3A (COMPLETE) → 8R.3B (CODE-COMPLETE) → 8R.3B.1 (COMPLETE) → 8R.3C.0 (COMPLETE) → 8R.3C.1 (BLOCKED) → 8R.3C.2 (A2A REPAIRED; BLOCKED) → 8R.3C.3 (BLOCKED) → 8R.3C.4 (COMPLETE) → 8R.3C.5 (METADATA WRITTEN; BLOCKED — QA not retriggered) → operator decision → 7.4G → Lane 9`. Sequence lock: `8R.0 → 8R.1 → 8R.2 → 8R → 8R.3 → 8R.3A → 8R.3B → 8R.3B.1 → 8R.3C.0 → 8R.3C.1 → 8R.3C.2 → 8R.3C.3 → 8R.3C.4 → 8R.3C.5 → operator decision → 7.4G`.
 
-Evidence: `docs/proof/okx/`, `docs/proof/lane-8r-0-okx-seller-integration/`, `docs/proof/lane-8r-1-public-interface/`, `docs/proof/lane-8r-2-documentation-alignment/`, `docs/proof/lane-8r-asp-update/`, `docs/proof/lane-8r-3-review-repair/`, `docs/proof/lane-8r-3a-timeout-diagnosis/`, `docs/proof/lane-8r-3b-monitoring-pass-repair/`, `docs/proof/lane-8r-3c-0-operator-preflight/`, `docs/proof/lane-8r-3c-1-asp-alignment/`, `docs/proof/lane-8r-3c-2-a2a-repair-and-alignment/`, `docs/proof/lane-8r-3c-3-windows-argument-transport/`, `docs/proof/lane-8r-3c-4-payload-schema-repair/`
+Evidence: `docs/proof/okx/`, `docs/proof/lane-8r-0-okx-seller-integration/`, `docs/proof/lane-8r-1-public-interface/`, `docs/proof/lane-8r-2-documentation-alignment/`, `docs/proof/lane-8r-asp-update/`, `docs/proof/lane-8r-3-review-repair/`, `docs/proof/lane-8r-3a-timeout-diagnosis/`, `docs/proof/lane-8r-3b-monitoring-pass-repair/`, `docs/proof/lane-8r-3c-0-operator-preflight/`, `docs/proof/lane-8r-3c-1-asp-alignment/`, `docs/proof/lane-8r-3c-2-a2a-repair-and-alignment/`, `docs/proof/lane-8r-3c-3-windows-argument-transport/`, `docs/proof/lane-8r-3c-4-payload-schema-repair/`, `docs/proof/lane-8r-3c-5-asp-metadata-update/`
