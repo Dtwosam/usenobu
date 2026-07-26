@@ -1,7 +1,9 @@
 # Nobu Current State
 
 **Date:** 2026-07-26
-**Status:** `NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS` — settlement-reconciliation repair is deployed; the existing paid settlement recovered exactly one Monitoring Pass with no second charge
+**Status:** `NOBU_PASS_HANDOFF_AND_SEQUENTIAL_JOURNEY_PASS` — free `RESOLVE_MONITORING_PASS` handoff + sequential Purchase Setup fields deployed; historical pass resolves issued/inactive
+
+**Pass handoff and sequential journey (2026-07-26):** **PASS** (`NOBU_PASS_HANDOFF_AND_SEQUENTIAL_JOURNEY_PASS`). Baseline: clean local descendant of `fc81bc0`/`c3b141e` (origin/master still behind at `3021f1a` — not used to reset). Audit: Onchain OS 4.4.0 consumes `fields`/`requiredArgs`/`input_required`, not nested `required_user_input`; no official completed-task deliverable rewrite; redemption uses public pass id + connection/quote only. Implemented durable `monitoring_pass_continuations`, free `RESOLVE_MONITORING_PASS`, paid pending/issued responses with `pass_continuation_id` + OKX field names, sequential journey guidance (purchase details before email/consent). Focused: monitoring-pass 25/25, free validation 5/5, start-monitoring 9/9, typecheck clean. Deployed `dpl_GgroyZbmnevwrTngsG3qjfFLKmHL`; `usenobu.vercel.app` re-aliased. Production: health 200; free 400 input_required; paid 402; resolve of `pass_8dd13c79ce1842aa89f91609527764f4` → `MONITORING_PASS_ISSUED`, inactive, continuation `pass_cont_be5817c0…`. No second payment, redemption, ASP edit. Evidence: `docs/proof/pass-handoff-sequential-journey/`.
 
 **Live Monitoring Pass recovery (2026-07-26):** **PASS** (`NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS`). Clean HEAD `fc81bc0` deployed to Production; canonical alias `https://usenobu.vercel.app` explicitly pointed at redeploy `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu` (`usenobu-aqr2chw83…`). Pre-recovery durable state: one `verifying` payment `pass_pay_3c3d29bdfd4c467a` with stored settlement ref and digest; zero passes. First authenticated `POST /v1/owner/pass-settlement-reconcile` returned `ok: true`, `scanned: 1`, `issued: 1`, public pass `pass_8dd13c79ce1842aa89f91609527764f4` (no token/digest/header/settlement material). Second call: `scanned: 0`, `issued: 0` (idempotent). Post-recovery DB: payment `settled`, exactly one `issued` pass, no second charge. No task, payment, signed replay, ASP edit, activation, or resubmission. Evidence: `docs/proof/live-monitoring-pass-recovery/`.
 
@@ -123,10 +125,9 @@
 ## Production
 
 **Current deployment (2026-07-26):** `https://usenobu.vercel.app` points to
-deployment `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu` (`usenobu-aqr2chw83`),
-re-aliased explicitly after the settlement-reconciliation repair redeploy.
-Monitoring Pass recovery is live; free `/v1/agent` and paid
-`/v1/agent/monitoring-pass` behavior remain as previously proven.
+deployment `dpl_GgroyZbmnevwrTngsG3qjfFLKmHL` (`usenobu-j88uthvd1`),
+re-aliased explicitly after the pass-handoff + sequential journey deploy.
+Historical pass resolve and free/paid first-contact probes are proven on it.
 
 **Historical — identity release (2026-07-19), superseded by the deployment above:** `https://usenobu.vercel.app` then pointed to
 the verified, unique Lane 7.2 deployment (`dpl_DQ9ULj9uukY1Kdtujxqkf8sppeUw`,
@@ -226,9 +227,11 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 
 **Monitoring Pass settlement reconciliation is COMPLETE** (`NOBU_MONITORING_PASS_SETTLEMENT_RECONCILE_PASS`). Evidence: `docs/proof/monitoring-pass-settlement-reconcile/`.
 
-**Live recovery is COMPLETE** (`NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS`): pass `pass_8dd13c79ce1842aa89f91609527764f4` issued exactly once. Evidence: `docs/proof/live-monitoring-pass-recovery/`.
+**Live recovery is COMPLETE** (`NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS`). Evidence: `docs/proof/live-monitoring-pass-recovery/`.
 
-**Exact next customer-facing step:** free service `33561` action `UNDERSTAND_PURCHASE` with the recovered Monitoring Pass id and the user's recent Target online purchase description. Monitoring remains inactive until successful redemption. No second payment.
+**Pass handoff is COMPLETE** (`NOBU_PASS_HANDOFF_AND_SEQUENTIAL_JOURNEY_PASS`): free `RESOLVE_MONITORING_PASS` returns issued/inactive for the recovered pass; sequential Purchase Setup after user confirms. Evidence: `docs/proof/pass-handoff-sequential-journey/`.
+
+**Exact User-role start:** “I would like to use the services of agent ID 5541” → free `RESOLVE_MONITORING_PASS` with `monitoring_pass_id: pass_8dd13c79ce1842aa89f91609527764f4` (or stored `pass_continuation_id`) → user confirms → `UNDERSTAND_PURCHASE` with purchase description only. No second payment.
 
 **Lane 7.4G — Live marketplace end-to-end proof** stays blocked until ASP `#5541` and the paid service are officially accessible through OKX.AI (approved and public, not merely "under review").
 

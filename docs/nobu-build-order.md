@@ -515,6 +515,14 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Exact next customer-facing step:** free service `33561` `UNDERSTAND_PURCHASE` with pass id `pass_8dd13c79ce1842aa89f91609527764f4`. Do not pay again.
 
+### Pass handoff and sequential journey COMPLETE
+
+- Free `RESOLVE_MONITORING_PASS` + durable `pass_continuation_id` for post-pending handoff; historical pass backfill; OKX-consumable top-level `fields`/`requiredArgs`.
+- Sequential Purchase Setup guidance: purchase details before email/consent.
+- Deployed `dpl_GgroyZbmnevwrTngsG3qjfFLKmHL`; Production resolve of recovered pass issued/inactive.
+
+**Proof:** focused tests 39/39; typecheck; Production health/free/paid/resolve. Verdict: `NOBU_PASS_HANDOFF_AND_SEQUENTIAL_JOURNEY_PASS`. Evidence: `docs/proof/pass-handoff-sequential-journey/`.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.
