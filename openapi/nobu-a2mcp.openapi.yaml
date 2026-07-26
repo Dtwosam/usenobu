@@ -17,21 +17,21 @@ servers:
 paths:
   /v1/agent:
     get:
-      operationId: nobuAgentDescriptor
-      summary: Service descriptor (Lane 8R.3B first-contact compatibility path)
+      operationId: nobuAgentInputRequirements
+      summary: Service input requirements for an empty validation probe
       description: >-
-        Returns the same `status: READY` descriptor as an unshaped POST:
-        supported actions with their required fields, the recommended first
-        action, and one working example request. Computed purely — no AI,
-        search, email, or database work — so first contact cannot inherit any
-        dependency's latency or failure mode.
+        Returns HTTP 400 with `status: input_required`, `fields: [action]`,
+        `requiredArgs: [action]`, supported actions with their action-specific
+        required fields, and one working example. Official Onchain OS 4.4.0
+        recognizes this as inputRequired and can continue its service-input
+        flow. This free endpoint never returns a payment requirement.
       responses:
-        '200':
-          description: Service descriptor
+        '400':
+          description: Input required before a Nobu action can run
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServiceDescriptor'
+                $ref: '#/components/schemas/ServiceInputRequired'
     post:
       operationId: nobuAgent
       summary: Bounded free Nobu agent actions
@@ -45,11 +45,10 @@ paths:
         expose secrets or internal-only fields.
 
 
-        Lane 8R.3B first contact: a bodyless POST, `{}`, or any envelope with no
-        recognised `action` (for example `message`, `query`, or `prompt`) returns
-        HTTP 200 with the service descriptor instead of a 400, so a caller can
-        always discover what to send. A recognised `action` with invalid fields
-        still returns its existing guided 400 — valid-action behaviour is unchanged.
+        An empty/bodyless POST, `{}`, or an envelope with no recognised `action`
+        returns HTTP 400 with `status: input_required` and truthful action-input
+        metadata. A recognised `action` keeps its existing behavior. This free
+        service never returns HTTP 402.
       requestBody:
         required: false
         content:
@@ -58,12 +57,12 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/AgentRequest'
                 - type: object
-                  description: Any unshaped first-contact body; answered with the descriptor.
+                  description: Empty/unshaped validation body; answered with input requirements.
       responses:
         '200':
-          description: Agent action result, or the service descriptor on first contact
+          description: Successful agent action result
         '400':
-          description: Invalid JSON, or a recognised action with invalid fields
+          description: Input required, invalid JSON, or a recognised action with invalid fields
         '401':
           description: Missing or invalid connection credentials for a protected action
         '404':
@@ -103,19 +102,34 @@ paths:
           description: Service health
 components:
   schemas:
-    ServiceDescriptor:
+    ServiceInputRequired:
       type: object
       description: >-
-        Lane 8R.3B — the free service's first-contact response. Everything a
-        caller needs to construct a valid request without external docs.
-      required: [agent_state, status, supported_actions, example_request, next_action]
+        Empty validation response for the free Nobu service. `action` is the
+        only field common to every valid request; each supported action declares
+        its remaining required fields below.
+      required: [agent_state, status, fields, requiredArgs, supported_actions, example_request, next_action]
       properties:
         agent_state:
           type: string
-          const: SERVICE_DESCRIPTOR
+          const: SERVICE_INPUT
         status:
           type: string
-          const: READY
+          const: input_required
+        fields:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: string
+            const: action
+        requiredArgs:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: string
+            const: action
         service:
           type: string
         protocol:
@@ -552,4 +566,3 @@ components:
               type: string
             connection_token:
               type: string
-

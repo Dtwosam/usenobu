@@ -184,6 +184,17 @@ export type FreeServiceDescriptor = {
   next_action: string;
 };
 
+export type FreeServiceInputRequired = Omit<
+  FreeServiceDescriptor,
+  "agent_state" | "status" | "message"
+> & {
+  agent_state: "SERVICE_INPUT";
+  status: "input_required";
+  message: string;
+  fields: readonly ["action"];
+  requiredArgs: readonly ["action"];
+};
+
 /**
  * Pure — no network, database, AI, or email work. Safe to return on the
  * hot path of an unshaped first contact.
@@ -225,12 +236,28 @@ export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
 }
 
 /**
- * True when a parsed request body carries no action this service recognises —
- * a bodyless call, `{}`, a `message`/`query`/`prompt` envelope, or any other
- * unshaped payload. Those callers get the descriptor instead of a 400.
- *
- * A recognised action always falls through to the normal dispatcher, so
- * existing valid actions and their validation errors are unchanged.
+ * Official Onchain OS 4.4.0 endpoint validation treats this 400 response as
+ * an input-required service and uses `requiredArgs`/`fields` to continue its
+ * service-input flow. `action` is the only field required by every request;
+ * `supported_actions` truthfully declares each action's remaining fields.
+ */
+export function buildFreeServiceInputRequired(): FreeServiceInputRequired {
+  const descriptor = buildFreeServiceDescriptor();
+  return {
+    ...descriptor,
+    agent_state: "SERVICE_INPUT",
+    status: "input_required",
+    message:
+      "Choose one supported Nobu action and provide the fields required by that action.",
+    fields: ["action"],
+    requiredArgs: ["action"],
+  };
+}
+
+/**
+ * True when a parsed request body carries no action this service recognises.
+ * Those callers get the pure input-required response. A recognised action
+ * always falls through to the existing dispatcher unchanged.
  */
 export function isFirstContactRequest(raw: unknown): boolean {
   if (raw === null || raw === undefined) return true;

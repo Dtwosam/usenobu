@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auditA2mcp, defaultA2mcpRateLimiter } from "@/a2mcp/index";
 import {
-  buildFreeServiceDescriptor,
+  buildFreeServiceInputRequired,
   isFirstContactRequest,
   NOBU_DOCUMENTATION_URL,
 } from "@/a2mcp/service-descriptor";
@@ -19,21 +19,20 @@ function clientKey(req: Request): string {
   return "local";
 }
 
-function descriptorResponse(): NextResponse {
-  return NextResponse.json(buildFreeServiceDescriptor(), { status: 200 });
+function inputRequiredResponse(): NextResponse {
+  return NextResponse.json(buildFreeServiceInputRequired(), { status: 400 });
 }
 
 /**
- * GET /v1/agent — compatibility path (Lane 8R.3B).
+ * GET /v1/agent — validation/input-discovery path.
  *
- * A2MCP callers and OKX's own endpoint validator probe with GET before
- * sending a business request. Returning the same descriptor as an unshaped
- * POST means first contact always yields something usable instead of the
- * bodyless 405 that Lane 8R.3A proved was returned.
+ * Official Onchain OS 4.4.0 probes with GET before a business request. A 400
+ * `input_required` response with truthful field metadata lets its input flow
+ * continue without putting this free endpoint behind 402.
  */
 export async function GET(req: Request) {
   const started = Date.now();
-  const res = descriptorResponse();
+  const res = inputRequiredResponse();
   logA2mcpRequest({
     route: ROUTE,
     method: "GET",
@@ -41,9 +40,9 @@ export async function GET(req: Request) {
     contentLength: parseContentLength(req.headers.get("content-length")),
     body: null,
     recognisedAction: null,
-    httpStatus: 200,
+    httpStatus: 400,
     durationMs: Date.now() - started,
-    outcome: "service_descriptor",
+    outcome: "input_required",
   });
   return res;
 }
@@ -54,9 +53,9 @@ export async function GET(req: Request) {
  * CHECK_MONITORING_STATUS, Lane 7.4B–7.4E connection/preflight/management,
  * and Lane 8R.3B REDEEM_MONITORING_PASS.
  *
- * A bodyless call, `{}`, or any unrecognised envelope returns the same 200
- * descriptor as GET — computed purely, with no AI, search, email, or
- * database work on that path.
+ * A bodyless call, `{}`, or any unrecognised envelope returns the same 400
+ * input-required response as GET — computed purely, with no AI, search,
+ * email, or database work on that path.
  */
 export async function POST(req: Request) {
   const started = Date.now();
@@ -103,9 +102,9 @@ export async function POST(req: Request) {
           error: "invalid_json",
           status: "INVALID_JSON",
           message:
-            "The request body was not valid JSON. Send a JSON object with an `action` field, or send an empty body to receive the list of supported actions.",
+            "The request body was not valid JSON. Send a JSON object with an `action` field and that action's required fields.",
           next_action:
-            "Retry with `{}` (or no body) to receive the service descriptor.",
+            "Retry with a supported `action`; use an empty validation request to receive the required input metadata.",
           documentation: NOBU_DOCUMENTATION_URL,
         },
         { status: 400 },
@@ -143,14 +142,14 @@ export async function POST(req: Request) {
     }
   }
 
-  // First contact — no recognised action. Pure descriptor, no dependencies.
+  // Validation/first contact — no recognised action. Pure, no dependencies.
   if (isFirstContactRequest(raw)) {
     auditA2mcp({
       at: new Date().toISOString(),
       route: ROUTE,
       client_key: key,
-      http_status: 200,
-      outcome: "service_descriptor",
+      http_status: 400,
+      outcome: "input_required",
       duration_ms: Date.now() - started,
     });
     logA2mcpRequest({
@@ -160,11 +159,11 @@ export async function POST(req: Request) {
       contentLength,
       body: raw,
       recognisedAction: null,
-      httpStatus: 200,
+      httpStatus: 400,
       durationMs: Date.now() - started,
-      outcome: "service_descriptor",
+      outcome: "input_required",
     });
-    return descriptorResponse();
+    return inputRequiredResponse();
   }
 
   const action = String((raw as { action: unknown }).action);
