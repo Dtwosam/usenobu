@@ -502,6 +502,19 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 **Exact safe operator recovery after deploy:** one `POST /v1/owner/pass-settlement-reconcile` with Bearer cron/owner secret. Do not pay again or replay a signed payment header. Then continue free `UNDERSTAND_PURCHASE`.
 
+### Live Monitoring Pass recovery COMPLETE
+
+- Deployed clean `fc81bc0` to Production; canonical `usenobu.vercel.app` explicitly aliased to redeploy `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu`.
+- Pre-recovery: one durable `verifying` payment with settlement ref; zero passes.
+- First reconcile: `ok: true`, `scanned: 1`, `issued: 1`, pass `pass_8dd13c79ce1842aa89f91609527764f4`.
+- Second reconcile: `scanned: 0`, `issued: 0` — no duplicate pass or charge.
+- Post-recovery DB: payment `settled`, exactly one `issued` pass.
+- No task, payment, signed replay, ASP edit, activation, or resubmission.
+
+**Proof:** Production health + dual reconcile + durable readback. Verdict: `NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS`. Evidence: `docs/proof/live-monitoring-pass-recovery/`.
+
+**Exact next customer-facing step:** free service `33561` `UNDERSTAND_PURCHASE` with pass id `pass_8dd13c79ce1842aa89f91609527764f4`. Do not pay again.
+
 ## Lane 7.4G — Live marketplace end-to-end proof
 
 - Prove: agent request → product confirmation → email verification → consent → genuine `$0.99` payment → monitor activation → scheduled monitoring → genuine eligible email alert → status retrieval → duplicate suppression.

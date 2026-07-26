@@ -1,7 +1,9 @@
 # Nobu Current State
 
 **Date:** 2026-07-26
-**Status:** `NOBU_MONITORING_PASS_SETTLEMENT_RECONCILE_PASS` — marketplace-completed settlements that return `PAYMENT_SETTLEMENT_PENDING` can now converge to exactly-once Monitoring Pass issuance without a signed-header replay or second charge
+**Status:** `NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS` — settlement-reconciliation repair is deployed; the existing paid settlement recovered exactly one Monitoring Pass with no second charge
+
+**Live Monitoring Pass recovery (2026-07-26):** **PASS** (`NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS`). Clean HEAD `fc81bc0` deployed to Production; canonical alias `https://usenobu.vercel.app` explicitly pointed at redeploy `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu` (`usenobu-aqr2chw83…`). Pre-recovery durable state: one `verifying` payment `pass_pay_3c3d29bdfd4c467a` with stored settlement ref and digest; zero passes. First authenticated `POST /v1/owner/pass-settlement-reconcile` returned `ok: true`, `scanned: 1`, `issued: 1`, public pass `pass_8dd13c79ce1842aa89f91609527764f4` (no token/digest/header/settlement material). Second call: `scanned: 0`, `issued: 0` (idempotent). Post-recovery DB: payment `settled`, exactly one `issued` pass, no second charge. No task, payment, signed replay, ASP edit, activation, or resubmission. Evidence: `docs/proof/live-monitoring-pass-recovery/`.
 
 **Monitoring Pass settlement reconciliation repair (2026-07-26):** **PASS** (`NOBU_MONITORING_PASS_SETTLEMENT_RECONCILE_PASS`). Began from exact clean baseline `91c048639ca4792dd1cb5a7d04557c821ccbbcc2`. Live marketplace job `0xc88442a4…650632` / task `0x6e0042b8…b145e2` released `0.99` USDT but Nobu's deliverable remained `PAYMENT_SETTLEMENT_PENDING` with no pass. Root cause: a durable `monitoring_pass_payments` row is saved as `verifying` with opaque `settlement_ref` (pending tx) and `authorization_digest` (sha256 of the payment header only), but convergence previously required replaying the same `PAYMENT-SIGNATURE` so `resumePendingPassSettlement` could call official `settle/status`. Marketplace job completion does not replay that header, so no pass was issued after on-chain success. Repair: `listVerifyingMonitoringPassPayments` / `listSettledMonitoringPassPaymentsWithoutPass` on AuthStore; exported `reconcilePendingPassSettlements` polls official settle/status from the stored opaque settlement reference alone, marks settled, and issues exactly one pass (`UNIQUE settlement_ref`); concurrent/repeated runs cannot duplicate or re-charge; authenticated internal `POST /v1/owner/pass-settlement-reconcile` (Bearer `OWNER_OPS_SECRET` or `CRON_SECRET`) exposes the same recovery without requiring the buyer to replay payment. Pending response guidance no longer treats signed replay as the only path. Focused proof: Monitoring Pass 22/22; related payment tests 27/27; typecheck clean; limited secret scan clean (only negative assertions on `monitoring_pass_token`). No live payment, signed replay, task creation, ASP edit, activation, or resubmission. Evidence: `docs/proof/monitoring-pass-settlement-reconcile/`.
 
@@ -47,10 +49,11 @@
 | `/v1/agent/monitoring-pass` | **Code-complete, deployed, Production-proven, and registered on `#5541`** — always `402` + `PAYMENT-REQUIRED` on first contact; official `x402-check` returns **`valid: true`** with and without `{}`. |
 | `/v1/agent/start-monitoring` | Unchanged, internal, retained until safely retired. |
 | Official OKX seller verify / settle / settle-status | Integrated and production-configured; fails closed without credentials. |
-| Genuine payment | **One marketplace payment released `0.99` USDT** (job `0xc88442a4…`, task `0x6e0042b8…`) but stayed at `PAYMENT_SETTLEMENT_PENDING` until settlement-reconciliation repair; operator recovery is `POST /v1/owner/pass-settlement-reconcile` after deploy — no second payment. |
-| Settlement reconciliation | **Implemented** — durable verifying/settled-without-pass rows reconcile via official settle/status; exactly one pass per settlement_ref; owner/cron recovery route. |
+| Genuine payment | **Recovered.** Marketplace payment released `0.99` USDT; pending row `pass_pay_3c3d29bdfd4c467a` settled via official settle/status; exactly one pass `pass_8dd13c79ce1842aa89f91609527764f4` issued. No second charge. |
+| Settlement reconciliation | **Implemented and Production-proven** — `POST /v1/owner/pass-settlement-reconcile` issued one pass; second call issued zero. |
+| Production deployment | `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu` on `https://usenobu.vercel.app` (explicit alias). |
 | ASP metadata update (Lane 8R.3C Step 1) | **Complete.** Exactly one corrected update succeeded (`newAgentId: null`); both service IDs were preserved and the registered metadata now matches the Lane 8R.3C.4 candidate. QA did not retrigger and remains rejected/not listed. |
-| Next step | **Deploy this repair, then run authenticated settlement reconciliation once for the stuck live payment.** Do not pay again, replay a signed header, create a task, or edit ASP metadata. |
+| Next step | **Customer continues free `UNDERSTAND_PURCHASE` on service 33561 with the recovered pass id.** Do not pay again. |
 
 **Historical (superseded opening claims):** Older lane notes below may still say the paid route was private/undeployed, the verifier always `not_configured`, the paid service unregistered, or the listing "under review" / "pending review". Lane 8R.0 supersedes “verifier always not_configured / route only proposed.” Lane 8R supersedes “paid service not registered on `#5541`.” **Lane 8R.3A supersedes every "under review" / "pending review" / `approvalStatus: 2` claim — the listing is rejected.** Lane 8R.3B supersedes “the paid service endpoint is `/v1/agent/start-monitoring`” as a statement of what Nobu *serves*, though it remains true of what `#5541` currently *points at*.
 
@@ -120,10 +123,10 @@
 ## Production
 
 **Current deployment (2026-07-26):** `https://usenobu.vercel.app` points to
-deployment `dpl_WJjvs2hQTfUzVSZqfXAKTrnUahvU` (`usenobu-4dqzxqa7s`),
-re-aliased explicitly. Provider-controlled journey continuity, the free
-`/v1/agent` input-required behavior, and the paid
-`/v1/agent/monitoring-pass` pass-only challenge guidance are live on it.
+deployment `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu` (`usenobu-aqr2chw83`),
+re-aliased explicitly after the settlement-reconciliation repair redeploy.
+Monitoring Pass recovery is live; free `/v1/agent` and paid
+`/v1/agent/monitoring-pass` behavior remain as previously proven.
 
 **Historical — identity release (2026-07-19), superseded by the deployment above:** `https://usenobu.vercel.app` then pointed to
 the verified, unique Lane 7.2 deployment (`dpl_DQ9ULj9uukY1Kdtujxqkf8sppeUw`,
@@ -221,9 +224,11 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 
 **Marketplace journey continuity is COMPLETE** (`NOBU_MARKETPLACE_JOURNEY_CONTINUITY_PASS`): Nobu-controlled responses now carry continuous truthful guidance through successful pass redemption. Evidence: `docs/proof/marketplace-journey-continuity/`.
 
-**Monitoring Pass settlement reconciliation is COMPLETE** (`NOBU_MONITORING_PASS_SETTLEMENT_RECONCILE_PASS`): pending marketplace settlements recover server-side via official settle/status without signed-header replay or a second charge. Exact safe operator recovery after deploy: `POST https://usenobu.vercel.app/v1/owner/pass-settlement-reconcile` with Bearer `CRON_SECRET` or `OWNER_OPS_SECRET` (once). Expect `issued >= 1` and public `issued_pass_ids` only — never tokens, digests, headers, or settlement hashes in proof. Then continue free `UNDERSTAND_PURCHASE`. Evidence: `docs/proof/monitoring-pass-settlement-reconcile/`.
+**Monitoring Pass settlement reconciliation is COMPLETE** (`NOBU_MONITORING_PASS_SETTLEMENT_RECONCILE_PASS`). Evidence: `docs/proof/monitoring-pass-settlement-reconcile/`.
 
-**Nobu next action after deploy + one reconcile call:** free service `33561` `UNDERSTAND_PURCHASE` with the user's recent Target online purchase. No second payment, signed replay, ASP edit, activation, or resubmission.
+**Live recovery is COMPLETE** (`NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS`): pass `pass_8dd13c79ce1842aa89f91609527764f4` issued exactly once. Evidence: `docs/proof/live-monitoring-pass-recovery/`.
+
+**Exact next customer-facing step:** free service `33561` action `UNDERSTAND_PURCHASE` with the recovered Monitoring Pass id and the user's recent Target online purchase description. Monitoring remains inactive until successful redemption. No second payment.
 
 **Lane 7.4G — Live marketplace end-to-end proof** stays blocked until ASP `#5541` and the paid service are officially accessible through OKX.AI (approved and public, not merely "under review").
 
