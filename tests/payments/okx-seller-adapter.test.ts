@@ -6,6 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { recentPurchaseDate } from "../helpers/test-dates.js";
 import { migrateUp, openDatabase } from "../../src/db/index.js";
 import { resetAuthStoreCache } from "../../src/auth/auth-store.js";
 import {
@@ -78,13 +79,7 @@ function targetOffer(overrides: Partial<MatchableOffer> = {}): MatchableOffer {
 
 const EXACT_IDENTITY_FIELDS: DiscoveryPurchaseFields = {
   purchase_price: 24.99,
-  // Relative to today: a fixed date ages out of Target's adjustment window
-  // and turns every quote-dependent case here into WINDOW_EXPIRED.
-  purchase_date: (() => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() - 3);
-    return d.toISOString().slice(0, 10);
-  })(),
+  purchase_date: recentPurchaseDate(),
   purchase_channel: "target_online",
   country: "US",
   region: "TX",

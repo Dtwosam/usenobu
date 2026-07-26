@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { recentPurchaseDate } from "../helpers/test-dates.js";
 import { migrateUp, openDatabase } from "../../src/db/index.js";
 import {
   confirmPurchaseCandidate,
@@ -90,7 +91,7 @@ describe("purchase privacy (shared DB, two owners)", () => {
       {
         product_title: title,
         purchase_price: "29.99",
-        purchase_date: "2026-07-10",
+        purchase_date: recentPurchaseDate(),
         region: "CA",
         target_item_id: "87654321",
         target_product_url: "https://www.target.com/p/example-widget/-/A-87654321",
@@ -161,7 +162,7 @@ describe("purchase privacy (shared DB, two owners)", () => {
     const hostile = {
       product_title: "Owned by server",
       purchase_price: "19.99",
-      purchase_date: "2026-07-10",
+      purchase_date: recentPurchaseDate(),
       region: "CA",
       target_item_id: "87654321",
       target_product_url: "https://www.target.com/p/example-widget/-/A-87654321",

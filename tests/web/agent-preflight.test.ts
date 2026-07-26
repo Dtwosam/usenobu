@@ -6,6 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { recentPurchaseDate } from "../helpers/test-dates.js";
 import { migrateUp, openDatabase } from "../../src/db/index.js";
 import { createSqliteAuthStore, resetAuthStoreCache } from "../../src/auth/auth-store.js";
 import {
@@ -58,7 +59,7 @@ function targetOffer(overrides: Partial<MatchableOffer> = {}): MatchableOffer {
 
 const CLUE_ONLY_FIELDS: DiscoveryPurchaseFields = {
   purchase_price: 24.99,
-  purchase_date: "2026-07-10",
+  purchase_date: recentPurchaseDate(),
   purchase_channel: "target_online",
   country: "US",
   region: "TX",
@@ -68,7 +69,7 @@ const CLUE_ONLY_FIELDS: DiscoveryPurchaseFields = {
 
 const EXACT_IDENTITY_FIELDS: DiscoveryPurchaseFields = {
   purchase_price: 24.99,
-  purchase_date: "2026-07-10",
+  purchase_date: recentPurchaseDate(),
   purchase_channel: "target_online",
   country: "US",
   region: "TX",
@@ -746,7 +747,7 @@ describe("Lane 7.4C agent discovery/confirmation/preflight", () => {
         target_product_url: "https://www.target.com/p/x/-/A-12345",
         purchase_price: 10,
         currency: "USD",
-        purchase_date: "2026-07-10",
+        purchase_date: recentPurchaseDate(),
         country: "US",
         region: "TX",
         purchase_channel: "target_online",

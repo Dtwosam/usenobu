@@ -306,10 +306,10 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 - Production seller env configured; deployed-runtime 402 proved unpaid challenge (x402 v2, `990000`, eip155:196, non-null valid `payTo`).
 - ASP `#5541` updated once: free service id `33561` preserved (fee `0`, `/v1/agent`); paid service created id `35958` (fee `0.99`, `/v1/agent/start-monitoring`).
-- `newAgentId: null` (no second ASP). Activate once recorded; marketplace **under review** (`approvalStatus: 2`). Public listing URL not yet available.
+- `newAgentId: null` (no second ASP). Activate once recorded; marketplace was then **under review** (`approvalStatus: 2`). Public listing URL not yet available.
 - Genuine payment proof remains **Lane 7.4G**.
 
-**Proof:** `docs/proof/lane-8r-asp-update/`. Verdict: `NOBU_LANE_8R_PASS`.
+**Proof:** `docs/proof/lane-8r-asp-update/`. Verdict: `NOBU_LANE_8R_PASS`. **Superseded:** that "under review" state ended in the 2026-07-25 rejection — see Lane 8R.3A. Service `35958`'s `/v1/agent/start-monitoring` endpoint recorded here is still what `#5541` points at, and is now stale relative to what Nobu serves.
 
 ## Lane 8R.3 — Audit and repair OKX listing-review capability mismatch COMPLETE
 
@@ -317,8 +317,8 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 - Audited: read-only ASP inspect, bounded production logs (short retention, no reviewer traffic recoverable), and reproduction of reviewer-facing calls (empty/malformed, generic natural-language, minimum documented free request, direct paid request without prepared credentials, valid unpaid paid request using a controlled payment-ready quote).
 - Root cause: **endpoint usability on the paid service (`35958`)**, not listing copy — both registered descriptions were already accurate. A first call to `POST /v1/agent/start-monitoring` without a pre-existing quote/connection (the natural way to probe a service named "Nobu Monitoring Activation") returned a bare, unguided `400`/`401`.
 - Repair: additive machine-readable guidance (`message`/`required_fields`/`next_action`/`documentation`) on the schema-violation and `ACTION_NOT_AUTHORIZED`/`CONNECTION_EXPIRED` failure shapes only; identical reason-agnostic text for both failure statuses (no gate weakened, no reason leaked). No listing-copy change; zero ASP updates.
-- Deployed to production; reproduction cases re-verified against the fix; resubmitted via `agent activate` alone. ASP `#5541` now `approvalDisplayStatus: 2` ("Listing under review"); both services (`33561`, `35958`) unchanged.
-- Lane 7.4G remains blocked pending genuine marketplace approval (not just "under review").
+- Deployed to production; reproduction cases re-verified against the fix; resubmitted via `agent activate` alone. ASP `#5541` then read `approvalDisplayStatus: 2` ("Listing under review"); both services (`33561`, `35958`) unchanged.
+- Lane 7.4G remains blocked pending genuine marketplace approval.
 
 **Proof:** `tests/payments/start-monitoring-route-guidance.test.ts` (7 focused tests); directly-affected regressions (`start-monitoring.test.ts`, `okx-seller-adapter.test.ts`) unchanged; typecheck; build; `git diff --check`; secret/payment-material scan; before/after production reproduction; before/after ASP `#5541` read-back. Verdict: `NOBU_LANE_8R_3_PASS`. Evidence: `docs/proof/lane-8r-3-review-repair/`. **Superseded:** the resubmission was rejected again — see Lane 8R.3A.
 
@@ -451,7 +451,13 @@ Then **Lane 9 — Product / release closeout** (defined later in this document) 
 
 **Proof:** `docs/proof/nobu-ai-agent/live-groq-provider/` — `NOBU_LANE_7_5E_2_PASS`.
 
-## Lane 8 — OKX ASP registration and live listing (**ACTIVE — PENDING REVIEW**)
+## Lane 8 — OKX ASP registration and live listing (**HISTORICAL — superseded**)
+
+> **Superseded.** Every "pending review" / `approvalStatus: 2` statement in this
+> section is historical. ASP `#5541` is now **rejected / not listed**
+> (`approvalDisplayStatus: 5`) after the 2026-07-25 platform-test timeout. The
+> live thread is Lane 8R.3A (diagnosis) → Lane 8R.3B (repair, code-complete and
+> Production-proven) → Lane 8R.3C (operator alignment and proof).
 
 **Lane 7.4C.1 roadmap note:** this lane's free-listing review runs independently of 7.4 development — 7.4D.0 through 7.4F proceed without waiting for it to resolve and without editing/resubmitting `#5541`. The next `#5541` edit is **Lane 8R** (after 7.4F, before 7.4G), which accurately reflects whatever is genuinely built by then; it is not this lane reopened.
 

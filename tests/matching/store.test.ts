@@ -6,7 +6,11 @@ import {
   persistMatchEvaluation,
   type MatchableOffer,
 } from "../../src/matching/index.js";
-import { migrateUp, openDatabase } from "../../src/db/index.js";
+import {
+  listMigrationSql,
+  migrateUp,
+  openDatabase,
+} from "../../src/db/index.js";
 
 function seedPurchase(db: ReturnType<typeof openDatabase>, id: string): void {
   db.prepare(
@@ -44,14 +48,11 @@ describe("matching persistence", () => {
     const db = openDatabase(":memory:");
     try {
       const applied = migrateUp(db);
-      expect(applied).toEqual([
-        "0001_init",
-        "0002_matching",
-        "0003_monitoring",
-        "0004_policy_operations",
-        "0005_policy_operations_r2a",
-        "0006_accounts",
-      ]);
+      // Derived, not frozen: a hardcoded list broke on every new migration
+      // without anything actually being wrong. What matters here is that a
+      // fresh database applies the full known migration set exactly once.
+      expect(applied).toEqual(listMigrationSql().map((m) => m.id));
+      expect(applied.length).toBeGreaterThan(0);
       seedPurchase(db, "pur-lock-1");
 
       const purchase = {

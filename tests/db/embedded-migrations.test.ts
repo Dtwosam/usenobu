@@ -13,20 +13,30 @@ import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 
-const EXPECTED_EMBEDDED_MIGRATIONS = [
-  "0001_init",
-  "0002_matching",
-  "0003_monitoring",
-  "0004_policy_operations",
-  "0005_policy_operations_r2a",
-  "0006_accounts",
-];
+/**
+ * Derived from the migrations directory, never frozen as a literal.
+ *
+ * A hardcoded list silently rots: every new migration broke these tests
+ * without any of them being wrong (`docs/proof/lane-8r-3b-monitoring-pass-repair/local/pre-existing-failures.md`).
+ * The invariant worth asserting is that the embedded copy stays in step with
+ * the real migrations on disk — which is exactly what production relies on
+ * when no filesystem migrations directory is available.
+ */
+const EXPECTED_EMBEDDED_MIGRATIONS = listMigrationSql().map((m) => m.id);
 
 describe("embedded migrations (production-safe)", () => {
-  it("ships embedded SQL for 0001–0003", () => {
+  it("embeds every filesystem migration, in order, with real SQL", () => {
+    // Guards against the embedded copy going stale when a migration is added.
     expect(EMBEDDED_MIGRATIONS.map((m) => m.id)).toEqual(
       EXPECTED_EMBEDDED_MIGRATIONS,
     );
+    expect(EMBEDDED_MIGRATIONS.length).toBeGreaterThan(0);
+    // Ids stay sequentially numbered, so ordering is total and unambiguous.
+    EMBEDDED_MIGRATIONS.forEach((m, i) => {
+      expect(m.id).toMatch(
+        new RegExp(`^${String(i + 1).padStart(4, "0")}_[a-z0-9_]+$`),
+      );
+    });
     for (const m of EMBEDDED_MIGRATIONS) {
       expect(m.up.length).toBeGreaterThan(50);
       expect(m.down.length).toBeGreaterThan(10);

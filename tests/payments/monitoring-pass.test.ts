@@ -12,6 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { recentPurchaseDate } from "../helpers/test-dates.js";
 import { migrateUp, openDatabase } from "../../src/db/index.js";
 import { getAuthStore, resetAuthStoreCache } from "../../src/auth/auth-store.js";
 import {
@@ -77,13 +78,6 @@ function targetOffer(overrides: Partial<MatchableOffer> = {}): MatchableOffer {
     serpapi_product_id: "not-tcin",
     ...overrides,
   };
-}
-
-/** Relative to today so the eligibility window never ages out (see 7.4D test). */
-function recentPurchaseDate(daysAgo = 3): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - daysAgo);
-  return d.toISOString().slice(0, 10);
 }
 
 const EXACT_IDENTITY_FIELDS: DiscoveryPurchaseFields = {

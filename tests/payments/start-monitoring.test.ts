@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { recentPurchaseDate } from "../helpers/test-dates.js";
 import { migrateUp, openDatabase } from "../../src/db/index.js";
 import { resetAuthStoreCache } from "../../src/auth/auth-store.js";
 import {
@@ -55,17 +56,6 @@ function targetOffer(overrides: Partial<MatchableOffer> = {}): MatchableOffer {
     serpapi_product_id: "not-tcin",
     ...overrides,
   };
-}
-
-/**
- * Relative to today, not hardcoded: a fixed date silently ages out of
- * Target's adjustment window and turns every quote-dependent case in this
- * file into a WINDOW_EXPIRED failure once enough wall-clock time passes.
- */
-function recentPurchaseDate(daysAgo = 3): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - daysAgo);
-  return d.toISOString().slice(0, 10);
 }
 
 const EXACT_IDENTITY_FIELDS: DiscoveryPurchaseFields = {

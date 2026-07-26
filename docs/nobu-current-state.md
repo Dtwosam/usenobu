@@ -11,11 +11,24 @@
 
 **Lane 8R.3 OKX listing-review capability-mismatch repair (2026-07-23, superseded by the second rejection above):** ASP `#5541` was rejected (`approvalDisplayStatus: 5`) with reason *"the results returned by your service in actual calls don't match the capabilities stated in your service description."* Root cause: **endpoint usability on the paid service (`35958`), not listing copy** — both registered service descriptions were already accurate, but a first call to `POST /v1/agent/start-monitoring` without a pre-existing `quote_id`/`connection_id`/`connection_token` (the most natural way to probe a service literally named "Nobu Monitoring Activation") returned a bare `{"error":"invalid_input"}` (400) or `{"status":"ACTION_NOT_AUTHORIZED"}` (401) with no indication that this was expected, no required-field list, and no pointer to the free flow that produces valid credentials — indistinguishable from a broken service. Repair: additive machine-readable guidance (`message`/`required_fields`/`next_action`/`documentation`) on those two failure shapes only (`app/v1/agent/start-monitoring/route.ts`, `src/payments/start-monitoring-response.ts`); the `ACTION_NOT_AUTHORIZED`/`CONNECTION_EXPIRED` guidance text is deliberately identical for both statuses so the response still never reveals which specific check failed. No auth/payment/matching gate changed; no listing-copy change (both descriptions verified byte-identical before/after); zero ASP updates. Deployed to production (`usenobu.vercel.app` explicitly re-aliased — it does not auto-follow `vercel deploy --prod`), reproduction cases 1–5 re-run against the fix, then resubmitted via `agent activate` alone (no `agent update`). ASP `#5541` now reads `approvalDisplayStatus: 2` ("Listing under review"), both services (`33561` free, `35958` paid) unchanged. Lane 7.4G remains blocked — "under review" is not "officially accessible through OKX.AI." Evidence: `docs/proof/lane-8r-3-review-repair/`.
 
-**Prior status (superseded by the repair above):** `NOBU_LANE_8R_PASS` — production 402 proven; ASP `#5541` free+paid services updated; listing under review
+**Prior status (superseded):** `NOBU_LANE_8R_PASS` — production 402 proven; ASP `#5541` free+paid services updated; listing under review. **That "under review" state no longer holds** — see the current truth below.
 
-**Current product truth:** The paid `$0.99` agent-native start-monitoring route is **implemented and deployed** (`POST /v1/agent/start-monitoring`). Official OKX seller **verify / settle / settle-status** is integrated and production-configured (Sensitive env; runtime 402 proves non-null valid `payTo`). ASP **`#5541`** now has **two** separate A2MCP services under the same identity: free fee `0` at `/v1/agent` (service id `33561`) and paid fee `0.99` at `/v1/agent/start-monitoring` (service id `35958`). Marketplace **`approvalStatus` / display status `2` — Listing under review**; **not** publicly listed (`public_listing_url: not_yet_available`). Production **402** unpaid challenge proven (`production_402_proven: true`). **No genuine payment has been completed** (Lane 7.4G). Topology: **separate free and paid A2MCP services, co-located under `#5541`**. Evidence: `docs/proof/lane-8r-asp-update/`.
+## Current product truth (2026-07-26)
 
-**Historical (superseded opening claims):** Older lane notes below may still say the paid route was private/undeployed, verifier always `not_configured`, or paid service unregistered. Lane 8R.0 supersedes “verifier always not_configured / route only proposed.” Lane 8R supersedes “paid service not registered on `#5541`.”
+| Item | State |
+|---|---|
+| ASP `#5541` marketplace status | **Rejected / not listed** — `approvalDisplayStatus: 5` ("Listing rejected"), service-list `approvalStatus: 6`, `statusLabel: "not listed"`. **Not** under review, **not** publicly listed. |
+| Rejection reason | Platform testing could not receive a response before the task timed out. Diagnosed in Lane 8R.3A; repaired in Lane 8R.3B. |
+| Production repair | **Deployed** — `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB`, alias `usenobu.vercel.app` (re-aliased explicitly; it does not auto-follow `vercel deploy --prod`). |
+| Free service `33561` | Registered at `/v1/agent` (endpoint unchanged) and **repaired in Production**: bodyless `POST`, `{}`, unrecognised envelopes and `GET` all return `200` with a `status: READY` descriptor. |
+| Paid service `35958` | **Still registered against the old `/v1/agent/start-monitoring` endpoint.** OKX's own `agent x402-check` reports `valid: false` for it (`HTTP 405`, not 402). The registered listing is therefore **not yet repaired**. |
+| `/v1/agent/monitoring-pass` | **Code-complete, deployed and Production-proven** — always `402` + `PAYMENT-REQUIRED` on first contact, official `x402-check` returns **`valid: true`** — but **not yet registered** on `#5541`. |
+| `/v1/agent/start-monitoring` | Unchanged, internal, retained until safely retired. |
+| Official OKX seller verify / settle / settle-status | Integrated and production-configured; fails closed without credentials. |
+| Genuine payment | **None completed.** |
+| Next step | **Operator-controlled ASP metadata alignment and proof** — see the Next active lane section and `docs/proof/lane-8r-3b-monitoring-pass-repair/operator-runbook.md`. |
+
+**Historical (superseded opening claims):** Older lane notes below may still say the paid route was private/undeployed, the verifier always `not_configured`, the paid service unregistered, or the listing "under review" / "pending review". Lane 8R.0 supersedes “verifier always not_configured / route only proposed.” Lane 8R supersedes “paid service not registered on `#5541`.” **Lane 8R.3A supersedes every "under review" / "pending review" / `approvalStatus: 2` claim — the listing is rejected.** Lane 8R.3B supersedes “the paid service endpoint is `/v1/agent/start-monitoring`” as a statement of what Nobu *serves*, though it remains true of what `#5541` currently *points at*.
 
 **Canonical live match:** **PASS** (`d7bc3de`) — AirTag `PRICE_DROP_DETECTED` $29.99 via unified matcher
 **Live enrollment + check:** **PASS** (`65c69d8`) — production Find my product uses SerpApi; browser `data_source: LIVE` price drop
@@ -80,7 +93,12 @@
 **Lane 7.1 product selection + locked fingerprint repair:** **PASS** - candidate confirmation now posts only a candidate id; server reloads the stored discovery snapshot, enforces a 30-minute freshness bound, revalidates the selected offer against the purchase, rejects tampered/stale/weak/title-only/non-Target/Target Plus/wrong-identity selections, and monitoring remains locked-fingerprint-only/fail-closed.
 ## Production
 
-**Identity release (2026-07-19):** `https://usenobu.vercel.app` now points to
+**Current deployment (2026-07-26):** `https://usenobu.vercel.app` points to
+`dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB` (`usenobu-j2kc5se0f`), built from the Lane
+8R.3B repair commit `1dac265` and re-aliased explicitly. Both registered A2MCP
+paths plus the new `/v1/agent/monitoring-pass` are live on it.
+
+**Historical — identity release (2026-07-19), superseded by the deployment above:** `https://usenobu.vercel.app` then pointed to
 the verified, unique Lane 7.2 deployment (`dpl_DQ9ULj9uukY1Kdtujxqkf8sppeUw`,
 built from clean final HEAD `e927b07`). Canonical production proof passed
 (identity-only candidate, confirmation, locked fingerprint, monitoring gate,
@@ -88,15 +106,18 @@ fail-closed live observations, no secrets). Legacy alias `afterbuy.vercel.app`
 was retired (removed) after confirming ASP #5541's endpoint already used the
 canonical URL. `nobu-app.vercel.app`, `get-nobu.vercel.app`,
 `nobu-watch.vercel.app`, `nobu-price.vercel.app`, and `nobu-mvp.vercel.app`
-remain unchanged (still on the old `afterbuy-hvj2pbrmg-…` build). ASP #5541
-inspected read-only: still `PENDING_REVIEW` (`approvalStatus: 2`, not
-publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
+remain unchanged (still on the old `afterbuy-hvj2pbrmg-…` build). ASP #5541 was
+at that time `PENDING_REVIEW` (`approvalStatus: 2`, not publicly listed),
+endpoint and fee unchanged, no edit performed — **that status is long
+superseded; `#5541` is now rejected/not listed.** Evidence:
 `docs/proof/nobu-identity-release/`.
 
 | Item | Value |
 |---|---|
 | URL | https://usenobu.vercel.app |
-| Agent endpoint | `/v1/agent` |
+| Free agent endpoint | `/v1/agent` (registered) |
+| Paid endpoint served | `/v1/agent/monitoring-pass` (**not yet registered**) |
+| Paid endpoint registered on `#5541` | `/v1/agent/start-monitoring` (**stale**) |
 | Lane 7.5E.2 | **PASS** (live Groq) |
 | Lane 8 preflight | **PASS** |
 | Sprint A core proof | **PASS** — bounded Check price now + Monitoring Proof panel |
@@ -115,24 +136,33 @@ publicly listed), endpoint and fee unchanged, no edit performed. Evidence:
 - Conair GS14: still no safe acceptance when title omits model and immersive recovers a **different** TCIN (fail closed).
 - Sprints A–A.3 do **not** claim universal live price acceptance; this capability audit does for ≥1 product.
 
-## Lane 8 status
+## ASP `#5541` status (current)
 
 | Item | Result |
 |---|---|
-| ASP registration | **Done** — agent **#5541** **Nobu** (unchanged) |
-| Service | A2MCP, fee **0**, endpoint **https://usenobu.vercel.app/v1/agent** |
-| 2026-07-14 submit | Under review, then **rejected** (avatar quality / dimensions) |
-| 2026-07-17 fix | **Avatar only** on **#5541** — `newAgentId: null`; polished 440×440 square avatar |
-| Resubmit | **`submitApproval.success: true`**, **`approvalStatus: 2`** (under review again) |
+| ASP registration | **Done** — agent **#5541** **Nobu** (never re-created) |
+| Marketplace status | **Rejected / not listed** — `approvalDisplayStatus: 5`, service-list `approvalStatus: 6` |
+| Latest rejection | Platform testing could not receive a response before the task timed out (2026-07-25) |
+| Free service `33561` | A2MCP, fee **0**, endpoint `https://usenobu.vercel.app/v1/agent` — repaired and Production-proven |
+| Paid service `35958` | A2MCP, fee **0.99**, endpoint still `https://usenobu.vercel.app/v1/agent/start-monitoring` — **stale**, `x402-check` `valid: false` |
 | Public listing URL | **None** — not claimed live |
-| Verdict | **NOBU_LANE_8_PENDING_REVIEW** |
+| Verdict | **`NOBU_LANE_8R_3B_READY_FOR_OPERATOR_ALIGNMENT_AND_PROOF`** |
+
+### Historical Lane 8 milestones (superseded)
+
+| When | What |
+|---|---|
+| 2026-07-14 | First submit → under review, then rejected (avatar quality / dimensions) |
+| 2026-07-17 | Avatar-only fix on `#5541` (`newAgentId: null`), resubmitted → `approvalStatus: 2` |
+| 2026-07-23 | Lane 8R.3 capability-mismatch repair, resubmitted → `approvalStatus: 2` |
+| 2026-07-25 | **Rejected again** — platform-test timeout. All earlier "under review" states are superseded. |
 
 ### Do not
 
 - Create another ASP
-- Repeatedly resubmit activation while under review
+- Run `agent update`, `agent activate`, or any resubmission outside an explicitly authorized operator step
 - Claim public live listing or Lane 9 closeout yet
-- Mark Lane 8 complete from Sprint A alone
+- Claim the registered paid service is repaired before the ASP metadata update has run
 
 ### Monitor
 
