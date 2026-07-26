@@ -17,7 +17,7 @@ import os from "node:os";
  * Derived from the migrations directory, never frozen as a literal.
  *
  * A hardcoded list silently rots: every new migration broke these tests
- * without any of them being wrong (`docs/proof/lane-8r-3b-monitoring-pass-repair/local/pre-existing-failures.md`).
+ * without any of them being wrong (`docs/proof/lane-8r-3b-monitoring-pass-repair/pre-existing-failures.md`).
  * The invariant worth asserting is that the embedded copy stays in step with
  * the real migrations on disk — which is exactly what production relies on
  * when no filesystem migrations directory is available.

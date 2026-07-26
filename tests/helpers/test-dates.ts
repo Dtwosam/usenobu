@@ -5,7 +5,7 @@
  * quietly aged past Target's price-adjustment window, so eligibility-gated
  * setup started returning WINDOW_EXPIRED and ~16 tests failed without any
  * code being wrong — see
- * `docs/proof/lane-8r-3b-monitoring-pass-repair/local/pre-existing-failures.md`.
+ * `docs/proof/lane-8r-3b-monitoring-pass-repair/pre-existing-failures.md`.
  *
  * These helpers are relative to "now" and computed (not random), so they stay
  * inside or outside the window by intent rather than by calendar luck. They

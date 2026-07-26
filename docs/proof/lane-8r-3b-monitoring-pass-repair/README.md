@@ -95,7 +95,7 @@ Every gate the paid endpoint deliberately no longer enforces still applies here,
 
 **Pre-existing failures, not caused by this lane.** The full suite reports `19 failed | 434 passed | 1 skipped`. Running the same six files at clean `32ddaa0` with the lane stashed gives the **identical** `19 failed`. They are a hardcoded-date time bomb (fixed purchase dates that have aged out of Target's adjustment window) plus the long-known `tests/matching/store.test.ts` migration-list assertion. This lane fixed that time bomb **only** in the three payment test files it directly depends on, by deriving the purchase date relative to today; the remaining files were left alone as out of scope.
 
-Baseline evidence: `local/pre-existing-failures.md`.
+Baseline evidence: `pre-existing-failures.md`. **All 19 were subsequently fixed in Lane 8R.3B.1** — the suite is now fully green; see that file's header.
 
 ---
 
@@ -171,5 +171,5 @@ Everything left is operator-controlled and state-changing. See **`operator-runbo
 | `production/x402-check-official.json` | Official validator verdicts for the new and old paid endpoints (`payTo` masked) |
 | `production/payment-required-challenge-redacted.json` | The live decoded challenge (`payTo` masked) |
 | `production/structured-request-logs.json` | Live structured log lines proving the Lane 8R.3A observability gap is closed |
-| `local/pre-existing-failures.md` | Stashed-baseline proof that the 19 remaining suite failures pre-date this lane |
+| `pre-existing-failures.md` | Stashed-baseline proof that the 19 remaining suite failures pre-date this lane, plus their Lane 8R.3B.1 resolution |
 | `operator-runbook.md` | The exact remaining state-changing steps, with placeholders |
