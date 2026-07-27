@@ -5,6 +5,28 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
+## Active closeout — Lane 8R marketplace journey live repair
+
+**State:** code, focused checks, deployment and safe Production probes complete; lane remains blocked.
+
+Completed:
+
+- Durable actionless marketplace journey bound to one issued pass and provider-owned internal state.
+- Ordered pass confirmation, purchase description, discovery, exact candidate, email, verification code, both consents, preflight and redemption.
+- Existing-pass requests stay free even if posted to the paid URL; unpaid paid first contact remains 402.
+- Three scoped tests, typecheck, Production build, exact-commit deployment, explicit alias and safe probes pass.
+- Prior `NOBU_PASS_HANDOFF_AND_SEQUENTIAL_JOURNEY_PASS` is superseded by the latest live failure and this repair evidence.
+
+Required next, in order:
+
+1. Obtain explicit approval for a scoped Production `OWNER_OPS_SECRET` rotation, same-commit redeploy and two authenticated settlement-reconciliation calls. Resolve latest job `0x15a1f239…717f`; issue one pass only if official settlement status confirms success; prove zero on replay.
+2. Obtain explicit approval for Onchain OS preflight's required removal of deprecated global OKX skill bundles. Do not bypass the preflight.
+3. Create exactly one free service `33561` task with an existing/recovered issued pass and stop at the email request. No payment, redemption, email or consent.
+4. Only after every smoke criterion passes, read ASP `#5541` and its two services. Reuse accurate metadata; otherwise apply at most one minimal validated update. Resubmit only with the official activate command and read QA back.
+
+**Closeout proof:** `docs/proof/marketplace-journey-live-repair/README.md`.
+**Current verdict:** `NOBU_COMPLETE_MARKETPLACE_JOURNEY_BLOCKED_REQUIRED_PRODUCTION_AND_OKX_APPROVALS`.
+
 ## Lane 0 — Source-of-truth adoption and repository baseline
 
 - Add this pack to the repository.
