@@ -1,11 +1,53 @@
-# Marketplace journey live repair — reconciliation blocked
+# Marketplace journey live repair — confirmed Onchain OS Windows preflight defect
 
 **Date:** 2026-07-27
 **Starting HEAD:** `139dad3b33edcd0d07716f009a729764b6e7564e`
 **Canonical application commit:** `139dad3b33edcd0d07716f009a729764b6e7564e`
 **Canonical Production deployment:** `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd`
 **Canonical deployment host:** `usenobu-cf3hbavti-dtwoflicks-2878s-projects.vercel.app`
-**Verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_MULTIPLE_PENDING_SETTLEMENTS`
+**Verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_ONCHAINOS_4_4_0_WINDOWS_NPX_SPAWN`
+
+## Superseding cleanup diagnosis
+
+The continuation began at expected HEAD `5fb430b85cc9be92659058c4a4fc952a348d344f`. The index was clean; exactly the three authorized documentation files from the prior blocked continuation were modified and uncommitted. They were preserved for this closeout.
+
+### Exact root cause
+
+Official source tag `v4.4.0` resolves to commit `782b5a05d9b0af797383009b0e5f0d4022b010e5`. In `cli/src/commands/upgrade.rs`:
+
+- lines 40–71 hard-code all 24 deprecated identifiers;
+- lines 759–763 state removal is unconditional and assume `npx` no-ops when names are absent;
+- lines 788–795 directly launch `Command::new("npx")`;
+- lines 832–857 convert every spawn/non-zero/timeout result into the manual cleanup action.
+
+This Windows Node installation exposes `C:\Program Files\nodejs\npx` and `npx.cmd`, but no native `npx.exe`. A direct-process reproduction returned `spawnSync npx ENOENT`; shell launch succeeds because PowerShell resolves its launcher. Thus preflight fails before the skills manager can inspect installed packages. The earlier shell cleanup correctly reported `No matching skills found`.
+
+### Roots and registries inspected
+
+| Consumer | Roots / source | Result |
+|---|---|---|
+| Onchain OS binary | `C:\Users\dtwof\.local\bin\onchainos.exe` | Version/current/latest `4.4.0`; integrity `ok`; drift `null` |
+| Preflight monorepo detector | `.codex/onchainos-skills`, `.openclaw/onchainos-skills`, `.cursor/onchainos-skills`, `.config/opencode/onchainos-skills`, `.claude/onchainos-skills` under `C:\Users\dtwof` | No deprecated installation |
+| Preflight per-skill detector | `.agents/skills`, `.claude/skills`, `.codex/skills`, `.openclaw/skills`, `.cursor/skills` | No deprecated directory |
+| Supported global skills manager | `C:\Users\dtwof\.agents\skills`; lock `C:\Users\dtwof\.agents\.skill-lock.json` | Exactly eight current OKX bundles |
+| Claude mirror | `C:\Users\dtwof\.claude\skills` | Current OKX entries are junctions to `.agents\skills` |
+| Codex root | `C:\Users\dtwof\.codex\skills` | Unrelated Codex/system bundles; no deprecated OKX entry |
+| Application-local roots | `AfterBuy\.agents\skills`, `AfterBuy\.codex\skills` | Absent |
+| A2A runtime | npm global root `C:\Users\dtwof\AppData\Roaming\npm`; package `@okxweb3/a2a-node@0.1.10`; daemon PID `27124` | Package and daemon preserved |
+
+No physical deprecated package, stale lock entry, stale official cache/index, renamed alias directory, alternate-user install or bundled resource requiring deletion was found.
+
+### Minimal-repair decision and stop
+
+No mutation was performed. Reinstalling the current `4.4.0` binary would reinstall the same confirmed source defect. Refreshing the skill registry cannot fix a process spawn that occurs before registry inspection. A custom native `npx.exe` shim or manual registry edit is not an official supported repair and was not introduced. Therefore no post-repair preflight exists; repeating the same known-failing command would violate the lane instruction.
+
+The read-only A2A doctor reported package `0.1.10` and daemon PID `27124` running, but overall `ready: false` because configured provider `claude` differs from detected runtime `codex`. The auto-fix was not run because the request required preserving daemon configuration and stopping on the first genuine failure.
+
+No free task was created. Mapped pass `pass_8dd13c79ce1842aa89f91609527764f4` was not used. ASP `#5541` and services `33561`/`35958` were not read or changed; `agent activate` did not run. No paid service, `402`, payment, new pass, purchase intake, candidate confirmation, email, consent, redemption or monitoring activation occurred. The last proven listing state remains rejected / not listed.
+
+The quarantined passes `pass_d154602364564dd8b8b76540db54248b` and `pass_1c299f2ee82e457eaa1da384ded38109` remain unused and correlation-pending. Their historical-job correlation remains a later, independent read-only accounting task.
+
+**Verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_ONCHAINOS_4_4_0_WINDOWS_NPX_SPAWN`
 
 ## Pre-mutation proof
 
