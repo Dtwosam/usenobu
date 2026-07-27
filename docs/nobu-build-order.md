@@ -7,38 +7,32 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 ## Active closeout — Lane 8R marketplace journey live repair
 
-**State:** blocked before the free smoke by a confirmed Onchain OS `4.4.0` Windows preflight defect; application code and Production remain unchanged.
+**State:** blocked before Linux installation because no initialized user WSL2 distribution exists.
 
-Completed diagnosis:
+WSL continuation result:
 
-- Continuation baseline: expected HEAD `5fb430b85cc9be92659058c4a4fc952a348d344f`, clean index, exactly three prior authorized documentation files modified and uncommitted.
+- Starting documentation HEAD: `78daed568e576f2cefa625be31cbdf192f30ef89`; tracked worktree and index were clean.
 - Canonical application commit `139dad3b33edcd0d07716f009a729764b6e7564e` and Production deployment `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd` remain unchanged.
-- Official preflight: current/latest `4.4.0`, integrity `ok`, drift `null`; its 24-name deprecated cleanup action remained.
-- Official source tag `v4.4.0` / commit `782b5a05d9b0af797383009b0e5f0d4022b010e5`, `cli/src/commands/upgrade.rs`, proves cleanup is unconditional: `remove_deprecated_skills` directly runs `Command::new("npx")` with every hard-coded deprecated name.
-- Windows process proof: direct spawn of `npx` returns `ENOENT`; Node installs only shell launchers `C:\Program Files\nodejs\npx` and `npx.cmd`, not `npx.exe`. PowerShell can invoke the launcher, which explains why the manual command ran while preflight could not.
-- The supported global manager lists only eight current OKX bundles under `C:\Users\dtwof\.agents\skills`; `C:\Users\dtwof\.agents\.skill-lock.json` contains those same eight. Claude entries are junctions to that root. `C:\Users\dtwof\.codex\skills` contains unrelated Codex bundles. No application-local, legacy, cache, alternate-home or physical deprecated install exists.
-- Onchain OS binary: `C:\Users\dtwof\.local\bin\onchainos.exe`. Detector source roots are the five monorepo roots and five per-skill roots hard-coded in the official source; none contains a deprecated bundle here.
-- A2A package `0.1.10` and daemon PID `27124` remain installed/running. Read-only doctor reported `ready: false` only because provider binding `claude` differs from detected runtime `codex`; no fix or configuration mutation ran.
-
-Repair decision:
-
-- Nothing was deleted: there is no deprecated bundle or stale registry/cache record.
-- Reinstalling current `4.4.0` would reinstall the same source defect. A custom `npx.exe` shim or hand-editing registries would be unsupported. No supported minimal repair exists under the preservation constraints.
-- The ineffective cleanup command and preflight were not repeated. Per stop-on-first-failure, the free task and ASP resubmission were not attempted; no payment occurred.
+- WSL is enabled with default version 2, but the only registered distribution is the running `docker-desktop` internal distro.
+- Linux entry failed before any installer or marketplace command: `execvpe(bash) failed: No such file or directory`.
+- Docker Desktop’s managed internal distro was not modified or repurposed. No new Windows distribution was installed implicitly.
+- No native-Windows Onchain OS command ran.
+- Linux Node/npm/npx checks, official installation, preflight, authentication, ASP readback, A2A setup, free smoke and `agent activate` were not reached.
+- No payment, `402`, new pass, email, consent, redemption, monitoring, reconciliation, deployment, test, typecheck or build occurred.
 
 Quarantined passes:
 
-- `pass_d154602364564dd8b8b76540db54248b` and `pass_1c299f2ee82e457eaa1da384ded38109` remain genuinely issued, unused and correlation-pending. Do not redeem, revoke, merge, reassign or guess their historical-job mapping.
+- `pass_d154602364564dd8b8b76540db54248b` and `pass_1c299f2ee82e457eaa1da384ded38109` remain issued, unused and correlation-pending.
+- Mapped smoke pass `pass_8dd13c79ce1842aa89f91609527764f4` was also untouched because no task was created.
 
 Exact next lane:
 
-1. Use an official Onchain OS release that fixes Windows direct spawning of `npx` (or provides an official native launcher/skip-on-absent behavior), then require a preflight with `action: null`.
-2. Separately restore A2A provider readiness through an explicitly authorized configuration lane if the provider mismatch persists.
-3. Only after both gates are healthy, run exactly one free service `33561` smoke with mapped pass `pass_8dd13c79ce1842aa89f91609527764f4`, then conditionally resubmit existing ASP `#5541`.
-4. Later and independently, correlate the two quarantined passes using read-only provider-controlled identifiers.
+1. Install and initialize a supported user WSL2 distribution, preferably Ubuntu, including its normal first-run Linux user.
+2. Re-run this lane entirely inside that distribution: Linux Node/npx, official stable Onchain OS, clean preflight, same-wallet authentication to agent `5541`, one codex-bound A2A daemon, the one free smoke and conditional existing-agent resubmission.
+3. Continue to keep both quarantined passes untouched; their accounting correlation remains separate.
 
 **Closeout proof:** `docs/proof/marketplace-journey-live-repair/README.md`.
-**Current verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_ONCHAINOS_4_4_0_WINDOWS_NPX_SPAWN`.
+**Current verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_WSL_LINUX_DISTRO_MISSING`.
 
 ## Lane 0 — Source-of-truth adoption and repository baseline
 

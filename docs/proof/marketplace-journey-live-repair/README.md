@@ -1,11 +1,47 @@
-# Marketplace journey live repair — confirmed Onchain OS Windows preflight defect
+# Marketplace journey live repair — WSL environment blocked
 
 **Date:** 2026-07-27
 **Starting HEAD:** `139dad3b33edcd0d07716f009a729764b6e7564e`
 **Canonical application commit:** `139dad3b33edcd0d07716f009a729764b6e7564e`
 **Canonical Production deployment:** `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd`
 **Canonical deployment host:** `usenobu-cf3hbavti-dtwoflicks-2878s-projects.vercel.app`
-**Verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_ONCHAINOS_4_4_0_WINDOWS_NPX_SPAWN`
+**Verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_WSL_LINUX_DISTRO_MISSING`
+
+## WSL-only continuation — environment blocker
+
+**Starting documentation HEAD:** `78daed568e576f2cefa625be31cbdf192f30ef89`
+**Canonical application commit:** `139dad3b33edcd0d07716f009a729764b6e7564e`
+**Canonical Production deployment:** `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd`
+**Verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_WSL_LINUX_DISTRO_MISSING`
+
+The tracked worktree and index were clean before the continuation. Native Windows Onchain OS was never invoked.
+
+Read-only Windows WSL inspection returned:
+
+- default distribution: `docker-desktop`;
+- default WSL version: `2`;
+- registered distributions: exactly one, `docker-desktop`, running on WSL2;
+- attempted Linux entry: `execvpe(bash) failed: No such file or directory`.
+
+Docker Desktop’s distribution is an internal managed environment, not an initialized user Linux distribution. It was not modified or used for wallet, identity, package or daemon configuration. Installing a new Windows distribution is a separate persistent system change and was not inferred from the lane.
+
+This is the first genuine failure. Consequently:
+
+- Linux Node, npm and npx availability could not be established;
+- official Linux Onchain OS was not installed;
+- no Linux preflight or login ran;
+- agent `5541` and services `33561`/`35958` were not read;
+- no WSL A2A package or daemon was installed;
+- no free task was created and mapped pass `pass_8dd13c79ce1842aa89f91609527764f4` was untouched;
+- `agent activate` did not run;
+- no payment, `402`, new pass, email, consent, redemption or monitoring action occurred.
+
+Both quarantined passes remain unused and unchanged:
+
+- `pass_d154602364564dd8b8b76540db54248b`
+- `pass_1c299f2ee82e457eaa1da384ded38109`
+
+Exact next step: install and initialize a supported user WSL2 distribution such as Ubuntu, complete its normal first-run Linux user setup, and then rerun the requested lane wholly inside that distribution. Do not use native Windows Onchain OS or repurpose `docker-desktop`.
 
 ## Superseding cleanup diagnosis
 
