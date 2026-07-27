@@ -7,25 +7,28 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 ## Active closeout — Lane 8R marketplace journey live repair
 
-**State:** code, focused checks, deployment and safe Production probes complete; lane remains blocked.
+**State:** code, focused checks, canonical same-commit deployment and reconciliation replay protection pass; live closeout is blocked by multiple unmapped pending settlements.
 
 Completed:
 
-- Durable actionless marketplace journey bound to one issued pass and provider-owned internal state.
-- Ordered pass confirmation, purchase description, discovery, exact candidate, email, verification code, both consents, preflight and redemption.
-- Existing-pass requests stay free even if posted to the paid URL; unpaid paid first contact remains 402.
-- Three scoped tests, typecheck, Production build, exact-commit deployment, explicit alias and safe probes pass.
-- Prior `NOBU_PASS_HANDOFF_AND_SEQUENTIAL_JOURNEY_PASS` is superseded by the latest live failure and this repair evidence.
+- Canonical application commit `139dad3b33edcd0d07716f009a729764b6e7564e` deployed unchanged as `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd`; `usenobu.vercel.app` explicitly re-aliased.
+- Sensitive Production `OWNER_OPS_SECRET` rotated without printing or persisting it locally.
+- Exactly two authenticated reconciliation calls: first scanned 2 and issued 2 passes; second scanned 0 and issued 0.
+- No payment, task, redemption, monitor, email, consent, ASP edit or resubmission occurred.
 
-Required next, in order:
+Blocking fact:
 
-1. Obtain explicit approval for a scoped Production `OWNER_OPS_SECRET` rotation, same-commit redeploy and two authenticated settlement-reconciliation calls. Resolve latest job `0x15a1f239…717f`; issue one pass only if official settlement status confirms success; prove zero on replay.
-2. Obtain explicit approval for Onchain OS preflight's required removal of deprecated global OKX skill bundles. Do not bypass the preflight.
-3. Create exactly one free service `33561` task with an existing/recovered issued pass and stop at the email request. No payment, redemption, email or consent.
-4. Only after every smoke criterion passes, read ASP `#5541` and its two services. Reuse accurate metadata; otherwise apply at most one minimal validated update. Resubmit only with the official activate command and read QA back.
+- The recovery route found two pending settlement records and returned two public pass ids, but its safe output does not map either pass to latest job `0x15a1f239…717f`. The exactly-one acceptance criterion failed, so no pass may be selected by guesswork.
+- Per the lane's stop-on-first-failure rule, deprecated OKX package cleanup, the free service `33561` smoke, ASP readback and `agent activate` were not run.
+
+Exact next lane:
+
+1. Add or use a read-only, provider-controlled correlation that maps the specified OKX job/continuation to its durable payment and issued public pass without exposing payment material.
+2. Prove which one of `pass_d154602364564dd8b8b76540db54248b` and `pass_1c299f2ee82e457eaa1da384ded38109` belongs to the latest job, and account for the other legitimate settlement.
+3. Only in a new explicitly authorized continuation, resume the preflight cleanup, one free smoke and conditional existing-agent resubmission.
 
 **Closeout proof:** `docs/proof/marketplace-journey-live-repair/README.md`.
-**Current verdict:** `NOBU_COMPLETE_MARKETPLACE_JOURNEY_BLOCKED_REQUIRED_PRODUCTION_AND_OKX_APPROVALS`.
+**Current verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_MULTIPLE_PENDING_SETTLEMENTS`.
 
 ## Lane 0 — Source-of-truth adoption and repository baseline
 
