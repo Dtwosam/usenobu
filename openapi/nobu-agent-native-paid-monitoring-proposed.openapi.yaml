@@ -8,8 +8,10 @@ info:
     IMPLEMENTED and DEPLOYED on UseNobu production. Official OKX seller verify/settle/status
     integration is live (fails closed without production credentials). The paid
     service is registered on ASP #5541 as a separate A2MCP service (fee 0.99) alongside
-    the free service (fee 0); ASP #5541 is rejected / not listed and is not changed by this contract repair.
-    Genuine payment marketplace proof is Lane 7.4G.
+    the free service (fee 0); ASP #5541 is listed (approvalDisplayStatus 4 as of 2026-07-28)
+    and is not changed by complete production hardening. Settlement pending paths poll
+    official settle/status on the hot path and via continuation-targeted RESOLVE.
+    Genuine end-to-end User-role marketplace journey proof remains the active closeout.
 
     The free marketplace contract on POST /v1/agent is a durable Purchase Setup
     journey for an already-issued Monitoring Pass. Nobu infers each operation
@@ -31,7 +33,7 @@ servers:
   - url: https://usenobu.vercel.app
     description: >-
       UseNobu production host for free /v1/agent and paid /v1/agent/monitoring-pass.
-      Paid service is registered on ASP #5541; the agent remains rejected / not listed.
+      Paid service is registered on ASP #5541; the agent is listed as of 2026-07-28.
 paths:
   /v1/agent:
     post:

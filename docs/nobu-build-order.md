@@ -5,34 +5,26 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Lane 8R marketplace journey live repair
+## Active closeout — Complete production hardening
 
-**State:** blocked before Linux installation because no initialized user WSL2 distribution exists.
+**State:** code hardening deployed; blocked on complete real OKX.AI User-role A→Z proof.
 
-WSL continuation result:
+Complete production hardening result:
 
-- Starting documentation HEAD: `78daed568e576f2cefa625be31cbdf192f30ef89`; tracked worktree and index were clean.
-- Canonical application commit `139dad3b33edcd0d07716f009a729764b6e7564e` and Production deployment `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd` remain unchanged.
-- WSL is enabled with default version 2, but the only registered distribution is the running `docker-desktop` internal distro.
-- Linux entry failed before any installer or marketplace command: `execvpe(bash) failed: No such file or directory`.
-- Docker Desktop’s managed internal distro was not modified or repurposed. No new Windows distribution was installed implicitly.
-- No native-Windows Onchain OS command ran.
-- Linux Node/npm/npx checks, official installation, preflight, authentication, ASP readback, A2A setup, free smoke and `agent activate` were not reached.
-- No payment, `402`, new pass, email, consent, redemption, monitoring, reconciliation, deployment, test, typecheck or build occurred.
-
-Quarantined passes:
-
-- `pass_d154602364564dd8b8b76540db54248b` and `pass_1c299f2ee82e457eaa1da384ded38109` remain issued, unused and correlation-pending.
-- Mapped smoke pass `pass_8dd13c79ce1842aa89f91609527764f4` was also untouched because no task was created.
+- Starting HEAD: `f9f1b2575d2a865a3bb67962452a72bc6afb610d`.
+- Audit + design first: `docs/proof/complete-production-hardening/01-audit.md`, `02-design.md`.
+- Settlement→pass automatic convergence (hot-path poll + targeted RESOLVE); conversation contract; free intro; no re-402 on continuation; daily crons (Hobby-safe).
+- Production deploy `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y`; alias `usenobu.vercel.app`.
+- ASP `#5541` listed; services `33561`/`35958` unchanged; no new payment; no DB edits.
+- Real continuation `pass_cont_2adcc866…` resolves to issued pass via normal free path.
 
 Exact next lane:
 
-1. Install and initialize a supported user WSL2 distribution, preferably Ubuntu, including its normal first-run Linux user.
-2. Re-run this lane entirely inside that distribution: Linux Node/npx, official stable Onchain OS, clean preflight, same-wallet authentication to agent `5541`, one codex-bound A2A daemon, the one free smoke and conditional existing-agent resubmission.
-3. Continue to keep both quarantined passes untouched; their accounting correlation remains separate.
+1. One interactive OKX.AI User-role journey against agent `5541` proving full A→Z (at most one new `0.99 USDT` payment).
+2. Record journey evidence under `docs/proof/complete-production-hardening/` and flip verdict only if all acceptance bullets pass.
 
-**Closeout proof:** `docs/proof/marketplace-journey-live-repair/README.md`.
-**Current verdict:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_WSL_LINUX_DISTRO_MISSING`.
+**Closeout proof:** `docs/proof/complete-production-hardening/README.md`.
+**Current verdict:** `NOBU_COMPLETE_PRODUCTION_HARDENING_BLOCKED_REAL_OKX_USER_JOURNEY_INCOMPLETE`.
 
 ## Lane 0 — Source-of-truth adoption and repository baseline
 

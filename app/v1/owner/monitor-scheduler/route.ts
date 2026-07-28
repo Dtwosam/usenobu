@@ -12,7 +12,7 @@ import { runScheduledMonitoringTickWithDurableBridge } from "@/monitoring/durabl
  * At most one provider check per purchase / 24h, budget-bounded batch.
  * Does not scrape Target. Does not send emails without consent.
  */
-export async function POST(req: Request) {
+async function handle(req: Request) {
   const auth = authorizeCronRequest(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -41,4 +41,13 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "scheduler_failed" }, { status: 500 });
   }
+}
+
+/** Vercel Cron invokes GET; operators may use POST. */
+export async function GET(req: Request) {
+  return handle(req);
+}
+
+export async function POST(req: Request) {
+  return handle(req);
 }

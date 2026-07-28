@@ -9,9 +9,11 @@
 
 **Agent surfaces**
 
-- Free `POST /v1/agent` — understand, discover, confirm, email verification, preflight, list/status, alert prefs, stop, revoke connection (live).
-- Paid `POST /v1/agent/start-monitoring` — `$0.99` x402 v2 exact on X Layer (`eip155:196`) USD₮0 amount `990000`; official OKX seller **verify → settle → settle/status**; durable two-phase activation saga; `MONITORING_STARTED` / `ACTIVATION_PENDING` / `ALREADY_ACTIVE` / `PAYMENT_SETTLEMENT_PENDING` as applicable. **Deployed**; ASP paid-service **registration** is Lane 8R.
+- Free `POST /v1/agent` — marketplace journey (pass handoff → purchase setup → redeem) plus legacy action enum (understand, discover, confirm, email, preflight, redeem, list/status, alerts, stop). First contact introduces both free Purchase Setup and paid Monitoring Pass.
+- Paid `POST /v1/agent/monitoring-pass` — `$0.99` x402 v2 exact on X Layer (`eip155:196`) USD₮0 amount `990000`; official OKX seller **verify → settle → settle/status**; pending settlements poll settle/status on the hot path and via continuation-targeted RESOLVE; exactly one Monitoring Pass per settlement. Body with `pass_continuation_id` / `monitoring_pass_id` never re-challenges.
+- Legacy private `POST /v1/agent/start-monitoring` retained internally.
 - Topology: **separate free and paid A2MCP services under one ASP identity** (`#5541`); no second ASP.
+- Conversation contract: every Nobu-controlled response carries status, completed_step, next_action, payment_status, second_payment_required, monitoring_active, journey_complete, retry_safe, fields/requiredArgs, guidance.
 
 **Shared pipeline**
 

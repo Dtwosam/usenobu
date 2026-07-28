@@ -425,6 +425,10 @@ export interface AuthStore {
   getMonitoringPassPaymentByDigest(
     authorizationDigest: string,
   ): Promise<MonitoringPassPaymentRow | null>;
+  /** Load one payment by durable id (continuation-targeted reconcile). */
+  getMonitoringPassPaymentById(
+    paymentId: string,
+  ): Promise<MonitoringPassPaymentRow | null>;
   /** Insert-or-return: a concurrent duplicate returns the winner's row. */
   upsertMonitoringPassPayment(args: {
     id: string;
@@ -1289,6 +1293,13 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           )
           .get(authorizationDigest) as MonitoringPassPaymentRow | undefined) ??
         null
+      );
+    },
+    async getMonitoringPassPaymentById(paymentId) {
+      return (
+        (db
+          .prepare(`SELECT * FROM monitoring_pass_payments WHERE id = ?`)
+          .get(paymentId) as MonitoringPassPaymentRow | undefined) ?? null
       );
     },
     async upsertMonitoringPassPayment(args) {
@@ -2362,6 +2373,13 @@ export function createPostgresAuthStore(
       const r = await q<MonitoringPassPaymentRow>(
         `SELECT * FROM monitoring_pass_payments WHERE authorization_digest = $1`,
         [authorizationDigest],
+      );
+      return r.rows[0] ?? null;
+    },
+    async getMonitoringPassPaymentById(paymentId) {
+      const r = await q<MonitoringPassPaymentRow>(
+        `SELECT * FROM monitoring_pass_payments WHERE id = $1`,
+        [paymentId],
       );
       return r.rows[0] ?? null;
     },

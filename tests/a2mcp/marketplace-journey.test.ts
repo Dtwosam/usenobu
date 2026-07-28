@@ -45,13 +45,18 @@ function assertIncomplete(
   stageFields: string | string[],
 ): void {
   const expectedFields = Array.isArray(stageFields) ? stageFields : [stageFields];
-  expect(Object.keys(body).sort()).toEqual(
-    ["fields", "journey_id", "message", "requiredArgs", "status"].sort(),
-  );
   expect(body.status).toBe("input_required");
   expect(body.fields).toEqual([...expectedFields, "journey_id"]);
   expect(body.requiredArgs).toEqual([...expectedFields, "journey_id"]);
-  expect(JSON.stringify(body)).not.toMatch(/action|UNDERSTAND_|RESOLVE_|REDEEM_/i);
+  expect(body.journey_id).toBeTruthy();
+  expect(body.second_payment_required).toBe(false);
+  expect(body.monitoring_active).toBe(false);
+  expect(body.journey_complete).toBe(false);
+  expect(body.payment_status).toBe("recognized");
+  expect(body.retry_safe).toBe(true);
+  expect(String(body.guidance || "").length).toBeGreaterThan(0);
+  // Marketplace journey never exposes free-service action enums as required next steps.
+  expect(JSON.stringify(body.fields)).not.toMatch(/UNDERSTAND_|RESOLVE_|REDEEM_/);
 }
 
 describe("Lane 8R marketplace Purchase Setup", () => {
@@ -185,7 +190,12 @@ describe("Lane 8R marketplace Purchase Setup", () => {
     );
     expect(active.http_status).toBe(200);
     expect(active.body.status).toBe("MONITORING_ACTIVE");
-    expect(JSON.stringify(active.body)).not.toMatch(/action|connection|quote|discovery/i);
+    expect(active.body.monitoring_active).toBe(true);
+    expect(active.body.second_payment_required).toBe(false);
+    // Marketplace complete responses stay free of low-level credential fields.
+    expect(JSON.stringify(active.body)).not.toMatch(
+      /connection_token|quote_id|discovery_session_id/i,
+    );
     expect(
       (db.prepare(`SELECT status FROM monitoring_passes WHERE id = ?`).get(passId) as { status: string }).status,
     ).toBe("redeemed");
@@ -248,8 +258,11 @@ describe("Lane 8R marketplace Purchase Setup", () => {
     ).toBe(0);
     for (const result of [early, purchaseStage, stillPurchaseOnly]) {
       expect(result.http_status).not.toBe(402);
+      expect(result.body.second_payment_required).toBe(false);
+      expect(result.body.payment_status).toBe("recognized");
+      // No free-service action enum / paid re-challenge surface in journey bodies.
       expect(JSON.stringify(result.body)).not.toMatch(
-        /action|supported_actions|UNDERSTAND_|RESOLVE_|REDEEM_|35958/i,
+        /supported_actions|UNDERSTAND_PURCHASE|RESOLVE_MONITORING_PASS|REDEEM_MONITORING_PASS/i,
       );
     }
   });

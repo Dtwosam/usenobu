@@ -13,7 +13,7 @@ import { reconcilePendingPassSettlements } from "@/payments/monitoring-pass-serv
  * Response includes public pass ids only (no tokens, digests, headers, or
  * settlement transaction hashes).
  */
-export async function POST(req: Request) {
+async function handle(req: Request) {
   const auth = authorizeOwnerOrCronRequest(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -35,4 +35,13 @@ export async function POST(req: Request) {
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
+}
+
+/** Vercel Cron invokes GET; owners/scripts may use POST. */
+export async function GET(req: Request) {
+  return handle(req);
+}
+
+export async function POST(req: Request) {
+  return handle(req);
 }

@@ -1031,4 +1031,86 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
       ).c,
     ).toBe(1);
   });
+
+  // ---------------------------------------------------------------------
+  // 14. Complete production hardening — auto-convergence + contract
+  // ---------------------------------------------------------------------
+
+  it("RESOLVE confirms the continuation payment only and issues one pass without a second charge", async () => {
+    const pendingTx = "0xpending_targeted_resolve_tx_001";
+    const confirmedTx = "0xconfirmed_targeted_resolve_tx_001";
+    // Noise payment that must not be scanned by targeted resolve.
+    seedVerifyingPayment({
+      paymentId: "pass_pay_noise_should_not_scan",
+      pendingTxHash: "0xnoise_pending_should_not_be_touched",
+      authorizationDigest: sha256Hex("noise-digest"),
+    });
+    seedVerifyingPayment({
+      paymentId: "pass_pay_targeted_001",
+      pendingTxHash: pendingTx,
+      authorizationDigest: sha256Hex("targeted-digest-001"),
+    });
+    const store = await getAuthStore({ sqliteDb: db });
+    const cont = await store.ensureMonitoringPassContinuation({
+      id: "pass_cont_targeted_001abcdef12",
+      paymentId: "pass_pay_targeted_001",
+      nowIso: new Date().toISOString(),
+    });
+
+    const seen: string[] = [];
+    const fetchImpl: OkxHttpFetch = async (url) => {
+      seen.push(String(url));
+      return new Response(
+        JSON.stringify({
+          code: "0",
+          data: { success: true, status: "success", transaction: confirmedTx },
+        }),
+        { status: 200 },
+      );
+    };
+
+    const resolved = await resolveMonitoringPassForAgent({
+      passContinuationId: cont.id,
+      sqliteDb: db,
+      env: { ...process.env, ...RECONCILE_SELLER_ENV },
+      fetchImpl,
+    });
+
+    expect(resolved.http_status).toBe(200);
+    expect(resolved.body.status).toBe("MONITORING_PASS_ISSUED");
+    expect(resolved.body.second_payment_required).toBe(false);
+    expect(resolved.body.payment_status).toBe("recognized");
+    expect(resolved.body.monitoring_active).toBe(false);
+    expect(passCount()).toBe(1);
+    // Only the continuation's settlement_ref is polled — not the noise tx.
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain(pendingTx);
+    expect(seen[0]).not.toContain("noise_pending");
+    const noise = db
+      .prepare(`SELECT status FROM monitoring_pass_payments WHERE id = ?`)
+      .get("pass_pay_noise_should_not_scan") as { status: string };
+    expect(noise.status).toBe("verifying");
+  });
+
+  it("issued and pending response bodies carry the conversation contract", async () => {
+    const issued = await buyPass("settle_ref_contract_001", "hdr-contract-1");
+    const issuedBody = monitoringPassResponseBody(issued);
+    expect(issuedBody.payment_status).toBe("recognized");
+    expect(issuedBody.second_payment_required).toBe(false);
+    expect(issuedBody.retry_safe).toBe(true);
+    expect(issuedBody.completed_step).toBe("MONITORING_PASS_ISSUED");
+    expect(issuedBody.monitoring_active).toBe(false);
+
+    const challenge = await monitoringPassForAgent({
+      paymentAuthorizationHeader: null,
+      resource: PASS_RESOURCE,
+      sqliteDb: db,
+    });
+    const challengeBody = monitoringPassResponseBody(challenge);
+    expect(challengeBody.status).toBe("PAYMENT_PENDING");
+    expect(challengeBody.payment_status).toBe("required");
+    expect(challengeBody.completed_step).toBe("MONITORING_PASS_EXPLAINED");
+    expect(String(challengeBody.next_action)).toMatch(/PAYMENT-SIGNATURE/);
+    expect(challengeBody.second_payment_required).toBe(false);
+  });
 });

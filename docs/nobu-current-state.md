@@ -1,9 +1,11 @@
 # Nobu Current State
 
-**Date:** 2026-07-27
-**Status:** `NOBU_MARKETPLACE_JOURNEY_BLOCKED_WSL_LINUX_DISTRO_MISSING` — the WSL-only continuation stopped before installation because the only registered WSL2 distribution is Docker Desktop’s internal distro, which has no `bash`; no initialized user Linux distribution is available
+**Date:** 2026-07-28
+**Status:** `NOBU_COMPLETE_PRODUCTION_HARDENING_BLOCKED_REAL_OKX_USER_JOURNEY_INCOMPLETE` — complete A→Z code hardening deployed; real interactive OKX.AI User-role journey still required for PASS
 
-**Marketplace journey WSL continuation (2026-07-27):** **BLOCKED BEFORE LINUX INSTALLATION.** The lane began at exact clean documentation HEAD `78daed568e576f2cefa625be31cbdf192f30ef89`. `wsl.exe --status` confirmed WSL default version 2, but `wsl.exe --list --verbose` showed only the running `docker-desktop` internal distribution. Its attempted Linux entry failed with `execvpe(bash) failed: No such file or directory`. Docker Desktop’s managed internal distro was not repurposed, and no new Windows distribution was installed without separate authorization. No native-Windows Onchain OS command ran. Linux Node/npm/npx, installer, preflight, authentication, agent `5541`, A2A, service readback, task creation and resubmission were therefore not reached. No application code, Production deployment, wallet, ASP, service, pass, payment, email, consent, redemption or monitoring state changed. Both quarantined passes remain unused. Exact next step: install and initialize a supported user WSL2 distribution such as Ubuntu, including its normal first-run Linux user, then rerun this lane entirely inside that distribution. Evidence: `docs/proof/marketplace-journey-live-repair/`.
+**Complete production hardening (2026-07-28):** **CODE + DEPLOY + NON-PAID PROOF DONE; REAL USER JOURNEY NOT CLOSED.** Starting HEAD `f9f1b25`. Audit and design recorded first (`docs/proof/complete-production-hardening/01-audit.md`, `02-design.md`). Authoritative marketplace failure (tx `0xead9f6ba…`, continuation `pass_cont_2adcc866…`) traced to pending settlement without automatic hot-path convergence and paid re-entry 402 UX. Repairs: bounded settle/status poll after pending; continuation-targeted reconcile (no 50-row scan); conversation contract on pass + marketplace journey; free first-contact descriptor restored; paid body with continuation never re-challenges; Hobby-safe daily crons for settle reconcile + monitor scheduler; GET handlers for Vercel cron. Focused tests 38/38 + payments 54/54; typecheck; production build; deploy `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y` with `usenobu.vercel.app` re-aliased. Production: free intro 400; paid 402 with `payment_status=required`; RESOLVE of real continuation → `MONITORING_PASS_ISSUED` / `payment_status=recognized` / pass `pass_33539591…`; official paid `x402-check` valid; A2A doctor ready. ASP `#5541` **listed** (`approvalDisplayStatus: 4`), services `33561`/`35958` unchanged. **No new live payment; no ASP mutation; no Production DB edits.** Final PASS blocked until one complete real OKX.AI User-role A→Z conversation. Evidence: `docs/proof/complete-production-hardening/`.
+
+**Marketplace journey WSL continuation (2026-07-27):** **SUPERSEDED as current status** (environment later gained Ubuntu WSL). Historical: blocked before Linux installation when only `docker-desktop` was registered. Evidence: `docs/proof/marketplace-journey-live-repair/`.
 
 **Pass handoff and sequential journey (2026-07-26):** **PASS** (`NOBU_PASS_HANDOFF_AND_SEQUENTIAL_JOURNEY_PASS`). Baseline: clean local descendant of `fc81bc0`/`c3b141e` (origin/master still behind at `3021f1a` — not used to reset). Audit: Onchain OS 4.4.0 consumes `fields`/`requiredArgs`/`input_required`, not nested `required_user_input`; no official completed-task deliverable rewrite; redemption uses public pass id + connection/quote only. Implemented durable `monitoring_pass_continuations`, free `RESOLVE_MONITORING_PASS`, paid pending/issued responses with `pass_continuation_id` + OKX field names, sequential journey guidance (purchase details before email/consent). Focused: monitoring-pass 25/25, free validation 5/5, start-monitoring 9/9, typecheck clean. Deployed `dpl_GgroyZbmnevwrTngsG3qjfFLKmHL`; `usenobu.vercel.app` re-aliased. Production: health 200; free 400 input_required; paid 402; resolve of `pass_8dd13c79ce1842aa89f91609527764f4` → `MONITORING_PASS_ISSUED`, inactive, continuation `pass_cont_be5817c0…`. No second payment, redemption, ASP edit. Evidence: `docs/proof/pass-handoff-sequential-journey/`.
 
@@ -45,9 +47,9 @@
 
 | Item | State |
 |---|---|
-| ASP `#5541` marketplace status | **Rejected / not listed** — `approvalDisplayStatus: 5` ("Listing rejected"), service-list `approvalStatus: 6`, `statusLabel: "not listed"`. **Not** under review, **not** publicly listed. |
-| Rejection reason | Platform testing could not receive a response before the task timed out. Diagnosed in Lane 8R.3A; repaired in Lane 8R.3B. |
-| Production repair | **Deployed** — canonical source `139dad3`; deployment `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd`; alias `usenobu.vercel.app` explicitly re-aliased. |
+| ASP `#5541` marketplace status | **Listed — eligible for task recommendations** (`approvalDisplayStatus: 4`). Live readback 2026-07-28. |
+| Rejection reason | Historical (2026-07-25) timeout rejection superseded by listing status 4. |
+| Production repair | **Deployed** — complete hardening `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y`; alias `usenobu.vercel.app` explicitly re-aliased. |
 | Free service `33561` | Registered at `/v1/agent`: marketplace input is inferred from durable journey state; first contact requests `monitoring_pass_id`; incomplete bodies expose only `status`, `journey_id`, `fields`, `requiredArgs`, `message`; no marketplace-facing internal action enum. |
 | Paid service `35958` | **Registered as `Nobu Monitoring Pass` at `/v1/agent/monitoring-pass`**, fee `0.99`, with the exact validated multiline description. Official x402 validation is `valid: true`. |
 | `/v1/agent/monitoring-pass` | **Code-complete, deployed, Production-proven, and registered on `#5541`** — always `402` + `PAYMENT-REQUIRED` on first contact; official `x402-check` returns **`valid: true`** with and without `{}`. |
@@ -55,7 +57,7 @@
 | Official OKX seller verify / settle / settle-status | Integrated and production-configured; fails closed without credentials. |
 | Genuine payment | Historical payment remains recovered as documented. The 2026-07-27 recovery found two additional pending records and issued `pass_d154602364564dd8b8b76540db54248b` and `pass_1c299f2ee82e457eaa1da384ded38109`; neither is safely mapped to latest job `0x15a1f239…717f`. No new payment or second charge occurred. |
 | Settlement reconciliation | **Idempotency proven, job correlation blocked** — authorized call 1 scanned 2 / issued 2; call 2 scanned 0 / issued 0. |
-| Production deployment | `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd` from application commit `139dad3b33edcd0d07716f009a729764b6e7564e` on `https://usenobu.vercel.app` (explicit alias). |
+| Production deployment | `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y` on `https://usenobu.vercel.app` (explicit alias, 2026-07-28 hardening). |
 | ASP metadata update (Lane 8R.3C Step 1) | **Complete.** Exactly one corrected update succeeded (`newAgentId: null`); both service IDs were preserved and the registered metadata now matches the Lane 8R.3C.4 candidate. QA did not retrigger and remains rejected/not listed. |
 | Next step | Correlate latest job `0x15a1f239…717f` to one of the two newly issued passes without exposing payment material; account for the second settlement before any OKX smoke or ASP resubmission. |
 
@@ -126,9 +128,9 @@
 **Lane 7.1 product selection + locked fingerprint repair:** **PASS** - candidate confirmation now posts only a candidate id; server reloads the stored discovery snapshot, enforces a 30-minute freshness bound, revalidates the selected offer against the purchase, rejects tampered/stale/weak/title-only/non-Target/Target Plus/wrong-identity selections, and monitoring remains locked-fingerprint-only/fail-closed.
 ## Production
 
-**Current deployment (2026-07-26):** `https://usenobu.vercel.app` points to
-deployment `dpl_GgroyZbmnevwrTngsG3qjfFLKmHL` (`usenobu-j88uthvd1`),
-re-aliased explicitly after the pass-handoff + sequential journey deploy.
+**Current deployment (2026-07-28):** `https://usenobu.vercel.app` points to
+deployment `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y` (`usenobu-i58dclmaf`),
+re-aliased explicitly after complete production hardening deploy.
 Historical pass resolve and free/paid first-contact probes are proven on it.
 
 **Historical — identity release (2026-07-19), superseded by the deployment above:** `https://usenobu.vercel.app` then pointed to
@@ -174,8 +176,8 @@ superseded; `#5541` is now rejected/not listed.** Evidence:
 | Item | Result |
 |---|---|
 | ASP registration | **Done** — agent **#5541** **Nobu** (never re-created) |
-| Marketplace status | **Rejected / not listed** — `approvalDisplayStatus: 5`, service-list `approvalStatus: 6` |
-| Latest rejection | Platform testing could not receive a response before the task timed out (2026-07-25) |
+| Marketplace status | **Listed** — `approvalDisplayStatus: 4` ("Listed — eligible for task recommendations") |
+| Latest rejection | Historical timeout (2026-07-25) superseded by listing |
 | Free service `33561` | Registered at `/v1/agent`: marketplace input is inferred from durable journey state; first contact requests `monitoring_pass_id`; incomplete bodies expose only `status`, `journey_id`, `fields`, `requiredArgs`, `message`; no marketplace-facing internal action enum. |
 | Paid service `35958` | A2MCP, **Nobu Monitoring Pass**, fee **0.99**, endpoint `https://usenobu.vercel.app/v1/agent/monitoring-pass`; `x402-check` `valid: true` with and without `{}` |
 | Public listing URL | **None** — not claimed live |

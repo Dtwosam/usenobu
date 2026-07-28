@@ -247,7 +247,7 @@ export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
       "Target is currently the only supported retailer. Target verifies eligibility and makes the final decision.",
     documentation: NOBU_DOCUMENTATION_URL,
     next_action:
-      "If the user already paid for a Monitoring Pass, RESOLVE_MONITORING_PASS with pass_continuation_id or monitoring_pass_id. Otherwise UNDERSTAND_PURCHASE with the purchase description only.",
+      "If the user has no Monitoring Pass, use paid service 35958 once (0.99 USDT). If they already paid, RESOLVE_MONITORING_PASS with pass_continuation_id or monitoring_pass_id. After a pass is ready, UNDERSTAND_PURCHASE with the purchase description only.",
     completed_step: "NOBU_INTRODUCED",
     monitoring_active: false,
     journey_complete: false,
@@ -256,10 +256,11 @@ export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
     required_user_input: {
       action: "UNDERSTAND_PURCHASE",
       required_fields: ["purchase_text"],
-      description: "A plain-English description of the recent Target online purchase. Do not ask for email or consent yet.",
+      description:
+        "A plain-English description of the recent Target online purchase. Do not ask for email or consent yet. A Monitoring Pass is still required before activation.",
     },
     guidance:
-      "Sequential Purchase Setup: (1) purchase description only, (2) product discovery, (3) exact product confirmation, (4) email, (5) email code, (6) both consents + preflight, (7) redeem existing Monitoring Pass. Never request email or consent during initial purchase intake. Never invent a status-check option after payment.",
+      "Nobu has two services: free Purchase Setup (33561) and paid Monitoring Pass (35958, 0.99 USDT). Buying a pass does not start monitoring. Sequential Purchase Setup: (1) pass issued or RESOLVE existing pass, (2) purchase description only, (3) product discovery, (4) exact confirmation, (5) email, (6) code, (7) both consents + preflight, (8) redeem existing Monitoring Pass. Never request email or consent during initial purchase intake. Never re-request payment after settlement. Never invent a status-check option after payment. Target makes the final adjustment decision.",
   };
 }
 

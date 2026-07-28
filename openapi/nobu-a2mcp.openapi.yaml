@@ -36,14 +36,16 @@ paths:
       summary: Stateful free Purchase Setup for an existing Monitoring Pass
       description: >-
         The marketplace contract infers each internal operation from durable
-        journey state. Incomplete calls return only status, journey_id, fields,
-        requiredArgs and a customer-facing message. The ordered stages are pass
-        confirmation, purchase description, product discovery, exact candidate
-        confirmation, email, verification code, both consents, provider-controlled
-        preflight and provider-controlled pass redemption. Marketplace callers
-        never provide or receive action, service ids, discovery session ids,
-        connection credentials, quote ids or payment material. Legacy low-level
-        action requests remain backward-compatible but are not the marketplace contract.
+        journey state. Incomplete calls return a conversation contract
+        (status, completed_step, next_action, payment_status,
+        second_payment_required, monitoring_active, journey_complete, retry_safe,
+        fields, requiredArgs, message, guidance, journey_id). The ordered stages
+        are pass confirmation, purchase description, product discovery, exact
+        candidate confirmation, email, verification code, both consents,
+        provider-controlled preflight and provider-controlled pass redemption.
+        Marketplace callers never provide connection credentials, quote ids or
+        payment material. Legacy low-level action requests remain
+        backward-compatible but are not the marketplace contract.
       requestBody:
         required: false
         content:

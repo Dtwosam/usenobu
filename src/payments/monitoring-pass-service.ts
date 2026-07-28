@@ -56,8 +56,16 @@ import {
   type OkxHttpFetch,
   type OkxSettleStatusResponse,
 } from "./okx-seller-client.js";
+import { buildConversationContract } from "../a2mcp/conversation-contract.js";
 
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
+
+/** Same-request settle/status poll after OKX returns pending (wall budget ~2.5s). */
+const SETTLE_POLL_DELAYS_MS = [400, 800, 1200] as const;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /** Exact wording used in the challenge and in the issued-pass response. */
 export const MONITORING_PASS_RESOURCE_DESCRIPTION =
@@ -343,13 +351,24 @@ export async function monitoringPassForAgent(
       settlementRef: pendingTxHash,
       nowIso,
     });
+    // Bounded same-request settle/status poll so marketplace users receive a
+    // pass automatically when confirmation is already available — without
+    // owner intervention or a second payment challenge.
+    const polled = await pollPendingSettlementToPass({
+      store,
+      paymentId: payment.id,
+      env: args.env,
+      nowIso,
+    });
+    if (polled) return polled;
+
     const contId = await ensureContinuation(store, payment.id, nowIso);
     return {
       ok: true,
       status: "PAYMENT_SETTLEMENT_PENDING",
       http_status: 200,
       pass_continuation_id: contId,
-      note: "Settlement submitted; awaiting on-chain confirmation. No pass is issued until it confirms. Do not pay again — use free RESOLVE_MONITORING_PASS with pass_continuation_id after confirmation.",
+      note: "Settlement submitted; awaiting on-chain confirmation. No pass is issued until it confirms. Do not pay again — use free RESOLVE_MONITORING_PASS with the same pass_continuation_id. Nobu will converge automatically; do not open a second payment.",
     };
   }
 
@@ -423,6 +442,90 @@ async function resumePendingPassSettlement(args: {
     pass_continuation_id: contId,
     note: outcome.note,
   };
+}
+
+/**
+ * Hot-path automatic convergence after settle returns pending.
+ * Polls settle/status a few times with short delays; issues one pass if
+ * confirmed. Never re-charges. Returns null if still pending after budget.
+ */
+async function pollPendingSettlementToPass(args: {
+  store: AuthStore;
+  paymentId: string;
+  env?: EnvRecord;
+  nowIso: string;
+  fetchImpl?: OkxHttpFetch;
+  delaysMs?: readonly number[];
+}): Promise<MonitoringPassResult | null> {
+  const delays = args.delaysMs ?? SETTLE_POLL_DELAYS_MS;
+  for (let i = 0; i < delays.length; i += 1) {
+    if (delays[i]! > 0) {
+      await sleep(delays[i]!);
+    }
+    const payment = await args.store.getMonitoringPassPaymentById(
+      args.paymentId,
+    );
+    if (!payment) return null;
+    const outcome = await confirmPendingPassPayment({
+      store: args.store,
+      payment,
+      env: args.env,
+      nowIso: args.nowIso,
+      fetchImpl: args.fetchImpl,
+    });
+    if (outcome.kind === "issued") {
+      const contId = await ensureContinuation(
+        args.store,
+        args.paymentId,
+        args.nowIso,
+        outcome.pass.id,
+      );
+      return {
+        ok: true,
+        status: "MONITORING_PASS_ISSUED",
+        http_status: 200,
+        pass: outcome.pass,
+        pass_continuation_id: contId,
+      };
+    }
+    if (outcome.kind === "failed") return null;
+  }
+  return null;
+}
+
+/**
+ * Confirm one payment by id only (continuation hot path). Does not scan
+ * unrelated verifying rows.
+ */
+export async function confirmPaymentById(args: {
+  paymentId: string;
+  now?: Date;
+  sqliteDb?: NobuDatabase;
+  env?: EnvRecord;
+  fetchImpl?: OkxHttpFetch;
+}): Promise<{
+  kind: "issued" | "pending" | "failed" | "not_found";
+  pass?: MonitoringPassRow;
+  note?: string;
+}> {
+  const nowIso = (args.now ?? new Date()).toISOString();
+  const store = await resolveStore(args.sqliteDb, args.env);
+  const payment = await store.getMonitoringPassPaymentById(args.paymentId);
+  if (!payment) return { kind: "not_found" };
+  const outcome = await confirmPendingPassPayment({
+    store,
+    payment,
+    env: args.env,
+    nowIso,
+    fetchImpl: args.fetchImpl,
+  });
+  if (outcome.kind === "issued") {
+    await ensureContinuation(store, payment.id, nowIso, outcome.pass.id);
+    return { kind: "issued", pass: outcome.pass };
+  }
+  if (outcome.kind === "failed") return { kind: "failed" };
+  await ensureContinuation(store, payment.id, nowIso);
+  return { kind: "pending", note: outcome.note };
 }
 
 type ConfirmPendingOutcome =
@@ -644,32 +747,89 @@ export function monitoringPassResponseBody(
   result: MonitoringPassResult,
 ): Record<string, unknown> {
   if (result.ok && result.status === "MONITORING_PASS_ISSUED") {
-    return {
+    const contract = buildConversationContract({
       status: "MONITORING_PASS_ISSUED",
+      completed_step: "MONITORING_PASS_ISSUED",
+      next_action: "UNDERSTAND_PURCHASE",
+      message:
+        "Your Monitoring Pass is ready. No additional payment is required. Continue with free Purchase Setup on service 33561.",
+      guidance:
+        "Do not request another payment. Ask if the user wants to use the pass now. If yes, collect only the recent Target purchase description — do not ask for email or consent yet. Redeem later after preflight with this monitoring_pass_id.",
+      payment_status: "recognized",
+      second_payment_required: false,
+      monitoring_active: false,
+      journey_complete: false,
+      retry_safe: true,
+      required_fields: ["purchase_text"],
+      pass_continuation_id: result.pass_continuation_id,
+      monitoring_pass_id: result.pass.id,
+      next_service_id: 33561,
+    });
+    return {
+      agent_state: "MONITORING_PASS",
+      ...contract,
       monitoring_pass_id: result.pass.id,
       pass_continuation_id: result.pass_continuation_id,
-      second_payment_required: false,
-      message:
-        "Your Monitoring Pass is ready. No additional payment is required. Continue with free Purchase Setup.",
+      price_amount: result.pass.price_amount,
+      price_currency: result.pass.price_currency,
+      redeemable_for: MONITORING_PASS_REDEEMABLE_FOR,
+      required_purchase_input: [
+        "purchase_text",
+        "purchase_price",
+        "purchase_date",
+      ],
     };
   }
 
   if (result.ok) {
-    return {
+    const contract = buildConversationContract({
       status: "PAYMENT_SETTLEMENT_PENDING",
-      pass_continuation_id: result.pass_continuation_id,
-      second_payment_required: false,
+      completed_step: "PAYMENT_SUBMITTED",
+      next_action: "RESOLVE_MONITORING_PASS",
       message: result.note,
+      guidance:
+        "Settlement is still confirming. Keep pass_continuation_id and call RESOLVE_MONITORING_PASS on free service 33561 shortly. Do not pay again and do not invent other status checks.",
+      payment_status: "pending",
+      second_payment_required: false,
+      monitoring_active: false,
+      journey_complete: false,
+      retry_safe: true,
+      required_fields: ["pass_continuation_id"],
+      pass_continuation_id: result.pass_continuation_id,
+      next_service_id: 33561,
+    });
+    return {
+      agent_state: "MONITORING_PASS",
+      ...contract,
+      pass_continuation_id: result.pass_continuation_id,
     };
   }
 
-  return {
+  const contract = buildConversationContract({
     status: "PAYMENT_PENDING",
+    completed_step: "MONITORING_PASS_EXPLAINED",
+    next_action: "REPLAY_WITH_PAYMENT-SIGNATURE",
+    message:
+      "The $0.99 payment buys one Monitoring Pass only. It does not start monitoring. Pay the challenge once and replay this request with PAYMENT-SIGNATURE to receive the pass.",
+    guidance:
+      "Present the x402 challenge. After payment, replay this endpoint with the PAYMENT-SIGNATURE header. Then continue free Purchase Setup on service 33561. Never guarantee a refund or price adjustment.",
+    payment_status: "required",
+    second_payment_required: false,
+    monitoring_active: false,
+    journey_complete: false,
+    retry_safe: true,
+    required_fields: null,
+    required_user_input: {
+      description:
+        "Complete the x402 payment once, then replay with PAYMENT-SIGNATURE.",
+    },
+    next_service_id: 35958,
+  });
+  return {
+    ...contract,
     x402Version: result.challenge.x402Version,
     resource: result.challenge.resource,
     accepts: result.challenge.accepts,
-    message:
-      "The $0.99 payment buys one Monitoring Pass only. It does not start monitoring. Pay the challenge once and replay this request to receive the pass.",
   };
 }
 /**
@@ -683,6 +843,8 @@ export async function resolveMonitoringPassForAgent(args: {
   now?: Date;
   sqliteDb?: NobuDatabase;
   env?: EnvRecord;
+  /** Tests only — inject settle/status HTTP. */
+  fetchImpl?: OkxHttpFetch;
 }): Promise<{
   http_status: number;
   body: Record<string, unknown>;
@@ -692,25 +854,22 @@ export async function resolveMonitoringPassForAgent(args: {
   const passId = String(args.monitoringPassId || "").trim();
   const genericMissing = {
     agent_state: "MONITORING_PASS",
-    status: "MONITORING_PASS_NOT_FOUND",
-    completed_step: "MONITORING_PASS_LOOKUP",
-    monitoring_active: false,
-    journey_complete: false,
-    second_payment_required: false,
-    next_action: "UNDERSTAND_PURCHASE",
-    next_service_id: 33561,
-    fields: ["action", "purchase_text"],
-    requiredArgs: ["action", "purchase_text"],
-    required_user_input: {
-      action: "UNDERSTAND_PURCHASE",
+    ...buildConversationContract({
+      status: "MONITORING_PASS_NOT_FOUND",
+      completed_step: "MONITORING_PASS_LOOKUP",
+      next_action: "UNDERSTAND_PURCHASE",
+      message:
+        "No Monitoring Pass was found for that reference. Do not invent a payment or status-check option.",
+      guidance:
+        "If the user just paid, wait briefly and retry RESOLVE_MONITORING_PASS with the same pass_continuation_id. Otherwise buy one Monitoring Pass on service 35958 once, or start free Purchase Setup only after they confirm they have a pass.",
+      payment_status: "required",
+      second_payment_required: false,
+      monitoring_active: false,
+      journey_complete: false,
+      retry_safe: true,
       required_fields: ["purchase_text"],
-      description: "A plain-English description of a recent Target online purchase.",
-    },
-    message:
-      "No Monitoring Pass was found for that reference. Do not invent a payment or status-check option.",
-    guidance:
-      "If the user just paid, wait briefly and retry RESOLVE_MONITORING_PASS with the same pass_continuation_id. Otherwise start free Purchase Setup only after they confirm they have a pass.",
-    documentation: "https://www.usenobu.xyz/okx",
+      next_service_id: 33561,
+    }),
   };
 
   if ((!contId && !passId) || (contId && passId)) {
@@ -760,53 +919,55 @@ export async function resolveMonitoringPassForAgent(args: {
         http_status: 200,
         body: {
           agent_state: "MONITORING_PASS",
-          status: "MONITORING_PASS_ISSUED",
-          completed_step: "MONITORING_PASS_ISSUED",
-          monitoring_active: false,
-          journey_complete: false,
-          monitoring_pass_id: pass.id,
-          pass_continuation_id: continuation.id,
-          pass_status: pass.status,
-          second_payment_required: false,
-          next_action: "UNDERSTAND_PURCHASE",
-          next_service_id: 33561,
-          fields: ["action", "purchase_text"],
-          requiredArgs: ["action", "purchase_text"],
-          required_user_input: {
-            action: "UNDERSTAND_PURCHASE",
+          ...buildConversationContract({
+            status: "MONITORING_PASS_ISSUED",
+            completed_step: "MONITORING_PASS_ISSUED",
+            next_action: "UNDERSTAND_PURCHASE",
+            message:
+              "Your Monitoring Pass is ready. Would you like to use it now to monitor a recent Target purchase?",
+            guidance:
+              "No second payment is required. After the user says yes, call UNDERSTAND_PURCHASE with purchase_text only. Do not ask for email or consent until product confirmation. Redeem later with this monitoring_pass_id after preflight.",
+            payment_status: "recognized",
+            second_payment_required: false,
+            monitoring_active: false,
+            journey_complete: false,
+            retry_safe: true,
             required_fields: ["purchase_text"],
-            description:
-              "After the user confirms they want to use the pass, a plain-English description of the recent Target online purchase.",
-          },
-          message:
-            "Your Monitoring Pass is ready. Would you like to use it now to monitor a recent Target purchase?",
-          guidance:
-            "No second payment is required. After the user says yes, call UNDERSTAND_PURCHASE with purchase_text only. Do not ask for email or consent until product confirmation. Redeem later with this monitoring_pass_id after preflight.",
-          documentation: "https://www.usenobu.xyz/okx",
+            monitoring_pass_id: pass.id,
+            pass_continuation_id: continuation.id,
+            next_service_id: 33561,
+          }),
+          pass_status: pass.status,
         },
       };
     }
   }
 
-  // Pending: optionally attempt settle/status via reconciliation for this payment only.
-  const paymentRows = await store.listVerifyingMonitoringPassPayments();
-  const mine = paymentRows.find((p) => p.id === continuation!.payment_id);
-  if (mine) {
-    await reconcilePendingPassSettlements({
-      sqliteDb: args.sqliteDb,
+  // Pending/partial: confirm THIS payment only — never scan unrelated rows.
+  const payment = await store.getMonitoringPassPaymentById(
+    continuation.payment_id,
+  );
+  if (payment) {
+    const outcome = await confirmPendingPassPayment({
+      store,
+      payment,
       env: args.env,
-      now: args.now,
-      limit: 50,
+      nowIso,
+      fetchImpl: args.fetchImpl,
     });
-    const refreshed = await store.getMonitoringPassContinuationById(
-      continuation.id,
-    );
-    if (refreshed?.status === "issued" && refreshed.monitoring_pass_id) {
+    if (outcome.kind === "issued") {
+      await ensureContinuation(
+        store,
+        payment.id,
+        nowIso,
+        outcome.pass.id,
+      );
       return resolveMonitoringPassForAgent({
-        passContinuationId: refreshed.id,
+        passContinuationId: continuation.id,
         sqliteDb: args.sqliteDb,
         env: args.env,
         now: args.now,
+        fetchImpl: args.fetchImpl,
       });
     }
   }
@@ -815,26 +976,23 @@ export async function resolveMonitoringPassForAgent(args: {
     http_status: 200,
     body: {
       agent_state: "MONITORING_PASS",
-      status: "PAYMENT_SETTLEMENT_PENDING",
-      completed_step: "PAYMENT_SUBMITTED",
-      monitoring_active: false,
-      journey_complete: false,
-      pass_continuation_id: continuation.id,
-      second_payment_required: false,
-      next_action: "RESOLVE_MONITORING_PASS",
-      next_service_id: 33561,
-      fields: ["action", "pass_continuation_id"],
-      requiredArgs: ["action", "pass_continuation_id"],
-      required_user_input: {
-        action: "RESOLVE_MONITORING_PASS",
+      ...buildConversationContract({
+        status: "PAYMENT_SETTLEMENT_PENDING",
+        completed_step: "PAYMENT_SUBMITTED",
+        next_action: "RESOLVE_MONITORING_PASS",
+        message:
+          "Settlement is still confirming. Your Monitoring Pass is not ready yet. Do not pay again.",
+        guidance:
+          "Keep the pass_continuation_id and call RESOLVE_MONITORING_PASS again shortly. Nobu will issue the pass automatically when confirmation arrives. Do not invent other status checks or request email yet.",
+        payment_status: "pending",
+        second_payment_required: false,
+        monitoring_active: false,
+        journey_complete: false,
+        retry_safe: true,
         required_fields: ["pass_continuation_id"],
-        description: "Retry with the same pass_continuation_id.",
-      },
-      message:
-        "Settlement is still confirming. Your Monitoring Pass is not ready yet. Do not pay again.",
-      guidance:
-        "Keep the pass_continuation_id and call RESOLVE_MONITORING_PASS again shortly. Do not invent other status checks or request email yet.",
-      documentation: "https://www.usenobu.xyz/okx",
+        pass_continuation_id: continuation.id,
+        next_service_id: 33561,
+      }),
     },
   };
 }

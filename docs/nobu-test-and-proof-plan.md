@@ -75,6 +75,13 @@ Required cases:
 - health endpoint;
 - rate limiting;
 - no secret or personal data leakage.
+- conversation contract fields on guidance, pass, and journey responses
+  (`payment_status`, `second_payment_required`, `monitoring_active`,
+  `journey_complete`, `retry_safe`, `fields`/`requiredArgs`);
+- Monitoring Pass: unpaid first contact 402; pending settle polls settle/status;
+  RESOLVE issues exactly one pass per settlement without scanning unrelated payments;
+  continuation body on paid URL never re-challenges;
+- marketplace journey: ordered stages; no second payment after recognized pass.
 
 ## 6. Security/privacy tests
 

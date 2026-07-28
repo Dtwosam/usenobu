@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { auditA2mcp, defaultA2mcpRateLimiter } from "@/a2mcp/index";
 import {
+  buildFreeServiceInputRequired,
   isFirstContactRequest,
   NOBU_DOCUMENTATION_URL,
 } from "@/a2mcp/service-descriptor";
 import {
   isMarketplaceJourneyRequest,
-  marketplaceFirstContact,
   runMarketplaceJourney,
 } from "@/a2mcp/marketplace-journey";
 import { logA2mcpRequest, parseContentLength } from "@/a2mcp/request-log";
@@ -23,8 +23,9 @@ function clientKey(req: Request): string {
   return "local";
 }
 
+/** Pure first-contact descriptor — introduces both services; no DB/AI work. */
 function inputRequiredResponse(): NextResponse {
-  return NextResponse.json(marketplaceFirstContact().body, { status: 400 });
+  return NextResponse.json(buildFreeServiceInputRequired(), { status: 400 });
 }
 
 /**

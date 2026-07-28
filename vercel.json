@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/v1/owner/pass-settlement-reconcile",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/v1/owner/monitor-scheduler",
+      "schedule": "0 12 * * *"
+    }
+  ]
+}
