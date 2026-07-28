@@ -2,7 +2,8 @@
 
 **Date:** 2026-07-28  
 **Starting HEAD:** `6ac1bf01d6f6e06a31c3af69ef75e742e033c262`  
-**Production deploy:** `usenobu-jsd3udipq` (`https://usenobu-jsd3udipq-dtwoflicks-2878s-projects.vercel.app`)  
+**Ending HEAD / commit:** `0541a6efaf9f437a6e87dca67df0f727b857675e`  
+**Production deploy:** `dpl_E6xegDEY2eTCsBFCHtEsacDcdo9b` (`usenobu-jsd3udipq`)  
 **Alias:** `https://usenobu.vercel.app` explicitly re-aliased  
 **ASP:** `#5541` unchanged; services `33561` / `35958` unchanged; price `0.99` unchanged  
 
