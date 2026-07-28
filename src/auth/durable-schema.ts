@@ -261,6 +261,7 @@ CREATE TABLE IF NOT EXISTS marketplace_purchase_journeys (
   monitoring_pass_id TEXT NOT NULL UNIQUE,
   pass_continuation_id TEXT,
   stage TEXT NOT NULL DEFAULT 'confirm_use_pass',
+  purchase_snapshot_json TEXT,
   discovery_session_id TEXT,
   fingerprint_id TEXT,
   connection_id TEXT,
@@ -284,5 +285,7 @@ export const AUTH_DURABLE_SCHEMA_PATCHES = [
   `ALTER TABLE account_purchase_blobs ADD COLUMN email_alerts_enabled INTEGER DEFAULT 0`,
   `ALTER TABLE account_purchase_blobs ADD COLUMN email_alerts_consent_at TEXT`,
   `ALTER TABLE account_purchase_blobs ADD COLUMN email_alerts_disabled_at TEXT`,
+  // Speed/flow hardening — durable structured purchase after extract, before discovery.
+  `ALTER TABLE marketplace_purchase_journeys ADD COLUMN purchase_snapshot_json TEXT`,
 ];
 

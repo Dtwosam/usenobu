@@ -188,6 +188,8 @@ export type MarketplacePurchaseJourneyRow = {
   monitoring_pass_id: string;
   pass_continuation_id: string | null;
   stage: string;
+  /** Structured purchase fields after extract; used for product discovery resume. */
+  purchase_snapshot_json: string | null;
   discovery_session_id: string | null;
   fingerprint_id: string | null;
   connection_id: string | null;
@@ -518,9 +520,14 @@ export interface AuthStore {
     passId: string,
   ): Promise<MarketplacePurchaseJourneyRow | null>;
   updateMarketplacePurchaseJourney(args: {
-    id: string; stage: string; discoverySessionId?: string | null;
-    fingerprintId?: string | null; connectionId?: string | null;
-    quoteId?: string | null; nowIso: string;
+    id: string;
+    stage: string;
+    purchaseSnapshotJson?: string | null;
+    discoverySessionId?: string | null;
+    fingerprintId?: string | null;
+    connectionId?: string | null;
+    quoteId?: string | null;
+    nowIso: string;
   }): Promise<MarketplacePurchaseJourneyRow | null>;
   /**
    * Settled payments that have a pass but no continuation row (historical
@@ -1490,6 +1497,7 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
       db.prepare(
         `UPDATE marketplace_purchase_journeys
          SET stage = ?,
+             purchase_snapshot_json = COALESCE(?, purchase_snapshot_json),
              discovery_session_id = COALESCE(?, discovery_session_id),
              fingerprint_id = COALESCE(?, fingerprint_id),
              connection_id = COALESCE(?, connection_id),
@@ -1498,6 +1506,7 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
          WHERE id = ?`,
       ).run(
         args.stage,
+        args.purchaseSnapshotJson ?? null,
         args.discoverySessionId ?? null,
         args.fingerprintId ?? null,
         args.connectionId ?? null,
@@ -2569,15 +2578,17 @@ export function createPostgresAuthStore(
       const r = await q<MarketplacePurchaseJourneyRow>(
         `UPDATE marketplace_purchase_journeys
          SET stage = $1,
-             discovery_session_id = COALESCE($2, discovery_session_id),
-             fingerprint_id = COALESCE($3, fingerprint_id),
-             connection_id = COALESCE($4, connection_id),
-             quote_id = COALESCE($5, quote_id),
-             updated_at = $6
-         WHERE id = $7
+             purchase_snapshot_json = COALESCE($2, purchase_snapshot_json),
+             discovery_session_id = COALESCE($3, discovery_session_id),
+             fingerprint_id = COALESCE($4, fingerprint_id),
+             connection_id = COALESCE($5, connection_id),
+             quote_id = COALESCE($6, quote_id),
+             updated_at = $7
+         WHERE id = $8
          RETURNING *`,
         [
           args.stage,
+          args.purchaseSnapshotJson ?? null,
           args.discoverySessionId ?? null,
           args.fingerprintId ?? null,
           args.connectionId ?? null,

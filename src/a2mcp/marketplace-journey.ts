@@ -33,11 +33,25 @@ export type MarketplaceJourneyDeps = Omit<UnderstandDeps, "now"> & {
 type JourneyStage =
   | "confirm_use_pass"
   | "purchase_description"
+  | "product_discovery"
   | "candidate_id"
   | "email"
   | "verification_code"
   | "consents"
   | "complete";
+
+type PurchaseSnapshot = {
+  purchase_price: number;
+  purchase_date: string;
+  purchase_channel: "target_online";
+  country: "US";
+  region?: string;
+  product_title?: string;
+  target_product_url?: string;
+  target_item_id?: string;
+  model_number?: string;
+  upc_or_gtin?: string;
+};
 
 function incomplete(
   stage: Exclude<JourneyStage, "complete">,
@@ -64,6 +78,75 @@ function incomplete(
   };
 }
 
+function parsePurchaseSnapshot(raw: string | null | undefined): PurchaseSnapshot | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as PurchaseSnapshot;
+    if (
+      typeof parsed.purchase_price !== "number" ||
+      typeof parsed.purchase_date !== "string"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function snapshotFromExtracted(p: {
+  purchase_price?: number | null;
+  purchase_date?: string | null;
+  region?: string | null;
+  product_description?: string | null;
+  product_url?: string | null;
+  target_item_id?: string | null;
+  model_number?: string | null;
+  upc_or_gtin?: string | null;
+}): PurchaseSnapshot {
+  return {
+    purchase_price: p.purchase_price!,
+    purchase_date: p.purchase_date!,
+    purchase_channel: "target_online",
+    country: "US",
+    ...(p.region ? { region: p.region } : {}),
+    ...(p.product_description ? { product_title: p.product_description } : {}),
+    ...(p.product_url ? { target_product_url: p.product_url } : {}),
+    ...(p.target_item_id ? { target_item_id: p.target_item_id } : {}),
+    ...(p.model_number ? { model_number: p.model_number } : {}),
+    ...(p.upc_or_gtin ? { upc_or_gtin: p.upc_or_gtin } : {}),
+  };
+}
+
+async function runProductDiscoveryForSnapshot(
+  snapshot: PurchaseSnapshot,
+  deps: MarketplaceJourneyDeps,
+  now: Date,
+): Promise<Awaited<ReturnType<typeof discoverProductForAgent>>> {
+  return discoverProductForAgent(
+    {
+      purchase_price: snapshot.purchase_price,
+      purchase_date: snapshot.purchase_date,
+      purchase_channel: snapshot.purchase_channel,
+      country: snapshot.country,
+      ...(snapshot.region ? { region: snapshot.region } : {}),
+      ...(snapshot.product_title ? { product_title: snapshot.product_title } : {}),
+      ...(snapshot.target_product_url
+        ? { target_product_url: snapshot.target_product_url }
+        : {}),
+      ...(snapshot.target_item_id ? { target_item_id: snapshot.target_item_id } : {}),
+      ...(snapshot.model_number ? { model_number: snapshot.model_number } : {}),
+      ...(snapshot.upc_or_gtin ? { upc_or_gtin: snapshot.upc_or_gtin } : {}),
+    },
+    {
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+      now,
+      offersOverride: deps.offersOverride,
+    },
+  );
+}
+
 function newJourneyId(): string {
   return `journey_${randomUUID().replace(/-/g, "")}`;
 }
@@ -76,6 +159,7 @@ function hasForbiddenEarlyInput(raw: Record<string, unknown>, stage: JourneyStag
   const order: JourneyStage[] = [
     "confirm_use_pass",
     "purchase_description",
+    "product_discovery",
     "candidate_id",
     "email",
     "verification_code",
@@ -119,9 +203,9 @@ export function marketplaceFirstContact() {
     completed_step: "NOBU_INTRODUCED",
     next_action: "PROVIDE_MONITORING_PASS",
     message:
-      "Nobu is an AI post-purchase monitoring agent for Target online purchases. Purchase Setup is free. A Monitoring Pass costs 0.99 USDT and does not start monitoring by itself. Provide monitoring_pass_id or pass_continuation_id if you already paid; otherwise buy one pass on service 35958 once.",
+      "Nobu: free Purchase Setup + 0.99 USDT Monitoring Pass (pass does not start monitoring). Send monitoring_pass_id or pass_continuation_id if already paid; otherwise buy one pass on service 35958 once.",
     guidance:
-      "If the user has no pass, route them to service 35958 (Nobu Monitoring Pass, 0.99 USDT) once — never invent a second charge after settlement. If they already paid, send monitoring_pass_id or pass_continuation_id here. Do not request email or consent yet. Target makes any final adjustment decision.",
+      "No pass → service 35958 once, one payment quote only; never re-quote on balance_unavailable. Already paid → send pass id or continuation here. Do not ask email/consent yet. Target decides any adjustment.",
     payment_status: "required",
     second_payment_required: false,
     monitoring_active: false,
@@ -132,7 +216,7 @@ export function marketplaceFirstContact() {
       required_fields: ["monitoring_pass_id"],
       optional_fields: ["pass_continuation_id"],
       description:
-        "Public monitoring_pass_id or pass_continuation_id after payment. If none, use service 35958 once.",
+        "Pass reference after payment. If none, use service 35958 once (one quote).",
     },
     extra_fields: ["monitoring_pass_id"],
     next_service_id: 33561,
@@ -288,6 +372,8 @@ export async function runMarketplaceJourney(
   if (stage === "purchase_description") {
     const description = cleanString(raw.purchase_description || raw.purchase_text);
     if (!description) return incomplete(stage, journey.id, undefined, journeyExtras);
+    // Extract only — product discovery is a separate stage so the user is never
+    // left in a long silent extract+SerpApi wait with no resume token.
     const understood = await understandPurchase(description, {
       llm: deps.llm,
       forceDeterministic: deps.forceDeterministic,
@@ -298,36 +384,67 @@ export async function runMarketplaceJourney(
       return incomplete(
         stage,
         journey.id,
-        "Nobu could not extract enough purchase details. Provide price, date, and a product clue for a recent Target online purchase.",
+        "Could not extract enough purchase details. Provide price, date, and a product clue for a recent Target online purchase.",
         journeyExtras,
       );
     }
-    const p = understood.body.extracted_purchase;
-    const discovered = await discoverProductForAgent(
-      {
-        purchase_price: p.purchase_price!,
-        purchase_date: p.purchase_date!,
-        purchase_channel: "target_online",
-        country: "US",
-        ...(p.region ? { region: p.region } : {}),
-        ...(p.product_description ? { product_title: p.product_description } : {}),
-        ...(p.product_url ? { target_product_url: p.product_url } : {}),
-        ...(p.target_item_id ? { target_item_id: p.target_item_id } : {}),
-        ...(p.model_number ? { model_number: p.model_number } : {}),
-        ...(p.upc_or_gtin ? { upc_or_gtin: p.upc_or_gtin } : {}),
-      },
-      {
-        sqliteDb: deps.sqliteDb,
-        env: deps.env,
-        now,
-        offersOverride: deps.offersOverride,
-      },
+    const snapshot = snapshotFromExtracted(understood.body.extracted_purchase);
+    await store.updateMarketplacePurchaseJourney({
+      id: journey.id,
+      stage: "product_discovery",
+      purchaseSnapshotJson: JSON.stringify(snapshot),
+      nowIso,
+    });
+    return incomplete(
+      "product_discovery",
+      journey.id,
+      "Purchase details saved. Resubmit this journey_id to find Target product candidates. Do not re-send email or payment.",
+      journeyExtras,
     );
+  }
+
+  if (stage === "product_discovery") {
+    // Optional re-description replaces the snapshot, then discovery runs.
+    const reDescription = cleanString(raw.purchase_description || raw.purchase_text);
+    let snapshot = parsePurchaseSnapshot(journey.purchase_snapshot_json);
+    if (reDescription) {
+      const understood = await understandPurchase(reDescription, {
+        llm: deps.llm,
+        forceDeterministic: deps.forceDeterministic,
+        forceUnavailable: deps.forceUnavailable,
+        now: () => now,
+      });
+      if (!understood.ok || understood.body.missing_fields.length > 0) {
+        return incomplete(
+          "purchase_description",
+          journey.id,
+          "Could not extract enough purchase details. Provide price, date, and a product clue for a recent Target online purchase.",
+          journeyExtras,
+        );
+      }
+      snapshot = snapshotFromExtracted(understood.body.extracted_purchase);
+      await store.updateMarketplacePurchaseJourney({
+        id: journey.id,
+        stage: "product_discovery",
+        purchaseSnapshotJson: JSON.stringify(snapshot),
+        nowIso,
+      });
+    }
+    if (!snapshot) {
+      return incomplete(
+        "purchase_description",
+        journey.id,
+        "Purchase details are missing. Describe the recent Target online purchase again.",
+        journeyExtras,
+      );
+    }
+
+    const discovered = await runProductDiscoveryForSnapshot(snapshot, deps, now);
     if (!discovered.ok || discovered.candidates.length === 0) {
       return incomplete(
-        stage,
+        "product_discovery",
         journey.id,
-        "No safe Target product candidate was found. Add a Target URL, TCIN, model, or clearer description and retry. Monitoring is not active.",
+        "No safe Target product candidate yet. Resubmit this journey_id to retry discovery, or send a clearer purchase_description with Target URL, TCIN, or model. Monitoring is not active.",
         journeyExtras,
       );
     }

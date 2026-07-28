@@ -10,15 +10,20 @@ async function responseBody(
 
 function expectInputRequired(body: Record<string, unknown>): void {
   expect(body.status).toBe("input_required");
-  expect(body.introduction).toMatch(/Nobu is an AI post-purchase monitoring agent/);
+  expect(body.introduction).toMatch(/Nobu monitors exact Target online purchases/i);
   expect(body.message).toMatch(/free/i);
-  expect(body.message).toMatch(/x402 payment does not apply/i);
+  expect(body.message).toMatch(/0\.99|35958|pass/i);
   expect(body.completed_step).toBe("NOBU_INTRODUCED");
+  expect(body.payment_status).toBe("required");
+  expect(body.second_payment_required).toBe(false);
+  expect(body.retry_safe).toBe(true);
   expect(body.monitoring_active).toBe(false);
   expect(body.journey_complete).toBe(false);
-  expect(body.next_action).toMatch(/UNDERSTAND_PURCHASE|DISCOVER_PRODUCT/);
-  expect(body.required_user_input).toEqual(expect.objectContaining({ action: "UNDERSTAND_PURCHASE" }));
-  expect(body.guidance).toMatch(/Sequential Purchase Setup|redeem existing Monitoring Pass/i);
+  expect(body.next_action).toMatch(/35958|pass|UNDERSTAND_PURCHASE|RESOLVE/i);
+  expect(body.required_user_input).toEqual(
+    expect.objectContaining({ action: "UNDERSTAND_PURCHASE" }),
+  );
+  expect(body.guidance).toMatch(/one deliberate payment quote|balance_unavailable|33561/i);
   expect(body.fields).toEqual(["action"]);
   expect(body.requiredArgs).toEqual(["action"]);
   expect(body.supported_actions).toEqual(

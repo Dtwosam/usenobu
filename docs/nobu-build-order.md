@@ -5,26 +5,33 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Complete production hardening
+## Active closeout — Complete speed and flow hardening
 
-**State:** code hardening deployed; blocked on complete real OKX.AI User-role A→Z proof.
+**State:** code + deploy + non-paid payment-confirmation rehearsal done; blocked on complete real OKX.AI User-role A→Z proof.  
+**Video gate:** `READY_FOR_FAST_FRESH_VIDEO_RECORDING`.
 
-Complete production hardening result:
+Speed/flow hardening result:
 
-- Starting HEAD: `f9f1b2575d2a865a3bb67962452a72bc6afb610d`.
-- Audit + design first: `docs/proof/complete-production-hardening/01-audit.md`, `02-design.md`.
-- Settlement→pass automatic convergence (hot-path poll + targeted RESOLVE); conversation contract; free intro; no re-402 on continuation; daily crons (Hobby-safe).
-- Production deploy `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y`; alias `usenobu.vercel.app`.
-- ASP `#5541` listed; services `33561`/`35958` unchanged; no new payment; no DB edits.
-- Real continuation `pass_cont_2adcc866…` resolves to issued pass via normal free path.
+- Starting HEAD: `6ac1bf01d6f6e06a31c3af69ef75e742e033c262`.
+- Audit + design first: `docs/proof/complete-speed-and-flow-hardening/01-audit.md`, `02-design.md`.
+- One-quote payment policy on 402 body; free full conversation contract; marketplace extract/discovery split; A2A ready.
+- Production deploy `dpl_E6xegDEY2eTCsBFCHtEsacDcdo9b`; alias `usenobu.vercel.app`.
+- Non-paid rehearsal: **one** quote, `hasBalance: true`, ~3.2 s, no payment authorized.
+- ASP `#5541` / services / price unchanged; no Production DB edits.
 
 Exact next lane:
 
-1. One interactive OKX.AI User-role journey against agent `5541` proving full A→Z (at most one new `0.99 USDT` payment).
-2. Record journey evidence under `docs/proof/complete-production-hardening/` and flip verdict only if all acceptance bullets pass.
+1. Record one interactive OKX.AI User-role journey against agent `5541` (at most one new `0.99 USDT` payment; never re-quote on `balance_unavailable`).
+2. Prove full A→Z; record under `docs/proof/complete-speed-and-flow-hardening/`; flip to PASS only if all acceptance bullets pass.
 
-**Closeout proof:** `docs/proof/complete-production-hardening/README.md`.
-**Current verdict:** `NOBU_COMPLETE_PRODUCTION_HARDENING_BLOCKED_REAL_OKX_USER_JOURNEY_INCOMPLETE`.
+**Closeout proof:** `docs/proof/complete-speed-and-flow-hardening/README.md`.  
+**Current verdict:** `NOBU_COMPLETE_SPEED_AND_FLOW_HARDENING_BLOCKED_REAL_OKX_USER_JOURNEY_INCOMPLETE`.
+
+## Prior closeout — Complete production hardening
+
+**State:** superseded as active closeout by speed/flow lane (settlement/conversation repairs remain deployed).
+
+Evidence: `docs/proof/complete-production-hardening/`.
 
 ## Lane 0 — Source-of-truth adoption and repository baseline
 

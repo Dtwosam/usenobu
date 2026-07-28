@@ -353,7 +353,8 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(body.monitoring_active).toBe(false);
     expect(body.journey_complete).toBe(false);
     expect(body.message).toMatch(/does not start monitoring/i);
-    expect(body.guidance).toMatch(/service 33561/);
+    expect(body.guidance).toMatch(/one payment quote|balance_unavailable/i);
+    expect(body.one_quote_only).toBe(true);
   });
 
   // ---------------------------------------------------------------------
@@ -1112,5 +1113,14 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(challengeBody.completed_step).toBe("MONITORING_PASS_EXPLAINED");
     expect(String(challengeBody.next_action)).toMatch(/PAYMENT-SIGNATURE/);
     expect(challengeBody.second_payment_required).toBe(false);
+    expect(challengeBody.one_quote_only).toBe(true);
+    expect(challengeBody.quote_policy).toBe("single_deliberate_attempt");
+    expect(challengeBody.do_not_re_quote_on).toEqual(
+      expect.arrayContaining(["balance_unavailable", "insufficient_balance"]),
+    );
+    expect(String(challengeBody.wallet_preflight_blocker)).toMatch(
+      /balance_unavailable/i,
+    );
+    expect(String(challengeBody.guidance)).toMatch(/one payment quote/i);
   });
 });

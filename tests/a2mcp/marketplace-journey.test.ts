@@ -45,9 +45,14 @@ function assertIncomplete(
   stageFields: string | string[],
 ): void {
   const expectedFields = Array.isArray(stageFields) ? stageFields : [stageFields];
+  // product_discovery only needs journey_id (already the sole field).
+  const fields =
+    expectedFields.length === 1 && expectedFields[0] === "journey_id"
+      ? ["journey_id"]
+      : [...expectedFields, "journey_id"];
   expect(body.status).toBe("input_required");
-  expect(body.fields).toEqual([...expectedFields, "journey_id"]);
-  expect(body.requiredArgs).toEqual([...expectedFields, "journey_id"]);
+  expect(body.fields).toEqual(fields);
+  expect(body.requiredArgs).toEqual(fields);
   expect(body.journey_id).toBeTruthy();
   expect(body.second_payment_required).toBe(false);
   expect(body.monitoring_active).toBe(false);
@@ -146,8 +151,17 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       "model WDG-100,",
       "https://www.target.com/p/example-gadget/-/A-87654321",
     ].join(" ");
-    const discovered = await runMarketplaceJourney(
+    const extracted = await runMarketplaceJourney(
       { journey_id: journeyId, purchase_description: purchaseDescription },
+      deps,
+    );
+    assertIncomplete(extracted.body, "journey_id");
+    expect(extracted.body.completed_step).toBe("PURCHASE_DETAILS_CAPTURED");
+    expect(String(extracted.body.message)).toMatch(/saved|Resubmit/i);
+
+    // Discovery is a separate stage so extract is never a silent multi-provider wait.
+    const discovered = await runMarketplaceJourney(
+      { journey_id: journeyId },
       deps,
     );
     assertIncomplete(discovered.body, "candidate_id");

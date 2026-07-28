@@ -190,8 +190,11 @@ export type FreeServiceDescriptor = {
   documentation: string;
   next_action: string;
   completed_step: string;
+  payment_status: "required" | "not_required" | "pending" | "recognized";
+  second_payment_required: false;
   monitoring_active: false;
   journey_complete: false;
+  retry_safe: true;
   fields?: readonly string[];
   requiredArgs?: readonly string[];
   required_user_input: Record<string, unknown>;
@@ -218,11 +221,11 @@ export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
     agent_state: "SERVICE_DESCRIPTOR",
     status: "READY",
     introduction:
-      "Nobu is an AI post-purchase monitoring agent for confirmed Target online purchases. It guides product confirmation, consent and activation without guaranteeing a price drop or adjustment.",
+      "Nobu monitors exact Target online purchases and alerts when a safely matched lower price may create a chance to request an adjustment. Target decides any refund.",
     service: "Nobu Purchase Setup",
     agent: "Nobu — AI post-purchase monitoring agent",
     message:
-      "Nobu Purchase Setup is free. x402 payment does not apply to service 33561 or any action on this endpoint.",
+      "Purchase Setup (33561) is free. Monitoring Pass (35958) is 0.99 USDT once and does not start monitoring. Choose one next step.",
     protocol: "A2MCP",
     request: {
       method: "POST",
@@ -241,26 +244,29 @@ export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
       endpoint: "https://usenobu.vercel.app/v1/agent/monitoring-pass",
       price: "0.99 USDT",
       description:
-        "Buys one Monitoring Pass only. Payment does not start monitoring; complete Purchase Setup and redeem the pass for one confirmed eligible Target purchase.",
+        "One Monitoring Pass only. Does not activate monitoring. One quote, one payment; never re-quote on balance_unavailable.",
     },
     retailer_support:
-      "Target is currently the only supported retailer. Target verifies eligibility and makes the final decision.",
+      "Target only for MVP. Target makes the final adjustment decision.",
     documentation: NOBU_DOCUMENTATION_URL,
     next_action:
-      "If the user has no Monitoring Pass, use paid service 35958 once (0.99 USDT). If they already paid, RESOLVE_MONITORING_PASS with pass_continuation_id or monitoring_pass_id. After a pass is ready, UNDERSTAND_PURCHASE with the purchase description only.",
+      "No pass yet → service 35958 once (one quote only). Already paid → RESOLVE_MONITORING_PASS with pass_continuation_id or monitoring_pass_id. Pass ready → purchase description only.",
     completed_step: "NOBU_INTRODUCED",
+    payment_status: "required",
+    second_payment_required: false,
     monitoring_active: false,
     journey_complete: false,
+    retry_safe: true,
     fields: ["action"],
     requiredArgs: ["action"],
     required_user_input: {
       action: "UNDERSTAND_PURCHASE",
       required_fields: ["purchase_text"],
       description:
-        "A plain-English description of the recent Target online purchase. Do not ask for email or consent yet. A Monitoring Pass is still required before activation.",
+        "If the user already has a pass, send purchase_text only. Otherwise route to service 35958 once first.",
     },
     guidance:
-      "Nobu has two services: free Purchase Setup (33561) and paid Monitoring Pass (35958, 0.99 USDT). Buying a pass does not start monitoring. Sequential Purchase Setup: (1) pass issued or RESOLVE existing pass, (2) purchase description only, (3) product discovery, (4) exact confirmation, (5) email, (6) code, (7) both consents + preflight, (8) redeem existing Monitoring Pass. Never request email or consent during initial purchase intake. Never re-request payment after settlement. Never invent a status-check option after payment. Target makes the final adjustment decision.",
+      "Explain both services once: free 33561 vs paid 35958 (0.99 USDT). One deliberate payment quote only; never re-quote on balance_unavailable. After payment, never request a second charge. Setup order: pass → purchase details → discovery → exact confirm → email → code → both consents → redeem. Never guarantee a Target adjustment.",
   };
 }
 
@@ -277,7 +283,7 @@ export function buildFreeServiceInputRequired(): FreeServiceInputRequired {
     agent_state: "SERVICE_INPUT",
     status: "input_required",
     message:
-      "Nobu Purchase Setup is free and x402 payment does not apply to service 33561. Choose one supported action and provide its required fields.",
+      "Purchase Setup is free (no x402). No pass yet: use service 35958 once (0.99 USDT, one quote). Already paid: send monitoring_pass_id or pass_continuation_id / RESOLVE. Pass ready: send a purchase description action.",
     fields: ["action"],
     requiredArgs: ["action"],
   };

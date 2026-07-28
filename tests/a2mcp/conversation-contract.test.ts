@@ -39,6 +39,17 @@ describe("conversation contract", () => {
     expect(body.message).toMatch(/No additional payment/i);
   });
 
+  it("product_discovery stage resumes with journey_id only", () => {
+    const body = marketplaceIncompleteContract({
+      stage: "product_discovery",
+      journeyId: "journey_disc",
+    });
+    expect(body.fields).toEqual(["journey_id"]);
+    expect(body.completed_step).toBe("PURCHASE_DETAILS_CAPTURED");
+    expect(body.retry_safe).toBe(true);
+    expect(String(body.guidance)).toMatch(/journey_id/i);
+  });
+
   it("marketplace first contact explains free vs paid and never forces a second charge", () => {
     const first = marketplaceFirstContact();
     expect(first.http_status).toBe(400);

@@ -810,9 +810,9 @@ export function monitoringPassResponseBody(
     completed_step: "MONITORING_PASS_EXPLAINED",
     next_action: "REPLAY_WITH_PAYMENT-SIGNATURE",
     message:
-      "The $0.99 payment buys one Monitoring Pass only. It does not start monitoring. Pay the challenge once and replay this request with PAYMENT-SIGNATURE to receive the pass.",
+      "Pay 0.99 USDT once for one Monitoring Pass. Payment does not start monitoring. After settlement, continue free Purchase Setup.",
     guidance:
-      "Present the x402 challenge. After payment, replay this endpoint with the PAYMENT-SIGNATURE header. Then continue free Purchase Setup on service 33561. Never guarantee a refund or price adjustment.",
+      "Create exactly one payment quote for this challenge, then confirm that single payment id. Do not re-quote on balance_unavailable or insufficient_balance — fix wallet sign-in / X Layer USD₮0 first and reuse the current payment id until it expires. After pay, replay with PAYMENT-SIGNATURE (or RESOLVE with pass_continuation_id). Never guarantee a Target adjustment.",
     payment_status: "required",
     second_payment_required: false,
     monitoring_active: false,
@@ -821,12 +821,23 @@ export function monitoringPassResponseBody(
     required_fields: null,
     required_user_input: {
       description:
-        "Complete the x402 payment once, then replay with PAYMENT-SIGNATURE.",
+        "One deliberate x402 payment only, then replay with PAYMENT-SIGNATURE.",
     },
     next_service_id: 35958,
   });
   return {
     ...contract,
+    // Machine policy for calling agents (does not alter x402 header wire format).
+    quote_policy: "single_deliberate_attempt",
+    one_quote_only: true,
+    reuse_payment_id_until: "expired_or_conclusive_failure",
+    do_not_re_quote_on: [
+      "balance_unavailable",
+      "insufficient_balance",
+      "payment_pending",
+    ],
+    wallet_preflight_blocker:
+      "If walletError is balance_unavailable, stop and fix wallet session/balance lookup. Do not create another payment quote.",
     x402Version: result.challenge.x402Version,
     resource: result.challenge.resource,
     accepts: result.challenge.accepts,

@@ -119,6 +119,7 @@ export function marketplaceIncompleteContract(args: {
   stage:
     | "confirm_use_pass"
     | "purchase_description"
+    | "product_discovery"
     | "candidate_id"
     | "email"
     | "verification_code"
@@ -136,49 +137,56 @@ export function marketplaceIncompleteContract(args: {
       fields: ["confirm_use_pass", "journey_id"],
       completed: "MONITORING_PASS_ISSUED",
       message:
-        "Your Monitoring Pass is ready. No additional payment is required. Would you like to use it now?",
+        "Your Monitoring Pass is ready. No additional payment is required. Use it now?",
       guidance:
-        "Ask the user to confirm they want to use the pass. Do not request payment, email, or consent yet.",
+        "Ask only to confirm using the pass. Do not request payment, email, or consent.",
     },
     purchase_description: {
       fields: ["purchase_description", "journey_id"],
       completed: "PASS_USE_CONFIRMED",
       message:
-        "Describe the recent Target online purchase. Provide purchase details only; do not include email or consent.",
+        "Describe the recent Target online purchase only (product, price, date). Do not send email or consent yet.",
       guidance:
-        "Collect only the purchase description. Do not ask for email or consent until the exact product is confirmed.",
+        "Collect only purchase details once. Do not ask for email or consent before exact product confirmation.",
+    },
+    product_discovery: {
+      fields: ["journey_id"],
+      completed: "PURCHASE_DETAILS_CAPTURED",
+      message:
+        "Purchase details are saved. Resubmit this journey_id to find Target product candidates.",
+      guidance:
+        "Immediately continue with the same journey_id to run product discovery. Do not re-ask purchase details, email, or payment.",
     },
     candidate_id: {
       fields: ["candidate_id", "journey_id"],
       completed: "PRODUCT_CANDIDATES_FOUND",
       message:
-        "Choose the exact Target product candidate. Nobu will not choose or confirm it for you.",
+        "Choose the exact Target product candidate. Nobu will not choose it for you.",
       guidance:
-        "Show candidates with differentiating fields. Require the user to select candidate_id. Never auto-confirm.",
+        "Show differentiating fields. Require candidate_id. Never auto-confirm. Fail closed on wrong seller, Target Plus, or weak matches.",
     },
     email: {
       fields: ["email", "journey_id"],
       completed: "PRODUCT_CONFIRMED",
       message:
-        "The exact product is confirmed. Provide the email address you control for alerts.",
+        "Exact product confirmed. Provide the email you control for alerts.",
       guidance:
-        "Collect only the email for verification. Monitoring is not active.",
+        "Collect only email for verification. Monitoring is not active.",
     },
     verification_code: {
       fields: ["verification_code", "journey_id"],
       completed: "EMAIL_CODE_SENT",
-      message:
-        "Enter the six-digit verification code sent to that email address.",
+      message: "Enter the six-digit verification code from that email.",
       guidance:
-        "Ask for the emailed code. Do not display or log credentials. Monitoring is not active.",
+        "Ask for the code only. Do not display or log credentials. Monitoring is not active.",
     },
     consents: {
       fields: ["monitoring_consent", "email_alert_consent", "journey_id"],
       completed: "EMAIL_VERIFIED",
       message:
-        "Email is verified. Confirm monitoring consent and email-alert consent explicitly.",
+        "Email verified. Confirm monitoring consent and email-alert consent (both must be true).",
       guidance:
-        "Both consents must be explicitly true. Target makes any final adjustment decision. Monitoring is not active until redemption succeeds.",
+        "Both consents must be explicitly true. Target decides any adjustment. Monitoring starts only after pass redemption.",
     },
   };
 
