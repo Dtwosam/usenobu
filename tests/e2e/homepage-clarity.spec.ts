@@ -16,20 +16,54 @@ test.describe("Lane 8R.1 public website", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/");
 
+    await expect(page.getByTestId("hero-eyebrow")).toContainText(
+      "Now live on OKX.AI · Agent 5541",
+    );
     await expect(
       page.getByRole("heading", {
-        name: /Don’t miss a price drop after you buy/i,
+        name: /Catch price drops after you buy/i,
       }),
     ).toBeVisible();
     await expect(page.getByTestId("hero-lead")).toContainText(
       "opportunity to request the difference",
     );
+    await expect(page.getByTestId("hero-support")).toContainText(
+      "Current live integration: eligible Target purchases",
+    );
+    await expect(page.getByTestId("cta-okx-marketplace").first()).toContainText(
+      "Use Nobu on OKX.AI",
+    );
+    await expect(page.getByTestId("cta-add-purchase")).toContainText(
+      "Monitor on the website",
+    );
     await expect(page.getByTestId("home-steps")).toBeVisible();
+    await expect(page.getByTestId("home-steps")).toContainText(
+      "Add or describe a purchase",
+    );
+    await expect(page.getByTestId("home-steps")).toContainText(
+      "Receive an alert in time to request the difference",
+    );
     await expect(page.getByTestId("home-scenario")).toContainText(
       "Possible price difference",
     );
     await expect(page.getByTestId("scenario-difference")).toHaveText("$20.00");
     await expect(page.getByTestId("home-access")).toBeVisible();
+    await expect(page.getByTestId("okx-agent-listing")).toContainText(
+      "Agent 5541",
+    );
+    await expect(page.getByTestId("okx-service-pass")).toContainText(
+      "Monitoring Pass — $0.99",
+    );
+    await expect(page.getByTestId("okx-service-setup")).toContainText(
+      "Purchase Setup — Free",
+    );
+    await expect(page.getByTestId("okx-demo-block")).toContainText(
+      "See Nobu in action",
+    );
+    await expect(page.getByTestId("okx-demo-block").locator("a")).toHaveCount(0);
+    await expect(page.getByTestId("okx-demo-block").locator("button")).toHaveCount(
+      0,
+    );
     await expect(page.getByTestId("home-trust")).toBeVisible();
     await expect(page.getByTestId("current-availability")).toContainText(
       "Target.com",
@@ -73,19 +107,33 @@ test.describe("Lane 8R.1 public website", () => {
       page.getByRole("heading", { name: /Use Nobu with OKX\.AI/i }),
     ).toBeVisible();
     await expect(page.getByTestId("okx-payment-copy")).toContainText(
+      "does not activate monitoring by itself",
+    );
+    await expect(page.getByTestId("okx-payment-copy")).toContainText(
       "does not guarantee",
     );
+    await expect(page.getByRole("heading", { name: /One Monitoring Pass/i })).toBeVisible();
     await expect(page.getByTestId("okx-setup")).toBeVisible();
+    await expect(page.getByTestId("okx-setup")).toContainText(
+      "Open Nobu, Agent 5541, on OKX.AI.",
+    );
+    await expect(page.getByTestId("okx-setup")).toContainText(
+      "Redeem the pass and activate monitoring",
+    );
     await expect(page.getByTestId("okx-faq")).toBeVisible();
     await expect(page.getByTestId("okx-resources")).toBeVisible();
 
     // Default fallback: CTA points to /okx (no marketplace URL configured)
     const cta = page.getByTestId("cta-okx-marketplace").first();
     await expect(cta).toHaveAttribute("href", "/okx");
+    await expect(cta).toContainText("Use Nobu on OKX.AI");
 
     const body = (await page.locator("body").innerText()).toLowerCase();
     expect(body).not.toMatch(
       /hackathon|judge|competition|coming soon|pending approval/,
+    );
+    expect(body).not.toMatch(
+      /activation uses a one-time \$0\.99 payment|complete free purchase preparation/,
     );
 
     await page.screenshot({
@@ -98,7 +146,10 @@ test.describe("Lane 8R.1 public website", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/notices");
     await expect(page.getByTestId("okx-payment-notice-copy")).toContainText(
-      "$0.99",
+      "Monitoring Pass",
+    );
+    await expect(page.getByTestId("okx-payment-notice-copy")).toContainText(
+      "does not activate monitoring by itself",
     );
     await expect(page.getByTestId("target-action-notice")).toContainText(
       "does not contact Target",

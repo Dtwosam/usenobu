@@ -102,7 +102,7 @@ export default async function NoticesPage() {
         <Card data-testid="okx-payment-notice" id="okx-payment">
           <h2 className="n-card-title">OKX payment</h2>
           <p data-testid="okx-payment-notice-copy">
-            The $0.99 OKX payment activates monitoring for one confirmed and eligible purchase. It does not guarantee a price drop, alert, refund or price adjustment.
+            The $0.99 OKX payment issues one Monitoring Pass for one eligible purchase. Buying the pass does not activate monitoring by itself. Free Purchase Setup is where you confirm the product, give consent, redeem the pass, and activate monitoring. The payment does not guarantee a price drop, alert, refund or price adjustment.
           </p>
         </Card>
 

@@ -5,64 +5,88 @@ import { OkxFaq, OkxExampleCopy } from "./OkxGuideClient";
 export const metadata: Metadata = {
   title: "Use Nobu with OKX.AI — Nobu",
   description:
-    "Set up a purchase, confirm the exact product, activate monitoring and manage alerts through a compatible AI-agent conversation.",
+    "Buy a Monitoring Pass, complete free Purchase Setup, redeem the pass, and manage post-purchase monitoring through OKX.AI Agent 5541.",
 };
 
 const SETUP_STEPS = [
   {
-    title: "Use a supported AI-agent environment",
-    body: "Open a compatible AI-agent environment that can work with Onchain OS and OKX.AI.",
+    title: "Open Nobu on OKX.AI",
+    body: "Open Nobu, Agent 5541, on OKX.AI.",
   },
   {
-    title: "Install Onchain OS",
-    body: "Install the official Onchain OS tooling so your environment can reach OKX agent services.",
+    title: "Select Nobu Monitoring Pass",
+    body: "Choose the paid Monitoring Pass service for one eligible purchase.",
   },
   {
-    title: "Sign in to Agentic Wallet",
-    body: "Sign in to your Agentic Wallet so identity and any monitoring activation payment can be handled securely.",
+    title: "Make one $0.99 payment",
+    body: "Complete a single payment for the Monitoring Pass.",
   },
   {
-    title: "Access OKX.AI",
-    body: "Open OKX.AI from your supported environment to browse available agent services.",
+    title: "Receive the Monitoring Pass",
+    body: "After payment settles, you receive one Monitoring Pass. Buying the pass does not activate monitoring by itself.",
   },
   {
-    title: "Select Nobu",
-    body: "Choose Nobu to monitor a confirmed purchase for a possible price difference after you buy.",
+    title: "Continue to free Purchase Setup",
+    body: "Use free Nobu Purchase Setup to prepare the purchase you want to monitor. No second payment is required.",
   },
   {
-    title: "Complete free purchase preparation",
-    body: "Describe the purchase, confirm the exact product, verify your alert email, and complete free preflight steps before activation.",
+    title: "Confirm use of the pass",
+    body: "Confirm that you want to use your Monitoring Pass for this setup journey.",
   },
   {
-    title: "Activate monitoring",
-    body: "When you are ready, activate monitoring for one confirmed and eligible purchase. Activation uses a one-time $0.99 payment.",
+    title: "Describe the eligible purchase",
+    body: "Describe the eligible purchase you want Nobu to watch.",
   },
   {
-    title: "Manage the monitor",
-    body: "Check status, list active monitors, enable or disable email alerts, or stop monitoring through the conversation.",
+    title: "Confirm the exact product",
+    body: "Select and confirm the exact product before monitoring can begin.",
+  },
+  {
+    title: "Verify the email address",
+    body: "Verify the alert email address where consented alerts may be sent.",
+  },
+  {
+    title: "Give both required consents",
+    body: "Give monitoring consent and email-alert consent before activation.",
+  },
+  {
+    title: "Redeem the pass and activate monitoring",
+    body: "Redeem the Monitoring Pass to activate scheduled monitoring for that confirmed, eligible purchase.",
+  },
+  {
+    title: "Manage monitoring",
+    body: "Check status, manage alerts, or stop monitoring through the conversation.",
   },
 ] as const;
 
 const FAQ_ITEMS = [
   {
     q: "What is Nobu on OKX.AI?",
-    a: "Nobu is an AI agent that monitors the exact product after purchase and alerts you when a safely matched lower price may create an opportunity to request the difference from the retailer.",
+    a: "Nobu is listed on OKX.AI as Agent 5541. It is a post-purchase monitoring agent that watches the exact product after purchase and alerts you when a safely matched lower price may create an opportunity to request the difference from the retailer.",
   },
   {
     q: "Can I use Nobu without visiting the website?",
-    a: "Yes. Compatible AI-agent environments can set up a purchase, confirm the product, activate monitoring, and manage monitors through conversation. The UseNobu website remains available if you prefer a visual flow.",
+    a: "Yes. Through OKX.AI you can buy a Monitoring Pass, complete free Purchase Setup, redeem the pass to activate monitoring, and manage monitors through conversation. The UseNobu website remains available if you prefer a visual flow.",
   },
   {
-    q: "Which actions are free?",
-    a: "Discovery, product confirmation, email verification, preflight checks, status checks, listing monitors, and email-alert preference changes are free. Scheduled monitoring activation for one purchase requires the one-time $0.99 payment.",
+    q: "What is the difference between Monitoring Pass and Purchase Setup?",
+    a: "Monitoring Pass is the $0.99 paid service that issues one pass for one eligible purchase. Purchase Setup is free and walks you through confirming the pass, describing the purchase, selecting the exact product, verifying email, giving consent, and redeeming the pass to activate monitoring.",
+  },
+  {
+    q: "Which steps are free?",
+    a: "Purchase Setup is free: confirm use of the pass, describe the purchase, select the exact product, verify email, give required consents, redeem the pass, check status, manage email alerts, and stop monitoring. Only buying the Monitoring Pass is paid.",
   },
   {
     q: "What does the $0.99 payment cover?",
-    a: "It activates scheduled monitoring for one confirmed and eligible purchase. It does not guarantee a lower price, alert, refund, adjustment, or savings.",
+    a: "The payment issues one Monitoring Pass for one eligible purchase. It does not activate monitoring by itself. Activation happens later when you redeem the pass during free Purchase Setup after the product is confirmed and both consents are given.",
+  },
+  {
+    q: "Does buying the Monitoring Pass start monitoring?",
+    a: "No. Buying the pass only issues the pass. Monitoring becomes active only after you complete free Purchase Setup and redeem the pass for a confirmed, eligible purchase.",
   },
   {
     q: "Does payment guarantee a price drop?",
-    a: "No. Payment only activates monitoring. Prices may stay the same, and matching fails closed when a lower price cannot be safely confirmed.",
+    a: "No. The payment issues a Monitoring Pass only. It does not guarantee a lower price, alert, refund, adjustment, or savings. Prices may stay the same, and matching fails closed when a lower price cannot be safely confirmed.",
   },
   {
     q: "Does Nobu contact Target for me?",
@@ -125,12 +149,16 @@ export default function OkxGuidePage() {
   return (
     <div className="n-screen n-screen--okx" data-testid="okx-guide-page">
       <section className="n-hero" aria-labelledby="okx-title">
+        <p className="n-hero__eyebrow" data-testid="okx-agent-eyebrow">
+          Live on OKX.AI · Agent 5541
+        </p>
         <h1 id="okx-title" className="n-hero__title">
           Use Nobu with OKX.AI
         </h1>
         <p className="n-hero__lead" data-testid="okx-hero-lead">
-          Set up a purchase, confirm the exact product, activate monitoring and
-          manage alerts through a compatible AI-agent conversation.
+          Buy a Monitoring Pass, complete free Purchase Setup, redeem the pass
+          to activate monitoring, and manage alerts through a compatible
+          AI-agent conversation.
         </p>
         <div className="n-hero__actions">
           <OkxMarketplaceLink data-testid="cta-okx-marketplace" />
@@ -159,12 +187,10 @@ export default function OkxGuidePage() {
 
       <section className="n-home-section" aria-labelledby="payment-title">
         <h2 id="payment-title" className="n-section-title">
-          One-time monitoring activation — $0.99
+          One Monitoring Pass — $0.99
         </h2>
         <p className="n-section-lead" data-testid="okx-payment-copy">
-          The payment activates scheduled monitoring for one confirmed and
-          eligible purchase. It does not guarantee a lower price, alert, refund,
-          adjustment or savings.
+          The payment issues one Monitoring Pass for one eligible purchase. It does not activate monitoring by itself and does not guarantee a lower price, alert, refund, adjustment or savings. Purchase Setup remains free.
         </p>
       </section>
 

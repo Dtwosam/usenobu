@@ -51,8 +51,9 @@ describe("Lane 8R.1 public interface positioning", () => {
 
   it("homepage has five main sections and required copy", () => {
     const home = readFileSync(resolve("app/page.tsx"), "utf8");
-    expect(home).toContain("Don’t miss a price drop after you buy.");
-    expect(home).toContain("Monitor a purchase");
+    expect(home).toContain("Now live on OKX.AI · Agent 5541");
+    expect(home).toContain("Catch price drops after you buy.");
+    expect(home).toContain("Monitor on the website");
     expect(home).toContain("OkxMarketplaceLink");
     expect(home).toContain("How it works");
     expect(home).toContain("What Nobu is watching for");
@@ -66,10 +67,19 @@ describe("Lane 8R.1 public interface positioning", () => {
     expect(
       home.split("Target is the only retailer currently supported").length - 1,
     ).toBe(1);
-    expect(home).toContain("Tell Nobu what you bought");
+    expect(home).toContain("Add or describe a purchase");
     expect(home).toContain("Confirm the exact product");
-    expect(home).toContain("Nobu keeps watch");
-    expect(home).toContain("Know when to contact the retailer");
+    expect(home).toContain("Nobu monitors for a safely matched lower price");
+    expect(home).toContain("Receive an alert in time to request the difference");
+    expect(home).toContain("Nobu is listed on OKX.AI as Agent 5541");
+    expect(home).toContain("Monitoring Pass — $0.99");
+    expect(home).toContain("Purchase Setup — Free");
+    expect(home).toContain("See Nobu in action");
+    expect(home).toContain(
+      "Buying the pass does not activate monitoring by itself",
+    );
+    // Demo block has no clickable control when no verified asset exists
+    expect(home).not.toMatch(/okx-demo-(video|link|play)/);
     const sectionMatches = home.match(/className="n-home-section"/g) ?? [];
     // 4 n-home-section + hero = 5 main sections
     expect(sectionMatches.length).toBe(4);
@@ -119,12 +129,24 @@ describe("Lane 8R.1 public interface positioning", () => {
   it("OKX guide is customer-facing and truthful about payment", () => {
     const okx = readFileSync(resolve("app/okx/page.tsx"), "utf8");
     expect(okx).toContain("Use Nobu with OKX.AI");
-    expect(okx).toContain("One-time monitoring activation — $0.99");
+    expect(okx).toContain("One Monitoring Pass — $0.99");
+    expect(okx).toContain("does not activate monitoring by itself");
     expect(okx).toContain("does not guarantee");
+    expect(okx).toContain("Purchase Setup remains free");
+    expect(okx).toContain("Open Nobu, Agent 5541, on OKX.AI.");
+    expect(okx).toContain("Redeem the pass and activate monitoring");
     expect(okx).toContain("Does Nobu contact Target for me?");
     expect(okx).toContain("Does Nobu need my Target password?");
+    expect(okx).toContain(
+      "Does buying the Monitoring Pass start monitoring?",
+    );
     expect(okx.toLowerCase()).not.toContain("coming soon");
     expect(okx.toLowerCase()).not.toContain("pending approval");
+    // Old free-prep-before-payment sequence must not reappear as primary story
+    expect(okx).not.toContain("Complete free purchase preparation");
+    expect(okx).not.toContain(
+      "When you are ready, activate monitoring for one confirmed and eligible purchase. Activation uses a one-time $0.99 payment.",
+    );
   });
 
   it("marketplace CTA uses one configuration source", () => {
@@ -141,7 +163,10 @@ describe("Lane 8R.1 public interface positioning", () => {
   it("notices include OKX payment and retailer decision truth", () => {
     const notices = readFileSync(resolve("app/notices/page.tsx"), "utf8");
     expect(notices).toContain(
-      "The $0.99 OKX payment activates monitoring for one confirmed and eligible purchase",
+      "The $0.99 OKX payment issues one Monitoring Pass for one eligible",
+    );
+    expect(notices).toContain(
+      "Buying the pass does not activate monitoring by itself",
     );
     expect(notices).toContain("does not guarantee a price drop");
     expect(notices).toContain("does not contact Target");

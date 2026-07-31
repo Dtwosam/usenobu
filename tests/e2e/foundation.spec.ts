@@ -127,7 +127,7 @@ test.describe("Nobu design foundation (Lane 7.5B1)", () => {
     await expect(page.getByTestId("cta-add-purchase")).toBeVisible();
     await expect(
       page.getByRole("heading", {
-        name: /Don’t miss a price drop after you buy/i,
+        name: /Catch price drops after you buy/i,
       }),
     ).toBeVisible();
     await expect(page.getByTestId("app-header")).toBeVisible();

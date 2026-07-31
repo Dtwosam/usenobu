@@ -22,7 +22,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
     await page.goto("/");
     await expect(
       page.getByRole("heading", {
-        name: /Don’t miss a price drop after you buy/i,
+        name: /Catch price drops after you buy/i,
       }),
     ).toBeVisible();
     await expect(page.getByTestId("hero-lead")).toContainText(
@@ -32,7 +32,7 @@ test.describe("Nobu consumer web flow (fixture-labelled)", () => {
       "Currently supports eligible Target.com purchases",
     );
     await expect(page.getByTestId("cta-add-purchase")).toContainText(
-      "Monitor a purchase",
+      "Monitor on the website",
     );
     await expect(page.getByTestId("home-steps")).toBeVisible();
     await expect(page.getByTestId("current-availability")).toContainText(

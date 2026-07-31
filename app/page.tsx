@@ -21,8 +21,11 @@ export default async function HomePage({
       {/* 1. Hero */}
       <section className="n-hero n-hero--split" aria-labelledby="home-title">
         <div>
+          <p className="n-hero__eyebrow" data-testid="hero-eyebrow">
+            Now live on OKX.AI · Agent 5541
+          </p>
           <h1 id="home-title" className="n-hero__title">
-            Don’t miss a price drop after you buy.
+            Catch price drops after you buy.
           </h1>
           <p className="n-hero__lead" data-testid="hero-lead">
             Nobu monitors the exact product you purchased and alerts you when a
@@ -30,17 +33,21 @@ export default async function HomePage({
             from the retailer.
           </p>
           <div className="n-hero__actions">
-            <ButtonLink href="/purchases/new" data-testid="cta-add-purchase">
-              Monitor a purchase
-            </ButtonLink>
             <OkxMarketplaceLink
-              variant="secondary"
+              variant="primary"
               data-testid="cta-okx-marketplace"
             />
+            <ButtonLink
+              href="/purchases/new"
+              variant="secondary"
+              data-testid="cta-add-purchase"
+            >
+              Monitor on the website
+            </ButtonLink>
           </div>
           <p className="n-hero__support" data-testid="hero-support">
-            Starting with eligible Target.com purchases. Target verifies the
-            price and makes the final decision.
+            Current live integration: eligible Target purchases. The retailer
+            verifies eligibility and makes the final adjustment decision.
           </p>
         </div>
         <aside className="n-flow-preview" aria-label="Product flow preview">
@@ -69,7 +76,7 @@ export default async function HomePage({
             </span>
             <div>
               <h3 className="n-steps-sequence__title">
-                Tell Nobu what you bought
+                Add or describe a purchase
               </h3>
               <p className="n-steps-sequence__body">
                 Add the purchase on the website or describe it through an
@@ -96,7 +103,9 @@ export default async function HomePage({
               3
             </span>
             <div>
-              <h3 className="n-steps-sequence__title">Nobu keeps watch</h3>
+              <h3 className="n-steps-sequence__title">
+                Nobu monitors for a safely matched lower price
+              </h3>
               <p className="n-steps-sequence__body">
                 Nobu checks safely matched price observations during the
                 supported monitoring period.
@@ -109,11 +118,12 @@ export default async function HomePage({
             </span>
             <div>
               <h3 className="n-steps-sequence__title">
-                Know when to contact the retailer
+                Receive an alert in time to request the difference
               </h3>
               <p className="n-steps-sequence__body">
-                When a lower price is safely matched, Nobu shows the possible
-                difference and the retailer’s official contact path.
+                When a lower price is safely matched, Nobu alerts you so you can
+                request the difference from the retailer when eligible. Nobu
+                does not submit the request for you.
               </p>
             </div>
           </li>
@@ -170,15 +180,44 @@ export default async function HomePage({
               use the Action Center to contact the retailer.
             </p>
             <ButtonLink href="/purchases/new" data-testid="cta-access-web">
-              Monitor a purchase
+              Monitor on the website
             </ButtonLink>
           </div>
-          <div className="n-access-panel">
+          <div className="n-access-panel" data-testid="home-okx-panel">
             <h3 className="n-card-title">OKX.AI</h3>
-            <p>
-              Confirm purchases, verify your alert email, activate monitoring
-              and manage monitors through an AI-agent conversation.
+            <p data-testid="okx-agent-listing">
+              Nobu is listed on OKX.AI as Agent 5541.
             </p>
+            <div className="n-service-block" data-testid="okx-service-pass">
+              <h4 className="n-service-block__title">
+                Monitoring Pass — $0.99
+              </h4>
+              <ul className="n-list n-list--compact">
+                <li>One payment issues one Monitoring Pass.</li>
+                <li>
+                  Buying the pass does not activate monitoring by itself.
+                </li>
+                <li>No second payment is required for Purchase Setup.</li>
+              </ul>
+            </div>
+            <div className="n-service-block" data-testid="okx-service-setup">
+              <h4 className="n-service-block__title">Purchase Setup — Free</h4>
+              <ul className="n-list n-list--compact">
+                <li>Confirm use of the pass.</li>
+                <li>Describe the purchase.</li>
+                <li>Select the exact product.</li>
+                <li>Verify the alert email.</li>
+                <li>Give monitoring and email-alert consent.</li>
+                <li>Redeem the pass and activate monitoring.</li>
+              </ul>
+            </div>
+            <div className="n-demo-block" data-testid="okx-demo-block">
+              <h4 className="n-service-block__title">See Nobu in action</h4>
+              <p>
+                Watch the complete journey from Monitoring Pass purchase to
+                active post-purchase monitoring.
+              </p>
+            </div>
             <OkxMarketplaceLink data-testid="cta-access-okx" />
             <p>
               <a href="/okx" data-testid="link-okx-guide">

@@ -3,7 +3,7 @@
  * Every OKX CTA must use this module — never hardcode listing URLs.
  */
 export const OKX_GUIDE_PATH = "/okx";
-export const OKX_MARKETPLACE_CTA_LABEL = "Use Nobu with OKX.AI";
+export const OKX_MARKETPLACE_CTA_LABEL = "Use Nobu on OKX.AI";
 
 /**
  * Resolved marketplace destination.

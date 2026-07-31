@@ -39,9 +39,9 @@ describe("OKX marketplace configuration", () => {
   });
 
   it("exports stable CTA label", () => {
-    expect(OKX_MARKETPLACE_CTA_LABEL).toBe("Use Nobu with OKX.AI");
+    expect(OKX_MARKETPLACE_CTA_LABEL).toBe("Use Nobu on OKX.AI");
     const cta = getOkxMarketplaceCta();
-    expect(cta.label).toBe("Use Nobu with OKX.AI");
+    expect(cta.label).toBe("Use Nobu on OKX.AI");
     expect(cta.href).toBeTruthy();
   });
 });
