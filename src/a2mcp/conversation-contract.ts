@@ -22,6 +22,7 @@ import {
 } from "./service-catalogue.js";
 import {
   buildJourneyContinuation,
+  sanitizeUserInputContractFields,
   type ProtocolContinuation,
   userVisibleFieldsOnly,
 } from "./protocol-continuation.js";
@@ -144,21 +145,34 @@ export function buildConversationContract(args: {
     fields = null;
   }
 
-  const required_user_input =
-    args.required_user_input !== undefined
-      ? args.required_user_input
-      : safeRequired && safeRequired.length > 0
-        ? includeAction
-          ? {
-              action: args.next_action,
-              required_fields: safeRequired,
-              description: args.message,
-            }
-          : {
-              required_fields: safeRequired,
-              description: args.message,
-            }
-        : null;
+  // Explicit required_user_input is sanitized so callers cannot bypass the filter.
+  let required_user_input: Record<string, unknown> | null;
+  if (args.required_user_input !== undefined) {
+    if (args.required_user_input === null) {
+      required_user_input = null;
+    } else {
+      const rui = { ...args.required_user_input };
+      if (Array.isArray(rui.required_fields)) {
+        rui.required_fields = userVisibleFieldsOnly(
+          rui.required_fields as string[],
+        );
+      }
+      required_user_input = rui;
+    }
+  } else if (safeRequired && safeRequired.length > 0) {
+    required_user_input = includeAction
+      ? {
+          action: args.next_action,
+          required_fields: safeRequired,
+          description: args.message,
+        }
+      : {
+          required_fields: safeRequired,
+          description: args.message,
+        };
+  } else {
+    required_user_input = null;
+  }
 
   const input_required =
     args.input_required !== undefined
@@ -220,7 +234,10 @@ export function buildConversationContract(args: {
     contract.next_service_id = args.next_service_id;
   }
 
-  return contract;
+  // Final hard sanitize — no path may leave machine-owned names in user lists.
+  return sanitizeUserInputContractFields(
+    contract as unknown as Record<string, unknown>,
+  ) as ConversationContract;
 }
 
 export type MarketplaceStage =

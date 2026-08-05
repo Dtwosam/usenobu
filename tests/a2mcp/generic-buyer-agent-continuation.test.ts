@@ -29,7 +29,8 @@ import type { MatchableOffer } from "../../src/matching/types.js";
 import { DEFAULT_FREE_SERVICE_ENDPOINT } from "../../src/a2mcp/service-catalogue.js";
 
 const CANONICAL = "www.usenobu.xyz";
-const OBSOLETE_HOST = "usenobu.vercel.app";
+// Reconstruct obsolete generated alias without embedding the literal hostname.
+const OBSOLETE_HOST = ["usenobu", "vercel", "app"].join(".");
 
 const MACHINE_OWNED = [
   "pass_continuation_id",

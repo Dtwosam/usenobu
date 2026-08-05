@@ -24,7 +24,9 @@ import {
   type MarketplaceStage,
 } from "./conversation-contract.js";
 import {
+  claimNotAuthorizedBody,
   internalContinuationStateMissing,
+  sanitizeUserInputContractFields,
 } from "./protocol-continuation.js";
 import {
   buildServiceSelectionRequired,
@@ -103,11 +105,11 @@ function incomplete(
   const http_status = contract.automatic_continue ? 200 : 400;
   return {
     http_status: http_status as 200 | 400,
-    body: {
+    body: sanitizeUserInputContractFields({
       ...contract,
       journey_id: journeyId,
       free_service_endpoint: resolveFreeServiceEndpoint(extras?.env),
-    },
+    }),
   };
 }
 
@@ -240,11 +242,62 @@ function activationPendingResponse(
   });
   return {
     http_status: 200 as const,
-    body: {
+    body: sanitizeUserInputContractFields({
       ...contract,
       journey_id: journeyId,
       free_service_endpoint: resolveFreeServiceEndpoint(extras.env),
-    },
+    }),
+  };
+}
+
+/**
+ * Consent stage always requires the current raw connection_token in
+ * protocol_continuation. Never return a tokenless consents response after
+ * the token has been issued.
+ */
+function consentsStageResponse(
+  journeyId: string,
+  connectionToken: string,
+  extras: {
+    passContinuationId?: string | null;
+    monitoringPassId?: string | null;
+    env?: EnvRecord;
+  },
+  message?: string,
+) {
+  if (!connectionToken) {
+    return {
+      http_status: 400 as const,
+      body: sanitizeUserInputContractFields({
+        ...internalContinuationStateMissing({
+          journeyId,
+          monitoringPassId: extras.monitoringPassId,
+        }),
+        free_service_endpoint: resolveFreeServiceEndpoint(extras.env),
+      }),
+    };
+  }
+  return incomplete("consents", journeyId, message, {
+    ...extras,
+    continuationBodyExtras: { connection_token: connectionToken },
+    sensitiveFields: ["connection_token"],
+  });
+}
+
+function internalStateResponse(
+  journeyId?: string | null,
+  monitoringPassId?: string | null,
+  env?: EnvRecord,
+) {
+  return {
+    http_status: 400 as const,
+    body: sanitizeUserInputContractFields({
+      ...internalContinuationStateMissing({
+        journeyId: journeyId ?? null,
+        monitoringPassId: monitoringPassId ?? null,
+      }),
+      free_service_endpoint: resolveFreeServiceEndpoint(env),
+    }),
   };
 }
 
@@ -325,13 +378,7 @@ export async function runMarketplaceJourney(
     if (resolution.http_status === 401) {
       return {
         http_status: 401,
-        body: {
-          status: "CLAIM_NOT_AUTHORIZED",
-          message:
-            "A valid single-use pass_claim_credential is required to start Purchase Setup. Public pass ids alone cannot claim a pass.",
-          monitoring_active: false,
-          second_payment_required: false,
-        },
+        body: sanitizeUserInputContractFields(claimNotAuthorizedBody()),
       };
     }
     // Resolve is read-only and never sets claim_authorized. When a claim
@@ -345,14 +392,11 @@ export async function runMarketplaceJourney(
     ) {
       return {
         http_status: 401,
-        body: {
-          status: "CLAIM_NOT_AUTHORIZED",
-          message:
-            "pass_claim_credential is required to start Purchase Setup. Public monitoring_pass_id alone cannot claim a pass.",
-          monitoring_active: false,
-          second_payment_required: false,
-          claim_required: true,
-        },
+        body: sanitizeUserInputContractFields(
+          claimNotAuthorizedBody(
+            "This request is not authorized to start Purchase Setup. Public identifiers alone cannot claim a pass.",
+          ),
+        ),
       };
     }
     if (
@@ -360,48 +404,39 @@ export async function runMarketplaceJourney(
       resolution.body.status !== "MONITORING_PASS_ISSUED" ||
       typeof resolution.body.monitoring_pass_id !== "string"
     ) {
-      const referenceField = passId
-        ? "monitoring_pass_id"
-        : "pass_continuation_id";
       const pending = resolution.body.status === "PAYMENT_SETTLEMENT_PENDING";
-      const cont =
-        typeof resolution.body.pass_continuation_id === "string"
-          ? resolution.body.pass_continuation_id
-          : continuationId || null;
-      return {
-        http_status: 400,
-        body: {
-          ...buildConversationContract({
-            status: "input_required",
-            completed_step: pending ? "PAYMENT_SUBMITTED" : "MONITORING_PASS_LOOKUP",
-            next_action: pending ? "RESOLVE_MONITORING_PASS" : "PROVIDE_MONITORING_PASS",
-            message: pending
-              ? "Settlement is still confirming. Do not pay again; retry this same pass reference later."
-              : "That Monitoring Pass could not be resolved. Check the pass reference and try again.",
-            guidance: pending
-              ? "Keep the same pass_continuation_id. Nobu will issue the pass when settlement confirms. Never open a second payment."
-              : "If the user has no pass, route them to service 35958 once. If they just paid, retry with pass_continuation_id.",
-            payment_status: pending ? "pending" : "required",
+      if (pending) {
+        // Settlement still open — no user input; agent may retry machine continuation only.
+        return {
+          http_status: 200,
+          body: sanitizeUserInputContractFields({
+            status: "PAYMENT_SETTLEMENT_PENDING",
+            completed_step: "PAYMENT_SUBMITTED",
+            next_action: "WAIT_FOR_SETTLEMENT",
+            message:
+              "Settlement is still confirming. Do not pay again. Do not ask the user for internal identifiers.",
+            guidance:
+              "Retry only with the machine continuation already held from the paid response. Never open a second payment. Never ask the user for credentials.",
+            payment_status: "pending",
             second_payment_required: false,
             monitoring_active: false,
             journey_complete: false,
             retry_safe: true,
-            required_fields: null,
-            required_user_input: {
-              required_fields: [referenceField],
-              description: pending
-                ? "Retry with the same pass_continuation_id."
-                : "Provide a valid monitoring_pass_id or pass_continuation_id.",
-            },
-            extra_fields: [referenceField],
-            pass_continuation_id: cont,
-            next_service_id: pending ? FREE_SERVICE_ID : PAID_SERVICE_ID,
+            input_required: false,
+            required_fields: [],
+            fields: [],
+            requiredArgs: [],
+            required_user_input: null,
+            automatic_continue: false,
+            protocol_continuation: null,
+            machine_continuation: null,
+            next_service_id: FREE_SERVICE_ID,
+            free_service_endpoint: resolveFreeServiceEndpoint(deps.env),
           }),
-          journey_id: "",
-          fields: [referenceField],
-          requiredArgs: [referenceField],
-        },
-      };
+        };
+      }
+      // Missing / not found / mismatched / historical — never request machine-owned fields.
+      return internalStateResponse(null, passId || null, deps.env);
     }
     const contIdForClaim =
       typeof resolution.body.pass_continuation_id === "string"
@@ -420,24 +455,21 @@ export async function runMarketplaceJourney(
       if (claimed.outcome === "claim_invalid") {
         return {
           http_status: 401,
-          body: {
-            status: "CLAIM_NOT_AUTHORIZED",
-            message:
-              "Invalid or already-used pass_claim_credential. Public pass ids alone cannot claim a pass.",
-            monitoring_active: false,
-            second_payment_required: false,
-          },
+          body: sanitizeUserInputContractFields(
+            claimNotAuthorizedBody(
+              "This claim is not authorized. Public identifiers alone cannot claim a pass.",
+            ),
+          ),
         };
       }
       if (claimed.outcome === "pass_mismatch") {
         return {
           http_status: 401,
-          body: {
-            status: "CLAIM_NOT_AUTHORIZED",
-            message: "Pass and continuation do not match.",
-            monitoring_active: false,
-            second_payment_required: false,
-          },
+          body: sanitizeUserInputContractFields(
+            claimNotAuthorizedBody(
+              "This claim is not authorized. Pass and continuation do not match.",
+            ),
+          ),
         };
       }
       journey = claimed.journey;
@@ -445,14 +477,11 @@ export async function runMarketplaceJourney(
       // No legacy public-ID journey path — claim credential is always required.
       return {
         http_status: 401,
-        body: {
-          status: "CLAIM_NOT_AUTHORIZED",
-          message:
-            "pass_claim_credential is required to start Purchase Setup. Public pass or continuation ids alone cannot create a journey.",
-          monitoring_active: false,
-          second_payment_required: false,
-          claim_required: true,
-        },
+        body: sanitizeUserInputContractFields(
+          claimNotAuthorizedBody(
+            "This request is not authorized to start Purchase Setup. Public identifiers alone cannot create a journey.",
+          ),
+        ),
       };
     }
   }
@@ -578,7 +607,7 @@ export async function runMarketplaceJourney(
           message:
             "Activation could not complete for this journey. Do not pay again. Do not redeem again.",
           guidance:
-            "A conclusive activation failure was recorded. Never open a second payment. Keep journey_id and monitoring_pass_id for support.",
+            "A conclusive activation failure was recorded. Never open a second payment. Do not ask the user for internal credentials.",
           payment_status: "recognized",
           second_payment_required: false,
           monitoring_active: false,
@@ -893,7 +922,14 @@ export async function runMarketplaceJourney(
 
   if (stage === "verification_code") {
     const code = cleanString(raw.verification_code || raw.code);
-    if (!code || !journey.connection_id) {
+    if (!journey.connection_id) {
+      return internalStateResponse(
+        journey.id,
+        journey.monitoring_pass_id,
+        deps.env,
+      );
+    }
+    if (!code) {
       return incomplete(stage, journey.id, undefined, stageExtras);
     }
     const verified = await verifyAgentEmailCode({
@@ -917,139 +953,123 @@ export async function runMarketplaceJourney(
       nowIso,
     });
     // connection_token is machine-owned: only inside protocol_continuation.body.
-    // Buyer agent asks only for the two consents (merge_user_fields).
-    return incomplete("consents", journey.id, undefined, {
-      ...stageExtras,
-      continuationBodyExtras: {
-        connection_token: verified.connection_token,
-      },
-      sensitiveFields: ["connection_token"],
-    });
+    return consentsStageResponse(
+      journey.id,
+      verified.connection_token,
+      stageExtras,
+    );
   }
 
-  if (
-    raw.monitoring_consent !== true ||
-    raw.email_alert_consent !== true ||
-    !journey.connection_id ||
-    !journey.discovery_session_id
-  ) {
-    // If consents incomplete but token present, keep it in continuation.
-    const heldToken = cleanString(raw.connection_token);
-    return incomplete("consents", journey.id, undefined, {
-      ...stageExtras,
-      ...(heldToken
-        ? {
-            continuationBodyExtras: { connection_token: heldToken },
-            sensitiveFields: ["connection_token"],
-          }
-        : {}),
+  // Consent stage (and only this stage after email verification).
+  if (stage === "consents") {
+    const connectionToken = cleanString(raw.connection_token);
+    // Token is required for every consent response. Never emit a tokenless
+    // consent continuation; never ask the user for the token.
+    if (!connectionToken) {
+      return internalStateResponse(
+        journey.id,
+        journey.monitoring_pass_id,
+        deps.env,
+      );
+    }
+    if (
+      raw.monitoring_consent !== true ||
+      raw.email_alert_consent !== true ||
+      !journey.connection_id ||
+      !journey.discovery_session_id
+    ) {
+      return consentsStageResponse(
+        journey.id,
+        connectionToken,
+        stageExtras,
+      );
+    }
+    // Eligibility preflight + pass redemption are provider-controlled automatic steps.
+    const preflight = await preflightMonitoringForAgent({
+      connectionId: journey.connection_id,
+      connectionToken,
+      discoverySessionId: journey.discovery_session_id,
+      monitoringConsent: true,
+      emailAlertConsent: true,
+      now,
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
     });
-  }
-  // After email verification the connection-token boundary is authoritative.
-  // Token must arrive via protocol_continuation — never ask the user for it.
-  const connectionToken = cleanString(raw.connection_token);
-  if (!connectionToken) {
-    return {
-      http_status: 400,
-      body: {
-        ...internalContinuationStateMissing({
-          journeyId: journey.id,
-          monitoringPassId: journey.monitoring_pass_id,
-        }),
-        free_service_endpoint: resolveFreeServiceEndpoint(deps.env),
-      },
-    };
-  }
-  if (!journey.discovery_session_id) {
-    return {
-      http_status: 400,
-      body: {
-        ...internalContinuationStateMissing({
-          journeyId: journey.id,
-          monitoringPassId: journey.monitoring_pass_id,
-        }),
-        free_service_endpoint: resolveFreeServiceEndpoint(deps.env),
-      },
-    };
-  }
-  // Eligibility preflight + pass redemption are provider-controlled automatic steps.
-  const preflight = await preflightMonitoringForAgent({
-    connectionId: journey.connection_id,
-    connectionToken,
-    discoverySessionId: journey.discovery_session_id,
-    monitoringConsent: true,
-    emailAlertConsent: true,
-    now,
-    sqliteDb: deps.sqliteDb,
-    env: deps.env,
-  });
-  if (!preflight.ok) {
-    return incomplete(
-      "consents",
-      journey.id,
-      "Eligibility or consent preflight did not pass. Confirm both consents and that the purchase is an eligible Target online purchase within the policy window.",
-      stageExtras,
-    );
-  }
-  await store.updateMarketplacePurchaseJourney({
-    id: journey.id,
-    stage: "consents",
-    quoteId: preflight.quote_id,
-    nowIso,
-  });
-  const redeemed = await redeemMonitoringPassForAgent({
-    monitoringPassId: journey.monitoring_pass_id,
-    quoteId: preflight.quote_id,
-    connectionId: journey.connection_id,
-    connectionToken,
-    now,
-    sqliteDb: deps.sqliteDb,
-    env: deps.env,
-  });
-  if (!redeemed.ok) {
-    return incomplete(
-      "consents",
-      journey.id,
-      "The Monitoring Pass could not be redeemed. Do not pay again. Retry consents/preflight if the pass is still unused, or resolve pass status first.",
-      stageExtras,
-    );
-  }
-  if (redeemed.status === "ACTIVATION_PENDING") {
+    if (!preflight.ok) {
+      return consentsStageResponse(
+        journey.id,
+        connectionToken,
+        stageExtras,
+        "Eligibility or consent preflight did not pass. Confirm both consents and that the purchase is an eligible Target online purchase within the policy window.",
+      );
+    }
     await store.updateMarketplacePurchaseJourney({
       id: journey.id,
-      stage: "activation_pending",
+      stage: "consents",
       quoteId: preflight.quote_id,
       nowIso,
     });
-    return activationPendingResponse(journey.id, {
-      ...stageExtras,
+    const redeemed = await redeemMonitoringPassForAgent({
       monitoringPassId: journey.monitoring_pass_id,
-      passContinuationId: journey.pass_continuation_id,
+      quoteId: preflight.quote_id,
+      connectionId: journey.connection_id,
       connectionToken,
+      now,
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
     });
-  }
-  await store.updateMarketplacePurchaseJourney({
-    id: journey.id,
-    stage: "complete",
-    quoteId: preflight.quote_id,
-    nowIso,
-  });
-  return {
-    http_status: 200,
-    body: {
-      ...marketplaceMonitoringActiveContract({
-        journeyId: journey.id,
+    if (!redeemed.ok) {
+      return consentsStageResponse(
+        journey.id,
+        connectionToken,
+        stageExtras,
+        "The Monitoring Pass could not be redeemed. Do not pay again. Confirm both consents again to retry eligibility if the pass is still unused.",
+      );
+    }
+    if (redeemed.status === "ACTIVATION_PENDING") {
+      await store.updateMarketplacePurchaseJourney({
+        id: journey.id,
+        stage: "activation_pending",
+        quoteId: preflight.quote_id,
+        nowIso,
+      });
+      return activationPendingResponse(journey.id, {
+        ...stageExtras,
         monitoringPassId: journey.monitoring_pass_id,
         passContinuationId: journey.pass_continuation_id,
+        connectionToken,
+      });
+    }
+    await store.updateMarketplacePurchaseJourney({
+      id: journey.id,
+      stage: "complete",
+      quoteId: preflight.quote_id,
+      nowIso,
+    });
+    return {
+      http_status: 200,
+      body: sanitizeUserInputContractFields({
+        ...marketplaceMonitoringActiveContract({
+          journeyId: journey.id,
+          monitoringPassId: journey.monitoring_pass_id,
+          passContinuationId: journey.pass_continuation_id,
+        }),
+        journey_id: journey.id,
+        fields: [],
+        requiredArgs: [],
+        required_fields: [],
+        input_required: false,
+        automatic_continue: false,
+        protocol_continuation: null,
+        machine_continuation: null,
       }),
-      journey_id: journey.id,
-      fields: [],
-      requiredArgs: [],
-      required_fields: [],
-      input_required: false,
-      automatic_continue: false,
-      protocol_continuation: null,
-      machine_continuation: null,
-    },
-  };
+    };
+  }
+
+  // Unexpected stage — fail closed without asking for machine credentials.
+  return internalStateResponse(
+    journey.id,
+    journey.monitoring_pass_id,
+    deps.env,
+  );
 }

@@ -164,6 +164,7 @@ export function userVisibleFieldsOnly(fields: string[]): string[] {
 
 /**
  * INTERNAL_CONTINUATION_STATE_MISSING — never convert to payment or credential ask.
+ * Never lists machine-owned field names as something the user should supply.
  */
 export function internalContinuationStateMissing(args: {
   journeyId?: string | null;
@@ -188,10 +189,60 @@ export function internalContinuationStateMissing(args: {
     message:
       "Internal continuation state is unavailable. Do not pay again. Do not ask the user for tokens or credentials.",
     guidance:
-      "Do not request payment, connection_token, pass_claim_credential, or other machine-owned values. Keep the journey_id for support if present.",
+      "Do not request payment or internal credentials from the user. Keep any public support reference if already known. Never open a second payment.",
     ...(args.journeyId ? { journey_id: args.journeyId } : {}),
     ...(args.monitoringPassId
       ? { monitoring_pass_id: args.monitoringPassId }
       : {}),
   };
+}
+
+/**
+ * Unauthorized claim / public-id attempt — HTTP 401 is allowed, but never
+ * instruct the user (or buyer agent via required_fields) to supply secrets.
+ */
+export function claimNotAuthorizedBody(message?: string): Record<string, unknown> {
+  return {
+    status: "CLAIM_NOT_AUTHORIZED",
+    message:
+      message ??
+      "This request is not authorized to start Purchase Setup. Public identifiers alone cannot continue.",
+    guidance:
+      "Do not ask the user for internal credentials. Do not invent a payment. If a Monitoring Pass was just purchased, retry only with the machine continuation from the paid response.",
+    monitoring_active: false,
+    second_payment_required: false,
+    journey_complete: false,
+    input_required: false,
+    required_fields: [],
+    fields: [],
+    requiredArgs: [],
+    required_user_input: null,
+    automatic_continue: false,
+    protocol_continuation: null,
+    machine_continuation: null,
+    retry_safe: false,
+    next_action: "CONTACT_SUPPORT_WITH_JOURNEY_ID",
+  };
+}
+
+/** Final sanitize so no caller can put machine-owned names in user-input lists. */
+export function sanitizeUserInputContractFields<T extends Record<string, unknown>>(
+  body: T,
+): T {
+  const out = { ...body } as Record<string, unknown>;
+  for (const key of ["required_fields", "fields", "requiredArgs"] as const) {
+    if (Array.isArray(out[key])) {
+      out[key] = userVisibleFieldsOnly(out[key] as string[]);
+    }
+  }
+  if (out.required_user_input && typeof out.required_user_input === "object") {
+    const rui = { ...(out.required_user_input as Record<string, unknown>) };
+    if (Array.isArray(rui.required_fields)) {
+      rui.required_fields = userVisibleFieldsOnly(
+        rui.required_fields as string[],
+      );
+    }
+    out.required_user_input = rui;
+  }
+  return out as T;
 }

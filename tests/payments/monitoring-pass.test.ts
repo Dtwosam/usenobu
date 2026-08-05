@@ -1006,8 +1006,9 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
       sqliteDb: db,
     });
     expect(missing.http_status).toBe(404);
-    expect(missing.body.status).toBe("MONITORING_PASS_NOT_FOUND");
+    expect(missing.body.status).toBe("INTERNAL_CONTINUATION_STATE_MISSING");
     expect(missing.body.monitoring_pass_id).toBeUndefined();
+    expect(missing.body.required_fields).toEqual([]);
 
     const issued = await buyPass("settle_ref_handoff_unknown", "hdr-unknown");
     const wrong = await resolveMonitoringPassForAgent({
@@ -1015,7 +1016,7 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
       sqliteDb: db,
     });
     expect(wrong.http_status).toBe(404);
-    expect(wrong.body.status).toBe("MONITORING_PASS_NOT_FOUND");
+    expect(wrong.body.status).toBe("INTERNAL_CONTINUATION_STATE_MISSING");
     // Same generic shape — no existence leak of the real pass id.
     expect(JSON.stringify(wrong.body)).not.toContain(issued.pass.id);
   });
@@ -1038,7 +1039,8 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     });
     // Public pass id alone no longer mints a claimable continuation.
     expect(resolved.http_status).toBe(404);
-    expect(resolved.body.status).toBe("MONITORING_PASS_RECOVERY_REQUIRED");
+    expect(resolved.body.status).toBe("INTERNAL_CONTINUATION_STATE_MISSING");
+    expect(resolved.body.required_fields).toEqual([]);
     // Keep issued pass durable for operator recovery paths.
     expect(issued.pass.id).toBeTruthy();
     // No continuation fabricated from public id alone.

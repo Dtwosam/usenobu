@@ -189,7 +189,9 @@ describe("claim credential recovery", () => {
       env,
     });
     expect(res.http_status).toBe(404);
-    expect(res.body.status).toBe("MONITORING_PASS_RECOVERY_REQUIRED");
+    expect(res.body.status).toBe("INTERNAL_CONTINUATION_STATE_MISSING");
+    expect(res.body.second_payment_required).toBe(false);
+    expect(res.body.required_fields).toEqual([]);
   });
 });
 

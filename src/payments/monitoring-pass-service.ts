@@ -1434,10 +1434,21 @@ export async function resolveMonitoringPassForAgent(args: {
     return {
       http_status: 400,
       body: {
+        status: "INTERNAL_CONTINUATION_STATE_MISSING",
         error: "invalid_input",
-        status: "invalid_input",
         message:
-          "Provide pass_continuation_id or monitoring_pass_id.",
+          "Continuation state is unavailable. Do not ask the user for internal identifiers or credentials. Do not invent a payment.",
+        guidance:
+          "Do not request payment or internal credentials from the user. Retry only with the machine continuation from a successful paid response, if still held.",
+        monitoring_active: false,
+        second_payment_required: false,
+        input_required: false,
+        required_fields: [],
+        fields: [],
+        requiredArgs: [],
+        required_user_input: null,
+        retry_safe: false,
+        next_action: "CONTACT_SUPPORT_WITH_JOURNEY_ID",
       },
     };
   }
@@ -1452,9 +1463,21 @@ export async function resolveMonitoringPassForAgent(args: {
       return {
         http_status: 400,
         body: {
+          status: "INTERNAL_CONTINUATION_STATE_MISSING",
           error: "invalid_input",
-          status: "invalid_input",
-          message: "pass_continuation_id and monitoring_pass_id do not match.",
+          message:
+            "Continuation state is unavailable or inconsistent. Do not ask the user for internal identifiers. Do not invent a payment.",
+          guidance:
+            "Do not request payment or internal credentials from the user.",
+          monitoring_active: false,
+          second_payment_required: false,
+          input_required: false,
+          required_fields: [],
+          fields: [],
+          requiredArgs: [],
+          required_user_input: null,
+          retry_safe: false,
+          next_action: "CONTACT_SUPPORT_WITH_JOURNEY_ID",
         },
       };
     }
@@ -1465,17 +1488,43 @@ export async function resolveMonitoringPassForAgent(args: {
     return {
       http_status: 404,
       body: {
-        status: "MONITORING_PASS_RECOVERY_REQUIRED",
+        status: "INTERNAL_CONTINUATION_STATE_MISSING",
         message:
-          "This pass cannot be claimed by public id alone. Use pass_continuation_id and pass_claim_credential from the paid response. Historical passes need operator recovery.",
+          "This pass cannot be continued from a public identifier alone. Do not ask the user for internal credentials. Historical passes need operator recovery. Do not invent a payment.",
+        guidance:
+          "Do not request payment or internal credentials from the user.",
         monitoring_active: false,
         second_payment_required: false,
+        input_required: false,
+        required_fields: [],
+        fields: [],
+        requiredArgs: [],
+        required_user_input: null,
+        retry_safe: false,
+        next_action: "CONTACT_SUPPORT_WITH_JOURNEY_ID",
       },
     };
   }
 
   if (!continuation) {
-    return { http_status: 404, body: genericMissing };
+    return {
+      http_status: 404,
+      body: {
+        ...genericMissing,
+        status: "INTERNAL_CONTINUATION_STATE_MISSING",
+        message:
+          "No Monitoring Pass was found for that reference. Do not invent a payment. Do not ask the user for internal credentials.",
+        guidance:
+          "Do not request payment or internal credentials from the user.",
+        input_required: false,
+        required_fields: [],
+        fields: [],
+        requiredArgs: [],
+        required_user_input: null,
+        retry_safe: false,
+        next_action: "CONTACT_SUPPORT_WITH_JOURNEY_ID",
+      },
+    };
   }
 
   // Read-only claim status — never consume here. Only claimPassAndCreateJourney consumes.
