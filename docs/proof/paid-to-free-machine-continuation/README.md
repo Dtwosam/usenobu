@@ -105,15 +105,15 @@ Proved:
 
 ## Production probes (unpaid only)
 
-After deploy of this commit to `https://www.usenobu.xyz` only:
+Deployed commit `7b7c810` → Production alias `https://www.usenobu.xyz` (deployment `usenobu-75tx7dext…`).
 
-| Probe | Expected |
+| Probe | Result |
 |---|---|
-| `GET /health` | 200 |
-| free first contact `POST /v1/agent` `{}` | 400 SERVICE_SELECTION_REQUIRED; endpoints use `www.usenobu.xyz` |
-| unpaid paid endpoint | 402 x402 challenge |
-| malformed payment signature | 402 reject / re-challenge |
-| serialized domain checks | no obsolete generated alias hostname |
+| `GET /health` | **200** ok |
+| free first contact `POST /v1/agent` `{}` | **400** `SERVICE_SELECTION_REQUIRED`; both endpoints `https://www.usenobu.xyz/...` |
+| unpaid paid endpoint | **402** + `PAYMENT-REQUIRED`; no obsolete hostname |
+| malformed payment signature | **402** |
+| free GET serialization | **400**; no obsolete hostname |
 
 No genuine payment, no ASP `#5541` mutation, no service metadata edit.
 
