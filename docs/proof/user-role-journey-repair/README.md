@@ -2,7 +2,8 @@
 
 **Date:** 2026-08-05  
 **Baseline HEAD:** `3d9c8652a565c6713135767e602e3e238e70d67d`  
-**Status:** code complete; deploy + unpaid Production probes recorded below when available.
+**Final HEAD:** `c35468f5fb83bf56cd2f3d98a76e9fe1c7ae205d`  
+**Verdict:** `NOBU_USER_ROLE_JOURNEY_REPAIR_PASS`
 
 ## Root cause
 
@@ -56,11 +57,76 @@ npx vitest run tests/a2mcp/service-catalogue.test.ts \
 
 Result: **61/61 passed**. Typecheck clean. Production build clean. `git diff --check` clean.
 
-## Production proof
+## Deployment
 
-Recorded after deploy (fill in):
+| Item | Value |
+|---|---|
+| Commit | `c35468f5fb83bf56cd2f3d98a76e9fe1c7ae205d` |
+| Deploy ID | `dpl_BcEVaj8A1zGW6FL41FANa6z1z6tc` |
+| Deployment URL | `https://usenobu-nz4f6jmib-dtwoflicks-2878s-projects.vercel.app` |
+| Free alias | `https://usenobu.vercel.app` (explicitly re-aliased) |
+| Paid / consumer alias | `https://www.usenobu.xyz` |
 
-- Deploy ID:
-- Free GET/empty POST:
-- Paid GET/empty POST + x402-check:
-- User-role A/B/C (unpaid only):
+## Direct Production probes (unpaid)
+
+### Free `https://usenobu.vercel.app/v1/agent`
+
+| Probe | HTTP | Result |
+|---|---|---|
+| GET | 400 | `SERVICE_SELECTION_REQUIRED`, agent 5541, services 33561+35958, `payment_status=not_required`, fields=`service_id` |
+| POST `{}` | 400 | same |
+| POST generic message agent 5541 | 400 | same; guidance forbids assume-service / describe-Nobu / balance preflight |
+| POST SELECT_SERVICE 33561 | 200 | free selected, `payment_status=not_required` |
+| POST SELECT_SERVICE 35958 | 200 | paid selected, deliverable monitoring_pass×1, no params, paid_endpoint catalogue URL |
+
+### Paid `https://www.usenobu.xyz/v1/agent/monitoring-pass`
+
+| Probe | HTTP | Result |
+|---|---|---|
+| GET | 402 | PAYMENT-REQUIRED present; x402 v2 exact eip155:196 amount 990000; resource URL paid host |
+| POST `{}` | 402 | same; `input_required=false`; empty required fields; deliverable; one_quote_only; insufficient_balance preserves quote |
+
+Header/body agreement: resource URL match, amount match.
+
+### Official x402-check
+
+```
+onchainos agent x402-check --endpoint https://www.usenobu.xyz/v1/agent/monitoring-pass
+```
+
+Result: `"valid": true`, x402Version 2, scheme exact, network eip155:196, amount 990000, token USDT.
+
+## Unpaid User-role scenarios (HTTP machine contract)
+
+These are the machine responses a User-role agent receives for the three prompts (no payment authorized).
+
+### A. Fresh: "I would like to use the service of agent 5541"
+
+- Both services listed (33561 free, 35958 paid with distinct endpoints).
+- `service_selection_required: true`, only `service_id` required.
+- `payment_status: not_required` — no wallet check required yet.
+- Guidance: do not assume service; do not ask user to describe Nobu; do not inspect balance before paid selection.
+
+### B. Explicit paid: SELECT_SERVICE 35958 / Monitoring Pass
+
+- Clear deliverable `{type: monitoring_pass, quantity: 1}`.
+- No product/email/wallet/threshold service parameters.
+- Paid endpoint + payment_status required only after selection; unpaid paid route is payment confirmation only.
+
+### C. Prior paid context then generic Agent 5541 request
+
+- New generic envelope returns fresh `SERVICE_SELECTION_REQUIRED`.
+- Paid service not silently assumed (`selected_service_id` absent).
+
+## Platform-controlled boundary
+
+Nobu owns API introduction, service catalogue, paid 402 body/header, journey stage contracts, and post-payment handoff fields.  
+OKX/Onchain OS owns job wrappers, wallet balance UI, and whether the buyer agent obeys machine guidance.  
+If a future interactive OKX.AI chat still assumes a service despite `SERVICE_SELECTION_REQUIRED`, that is a platform consumption issue — do not mutate ASP `#5541` metadata.
+
+## Confirmation
+
+- No genuine payment.
+- No ASP update / activate / resubmission.
+- No new Agent or service creation.
+- No private keys, seeds, cards, bank details, 2FA, or raw payment headers exposed.

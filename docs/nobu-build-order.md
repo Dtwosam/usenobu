@@ -5,26 +5,27 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — OKX User-role marketplace journey repair
+## Active closeout — OKX User-role marketplace journey repair PASS
 
-**State:** code complete on service catalogue + discovery + paid pre-payment contract; deploy and real OKX.AI User-role A→Z still required.
+**State:** PASS — code + Production deploy + unpaid User-role machine proofs + official x402-check.
 
-Marketplace journey repair (2026-08-05):
+Marketplace journey repair (2026-08-05) final `c35468f` / deploy `dpl_BcEVaj8A1zGW6FL41FANa6z1z6tc`:
 
-- Canonical catalogue `src/a2mcp/service-catalogue.ts`: Agent 5541; free 33561 @ `usenobu.vercel.app/v1/agent`; paid 35958 @ `www.usenobu.xyz/v1/agent/monitoring-pass`.
-- Generic first contact → `SERVICE_SELECTION_REQUIRED` (both services; `payment_status: not_required`).
-- Machine actions `DESCRIBE_SERVICES` / `SELECT_SERVICE`.
-- Paid unpaid 402 body: empty required fields, structured deliverable, locked no-parameters message.
-- Conversation contract: `next_action` does not invent user-facing `action`.
-- Focused tests green; typecheck clean.
+- Canonical catalogue: free 33561 @ `usenobu.vercel.app/v1/agent`; paid 35958 @ `www.usenobu.xyz/v1/agent/monitoring-pass`.
+- Generic first contact → `SERVICE_SELECTION_REQUIRED`; `DESCRIBE_SERVICES` / `SELECT_SERVICE`.
+- Paid 402: empty required fields, deliverable, protocol_replay (no user PAYMENT-SIGNATURE), one-quote balance guidance.
+- Setup stages: `current_step`, `automatic_continue`, `machine_continuation`; product discovery automatic.
+- Issued pass → `CONFIRM_USE_PASS` / service 33561; monitoring active only after redemption.
+- Focused 61/61; typecheck; build; free alias re-pointed; x402-check `valid: true`.
+- No payment, ASP update, activation, resubmission.
 
-Exact next lane:
+Exact next lane (optional operator):
 
-1. Deploy production and re-alias free + paid hosts as registered.
-2. Record one interactive OKX.AI User-role journey against agent `5541` (service choice → at most one `0.99 USDT` payment; never re-quote on `balance_unavailable`).
-3. Prove full A→Z; flip to PASS only if calling agents no longer assume a service from Agent ID alone.
+1. One interactive OKX.AI User-role chat against agent `5541` (service choice → at most one `0.99 USDT` payment) if a live video A→Z is required.
+2. If the buyer agent still ignores `SERVICE_SELECTION_REQUIRED`, record platform-bound transcript — do not mutate ASP `#5541`.
 
-**Current verdict:** `NOBU_OKX_USER_MARKETPLACE_JOURNEY_REPAIR_CODE_COMPLETE`.
+**Closeout proof:** `docs/proof/user-role-journey-repair/README.md`.  
+**Current verdict:** `NOBU_USER_ROLE_JOURNEY_REPAIR_PASS`.
 
 ## Prior closeout — Complete production hardening
 
