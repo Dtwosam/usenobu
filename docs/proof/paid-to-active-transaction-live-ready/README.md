@@ -52,5 +52,13 @@ Do **not** authorize a genuine payment until an operator with the live `OWNER_OP
 
 ## Production probes (no genuine payment)
 
-- health, free unpaid, paid unpaid/malformed as before
-- config-readiness unauthenticated / wrong token: 401
+| Probe | Result |
+|-------|--------|
+| health | 200 |
+| free POST `{}` | 400 |
+| unpaid monitoring-pass | 402 |
+| malformed signature | 402 |
+| config-readiness wrong bearer | 401 (owner secret live) |
+
+- Code: `62e410e` · Proof: `47ade16`
+- Deploy READY → `https://www.usenobu.xyz`
