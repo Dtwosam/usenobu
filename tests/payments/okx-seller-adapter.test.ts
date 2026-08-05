@@ -50,7 +50,7 @@ import { runAgentAction } from "../../src/ai/agent-service.js";
 import type { MatchableOffer } from "../../src/matching/types.js";
 import type { DiscoveryPurchaseFields } from "../../src/ai/schemas.js";
 
-const RESOURCE = "https://usenobu.vercel.app/v1/agent/start-monitoring";
+const RESOURCE = "https://www.usenobu.xyz/v1/agent/start-monitoring";
 const PAY_TO = "0x1111111111111111111111111111111111111111";
 
 function tempDb(): string {

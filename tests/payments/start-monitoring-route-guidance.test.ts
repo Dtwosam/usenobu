@@ -15,7 +15,7 @@ import { startMonitoringResponseBody as responseBody } from "../../src/payments/
 import type { StartMonitoringResult } from "../../src/payments/start-monitoring-service.js";
 
 function request(body: unknown): Request {
-  return new Request("https://usenobu.vercel.app/v1/agent/start-monitoring", {
+  return new Request("https://www.usenobu.xyz/v1/agent/start-monitoring", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -31,7 +31,7 @@ describe("start-monitoring route — schema-violation guidance (Lane 8R.3)", () 
     expect(body.required_fields).toEqual(["quote_id", "connection_id", "connection_token"]);
     expect(typeof body.next_action).toBe("string");
     expect(body.next_action as string).toContain("PREFLIGHT_MONITORING");
-    expect(body.documentation).toBe("https://usenobu.vercel.app/okx");
+    expect(body.documentation).toBe("https://www.usenobu.xyz/okx");
   });
 
   it("a plausible natural-language body still 400s with the same machine-readable guidance", async () => {
@@ -63,7 +63,7 @@ describe("responseBody — ACTION_NOT_AUTHORIZED / CONNECTION_EXPIRED guidance (
     expect(body.status).toBe("ACTION_NOT_AUTHORIZED");
     expect(typeof body.message).toBe("string");
     expect(body.next_action).toContain("PREFLIGHT_MONITORING");
-    expect(body.documentation).toBe("https://usenobu.vercel.app/okx");
+    expect(body.documentation).toBe("https://www.usenobu.xyz/okx");
   });
 
   it("CONNECTION_EXPIRED gets the identical guidance fields as ACTION_NOT_AUTHORIZED (no reason leaked)", () => {
@@ -112,7 +112,7 @@ describe("responseBody — ACTION_NOT_AUTHORIZED / CONNECTION_EXPIRED guidance (
       challenge: {
         x402Version: 2,
         resource: {
-          url: "https://usenobu.vercel.app/v1/agent/start-monitoring",
+          url: "https://www.usenobu.xyz/v1/agent/start-monitoring",
           description: "Activate Nobu price monitoring for one purchase.",
           mimeType: "application/json",
         },

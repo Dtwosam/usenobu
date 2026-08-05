@@ -58,7 +58,7 @@ import { runAgentAction } from "../../src/ai/agent-service.js";
 import type { MatchableOffer } from "../../src/matching/types.js";
 import type { DiscoveryPurchaseFields } from "../../src/ai/schemas.js";
 
-const PASS_RESOURCE = "https://usenobu.vercel.app/v1/agent/monitoring-pass";
+const PASS_RESOURCE = "https://www.usenobu.xyz/v1/agent/monitoring-pass";
 
 function tempDb(): string {
   return path.join(
@@ -405,7 +405,26 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(body.journey_complete).toBe(false);
     expect(body.next_service_id).toBe(33561);
     expect(body.second_payment_required).toBe(false);
-    expect(body.payment_status).toBe("settled");
+    expect(body.payment_status).toBe("recognized");
+    expect(body.automatic_continue).toBe(true);
+    expect(body.input_required).toBe(false);
+    expect(body.required_fields).toEqual([]);
+    expect(body.pass_claim_credential).toBeUndefined();
+    const cont = body.protocol_continuation as {
+      endpoint: string;
+      body: Record<string, unknown>;
+      sensitive_fields?: string[];
+      do_not_ask_user: true;
+      do_not_display: true;
+    };
+    expect(cont).toBeTruthy();
+    expect(cont.endpoint).toBe("https://www.usenobu.xyz/v1/agent");
+    expect(cont.body.pass_continuation_id).toBe(issued.pass_continuation_id);
+    expect(cont.body.pass_claim_credential).toBeTruthy();
+    expect(cont.sensitive_fields).toContain("pass_claim_credential");
+    expect(cont.do_not_ask_user).toBe(true);
+    expect(cont.do_not_display).toBe(true);
+    expect(body.machine_continuation).toEqual(body.protocol_continuation);
     expect(issued.payment_response_header).toBeTruthy();
   });
 
@@ -1096,7 +1115,7 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
   it("issued and pending response bodies carry the conversation contract", async () => {
     const issued = await buyPass("settle_ref_contract_001", "hdr-contract-1");
     const issuedBody = monitoringPassResponseBody(issued);
-    expect(issuedBody.payment_status).toBe("settled");
+    expect(issuedBody.payment_status).toBe("recognized");
     expect(issuedBody.second_payment_required).toBe(false);
     expect(issuedBody.monitoring_active).toBe(false);
     expect(issuedBody.next_service_id).toBe(33561);

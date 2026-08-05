@@ -41,8 +41,11 @@ describe("canonical service catalogue", () => {
     expect(paid.activates_monitoring).toBe(false);
     expect(paid.parameters_required_before_payment).toEqual([]);
 
-    // Distinct hosts — never share one base URL.
-    expect(new URL(free.endpoint).host).not.toBe(new URL(paid.endpoint).host);
+    // Sole Production domain; free and paid use distinct paths.
+    expect(new URL(free.endpoint).host).toBe("www.usenobu.xyz");
+    expect(new URL(paid.endpoint).host).toBe("www.usenobu.xyz");
+    expect(new URL(free.endpoint).pathname).toBe("/v1/agent");
+    expect(new URL(paid.endpoint).pathname).toBe("/v1/agent/monitoring-pass");
   });
 
   it("resolves free and paid endpoints independently from env", () => {

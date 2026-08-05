@@ -113,8 +113,8 @@ describe("bare service_id selection (findings 1)", () => {
   });
 });
 
-describe("human stages have null machine_continuation (finding cleanup)", () => {
-  it("7 human stages set machine_continuation null", () => {
+describe("human stages carry protocol_continuation without machine-owned required fields", () => {
+  it("human stages expose merge_user_fields and never require journey_id", () => {
     for (const stage of [
       "confirm_use_pass",
       "purchase_description",
@@ -125,12 +125,20 @@ describe("human stages have null machine_continuation (finding cleanup)", () => 
     ] as const) {
       const body = marketplaceIncompleteContract({
         stage,
-        journeyId: "journey_human_null",
+        journeyId: "journey_human_cont",
       });
       expect(body.automatic_continue).toBe(false);
-      expect(body.machine_continuation).toBeNull();
-      expect(body.journey_id).toBe("journey_human_null");
+      expect(body.protocol_continuation).toBeTruthy();
+      expect(body.protocol_continuation?.body.journey_id).toBe(
+        "journey_human_cont",
+      );
+      expect(body.protocol_continuation?.merge_user_fields).toEqual(
+        body.required_fields,
+      );
+      expect(body.machine_continuation).toEqual(body.protocol_continuation);
+      expect(body.journey_id).toBe("journey_human_cont");
       expect(body.fields).not.toContain("journey_id");
+      expect(body.fields).not.toContain("connection_token");
     }
   });
 });
@@ -234,7 +242,12 @@ describe("no-result discovery and activation_pending", () => {
     expect(discovered.body.current_step).toBe("purchase_description");
     expect(discovered.body.input_required).toBe(true);
     expect(discovered.body.automatic_continue).toBe(false);
-    expect(discovered.body.machine_continuation).toBeNull();
+    expect(discovered.body.protocol_continuation).toEqual(
+      expect.objectContaining({
+        body: expect.objectContaining({ journey_id: journeyId }),
+        merge_user_fields: ["purchase_description"],
+      }),
+    );
     expect(discovered.body.fields).toEqual(["purchase_description"]);
     expect(discovered.body.required_fields).toEqual(["purchase_description"]);
     expect(String(discovered.body.message)).toMatch(/Target URL|TCIN|model/i);
@@ -300,7 +313,14 @@ describe("no-result discovery and activation_pending", () => {
       { journey_id: journeyId, verification_code: code },
       deps,
     );
-    const connectionToken = String(verified.body.connection_token || "");
+    const connectionToken = String(
+      (
+        verified.body.protocol_continuation as {
+          body: Record<string, unknown>;
+        }
+      ).body.connection_token || "",
+    );
+    expect(connectionToken).toBeTruthy();
 
     const pending = await runMarketplaceJourney(
       {
@@ -317,12 +337,20 @@ describe("no-result discovery and activation_pending", () => {
     expect(pending.body.automatic_continue).toBe(true);
     expect(pending.body.fields).toEqual([]);
     expect(pending.body.required_fields).toEqual([]);
-    expect(pending.body.machine_continuation).toEqual(
+    expect(pending.body.protocol_continuation).toEqual(
       expect.objectContaining({
         method: "POST",
-        body: expect.objectContaining({ journey_id: journeyId }),
+        body: expect.objectContaining({
+          journey_id: journeyId,
+          connection_token: connectionToken,
+        }),
+        sensitive_fields: ["connection_token"],
         do_not_ask_user: true,
+        do_not_display: true,
       }),
+    );
+    expect(pending.body.machine_continuation).toEqual(
+      pending.body.protocol_continuation,
     );
     expect(String(pending.body.guidance || "")).not.toMatch(
       /confirm both consents|Provide consents/i,

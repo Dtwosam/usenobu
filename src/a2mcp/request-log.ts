@@ -22,6 +22,10 @@ const SENSITIVE_KEY_NAMES = [
   "otp",
   "connection_token",
   "monitoring_pass_token",
+  "pass_claim_credential",
+  "claim_credential",
+  "payment_signature",
+  "authorization",
 ];
 
 function safeKeyNames(raw: unknown): string[] {

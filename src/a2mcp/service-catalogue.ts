@@ -12,9 +12,12 @@
 export const NOBU_AGENT_ID = 5541 as const;
 export const NOBU_AGENT_NAME = "Nobu" as const;
 
+/** Sole Production public domain for all A2MCP services. */
+export const CANONICAL_PRODUCTION_ORIGIN = "https://www.usenobu.xyz" as const;
+
 /** Registered free A2MCP service endpoint (ASP service 33561). */
 export const DEFAULT_FREE_SERVICE_ENDPOINT =
-  "https://usenobu.vercel.app/v1/agent" as const;
+  "https://www.usenobu.xyz/v1/agent" as const;
 
 /** Registered paid A2MCP service endpoint (ASP service 35958). */
 export const DEFAULT_PAID_SERVICE_ENDPOINT =

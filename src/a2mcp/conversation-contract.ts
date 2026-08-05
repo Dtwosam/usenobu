@@ -10,32 +10,32 @@
  * A2MCP protocol `action` field must pass `include_action_field: true` or put
  * `"action"` in `required_fields`.
  *
- * Marketplace stages additionally expose `current_step`, `automatic_continue`,
- * and `machine_continuation` so buyer agents can auto-continue server steps
- * without asking the user to resubmit internal IDs.
+ * Marketplace stages expose `current_step`, `automatic_continue`, and
+ * authoritative `protocol_continuation` (mirrored as `machine_continuation`
+ * for temporary compatibility). Buyer agents follow protocol_continuation only.
  */
 
 import {
   FREE_SERVICE_ID,
   NOBU_DOCUMENTATION_URL,
-  resolveFreeServiceEndpoint,
   type EnvRecord,
 } from "./service-catalogue.js";
+import {
+  buildJourneyContinuation,
+  type ProtocolContinuation,
+  userVisibleFieldsOnly,
+} from "./protocol-continuation.js";
+
+export type {
+  ProtocolContinuation,
+  MachineContinuation,
+} from "./protocol-continuation.js";
 
 export type PaymentStatus =
   | "not_required"
   | "required"
   | "pending"
   | "recognized";
-
-export type MachineContinuation = {
-  method: "POST";
-  endpoint: string;
-  service_id: typeof FREE_SERVICE_ID;
-  body: Record<string, unknown>;
-  /** Protocol-only; never present as user-visible required input. */
-  do_not_ask_user: true;
-};
 
 export type ConversationContract = {
   status: string;
@@ -60,8 +60,14 @@ export type ConversationContract = {
   input_required?: boolean;
   required_fields?: string[] | null;
   automatic_continue?: boolean;
-  machine_continuation?: MachineContinuation | null;
-  /** Protocol replay only — never a user-visible required field. */
+  /** Authoritative machine-resumable continuation. */
+  protocol_continuation?: ProtocolContinuation | null;
+  /**
+   * Legacy mirror of protocol_continuation — identical when both present.
+   * Prefer protocol_continuation.
+   */
+  machine_continuation?: ProtocolContinuation | null;
+  /** @deprecated Competing continuation path — keep null for marketplace. */
   protocol_replay?: Record<string, unknown> | null;
 };
 
@@ -102,7 +108,8 @@ export function buildConversationContract(args: {
   input_required?: boolean;
   current_step?: string | null;
   automatic_continue?: boolean;
-  machine_continuation?: MachineContinuation | null;
+  protocol_continuation?: ProtocolContinuation | null;
+  machine_continuation?: ProtocolContinuation | null;
   protocol_replay?: Record<string, unknown> | null;
 }): ConversationContract {
   const monitoring_active = args.monitoring_active ?? false;
@@ -111,21 +118,27 @@ export function buildConversationContract(args: {
   const extra = args.extra_fields ?? [];
   const includeAction = args.include_action_field === true;
 
+  // Never surface machine-owned names as user-required fields.
+  const safeRequired =
+    required_fields !== undefined && required_fields !== null
+      ? userVisibleFieldsOnly(required_fields)
+      : required_fields;
+
   let fields: string[] | null = null;
-  if (required_fields !== undefined && required_fields !== null) {
-    if (required_fields.length === 0 && extra.length === 0) {
+  if (safeRequired !== undefined && safeRequired !== null) {
+    if (safeRequired.length === 0 && extra.length === 0) {
       fields = [];
     } else {
       const base = includeAction
-        ? [
-            "action",
-            ...required_fields.filter((f) => f !== "action"),
-          ]
-        : [...required_fields];
-      fields = [...base, ...extra.filter((f) => !base.includes(f))];
+        ? ["action", ...safeRequired.filter((f) => f !== "action")]
+        : [...safeRequired];
+      fields = [
+        ...base,
+        ...userVisibleFieldsOnly(extra.filter((f) => !base.includes(f))),
+      ];
     }
   } else if (extra.length > 0) {
-    fields = [...extra];
+    fields = userVisibleFieldsOnly([...extra]);
   } else {
     // next_action alone must not invent a user-facing `action` field.
     fields = null;
@@ -134,15 +147,15 @@ export function buildConversationContract(args: {
   const required_user_input =
     args.required_user_input !== undefined
       ? args.required_user_input
-      : required_fields && required_fields.length > 0
+      : safeRequired && safeRequired.length > 0
         ? includeAction
           ? {
               action: args.next_action,
-              required_fields,
+              required_fields: safeRequired,
               description: args.message,
             }
           : {
-              required_fields,
+              required_fields: safeRequired,
               description: args.message,
             }
         : null;
@@ -151,6 +164,18 @@ export function buildConversationContract(args: {
     args.input_required !== undefined
       ? args.input_required
       : fields !== null && fields.length > 0;
+
+  // protocol_continuation is authoritative; machine_continuation mirrors it.
+  const protocol =
+    args.protocol_continuation !== undefined
+      ? args.protocol_continuation
+      : args.machine_continuation !== undefined
+        ? args.machine_continuation
+        : null;
+  const machine =
+    args.machine_continuation !== undefined
+      ? args.machine_continuation
+      : protocol;
 
   const contract: ConversationContract = {
     status: args.status,
@@ -169,14 +194,12 @@ export function buildConversationContract(args: {
     documentation: NOBU_DOCS,
     input_required,
     required_fields:
-      required_fields !== undefined && required_fields !== null
-        ? [...required_fields]
+      safeRequired !== undefined && safeRequired !== null
+        ? [...safeRequired]
         : fields,
     automatic_continue: args.automatic_continue ?? false,
-    machine_continuation:
-      args.machine_continuation !== undefined
-        ? args.machine_continuation
-        : null,
+    protocol_continuation: protocol,
+    machine_continuation: machine,
     protocol_replay:
       args.protocol_replay !== undefined ? args.protocol_replay : null,
   };
@@ -209,20 +232,6 @@ export type MarketplaceStage =
   | "verification_code"
   | "consents";
 
-function freeSetupContinuation(
-  journeyId: string,
-  bodyExtras: Record<string, unknown> = {},
-  env?: EnvRecord,
-): MachineContinuation {
-  return {
-    method: "POST",
-    endpoint: resolveFreeServiceEndpoint(env),
-    service_id: FREE_SERVICE_ID,
-    body: { journey_id: journeyId, ...bodyExtras },
-    do_not_ask_user: true,
-  };
-}
-
 type StageMeta = {
   /** Durable journey stage name. */
   current_step: MarketplaceStage;
@@ -248,7 +257,7 @@ const STAGE_META: Record<MarketplaceStage, StageMeta> = {
     message:
       "Your Monitoring Pass is ready. No additional payment is required. Use it now for free Purchase Setup?",
     guidance:
-      "Ask only to confirm using the pass. Do not request payment, email, consent, product details, or another endpoint. Continue on free service 33561.",
+      "Ask only to confirm using the pass. Do not request payment, email, consent, product details, or another endpoint. Merge confirm_use_pass into protocol_continuation.body and POST to free service 33561.",
     automatic: false,
     status: "MONITORING_PASS_ISSUED",
   },
@@ -258,9 +267,9 @@ const STAGE_META: Record<MarketplaceStage, StageMeta> = {
     completed: "PASS_USE_CONFIRMED",
     user_fields: ["purchase_description"],
     message:
-      "Describe the recent Target online purchase only (product, price, date). Do not send email or consent yet.",
+      "Provide details of an actual recent Target.com online purchase: actual purchase price, actual purchase date, and a product URL, TCIN, model number, or clear product description. Do not invent details. Custom alert thresholds are not supported.",
     guidance:
-      "Collect only purchase details once. Do not ask for email or consent before exact product confirmation. Do not request payment.",
+      "Collect only actual Target online purchase details (price, date, product clue). Do not ask for an alert threshold, email, or consent yet. Do not request payment. Merge purchase_description into protocol_continuation.body.",
     automatic: false,
     status: "input_required",
   },
@@ -272,7 +281,7 @@ const STAGE_META: Record<MarketplaceStage, StageMeta> = {
     message:
       "Purchase details are saved. Continuing automatically to find Target product candidates.",
     guidance:
-      "Do not ask the user to resubmit journey_id. POST machine_continuation.body to free service 33561 immediately to run product discovery.",
+      "Do not ask the user for journey_id or discovery_session_id. POST protocol_continuation.body to free service 33561 immediately to run product discovery.",
     automatic: true,
     status: "CONTINUE",
   },
@@ -284,7 +293,7 @@ const STAGE_META: Record<MarketplaceStage, StageMeta> = {
     message:
       "Choose the exact Target product candidate. Nobu will not choose it for you.",
     guidance:
-      "Show differentiating fields. Require candidate_id only. Never auto-confirm. Fail closed on wrong seller, Target Plus, or weak matches. Do not ask for email yet.",
+      "Show differentiating fields and candidate_id values. Require candidate_id only. Never auto-confirm. Never expose discovery_session_id. Fail closed on wrong seller, Target Plus, or weak matches. Do not ask for email yet.",
     automatic: false,
     status: "input_required",
   },
@@ -296,7 +305,7 @@ const STAGE_META: Record<MarketplaceStage, StageMeta> = {
     message:
       "Exact product confirmed. Provide the email you control for alerts.",
     guidance:
-      "Collect only email for verification. Monitoring is not active. Do not request payment or consent yet.",
+      "Collect only email for verification. Monitoring is not active. Do not request payment or consent yet. Merge email into protocol_continuation.body.",
     automatic: false,
     status: "input_required",
   },
@@ -307,7 +316,7 @@ const STAGE_META: Record<MarketplaceStage, StageMeta> = {
     user_fields: ["verification_code"],
     message: "Enter the six-digit verification code from that email.",
     guidance:
-      "Ask for the six-digit code only. Do not display or log credentials. Monitoring is not active.",
+      "Ask for the six-digit code only. Do not display or log credentials. Monitoring is not active. Merge verification_code into protocol_continuation.body.",
     automatic: false,
     status: "input_required",
   },
@@ -319,7 +328,7 @@ const STAGE_META: Record<MarketplaceStage, StageMeta> = {
     message:
       "Email verified. Confirm monitoring consent and email-alert consent (both must be true).",
     guidance:
-      "Both consents must be explicitly true. After both are true, Nobu runs eligibility preflight and pass redemption automatically. Target decides any adjustment. Monitoring starts only after successful redemption.",
+      "Ask only for monitoring_consent and email_alert_consent (both must be explicitly true). Do not ask for connection_token or other machine-owned values — they are carried in protocol_continuation.body. After both consents are true, Nobu runs eligibility preflight and pass redemption automatically. Target decides any adjustment. Monitoring starts only after successful redemption.",
     automatic: false,
     status: "input_required",
   },
@@ -327,9 +336,10 @@ const STAGE_META: Record<MarketplaceStage, StageMeta> = {
 
 /**
  * Marketplace journey stage response — normalized setup contract.
- * Human stages: input_required true, only user fields.
+ * Human stages: input_required true, only user fields; protocol_continuation
+ * carries journey_id + merge_user_fields.
  * Automatic stages: input_required false, automatic_continue true,
- * exact machine_continuation payload (never ask user for journey_id).
+ * protocol_continuation with machine-owned body only.
  */
 export function marketplaceIncompleteContract(args: {
   stage: MarketplaceStage;
@@ -340,10 +350,15 @@ export function marketplaceIncompleteContract(args: {
   env?: EnvRecord;
   /** Optional candidate list text for candidate_id stage. */
   candidatesMessage?: string;
+  /** Extra machine body fields (e.g. connection_token after verification). */
+  continuationBodyExtras?: Record<string, unknown>;
+  /** Sensitive field names inside continuation body. */
+  sensitiveFields?: string[];
 }): ConversationContract & {
   current_step: string;
   automatic_continue: boolean;
-  machine_continuation: MachineContinuation | null;
+  protocol_continuation: ProtocolContinuation;
+  machine_continuation: ProtocolContinuation;
   journey_id: string;
 } {
   const meta = STAGE_META[args.stage];
@@ -355,10 +370,13 @@ export function marketplaceIncompleteContract(args: {
       ? args.candidatesMessage
       : meta.message);
 
-  // machine_continuation only for genuinely automatic stages.
-  const machine_continuation = automatic
-    ? freeSetupContinuation(args.journeyId, {}, args.env)
-    : null;
+  const protocol_continuation = buildJourneyContinuation({
+    journeyId: args.journeyId,
+    bodyExtras: args.continuationBodyExtras,
+    merge_user_fields: automatic ? undefined : userFields,
+    sensitive_fields: args.sensitiveFields,
+    env: args.env,
+  });
 
   const contract = buildConversationContract({
     status: meta.status,
@@ -386,17 +404,19 @@ export function marketplaceIncompleteContract(args: {
     next_service_id: FREE_SERVICE_ID,
     input_required: !automatic,
     automatic_continue: automatic,
-    machine_continuation,
+    protocol_continuation,
+    machine_continuation: protocol_continuation,
     include_action_field: false,
+    protocol_replay: null,
   });
 
   return {
     ...contract,
     current_step: meta.current_step,
     automatic_continue: automatic,
-    machine_continuation,
+    protocol_continuation,
+    machine_continuation: protocol_continuation,
     journey_id: args.journeyId,
-    // Explicit empty arrays for automatic stages (never null ambiguity).
     fields: automatic ? [] : userFields,
     requiredArgs: automatic ? [] : userFields,
     required_fields: automatic ? [] : userFields,
@@ -413,16 +433,23 @@ export function marketplaceMoreInformationRequired(args: {
   passContinuationId?: string | null;
   monitoringPassId?: string | null;
   message?: string;
+  env?: EnvRecord;
 }): ConversationContract & {
   current_step: string;
   automatic_continue: false;
-  machine_continuation: null;
+  protocol_continuation: ProtocolContinuation;
+  machine_continuation: ProtocolContinuation;
   journey_id: string;
 } {
   const message =
     args.message ??
-    "No safe Target product candidate was found. Provide a clearer product clue such as a Target product URL, TCIN, model number, or fuller product description. Monitoring is not active.";
+    "No safe Target product candidate was found. Provide a clearer product clue such as a Target product URL, TCIN, model number, or fuller product description, plus the actual purchase price and date. Monitoring is not active.";
   const userFields = ["purchase_description"] as const;
+  const protocol_continuation = buildJourneyContinuation({
+    journeyId: args.journeyId,
+    merge_user_fields: [...userFields],
+    env: args.env,
+  });
   const contract = buildConversationContract({
     status: "MORE_INFORMATION_REQUIRED",
     current_step: "purchase_description",
@@ -430,7 +457,7 @@ export function marketplaceMoreInformationRequired(args: {
     next_action: "PROVIDE_PURCHASE_DESCRIPTION",
     message,
     guidance:
-      "Ask only for a clearer Target product clue (URL, TCIN, model, or fuller description). Do not re-run discovery automatically with the same details. Do not ask for email, consent, or payment.",
+      "Ask only for a clearer Target product clue (URL, TCIN, model, or fuller description) with actual price and date. Do not re-run discovery automatically with the same details. Do not ask for email, consent, payment, or alert thresholds.",
     payment_status: "recognized",
     second_payment_required: false,
     monitoring_active: false,
@@ -447,14 +474,17 @@ export function marketplaceMoreInformationRequired(args: {
     next_service_id: FREE_SERVICE_ID,
     input_required: true,
     automatic_continue: false,
-    machine_continuation: null,
+    protocol_continuation,
+    machine_continuation: protocol_continuation,
     include_action_field: false,
+    protocol_replay: null,
   });
   return {
     ...contract,
     current_step: "purchase_description",
     automatic_continue: false,
-    machine_continuation: null,
+    protocol_continuation,
+    machine_continuation: protocol_continuation,
     journey_id: args.journeyId,
     fields: [...userFields],
     requiredArgs: [...userFields],
@@ -466,20 +496,23 @@ export function marketplaceMoreInformationRequired(args: {
 /** Automatic continuation while projection finishes after pass redemption. */
 export function marketplaceActivationPendingContract(args: {
   journeyId: string;
+  connectionToken: string;
   monitoringPassId?: string | null;
   passContinuationId?: string | null;
   env?: EnvRecord;
 }): ConversationContract & {
   current_step: "activation_pending";
   automatic_continue: true;
-  machine_continuation: MachineContinuation;
+  protocol_continuation: ProtocolContinuation;
+  machine_continuation: ProtocolContinuation;
   journey_id: string;
 } {
-  const machine_continuation = freeSetupContinuation(
-    args.journeyId,
-    {},
-    args.env,
-  );
+  const protocol_continuation = buildJourneyContinuation({
+    journeyId: args.journeyId,
+    bodyExtras: { connection_token: args.connectionToken },
+    sensitive_fields: ["connection_token"],
+    env: args.env,
+  });
   const contract = buildConversationContract({
     status: "ACTIVATION_PENDING",
     current_step: "activation_pending",
@@ -488,7 +521,7 @@ export function marketplaceActivationPendingContract(args: {
     message:
       "Pass redemption was accepted. Activation is finishing. Do not pay or redeem again.",
     guidance:
-      "Do not ask for consents, payment, or redemption again. POST machine_continuation.body with the same journey_id only. Never open a second payment.",
+      "Do not ask for consents, payment, redemption, or connection_token. POST protocol_continuation.body unchanged. Never open a second payment.",
     payment_status: "recognized",
     second_payment_required: false,
     monitoring_active: false,
@@ -498,17 +531,20 @@ export function marketplaceActivationPendingContract(args: {
     required_user_input: null,
     input_required: false,
     automatic_continue: true,
-    machine_continuation,
+    protocol_continuation,
+    machine_continuation: protocol_continuation,
     journey_id: args.journeyId,
     monitoring_pass_id: args.monitoringPassId,
     pass_continuation_id: args.passContinuationId,
     next_service_id: FREE_SERVICE_ID,
+    protocol_replay: null,
   });
   return {
     ...contract,
     current_step: "activation_pending",
     automatic_continue: true,
-    machine_continuation,
+    protocol_continuation,
+    machine_continuation: protocol_continuation,
     journey_id: args.journeyId,
     fields: [],
     requiredArgs: [],
@@ -541,10 +577,12 @@ export function marketplaceMonitoringActiveContract(args: {
     required_user_input: null,
     input_required: false,
     automatic_continue: false,
+    protocol_continuation: null,
     machine_continuation: null,
     journey_id: args.journeyId,
     monitoring_pass_id: args.monitoringPassId,
     pass_continuation_id: args.passContinuationId,
     next_service_id: FREE_SERVICE_ID,
+    protocol_replay: null,
   });
 }

@@ -30,14 +30,11 @@ info:
   contact:
     name: Nobu internal architecture — not a public support channel
 servers:
-  - url: https://usenobu.vercel.app
-    description: >-
-      Registered free host for service 33561 (Nobu Purchase Setup) at /v1/agent.
   - url: https://www.usenobu.xyz
     description: >-
-      Registered paid host for service 35958 (Nobu Monitoring Pass) at
-      /v1/agent/monitoring-pass. Distinct from the free service host.
-      Canonical catalogue: src/a2mcp/service-catalogue.ts.
+      Sole Production domain. Free service 33561 at /v1/agent; paid service
+      35958 at /v1/agent/monitoring-pass. Canonical catalogue:
+      src/a2mcp/service-catalogue.ts.
 paths:
   /v1/agent:
     post:

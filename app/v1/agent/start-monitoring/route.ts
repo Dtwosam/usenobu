@@ -32,11 +32,11 @@ function clientKey(req: Request): string {
   return "local";
 }
 
-/** A2MCP agent host, distinct from the consumer web origin (www.usenobu.xyz). */
+/** A2MCP agent host — sole Production domain is www.usenobu.xyz. */
 function resolveResourceUrl(env: NodeJS.ProcessEnv = process.env): string {
   const base =
     env.NOBU_A2MCP_BASE_URL?.trim().replace(/\/$/, "") ||
-    "https://usenobu.vercel.app";
+    "https://www.usenobu.xyz";
   return `${base}/v1/agent/start-monitoring`;
 }
 

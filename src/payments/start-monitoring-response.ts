@@ -13,7 +13,7 @@
  */
 import type { StartMonitoringResult } from "./start-monitoring-service.js";
 
-export const NOBU_AGENT_DOCS_URL = "https://usenobu.vercel.app/okx";
+export const NOBU_AGENT_DOCS_URL = "https://www.usenobu.xyz/okx";
 
 export const START_MONITORING_NEXT_ACTION =
   "Complete the free /v1/agent setup flow first (BEGIN_EMAIL_VERIFICATION, VERIFY_EMAIL_CODE, DISCOVER_PRODUCT, CONFIRM_PRODUCT, then PREFLIGHT_MONITORING) to obtain a matching quote_id, connection_id, and connection_token, then retry this request with those exact values.";

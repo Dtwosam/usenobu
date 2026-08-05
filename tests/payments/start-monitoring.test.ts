@@ -32,7 +32,7 @@ import { runAgentAction } from "../../src/ai/agent-service.js";
 import type { MatchableOffer } from "../../src/matching/types.js";
 import type { DiscoveryPurchaseFields } from "../../src/ai/schemas.js";
 
-const RESOURCE = "https://usenobu.vercel.app/v1/agent/start-monitoring";
+const RESOURCE = "https://www.usenobu.xyz/v1/agent/start-monitoring";
 
 function tempDb(): string {
   return path.join(

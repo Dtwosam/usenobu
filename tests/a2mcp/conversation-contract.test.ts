@@ -21,9 +21,10 @@ describe("conversation contract", () => {
     expect(c.payment_status).toBe("pending");
     expect(c.retry_safe).toBe(true);
     expect(c.monitoring_active).toBe(false);
-    // next_action alone must not invent a user-facing action field.
-    expect(c.fields).toEqual(["pass_continuation_id"]);
-    expect(c.requiredArgs).toEqual(c.fields);
+    // Machine-owned fields are stripped from user-facing required lists.
+    expect(c.fields).toEqual([]);
+    expect(c.requiredArgs).toEqual([]);
+    expect(c.required_fields).toEqual([]);
     expect(c.pass_continuation_id).toBe("pass_cont_abc");
   });
 
@@ -86,7 +87,19 @@ describe("conversation contract", () => {
     expect(body.payment_status).toBe("recognized");
     expect(body.second_payment_required).toBe(false);
     expect(body.message).toMatch(/No additional payment/i);
-    expect(body.machine_continuation).toBeNull();
+    // Human stages still carry authoritative protocol_continuation with journey_id.
+    expect(body.protocol_continuation).toEqual(
+      expect.objectContaining({
+        method: "POST",
+        service_id: 33561,
+        do_not_ask_user: true,
+        do_not_display: true,
+        body: { journey_id: "journey_test" },
+        merge_user_fields: ["confirm_use_pass"],
+      }),
+    );
+    expect(body.machine_continuation).toEqual(body.protocol_continuation);
+    expect(body.fields).not.toContain("journey_id");
   });
 
   it("product_discovery stage is automatic with machine continuation", () => {
@@ -100,15 +113,17 @@ describe("conversation contract", () => {
     expect(body.automatic_continue).toBe(true);
     expect(body.completed_step).toBe("PURCHASE_DETAILS_CAPTURED");
     expect(body.next_action).toBe("RUN_PRODUCT_DISCOVERY");
-    expect(body.machine_continuation).toEqual(
+    expect(body.protocol_continuation).toEqual(
       expect.objectContaining({
         method: "POST",
         service_id: 33561,
         do_not_ask_user: true,
+        do_not_display: true,
         body: { journey_id: "journey_disc" },
       }),
     );
-    expect(String(body.guidance)).toMatch(/Do not ask the user to resubmit journey_id/i);
+    expect(body.machine_continuation).toEqual(body.protocol_continuation);
+    expect(String(body.guidance)).toMatch(/Do not ask the user/i);
   });
 
   it("marketplace first contact presents both services without assuming payment", () => {

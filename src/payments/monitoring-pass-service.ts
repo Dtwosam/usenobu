@@ -52,6 +52,7 @@ import {
   resolveFreeServiceEndpoint,
   buildPaidPrePaymentMachineFields,
 } from "../a2mcp/service-catalogue.js";
+import { buildPaidPassContinuation } from "../a2mcp/protocol-continuation.js";
 import { derivePassClaimCredential } from "./claim-credential.js";
 import type { CanonicalPaymentRequirements } from "./canonical-requirements.js";
 
@@ -1284,11 +1285,23 @@ export async function reconcilePendingPassSettlements(args: {
 
 /**
  * Neutral typed unpaid body — facts only, no imperative agent-control prose.
+ * Successful issuance includes authoritative protocol_continuation so a
+ * generic buyer agent can continue without asking the user for tokens.
  */
 export function monitoringPassResponseBody(
   result: MonitoringPassResult,
+  env?: EnvRecord,
 ): Record<string, unknown> {
   if (result.ok && result.status === "MONITORING_PASS_ISSUED") {
+    const freeEndpoint = resolveFreeServiceEndpoint(env);
+    // claim credential lives only inside protocol_continuation.body (never top-level).
+    const protocol_continuation = result.pass_claim_credential
+      ? buildPaidPassContinuation({
+          passContinuationId: result.pass_continuation_id,
+          passClaimCredential: result.pass_claim_credential,
+          env,
+        })
+      : null;
     return {
       status: "MONITORING_PASS_ISSUED",
       service_id: PAID_SERVICE_ID,
@@ -1296,19 +1309,26 @@ export function monitoringPassResponseBody(
       deliverable: { type: "monitoring_pass", quantity: 1 },
       monitoring_pass_id: result.pass.id,
       pass_continuation_id: result.pass_continuation_id,
-      // claim credential only when freshly minted for this response
-      ...(result.pass_claim_credential
-        ? { pass_claim_credential: result.pass_claim_credential }
-        : {}),
       price_amount: result.pass.price_amount,
       price_currency: result.pass.price_currency,
-      redeemable_for: MONITORING_PASS_REDEEMABLE_FOR,
+      redeemable_for: monitoringPassRedeemableFor(env),
       monitoring_active: false,
-      payment_status: "settled",
+      payment_status: "recognized",
       second_payment_required: false,
-      next_service_id: FREE_SERVICE_ID,
-      next_service_endpoint: resolveFreeServiceEndpoint(),
       journey_complete: false,
+      automatic_continue: true,
+      input_required: false,
+      required_fields: [],
+      fields: [],
+      requiredArgs: [],
+      required_user_input: null,
+      next_service_id: FREE_SERVICE_ID,
+      next_service_endpoint: freeEndpoint,
+      free_service_endpoint: freeEndpoint,
+      protocol_continuation,
+      // Legacy mirror — identical to protocol_continuation when present.
+      machine_continuation: protocol_continuation,
+      protocol_replay: null,
       transaction_receipt: {
         network: DEFAULT_SETTLEMENT_NETWORK,
         // Safe public ref only — not a signature

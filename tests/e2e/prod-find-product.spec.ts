@@ -8,7 +8,7 @@ import path from "node:path";
 import { openManualPurchaseForm } from "./helpers/open-manual-form";
 import { setFixtureScenario } from "./helpers/set-fixture-scenario";
 
-const PROD = process.env.PROD_BASE_URL ?? "https://usenobu.vercel.app";
+const PROD = process.env.PROD_BASE_URL ?? "https://www.usenobu.xyz";
 const PROOF = path.join(
   "docs",
   "proof",

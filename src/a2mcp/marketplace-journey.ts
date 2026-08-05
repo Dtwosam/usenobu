@@ -24,6 +24,9 @@ import {
   type MarketplaceStage,
 } from "./conversation-contract.js";
 import {
+  internalContinuationStateMissing,
+} from "./protocol-continuation.js";
+import {
   buildServiceSelectionRequired,
   FREE_SERVICE_ID,
   PAID_SERVICE_ID,
@@ -55,6 +58,22 @@ type PurchaseSnapshot = {
   upc_or_gtin?: string;
 };
 
+/** Partial clue storage — price/date may be absent until the user supplies them. */
+type PartialPurchaseClue = {
+  purchase_price?: number | null;
+  purchase_date?: string | null;
+  purchase_channel?: "target_online";
+  country?: "US";
+  region?: string;
+  product_title?: string;
+  target_product_url?: string;
+  target_item_id?: string;
+  model_number?: string;
+  upc_or_gtin?: string;
+  /** Marker so partial rows are not treated as complete snapshots. */
+  _partial?: true;
+};
+
 function incomplete(
   stage: MarketplaceStage,
   journeyId: string,
@@ -64,6 +83,8 @@ function incomplete(
     monitoringPassId?: string | null;
     env?: EnvRecord;
     candidatesMessage?: string;
+    continuationBodyExtras?: Record<string, unknown>;
+    sensitiveFields?: string[];
   },
 ) {
   const contract = marketplaceIncompleteContract({
@@ -74,6 +95,8 @@ function incomplete(
     monitoringPassId: extras?.monitoringPassId,
     env: extras?.env,
     candidatesMessage: extras?.candidatesMessage,
+    continuationBodyExtras: extras?.continuationBodyExtras,
+    sensitiveFields: extras?.sensitiveFields,
   });
   // Automatic stages use 200 so buyer agents auto-continue without treating
   // the response as a human field-collection error.
@@ -91,14 +114,26 @@ function incomplete(
 function parsePurchaseSnapshot(raw: string | null | undefined): PurchaseSnapshot | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as PurchaseSnapshot;
+    const parsed = JSON.parse(raw) as PurchaseSnapshot & PartialPurchaseClue;
+    if (parsed._partial) return null;
     if (
       typeof parsed.purchase_price !== "number" ||
-      typeof parsed.purchase_date !== "string"
+      !Number.isFinite(parsed.purchase_price) ||
+      typeof parsed.purchase_date !== "string" ||
+      !parsed.purchase_date
     ) {
       return null;
     }
-    return parsed;
+    return parsed as PurchaseSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+function parsePartialClue(raw: string | null | undefined): PartialPurchaseClue | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as PartialPurchaseClue;
   } catch {
     return null;
   }
@@ -193,10 +228,12 @@ function activationPendingResponse(
     passContinuationId?: string | null;
     monitoringPassId?: string | null;
     env?: EnvRecord;
+    connectionToken: string;
   },
 ) {
   const contract = marketplaceActivationPendingContract({
     journeyId,
+    connectionToken: extras.connectionToken,
     monitoringPassId: extras.monitoringPassId,
     passContinuationId: extras.passContinuationId,
     env: extras.env,
@@ -446,6 +483,7 @@ export async function runMarketplaceJourney(
         required_fields: [],
         input_required: false,
         automatic_continue: false,
+        protocol_continuation: null,
         machine_continuation: null,
       },
     };
@@ -461,49 +499,26 @@ export async function runMarketplaceJourney(
       return {
         http_status: 400,
         body: {
-          ...buildConversationContract({
-            status: "ACTIVATION_BLOCKED",
-            current_step: "activation_pending",
-            completed_step: "MONITORING_ACTIVATION_PENDING",
-            next_action: "CONTACT_SUPPORT_WITH_JOURNEY_ID",
-            message:
-              "Activation could not be resumed for this journey. Do not pay again. Do not redeem again.",
-            guidance:
-              "Do not request payment, consents, or a new pass. Keep the journey_id for support. Never open a second payment.",
-            payment_status: "recognized",
-            second_payment_required: false,
-            monitoring_active: false,
-            journey_complete: false,
-            retry_safe: false,
-            required_fields: [],
-            required_user_input: null,
-            input_required: false,
-            automatic_continue: false,
-            machine_continuation: null,
-            journey_id: journey.id,
-            monitoring_pass_id: journey.monitoring_pass_id,
-            next_service_id: FREE_SERVICE_ID,
+          ...internalContinuationStateMissing({
+            journeyId: journey.id,
+            monitoringPassId: journey.monitoring_pass_id,
           }),
-          journey_id: journey.id,
-          fields: [],
-          requiredArgs: [],
-          second_payment_required: false,
+          free_service_endpoint: resolveFreeServiceEndpoint(deps.env),
         },
       };
     }
     // Idempotent: existing activation is resolved; no new quote/pass consume.
-    // After email verification the connection_token boundary is authoritative.
+    // connection_token is machine-owned and must arrive via protocol_continuation.
     const resumeToken = cleanString(raw.connection_token);
     if (!resumeToken) {
       return {
-        http_status: 401,
+        http_status: 400,
         body: {
-          status: "ACTION_NOT_AUTHORIZED",
-          message:
-            "connection_token is required to resume activation after email verification.",
-          monitoring_active: false,
-          second_payment_required: false,
-          journey_id: journey.id,
+          ...internalContinuationStateMissing({
+            journeyId: journey.id,
+            monitoringPassId: journey.monitoring_pass_id,
+          }),
+          free_service_endpoint: resolveFreeServiceEndpoint(deps.env),
         },
       };
     }
@@ -541,12 +556,16 @@ export async function runMarketplaceJourney(
           required_fields: [],
           input_required: false,
           automatic_continue: false,
+          protocol_continuation: null,
           machine_continuation: null,
         },
       };
     }
     if (resumed.ok && resumed.status === "ACTIVATION_PENDING") {
-      return activationPendingResponse(journey.id, stageExtras);
+      return activationPendingResponse(journey.id, {
+        ...stageExtras,
+        connectionToken: resumeToken,
+      });
     }
     return {
       http_status: 400,
@@ -569,6 +588,7 @@ export async function runMarketplaceJourney(
           required_user_input: null,
           input_required: false,
           automatic_continue: false,
+          protocol_continuation: null,
           machine_continuation: null,
           journey_id: journey.id,
           monitoring_pass_id: journey.monitoring_pass_id,
@@ -608,15 +628,114 @@ export async function runMarketplaceJourney(
       forceUnavailable: deps.forceUnavailable,
       now: () => now,
     });
-    if (!understood.ok || understood.body.missing_fields.length > 0) {
+    // Preserve any product clue (URL/TCIN/model) already present when price/date missing.
+    const priorComplete = parsePurchaseSnapshot(journey.purchase_snapshot_json);
+    const priorPartial = parsePartialClue(journey.purchase_snapshot_json);
+    const prior = priorComplete ?? priorPartial;
+    const extracted = understood.ok ? understood.body.extracted_purchase : null;
+    const mergedPartial = {
+      purchase_price:
+        (typeof extracted?.purchase_price === "number"
+          ? extracted.purchase_price
+          : null) ??
+        (typeof prior?.purchase_price === "number" ? prior.purchase_price : null),
+      purchase_date:
+        extracted?.purchase_date ||
+        prior?.purchase_date ||
+        null,
+      region: extracted?.region ?? prior?.region ?? null,
+      product_description:
+        extracted?.product_description ??
+        (prior && "product_title" in prior ? prior.product_title : null) ??
+        null,
+      product_url:
+        extracted?.product_url ??
+        (prior && "target_product_url" in prior
+          ? prior.target_product_url
+          : null) ??
+        null,
+      target_item_id:
+        extracted?.target_item_id ?? prior?.target_item_id ?? null,
+      model_number: extracted?.model_number ?? prior?.model_number ?? null,
+      upc_or_gtin: extracted?.upc_or_gtin ?? prior?.upc_or_gtin ?? null,
+    };
+    const missing: string[] = [];
+    if (
+      typeof mergedPartial.purchase_price !== "number" ||
+      !Number.isFinite(mergedPartial.purchase_price) ||
+      mergedPartial.purchase_price <= 0
+    ) {
+      missing.push("actual purchase price");
+    }
+    if (!mergedPartial.purchase_date) missing.push("actual purchase date");
+    const hasProductClue = !!(
+      mergedPartial.product_url ||
+      mergedPartial.target_item_id ||
+      mergedPartial.model_number ||
+      mergedPartial.product_description
+    );
+    if (!hasProductClue) {
+      missing.push("product URL, TCIN, model, or clear description");
+    }
+    if (missing.length > 0) {
+      // Persist partial clue so a later reply with only price/date does not drop URL.
+      if (hasProductClue || mergedPartial.purchase_price || mergedPartial.purchase_date) {
+        const partialSnapshot: PartialPurchaseClue = {
+          _partial: true,
+          purchase_channel: "target_online",
+          country: "US",
+          ...(typeof mergedPartial.purchase_price === "number"
+            ? { purchase_price: mergedPartial.purchase_price }
+            : {}),
+          ...(mergedPartial.purchase_date
+            ? { purchase_date: mergedPartial.purchase_date }
+            : {}),
+          ...(mergedPartial.region ? { region: mergedPartial.region } : {}),
+          ...(mergedPartial.product_description
+            ? { product_title: mergedPartial.product_description }
+            : {}),
+          ...(mergedPartial.product_url
+            ? { target_product_url: mergedPartial.product_url }
+            : {}),
+          ...(mergedPartial.target_item_id
+            ? { target_item_id: mergedPartial.target_item_id }
+            : {}),
+          ...(mergedPartial.model_number
+            ? { model_number: mergedPartial.model_number }
+            : {}),
+          ...(mergedPartial.upc_or_gtin
+            ? { upc_or_gtin: mergedPartial.upc_or_gtin }
+            : {}),
+        };
+        await store.updateMarketplacePurchaseJourney({
+          id: journey.id,
+          stage: "purchase_description",
+          purchaseSnapshotJson: JSON.stringify(partialSnapshot),
+          nowIso,
+        });
+      }
+      const hasUrlOnly =
+        !!mergedPartial.product_url &&
+        missing.every((m) => m.includes("price") || m.includes("date"));
       return incomplete(
         stage,
         journey.id,
-        "Could not extract enough purchase details. Provide price, date, and a product clue for a recent Target online purchase.",
+        hasUrlOnly
+          ? "A product URL was saved. Provide the actual purchase price and actual purchase date for that Target online purchase. Custom alert thresholds are not supported."
+          : `Could not extract enough purchase details. Still needed: ${missing.join(", ")}. Describe an actual recent Target.com online purchase.`,
         stageExtras,
       );
     }
-    const snapshot = snapshotFromExtracted(understood.body.extracted_purchase);
+    const snapshot = snapshotFromExtracted({
+      purchase_price: mergedPartial.purchase_price as number,
+      purchase_date: mergedPartial.purchase_date as string,
+      region: mergedPartial.region,
+      product_description: mergedPartial.product_description,
+      product_url: mergedPartial.product_url,
+      target_item_id: mergedPartial.target_item_id,
+      model_number: mergedPartial.model_number,
+      upc_or_gtin: mergedPartial.upc_or_gtin,
+    });
     await store.updateMarketplacePurchaseJourney({
       id: journey.id,
       stage: "product_discovery",
@@ -675,6 +794,7 @@ export async function runMarketplaceJourney(
         journeyId: journey.id,
         passContinuationId: journeyExtras.passContinuationId,
         monitoringPassId: journeyExtras.monitoringPassId,
+        env: deps.env,
       });
       return {
         http_status: 400 as const,
@@ -701,8 +821,20 @@ export async function runMarketplaceJourney(
   }
 
   if (stage === "candidate_id") {
+    if (!journey.discovery_session_id) {
+      return {
+        http_status: 400,
+        body: {
+          ...internalContinuationStateMissing({
+            journeyId: journey.id,
+            monitoringPassId: journey.monitoring_pass_id,
+          }),
+          free_service_endpoint: resolveFreeServiceEndpoint(deps.env),
+        },
+      };
+    }
     const candidateId = cleanString(raw.candidate_id);
-    if (!candidateId || !journey.discovery_session_id) {
+    if (!candidateId) {
       return incomplete(stage, journey.id, undefined, stageExtras);
     }
     const confirmed = await confirmProductForAgent({
@@ -784,18 +916,15 @@ export async function runMarketplaceJourney(
       stage: "consents",
       nowIso,
     });
-    // Connection token is returned once; subsequent stages require it.
-    // Claim credential is no longer needed once the verified connection exists.
-    const base = incomplete("consents", journey.id, undefined, stageExtras);
-    return {
-      ...base,
-      body: {
-        ...base.body,
-        connection_id: journey.connection_id,
+    // connection_token is machine-owned: only inside protocol_continuation.body.
+    // Buyer agent asks only for the two consents (merge_user_fields).
+    return incomplete("consents", journey.id, undefined, {
+      ...stageExtras,
+      continuationBodyExtras: {
         connection_token: verified.connection_token,
-        connection_token_required: true,
       },
-    };
+      sensitiveFields: ["connection_token"],
+    });
   }
 
   if (
@@ -804,21 +933,42 @@ export async function runMarketplaceJourney(
     !journey.connection_id ||
     !journey.discovery_session_id
   ) {
-    return incomplete("consents", journey.id, undefined, stageExtras);
+    // If consents incomplete but token present, keep it in continuation.
+    const heldToken = cleanString(raw.connection_token);
+    return incomplete("consents", journey.id, undefined, {
+      ...stageExtras,
+      ...(heldToken
+        ? {
+            continuationBodyExtras: { connection_token: heldToken },
+            sensitiveFields: ["connection_token"],
+          }
+        : {}),
+    });
   }
   // After email verification the connection-token boundary is authoritative.
+  // Token must arrive via protocol_continuation — never ask the user for it.
   const connectionToken = cleanString(raw.connection_token);
   if (!connectionToken) {
     return {
-      http_status: 401,
+      http_status: 400,
       body: {
-        status: "ACTION_NOT_AUTHORIZED",
-        message:
-          "connection_token is required after email verification. Public journey ids alone cannot authorize preflight or redemption.",
-        monitoring_active: false,
-        second_payment_required: false,
-        journey_id: journey.id,
-        required_fields: ["connection_token", "monitoring_consent", "email_alert_consent"],
+        ...internalContinuationStateMissing({
+          journeyId: journey.id,
+          monitoringPassId: journey.monitoring_pass_id,
+        }),
+        free_service_endpoint: resolveFreeServiceEndpoint(deps.env),
+      },
+    };
+  }
+  if (!journey.discovery_session_id) {
+    return {
+      http_status: 400,
+      body: {
+        ...internalContinuationStateMissing({
+          journeyId: journey.id,
+          monitoringPassId: journey.monitoring_pass_id,
+        }),
+        free_service_endpoint: resolveFreeServiceEndpoint(deps.env),
       },
     };
   }
@@ -875,6 +1025,7 @@ export async function runMarketplaceJourney(
       ...stageExtras,
       monitoringPassId: journey.monitoring_pass_id,
       passContinuationId: journey.pass_continuation_id,
+      connectionToken,
     });
   }
   await store.updateMarketplacePurchaseJourney({
@@ -897,6 +1048,7 @@ export async function runMarketplaceJourney(
       required_fields: [],
       input_required: false,
       automatic_continue: false,
+      protocol_continuation: null,
       machine_continuation: null,
     },
   };

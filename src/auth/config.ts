@@ -44,7 +44,7 @@ export const CANONICAL_CONSUMER_ORIGIN = "https://www.usenobu.xyz";
 /**
  * Base URL for magic-link emails.
  * Prefer APP_BASE_URL; in production default to www.usenobu.xyz.
- * A2MCP agent endpoint remains https://usenobu.vercel.app/v1/agent (unchanged).
+ * A2MCP free agent endpoint: https://www.usenobu.xyz/v1/agent.
  */
 export function getAppBaseUrl(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,

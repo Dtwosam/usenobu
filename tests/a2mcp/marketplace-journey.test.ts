@@ -59,10 +59,22 @@ function assertHumanStage(
   expect(body.journey_complete).toBe(false);
   expect(body.payment_status).toBe("recognized");
   expect(body.retry_safe).toBe(true);
-  // Human stages must not advertise automatic machine continuation.
-  expect(body.machine_continuation).toBeNull();
+  // Human stages carry protocol_continuation with merge_user_fields; never ask for machine ids.
+  expect(body.protocol_continuation).toEqual(
+    expect.objectContaining({
+      method: "POST",
+      service_id: 33561,
+      do_not_ask_user: true,
+      do_not_display: true,
+      body: expect.objectContaining({ journey_id: body.journey_id }),
+      merge_user_fields: fields,
+    }),
+  );
+  expect(body.machine_continuation).toEqual(body.protocol_continuation);
   // Never ask the user to type journey_id.
   expect(fields).not.toContain("journey_id");
+  expect(fields).not.toContain("connection_token");
+  expect(fields).not.toContain("discovery_session_id");
   expect(JSON.stringify(body.fields)).not.toMatch(/UNDERSTAND_|RESOLVE_|REDEEM_/);
   if (opts?.status) expect(body.status).toBe(opts.status);
   if (opts?.currentStep) expect(body.current_step).toBe(opts.currentStep);
@@ -76,15 +88,17 @@ function assertAutomaticStage(body: Record<string, unknown>): void {
   expect(body.required_fields).toEqual([]);
   expect(body.required_user_input).toBeNull();
   expect(body.journey_id).toBeTruthy();
-  expect(body.machine_continuation).toEqual(
+  expect(body.protocol_continuation).toEqual(
     expect.objectContaining({
       method: "POST",
       service_id: 33561,
       do_not_ask_user: true,
+      do_not_display: true,
       body: expect.objectContaining({ journey_id: body.journey_id }),
     }),
   );
-  expect(String(body.guidance || "")).toMatch(/Do not ask the user to resubmit journey_id/i);
+  expect(body.machine_continuation).toEqual(body.protocol_continuation);
+  expect(String(body.guidance || "")).toMatch(/Do not ask the user/i);
 }
 
 /** @deprecated name kept for call-site clarity during migration */
@@ -254,8 +268,14 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       "monitoring_consent",
       "email_alert_consent",
     ], { currentStep: "consents" });
-    const connectionToken = String(verified.body.connection_token || "");
+    const contBody = (verified.body.protocol_continuation as {
+      body: Record<string, unknown>;
+    }).body;
+    const connectionToken = String(contBody.connection_token || "");
     expect(connectionToken).toBeTruthy();
+    // Token must not be a top-level human-facing field.
+    expect(verified.body.connection_token).toBeUndefined();
+    expect(verified.body.required_fields).not.toContain("connection_token");
 
     const active = await runMarketplaceJourney(
       {
@@ -305,7 +325,7 @@ describe("Lane 8R marketplace Purchase Setup", () => {
     const journeyId = String(early.body.journey_id);
 
     const paidUrlAttempt = await paidServicePost(
-      new Request("https://usenobu.vercel.app/v1/agent/monitoring-pass", {
+      new Request("https://www.usenobu.xyz/v1/agent/monitoring-pass", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

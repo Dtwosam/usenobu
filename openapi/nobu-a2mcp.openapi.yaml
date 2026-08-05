@@ -4,19 +4,18 @@ info:
   version: 1.4.0
   description: >-
     Nobu is an AI post-purchase monitoring agent (Agent 5541). Free A2MCP service
-    33561 (Nobu Purchase Setup) is registered at https://usenobu.vercel.app/v1/agent.
+    33561 (Nobu Purchase Setup) is registered at https://www.usenobu.xyz/v1/agent.
     Paid service 35958 (Nobu Monitoring Pass, 0.99 USDT) is registered at
-    https://www.usenobu.xyz/v1/agent/monitoring-pass — a distinct host from free.
-    Canonical service catalogue: src/a2mcp/service-catalogue.ts.
+    https://www.usenobu.xyz/v1/agent/monitoring-pass — same Production domain,
+    distinct path. Canonical service catalogue: src/a2mcp/service-catalogue.ts.
+    Successful paid issuance returns protocol_continuation for free Purchase Setup.
     Generic Agent-only first contact returns SERVICE_SELECTION_REQUIRED with both
     services; never assumes a service from Agent ID alone. Target is the only
     retailer currently supported. Target makes the final adjustment decision.
     Observed prices are third-party SerpApi observations.
 servers:
-  - url: https://usenobu.vercel.app
-    description: Registered free A2MCP host (service 33561 Purchase Setup)
   - url: https://www.usenobu.xyz
-    description: Registered paid A2MCP host (service 35958 Monitoring Pass)
+    description: Sole Production domain (free 33561 + paid 35958)
   - url: http://127.0.0.1:3000
     description: Local Next.js dev only — not external proof
 paths:

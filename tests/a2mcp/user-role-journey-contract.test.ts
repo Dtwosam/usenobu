@@ -32,13 +32,18 @@ describe("User-role journey contract proof", () => {
     const [free, paid] = listAvailableServices();
     expect(free.service_id).toBe(33561);
     expect(free.endpoint).toBe(DEFAULT_FREE_SERVICE_ENDPOINT);
-    expect(free.endpoint).toBe("https://usenobu.vercel.app/v1/agent");
+    expect(free.endpoint).toBe("https://www.usenobu.xyz/v1/agent");
     expect(paid.service_id).toBe(35958);
     expect(paid.endpoint).toBe(DEFAULT_PAID_SERVICE_ENDPOINT);
     expect(paid.endpoint).toBe(
       "https://www.usenobu.xyz/v1/agent/monitoring-pass",
     );
-    expect(new URL(free.endpoint).host).not.toBe(new URL(paid.endpoint).host);
+    // Sole Production domain; free and paid use distinct paths.
+    expect(new URL(free.endpoint).host).toBe("www.usenobu.xyz");
+    expect(new URL(paid.endpoint).host).toBe("www.usenobu.xyz");
+    expect(new URL(free.endpoint).pathname).not.toBe(
+      new URL(paid.endpoint).pathname,
+    );
 
     const sel = buildServiceSelectionRequired();
     expect(sel.status).toBe("SERVICE_SELECTION_REQUIRED");
@@ -210,7 +215,7 @@ describe("User-role journey contract proof", () => {
       payment_response_header: "dGVzdA==",
     });
     expect(body.status).toBe("MONITORING_PASS_ISSUED");
-    expect(body.payment_status).toBe("settled");
+    expect(body.payment_status).toBe("recognized");
     expect(body.second_payment_required).toBe(false);
     expect(body.monitoring_active).toBe(false);
     expect(body.journey_complete).toBe(false);
@@ -292,8 +297,9 @@ describe("User-role journey contract proof", () => {
     expect(auto.automatic_continue).toBe(true);
     expect(auto.fields).toEqual([]);
     expect(auto.required_user_input).toBeNull();
-    expect(auto.machine_continuation?.do_not_ask_user).toBe(true);
-    expect(String(auto.guidance)).toMatch(/Do not ask the user to resubmit journey_id/i);
+    expect(auto.protocol_continuation?.do_not_ask_user).toBe(true);
+    expect(auto.machine_continuation).toEqual(auto.protocol_continuation);
+    expect(String(auto.guidance)).toMatch(/Do not ask the user/i);
   });
 
   // 12: monitoring active only after successful redemption is covered by
