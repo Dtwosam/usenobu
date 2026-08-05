@@ -1,27 +1,25 @@
 /**
- * Official OKX seller adapter implementing X402Verifier.
+ * Official OKX seller adapter.
  *
- * Flow (signature alone is never enough):
- *  1. Parse PAYMENT-SIGNATURE as PaymentPayload (never log raw).
- *  2. Build PaymentRequirements server-side from locked terms + env.
- *  3. Optionally enrich EIP-712 extras from facilitator /supported.
- *  4. POST verify — fail closed if not valid.
- *  5. POST settle — success → settlementRef; pending → poll; ambiguous
- *     transport after settle submission → settlement_unknown (never a new challenge).
- *
- * Does not issue passes — only supplies a verified settlement outcome.
+ * Verify and settle use the SAME canonical PaymentRequirements object that
+ * was (or would be) placed in the PAYMENT-REQUIRED challenge accepts[0].
+ * Never calls /supported only on replay to change signed metadata.
  */
 import {
-  buildSettlementExtra,
+  decodePaymentSignatureHeaderSafe,
   DEFAULT_SETTLEMENT_ASSET,
   DEFAULT_SETTLEMENT_NETWORK,
-  decodePaymentSignatureHeaderSafe,
   MONITORING_PRICE_ATOMIC_UNITS,
   X402_MAX_TIMEOUT_SECONDS,
   type X402Verifier,
   type X402VerifyInput,
   type X402VerifyResult,
 } from "./x402.js";
+import {
+  buildCanonicalPaymentRequirements,
+  paymentRequirementsDeepEqual,
+  type CanonicalPaymentRequirements,
+} from "./canonical-requirements.js";
 import {
   loadOkxSellerConfig,
   OkxSellerClient,
@@ -42,6 +40,7 @@ export type OkxSellerVerifyOutcome =
       payer?: string;
       network?: string;
       amount?: string;
+      requirements: CanonicalPaymentRequirements;
     }
   | {
       ok: false;
@@ -54,19 +53,16 @@ export type OkxSellerVerifyOutcome =
         | "settle_failed"
         | "settlement_pending"
         | "settlement_unknown"
+        | "settlement_review_required"
         | "rejected";
-      /** Opaque tx hash when settlement is pending/unknown (never a payment credential). */
       pendingTxHash?: string;
       payer?: string;
       sanitizedVerifyReason?: string;
       sanitizedSettleReason?: string;
       lastProviderOperation?: string;
+      requirements?: CanonicalPaymentRequirements;
     };
 
-/**
- * Decode PAYMENT-SIGNATURE header via official-compatible path.
- * Never logs the raw value.
- */
 export function parsePaymentPayloadFromHeader(
   authorizationHeader: string,
 ): PaymentPayload | null {
@@ -74,9 +70,8 @@ export function parsePaymentPayloadFromHeader(
 }
 
 /**
- * Server-built requirements. These must mirror the accepts entry the buyer
- * signed, so they carry the same maxTimeoutSeconds and EIP-712 token
- * metadata. `quoteId` is absent for a Monitoring Pass.
+ * @deprecated Prefer buildCanonicalPaymentRequirements — kept for tests that
+ * still call the sync builder. Does not include resource (official shape).
  */
 export function buildServerPaymentRequirements(args: {
   resource: string;
@@ -87,6 +82,13 @@ export function buildServerPaymentRequirements(args: {
   asset?: string;
   supportedKindExtra?: Record<string, unknown> | null;
 }): PaymentRequirements {
+  void args.resource;
+  void args.supportedKindExtra;
+  const extra: Record<string, unknown> = {
+    name: "USD₮0",
+    version: "1",
+  };
+  if (args.quoteId) extra.quote_id = args.quoteId;
   return {
     scheme: "exact",
     network: args.network ?? DEFAULT_SETTLEMENT_NETWORK,
@@ -95,17 +97,13 @@ export function buildServerPaymentRequirements(args: {
     resource: args.resource,
     payTo: args.payTo,
     maxTimeoutSeconds: X402_MAX_TIMEOUT_SECONDS,
-    extra: buildSettlementExtra(args.quoteId, args.supportedKindExtra),
+    extra,
   };
 }
 
-/**
- * Reject payloads that try to smuggle different amount/asset/payTo/resource.
- * We still send server-built requirements to OKX; this is defense in depth.
- */
 export function assertPayloadDoesNotOverrideServerTerms(
   payload: PaymentPayload,
-  requirements: PaymentRequirements,
+  requirements: CanonicalPaymentRequirements | PaymentRequirements,
 ): "ok" | "amount_mismatch" | "resource_mismatch" {
   const accepted = payload.accepted as Record<string, unknown> | undefined;
   if (!accepted || typeof accepted !== "object") return "ok";
@@ -114,12 +112,6 @@ export function assertPayloadDoesNotOverrideServerTerms(
     String(accepted.amount) !== requirements.amount
   ) {
     return "amount_mismatch";
-  }
-  if (
-    accepted.resource != null &&
-    String(accepted.resource) !== requirements.resource
-  ) {
-    return "resource_mismatch";
   }
   if (
     accepted.payTo != null &&
@@ -139,14 +131,34 @@ export function assertPayloadDoesNotOverrideServerTerms(
   ) {
     return "amount_mismatch";
   }
+  if (
+    accepted.scheme != null &&
+    String(accepted.scheme) !== requirements.scheme
+  ) {
+    return "amount_mismatch";
+  }
   return "ok";
 }
 
-/** Bounded same-request settle/status poll after pending (wall budget ~3s). */
 const SETTLE_POLL_DELAYS_MS = [400, 800, 1200] as const;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function toFacilitatorRequirements(
+  r: CanonicalPaymentRequirements,
+): PaymentRequirements {
+  // Official facilitator PaymentRequirements has no resource field.
+  return {
+    scheme: "exact",
+    network: r.network,
+    asset: r.asset,
+    amount: r.amount,
+    payTo: r.payTo,
+    maxTimeoutSeconds: r.maxTimeoutSeconds,
+    extra: r.extra,
+  };
 }
 
 export function createOkxSellerVerifier(args: {
@@ -157,34 +169,30 @@ export function createOkxSellerVerifier(args: {
   verifyAndSettleDetailed: (
     input: X402VerifyInput,
   ) => Promise<OkxSellerVerifyOutcome>;
+  /** Last requirements used (for equality proofs). */
+  getLastRequirements: () => CanonicalPaymentRequirements | null;
 } {
   const env = args.env ?? process.env;
   const config = loadOkxSellerConfig(env);
   const client =
     args.client ??
-    (config
-      ? new OkxSellerClient(config, args.fetchImpl)
-      : null);
+    (config ? new OkxSellerClient(config, args.fetchImpl) : null);
+  let lastRequirements: CanonicalPaymentRequirements | null = null;
 
-  async function loadSupportedKindExtra(): Promise<Record<string, unknown> | null> {
-    if (!client) return null;
-    try {
-      const supported = await client.getSupported();
-      const kinds = Array.isArray(supported?.kinds) ? supported.kinds : [];
-      const match = kinds.find(
-        (k) =>
-          k &&
-          Number(k.x402Version) === OKX_X402_VERSION &&
-          String(k.scheme) === "exact" &&
-          String(k.network) === DEFAULT_SETTLEMENT_NETWORK,
-      );
-      if (match?.extra && typeof match.extra === "object") {
-        return match.extra as Record<string, unknown>;
-      }
-    } catch {
-      // Supported-kind sync is best-effort; locked extras still apply.
+  async function resolveRequirements(
+    input: X402VerifyInput,
+  ): Promise<CanonicalPaymentRequirements | null> {
+    if (input.requirements) {
+      lastRequirements = input.requirements;
+      return input.requirements;
     }
-    return null;
+    if (!client) return null;
+    const built = await buildCanonicalPaymentRequirements({
+      payTo: client.payTo,
+      quoteId: input.quoteId,
+    });
+    lastRequirements = built;
+    return built;
   }
 
   async function verifyAndSettleDetailed(
@@ -199,25 +207,62 @@ export function createOkxSellerVerifier(args: {
       return { ok: false, reason: "invalid_signature" };
     }
 
-    const supportedKindExtra = await loadSupportedKindExtra();
-    const requirements = buildServerPaymentRequirements({
-      resource: input.resource,
-      quoteId: input.quoteId,
-      payTo: client.payTo,
-      supportedKindExtra,
-    });
+    const requirements = await resolveRequirements(input);
+    if (!requirements) {
+      return { ok: false, reason: "not_configured" };
+    }
 
+    // Defense: accepted payload must not smuggle different commercial terms.
     const termCheck = assertPayloadDoesNotOverrideServerTerms(
       payload,
       requirements,
     );
     if (termCheck !== "ok") {
-      return { ok: false, reason: termCheck };
+      return { ok: false, reason: termCheck, requirements };
     }
+
+    // If buyer accepted object is present, it must deep-equal server requirements
+    // (excluding optional buyer-only fields). Compare commercial+extra keys.
+    const accepted = payload.accepted as
+      | CanonicalPaymentRequirements
+      | undefined;
+    if (accepted && typeof accepted === "object") {
+      const acceptedNorm: CanonicalPaymentRequirements = {
+        scheme: "exact",
+        network: String(accepted.network),
+        asset: String(accepted.asset),
+        amount: String(accepted.amount),
+        payTo: String(accepted.payTo),
+        maxTimeoutSeconds: Number(
+          accepted.maxTimeoutSeconds ?? requirements.maxTimeoutSeconds,
+        ),
+        extra:
+          accepted.extra && typeof accepted.extra === "object"
+            ? (accepted.extra as Record<string, unknown>)
+            : {},
+      };
+      // Soft check: commercial fields must match; extra should match when present.
+      if (
+        acceptedNorm.amount !== requirements.amount ||
+        acceptedNorm.network !== requirements.network ||
+        acceptedNorm.asset.toLowerCase() !== requirements.asset.toLowerCase() ||
+        acceptedNorm.payTo.toLowerCase() !== requirements.payTo.toLowerCase()
+      ) {
+        return {
+          ok: false,
+          reason: "amount_mismatch",
+          requirements,
+          sanitizedVerifyReason: "accepted_terms_mismatch",
+        };
+      }
+      void paymentRequirementsDeepEqual;
+    }
+
+    const facReq = toFacilitatorRequirements(requirements);
 
     let verifyRes;
     try {
-      verifyRes = await client.verify(payload, requirements);
+      verifyRes = await client.verify(payload, facReq);
     } catch (err) {
       if (err instanceof OkxSellerBusinessError) {
         return {
@@ -225,6 +270,7 @@ export function createOkxSellerVerifier(args: {
           reason: "rejected",
           sanitizedVerifyReason: sanitizeReason(err.msg ?? err.code),
           lastProviderOperation: "verify",
+          requirements,
         };
       }
       return {
@@ -233,6 +279,7 @@ export function createOkxSellerVerifier(args: {
         lastProviderOperation: "verify",
         sanitizedVerifyReason:
           err instanceof Error ? sanitizeReason(err.message) : undefined,
+        requirements,
       };
     }
     if (!verifyRes.isValid) {
@@ -244,17 +291,14 @@ export function createOkxSellerVerifier(args: {
           verifyRes.invalidReason || verifyRes.invalidMessage,
         ),
         lastProviderOperation: "verify",
+        requirements,
       };
     }
 
-    // Signature verification alone is not settlement.
     let settleRes;
     try {
-      settleRes = await client.settle(payload, requirements);
+      settleRes = await client.settle(payload, facReq);
     } catch (err) {
-      // Conclusive HTTP business failures (4xx from facilitator after body parse
-      // path) and OKX business codes are settle_failed. Ambiguous transport
-      // (network reset, zero status) after settle submission is settlement_unknown.
       if (err instanceof OkxSellerBusinessError) {
         return {
           ok: false,
@@ -262,11 +306,10 @@ export function createOkxSellerVerifier(args: {
           lastProviderOperation: "settle",
           sanitizedSettleReason: sanitizeReason(err.msg ?? err.code),
           payer: verifyRes.payer,
+          requirements,
         };
       }
       if (err instanceof OkxSellerHttpError) {
-        // HTTP 4xx/5xx on settle without a durable tx hash: treat 4xx as
-        // settle_failed (request rejected), 5xx/0 as settlement_unknown.
         if (err.status >= 400 && err.status < 500) {
           return {
             ok: false,
@@ -274,23 +317,27 @@ export function createOkxSellerVerifier(args: {
             lastProviderOperation: "settle",
             sanitizedSettleReason: sanitizeReason(err.message),
             payer: verifyRes.payer,
+            requirements,
           };
         }
+        // Ambiguous transport with no tx → review required, not auto-reconcile claim.
         return {
           ok: false,
-          reason: "settlement_unknown",
+          reason: "settlement_review_required",
           lastProviderOperation: "settle",
           sanitizedSettleReason: sanitizeReason(err.message),
           payer: verifyRes.payer,
+          requirements,
         };
       }
       return {
         ok: false,
-        reason: "settlement_unknown",
+        reason: "settlement_review_required",
         lastProviderOperation: "settle",
         sanitizedSettleReason:
           err instanceof Error ? sanitizeReason(err.message) : undefined,
         payer: verifyRes.payer,
+        requirements,
       };
     }
 
@@ -301,18 +348,23 @@ export function createOkxSellerVerifier(args: {
       if (!tx) {
         return {
           ok: false,
-          reason: "settlement_unknown",
+          reason: "settlement_review_required",
           lastProviderOperation: "settle",
           sanitizedSettleReason: "pending_without_tx",
           payer,
+          requirements,
         };
       }
-      // Bounded poll for confirmation on the same request.
       for (const delay of SETTLE_POLL_DELAYS_MS) {
         await sleep(delay);
         try {
           const status = await client.getSettleStatus(tx);
-          if (status.status === "success" || (status.success && status.status !== "failed" && status.status !== "pending")) {
+          if (
+            status.status === "success" ||
+            (status.success &&
+              status.status !== "failed" &&
+              status.status !== "pending")
+          ) {
             const settlementRef = String(status.transaction || tx).trim();
             if (settlementRef) {
               return {
@@ -321,6 +373,7 @@ export function createOkxSellerVerifier(args: {
                 verifiedVia: "okx-seller",
                 payer: status.payer || payer,
                 network: status.network,
+                requirements,
               };
             }
           }
@@ -334,10 +387,11 @@ export function createOkxSellerVerifier(args: {
               ),
               payer: status.payer || payer,
               pendingTxHash: tx,
+              requirements,
             };
           }
         } catch {
-          // Keep pending; outer layer records settlement_pending.
+          /* keep pending */
         }
       }
       return {
@@ -346,6 +400,7 @@ export function createOkxSellerVerifier(args: {
         pendingTxHash: tx,
         payer,
         lastProviderOperation: "settle",
+        requirements,
       };
     }
 
@@ -354,13 +409,17 @@ export function createOkxSellerVerifier(args: {
       if (tx) {
         try {
           const status = await client.getSettleStatus(tx);
-          if (status.status === "success" || (status.success && status.status !== "failed")) {
+          if (
+            status.status === "success" ||
+            (status.success && status.status !== "failed")
+          ) {
             return {
               ok: true,
               settlementRef: String(status.transaction || tx).trim(),
               verifiedVia: "okx-seller",
               payer: status.payer || payer,
               network: status.network,
+              requirements,
             };
           }
           if (status.status === "pending") {
@@ -370,6 +429,7 @@ export function createOkxSellerVerifier(args: {
               pendingTxHash: tx,
               payer,
               lastProviderOperation: "settle_status",
+              requirements,
             };
           }
         } catch {
@@ -379,16 +439,18 @@ export function createOkxSellerVerifier(args: {
             pendingTxHash: tx,
             payer,
             lastProviderOperation: "settle_status",
+            requirements,
           };
         }
       }
       return {
         ok: false,
-        reason: "settlement_unknown",
+        reason: tx ? "settlement_unknown" : "settlement_review_required",
         pendingTxHash: tx || undefined,
         payer,
         lastProviderOperation: "settle",
         sanitizedSettleReason: "timeout",
+        requirements,
       };
     }
 
@@ -401,6 +463,7 @@ export function createOkxSellerVerifier(args: {
           settleRes.errorReason || settleRes.errorMessage,
         ),
         payer,
+        requirements,
       };
     }
 
@@ -411,11 +474,13 @@ export function createOkxSellerVerifier(args: {
       payer,
       network: settleRes.network,
       amount: settleRes.amount,
+      requirements,
     };
   }
 
   return {
     label: "okx-seller",
+    getLastRequirements: () => lastRequirements,
     async verifyPayment(input: X402VerifyInput): Promise<X402VerifyResult> {
       const detailed = await verifyAndSettleDetailed(input);
       if (detailed.ok) {
@@ -439,6 +504,15 @@ export function createOkxSellerVerifier(args: {
         return {
           ok: false,
           reason: "settlement_unknown",
+          pendingTxHash: detailed.pendingTxHash,
+          payer: detailed.payer,
+          sanitizedReason: detailed.sanitizedSettleReason,
+        };
+      }
+      if (detailed.reason === "settlement_review_required") {
+        return {
+          ok: false,
+          reason: "settlement_review_required",
           pendingTxHash: detailed.pendingTxHash,
           payer: detailed.payer,
           sanitizedReason: detailed.sanitizedSettleReason,

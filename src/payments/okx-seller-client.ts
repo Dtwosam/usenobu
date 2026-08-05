@@ -37,7 +37,8 @@ export type PaymentRequirements = {
   network: string;
   asset: string;
   amount: string;
-  resource: string;
+  /** Official facilitator shape omits resource; kept optional for legacy. */
+  resource?: string;
   payTo: string;
   /** Must mirror the accepts entry the buyer signed. */
   maxTimeoutSeconds?: number;
