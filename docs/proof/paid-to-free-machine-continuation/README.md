@@ -114,15 +114,15 @@ Focused test: `tests/a2mcp/paid-to-free-fallback-repair.test.ts` (plus generic A
 
 ## Production probes (unpaid only)
 
-Prior deploy `7b7c810` / `usenobu-75tx7dext…` on `https://www.usenobu.xyz`. Fallback repair redeploy records below after Production promote.
+Fallback repair deployed: code `1449757` / docs `fa83410` → Production alias `https://www.usenobu.xyz` (`usenobu-q5b3som2e…`).
 
 | Probe | Result |
 |---|---|
 | `GET /health` | **200** ok |
 | free first contact `POST /v1/agent` `{}` | **400** `SERVICE_SELECTION_REQUIRED`; both endpoints `https://www.usenobu.xyz/...` |
-| unpaid paid endpoint | **402** + `PAYMENT-REQUIRED`; no obsolete hostname |
+| unpaid paid endpoint | **402**; no obsolete hostname |
 | malformed payment signature | **402** |
-| free GET serialization | **400**; no obsolete hostname |
+| public-id-only free claim probe | **400** `INTERNAL_CONTINUATION_STATE_MISSING`; `required_fields: []`; `second_payment_required: false` |
 
 No genuine payment, no ASP `#5541` mutation, no service metadata edit.
 
