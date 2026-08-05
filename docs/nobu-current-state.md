@@ -1,9 +1,11 @@
 # Nobu Current State
 
 **Date:** 2026-08-05
-**Status:** `NOBU_USER_ROLE_JOURNEY_REPAIR_PASS` — catalogue, discovery, paid 402, handoff, setup stages repaired; Production deploy + unpaid endpoint proofs green; official x402-check `valid: true`.
+**Status:** `NOBU_USER_ROLE_JOURNEY_FOLLOWUP_REPAIR_PASS` — bare service_id selection, no-result discovery stop, durable activation_pending resume; Production deploy + unpaid probes + x402-check valid.
 
-**OKX User-role marketplace journey repair (2026-08-05):** **PASS.** Baseline `3d9c865` → final `c35468f`. Live failure: agents assumed `35958` from Agent `5541`, skipped service list, asked users to describe Nobu, guessed parameters, checked balance early. Repair: `src/a2mcp/service-catalogue.ts` (33561 free @ usenobu.vercel.app; 35958 paid @ www.usenobu.xyz); `SERVICE_SELECTION_REQUIRED`; full setup contract with `automatic_continue` / `machine_continuation`; paid protocol_replay (never user PAYMENT-SIGNATURE); one-quote balance guidance; issued → `CONFIRM_USE_PASS` / 33561. Focused 61/61; typecheck; build. Deploy `dpl_BcEVaj8A1zGW6FL41FANa6z1z6tc`; free alias re-pointed; paid alias www.usenobu.xyz. Production GET/POST free → both services; paid 402 header+body agree; official x402-check valid. Unpaid A/B/C machine contracts proven. No payment, ASP update, activation, resubmission. Evidence: `docs/proof/user-role-journey-repair/`.
+**User-role journey follow-up repair (2026-08-05):** **PASS.** Baseline `b0c28de` → code `13113f1` → proof docs (this HEAD). Audit findings: service_id-only selection looped; no-result discovery auto-looped SerpApi; ACTIVATION_PENDING not durable/resumable; human stages carried machine_continuation. Repair: bare `service_id` selects 33561/35958; `MORE_INFORMATION_REQUIRED` after zero candidates; durable `activation_pending` with journey_id-only resume via existing redeem/activation path; human `machine_continuation: null`. Focused 71/71. Deploy `dpl_BZPj3UKLyPbY1U1iFMSyGks33zYR`; free alias re-pointed. Production bare service_id probes 200; x402-check valid. No payment, ASP update, activation, resubmission. Evidence: `docs/proof/user-role-journey-followup-repair/`.
+
+**OKX User-role marketplace journey repair (2026-08-05):** **PASS (prior).** Baseline `3d9c865` → `c35468f` / proof `b0c28de`. Catalogue + SERVICE_SELECTION_REQUIRED + paid 402 machine fields + CONFIRM_USE_PASS. Deploy `dpl_BcEVaj8A1zGW6FL41FANa6z1z6tc`. Evidence: `docs/proof/user-role-journey-repair/`.
 
 **Complete speed and flow hardening (2026-07-28):** **SUPERSEDED as current status** by marketplace journey repair above (one-quote policy remains). Evidence: `docs/proof/complete-speed-and-flow-hardening/`.
 
