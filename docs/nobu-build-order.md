@@ -5,25 +5,28 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Paid-to-active transaction CLOSEOUT PASS
+## Active closeout — Paid-to-active transaction LIVE READY / BLOCKED
 
-**State:** PASS — final transactional audit closeout.
+**State:** BLOCKED — code repairs complete; authenticated readiness booleans not confirmed via CLI.
 
-Closeout (2026-08-05) baseline `50c0d54`:
+Live-ready closeout (2026-08-05) baseline `63a999f`:
 
-- Bootstrap `insertDurableMonitorScheduleIfMissing` under global lease only.
-- Settlement review requires full locked commercial fields; exclusive settlement_ref claim + atomic audit.
-- Outbox revalidates durable consent; summary subject/body preserved; durable 24h summary rate.
-- Owner-only `GET /v1/owner/config-readiness` booleans (no secret material).
-- Focused closeout suites; typecheck; build. No genuine payment, ASP update.
+- Failed settlement decisions require payment-binding commercial evidence.
+- Canonical lowercase settlement_ref for all claims/stores.
+- Rolling 24h summary send state (not calendar day).
+- `NOBU_PASS_CLAIM_SECRET` provisioned on Production; readiness route owner-only.
+- Focused tests + typecheck + build. No genuine payment, ASP update.
 
-Exact next lane (optional operator):
+**Blocker:** Vercel Sensitive env redaction prevents local authenticated `GET /v1/owner/config-readiness` boolean capture. Operator must confirm all six booleans true once with a live OWNER_OPS_SECRET (never commit it).
 
-1. One interactive OKX.AI User-role chat against agent `5541` (at most one `0.99 USDT` payment) if a live video A→Z is required.
-2. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
+Exact next lane:
 
-**Closeout proof:** `docs/proof/paid-to-active-transaction-closeout/README.md`.
-**Current verdict:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_CLOSEOUT_PASS`.
+1. Operator confirms readiness booleans → re-open as `NOBU_PAID_TO_ACTIVE_TRANSACTION_LIVE_READY`.
+2. Optional User-role chat against agent `5541` (at most one payment) only after readiness PASS.
+3. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
+
+**Closeout proof:** `docs/proof/paid-to-active-transaction-live-ready/README.md`.
+**Current verdict:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_CLOSEOUT_BLOCKED`.
 
 ## Prior closeout — Paid-to-active transaction audit repair FINAL PASS
 

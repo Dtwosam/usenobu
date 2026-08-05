@@ -1,9 +1,11 @@
 # Nobu Current State
 
 **Date:** 2026-08-05
-**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_CLOSEOUT_PASS` — final transactional audit closeout: bootstrap insert-if-missing, settlement ref bound to one payment, outbox consent revalidation + durable 24h summary bucket, owner config-readiness booleans.
+**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_CLOSEOUT_BLOCKED` — code closeout repairs complete; authenticated Production readiness boolean body not operator-verifiable from CLI (Sensitive env redaction). Do not authorize payment until all six readiness booleans are confirmed true.
 
-**Paid-to-active transaction closeout (2026-08-05):** **PASS.** Baseline `50c0d54`. Bootstrap never overwrites terminal schedules; settlement requires full commercial fields + exclusive settlement_ref claim; outbox revalidates durable consent before every send; summary preserves subject/body; config-readiness probe booleans only. Focused closeout suites green; typecheck; build. No genuine payment, ASP update. Evidence: `docs/proof/paid-to-active-transaction-closeout/`.
+**Paid-to-active live-ready closeout (2026-08-05):** **BLOCKED (readiness probe).** Baseline `63a999f`. Failed-settlement binding + canonical settlement refs + rolling 24h summary reserve implemented and tested. `NOBU_PASS_CLAIM_SECRET` added to Production (was missing). Wrong-token readiness → 401 (owner secret live). Vercel CLI `env pull` / `env run` redacts Sensitive secrets to empty, so authenticated boolean body cannot be recorded from this operator environment. Evidence: `docs/proof/paid-to-active-transaction-live-ready/`.
+
+**Paid-to-active transaction closeout (2026-08-05):** **SUPERSEDED.** Baseline `50c0d54`. Evidence: `docs/proof/paid-to-active-transaction-closeout/`.
 
 **Prior final audit status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FINAL_AUDIT_BLOCKED` (cleared by closeout).
 
