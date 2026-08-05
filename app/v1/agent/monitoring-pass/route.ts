@@ -12,19 +12,19 @@ import {
 import {
   X402_CHALLENGE_HEADER_NAME,
   X402_PAYMENT_HEADER_NAME,
+  X402_PAYMENT_RESPONSE_HEADER_NAME,
 } from "@/payments/x402";
 import { resolvePaidServiceEndpoint } from "@/a2mcp/service-catalogue";
 
 /**
- * Lane 8R.3B — paid A2MCP service `35958`, "Nobu Monitoring Pass" ($0.99).
+ * Paid A2MCP service `35958`, "Nobu Monitoring Pass" ($0.99).
  *
- * Every initial call — GET or POST, body or no body — returns HTTP 402 with
- * the base64 x402 v2 challenge in the PAYMENT-REQUIRED header, before any
- * business execution and without requiring a quote, connection, purchase or
- * consent. The signed replay travels in PAYMENT-SIGNATURE (never the body)
- * and returns the issued Monitoring Pass.
+ * Unpaid contact → HTTP 402 + PAYMENT-REQUIRED.
+ * Successful settlement → HTTP 200 + PAYMENT-RESPONSE + MONITORING_PASS_ISSUED.
+ * Never issues a pass before confirmed settlement. Never returns a fresh 402
+ * or human-input 400 after successful settlement.
  *
- * Registered paid endpoint (distinct from free service host):
+ * Registered paid endpoint:
  * https://www.usenobu.xyz/v1/agent/monitoring-pass
  */
 
@@ -38,11 +38,6 @@ function clientKey(req: Request): string {
   return "local";
 }
 
-/**
- * x402 resource.url must match the registered paid endpoint.
- * Uses NOBU_PAID_SERVICE_ENDPOINT or the catalogue default — never derived
- * from the free-service host.
- */
 function resolveResourceUrl(env: NodeJS.ProcessEnv = process.env): string {
   return resolvePaidServiceEndpoint(env);
 }
@@ -54,8 +49,6 @@ async function handle(req: Request, method: "GET" | "POST") {
   const contentLength = parseContentLength(req.headers.get("content-length"));
   const paymentAuthorizationHeader = req.headers.get(X402_PAYMENT_HEADER_NAME);
 
-  // Existing-pass and post-issuance journey calls are free even on this URL.
-  // Read only the JSON body; structured logging below records key names, not values.
   let raw: unknown = null;
   if (method === "POST") {
     try {
@@ -65,7 +58,10 @@ async function handle(req: Request, method: "GET" | "POST") {
       raw = null;
     }
   }
-  if (isMarketplaceJourneyRequest(raw)) {
+
+  // Post-issuance free journey on this URL only when no payment replay is present.
+  // Never run journey (and never return 400 input_required) after a settled payment.
+  if (!paymentAuthorizationHeader && isMarketplaceJourneyRequest(raw)) {
     const journey = await runMarketplaceJourney(raw, { sourceKey: key });
     auditA2mcp({
       at: new Date().toISOString(),
@@ -90,9 +86,6 @@ async function handle(req: Request, method: "GET" | "POST") {
     return NextResponse.json(journey.body, { status: journey.http_status });
   }
 
-  // Rate limiting applies only to the paid replay path. An unpaid first
-  // contact must always receive its challenge — that is what OKX's validator
-  // and every first-time caller probe with.
   if (paymentAuthorizationHeader) {
     const limit = defaultA2mcpRateLimiter.check(key);
     if (!limit.allowed) {
@@ -145,7 +138,6 @@ async function handle(req: Request, method: "GET" | "POST") {
     method,
     contentType,
     contentLength,
-    // Payment material stays in its header and is never logged.
     body: raw,
     recognisedAction: "MONITORING_PASS",
     httpStatus: result.http_status,
@@ -161,19 +153,19 @@ async function handle(req: Request, method: "GET" | "POST") {
     });
   }
 
-  if (result.status === "MONITORING_PASS_ISSUED") {
-    const journey = await runMarketplaceJourney({
-      monitoring_pass_id: result.pass.id,
-    });
-    // Official Onchain OS 4.4.0 handles a non-2xx replay carrying
-    // status=input_required by collecting the returned fields. A 200 replay
-    // is terminalized before that branch, so keep this truthful continuation
-    // non-terminal after the already-settled, exactly-once pass issuance.
-    return NextResponse.json(journey.body, { status: journey.http_status });
+  // Successful settlement path: always HTTP 200 with official receipt when available.
+  // Never return 400 human-input after confirmed settlement.
+  const headers: Record<string, string> = {};
+  if (
+    "payment_response_header" in result &&
+    result.payment_response_header
+  ) {
+    headers[X402_PAYMENT_RESPONSE_HEADER_NAME] = result.payment_response_header;
   }
 
   return NextResponse.json(monitoringPassResponseBody(result), {
-    status: result.http_status,
+    status: 200,
+    headers,
   });
 }
 

@@ -26,6 +26,7 @@ import {
 import { sendPriceDropEmail, buildSummaryEmailText } from "./email-send.js";
 import { hashEmailForLog } from "./mask-email.js";
 import type {
+  EmailNotificationStatus,
   NotificationProcessResult,
   PriceDropEmailEvidence,
 } from "./types.js";
@@ -280,7 +281,8 @@ export async function processPriceDropEmailForNewAlert(args: {
       };
     }
 
-    // Reserve opportunity as combined before send
+    // Reserve this opportunity as combined (no immediate send).
+    // Summary path sends exactly one summary email — no preliminary immediate.
     const reserved = insertNotification({
       db: args.db,
       purchase_id: args.purchaseId,
@@ -315,6 +317,39 @@ export async function processPriceDropEmailForNewAlert(args: {
       };
     }
 
+    // Reserve summary outbox as pending, then send once.
+    const summaryReserved = insertNotification({
+      db: args.db,
+      purchase_id: args.purchaseId,
+      account_id: ownerRef,
+      alert_id: args.alertId,
+      opportunity_key: summaryKey,
+      kind: "summary",
+      status: "pending",
+      reason: "pending_summary",
+      recipient_email_hash: hashEmailForLog(account.email_normalized),
+      created_at: nowIso,
+    });
+    if (!summaryReserved.created) {
+      return {
+        attempted: false,
+        status: "combined",
+        reason: "combined_into_summary",
+        notification_id: reserved.id,
+        kind: "summary",
+      };
+    }
+
+    try {
+      args.db
+        .prepare(
+          `UPDATE email_notifications SET status = 'sending' WHERE id = ? AND status = 'pending'`,
+        )
+        .run(summaryReserved.id);
+    } catch {
+      /* ignore */
+    }
+
     const summaryBody = buildSummaryEmailText({
       items: [
         {
@@ -324,26 +359,8 @@ export async function processPriceDropEmailForNewAlert(args: {
         },
       ],
     });
-    const send = await sendPriceDropEmail({
-      emailNormalized: account.email_normalized,
-      evidence: {
-        ...evidence,
-        // reuse builder subject/text path via custom — use send with evidence
-        // but override by sending summary through same provider with summary text
-      },
-      reviewUrl,
-      disableAlertsUrl,
-      env,
-    });
-    // Prefer dedicated summary send with correct subject
-    const { isAuthTestMode } = await import("../auth/config.js");
-    if (isAuthTestMode(env) || send.ok) {
-      // Re-send with summary content for accuracy in test capture
-      const { getCapturedPriceDropEmails } = await import("./email-send.js");
-      void getCapturedPriceDropEmails;
-    }
 
-    // Direct provider call for summary
+    // Exactly one summary provider call — no preliminary immediate email.
     const summarySend = await sendSummaryEmail({
       emailNormalized: account.email_normalized,
       subject: summaryBody.subject,
@@ -352,6 +369,21 @@ export async function processPriceDropEmailForNewAlert(args: {
     });
 
     if (!summarySend.ok) {
+      try {
+        args.db
+          .prepare(
+            `UPDATE email_notifications SET status = ?, reason = ? WHERE id = ?`,
+          )
+          .run(
+            "failed_retryable",
+            summarySend.error === "not_configured"
+              ? "not_configured"
+              : "provider_send_failed",
+            summaryReserved.id,
+          );
+      } catch {
+        /* ignore */
+      }
       return {
         attempted: true,
         status: "failed",
@@ -364,18 +396,15 @@ export async function processPriceDropEmailForNewAlert(args: {
       };
     }
 
-    insertNotification({
-      db: args.db,
-      purchase_id: args.purchaseId,
-      account_id: ownerRef,
-      alert_id: args.alertId,
-      opportunity_key: summaryKey,
-      kind: "summary",
-      status: "sent",
-      reason: "sent_summary",
-      recipient_email_hash: hashEmailForLog(account.email_normalized),
-      created_at: nowIso,
-    });
+    try {
+      args.db
+        .prepare(
+          `UPDATE email_notifications SET status = 'sent', reason = 'sent_summary' WHERE id = ?`,
+        )
+        .run(summaryReserved.id);
+    } catch {
+      /* ignore */
+    }
 
     return {
       attempted: true,
@@ -386,7 +415,11 @@ export async function processPriceDropEmailForNewAlert(args: {
     };
   }
 
-  // Immediate email path
+  // Immediate email path — transactional outbox:
+  // 1) reserve unique opportunity as pending (not sent)
+  // 2) acquire send lease (sending)
+  // 3) call provider once
+  // 4) mark sent only after provider success
   const reserved = insertNotification({
     db: args.db,
     purchase_id: args.purchaseId,
@@ -394,18 +427,88 @@ export async function processPriceDropEmailForNewAlert(args: {
     alert_id: args.alertId,
     opportunity_key: evidence.opportunity_key,
     kind: "immediate",
-    status: "sent",
-    reason: "sent_immediate",
+    status: "pending",
+    reason: "pending_send",
     recipient_email_hash: hashEmailForLog(account.email_normalized),
     created_at: nowIso,
   });
   if (!reserved.created) {
+    const existing = findNotificationByOpportunity(
+      args.db,
+      evidence.opportunity_key,
+    );
+    // Crash before send remains retryable when status is pending/failed_retryable.
+    if (
+      existing &&
+      (existing.status === "pending" ||
+        existing.status === "failed_retryable" ||
+        existing.status === "failed")
+    ) {
+      // Fall through to lease + send on the existing row.
+    } else {
+      return {
+        attempted: false,
+        status: existing?.status === "sent" ? "sent" : "suppressed",
+        reason: "duplicate_opportunity",
+        notification_id: reserved.id,
+        kind: existing?.kind,
+      };
+    }
+  }
+
+  // Acquire send lease — concurrent workers: only one becomes sending.
+  const leaseId = reserved.id;
+  let leased = false;
+  try {
+    const r = args.db
+      .prepare(
+        `UPDATE email_notifications
+         SET status = 'sending', reason = 'sending'
+         WHERE id = ? AND status IN ('pending', 'failed_retryable', 'failed')`,
+      )
+      .run(leaseId);
+    leased = Number(r.changes ?? 0) === 1;
+  } catch {
+    leased = false;
+  }
+  if (!leased) {
+    const existing = findNotificationByOpportunity(
+      args.db,
+      evidence.opportunity_key,
+    );
     return {
       attempted: false,
-      status: "suppressed",
+      status: (existing?.status as EmailNotificationStatus) ?? "suppressed",
       reason: "duplicate_opportunity",
-      notification_id: reserved.id,
+      notification_id: leaseId,
+      kind: "immediate",
     };
+  }
+
+  // Durable outbox reservation (cross-instance idempotency).
+  try {
+    const authStore =
+      args.accountStore ?? (await getAuthStore({ sqliteDb: args.db, env }));
+    await authStore.tryReserveAlertOpportunity({
+      opportunityKey: evidence.opportunity_key,
+      purchaseId: args.purchaseId,
+      alertId: args.alertId,
+      nowIso,
+    });
+    await authStore.insertNotificationOutbox({
+      id: `outbox_${leaseId}`,
+      opportunityKey: evidence.opportunity_key,
+      purchaseId: args.purchaseId,
+      accountId: ownerRef,
+      alertId: args.alertId,
+      kind: "immediate",
+      status: "sending",
+      reason: "sending",
+      recipientEmailHash: hashEmailForLog(account.email_normalized),
+      nowIso,
+    });
+  } catch {
+    /* durable outbox is best-effort alongside local ledger */
   }
 
   const send = await sendPriceDropEmail({
@@ -417,39 +520,71 @@ export async function processPriceDropEmailForNewAlert(args: {
   });
 
   if (!send.ok) {
-    // Keep ledger row as failed semantics: update reason if possible
+    const failStatus =
+      send.error === "not_configured" ? "failed_terminal" : "failed_retryable";
+    const reason =
+      send.error === "not_configured"
+        ? "not_configured"
+        : "provider_send_failed";
     try {
       args.db
         .prepare(
           `UPDATE email_notifications SET status = ?, reason = ? WHERE id = ?`,
         )
-        .run(
-          "failed",
-          send.error === "not_configured"
-            ? "not_configured"
-            : "provider_send_failed",
-          reserved.id,
-        );
+        .run(failStatus, reason, leaseId);
+    } catch {
+      /* ignore */
+    }
+    try {
+      const authStore =
+        args.accountStore ?? (await getAuthStore({ sqliteDb: args.db, env }));
+      await authStore.markNotificationOutboxStatus({
+        id: `outbox_${leaseId}`,
+        status: failStatus,
+        reason,
+        nowIso,
+      });
     } catch {
       /* ignore */
     }
     return {
       attempted: true,
-      status: "failed",
-      reason:
-        send.error === "not_configured"
-          ? "not_configured"
-          : "provider_send_failed",
-      notification_id: reserved.id,
+      status: failStatus === "failed_terminal" ? "failed" : "failed",
+      reason,
+      notification_id: leaseId,
       kind: "immediate",
     };
+  }
+
+  // Mark sent only after provider success.
+  try {
+    args.db
+      .prepare(
+        `UPDATE email_notifications SET status = 'sent', reason = 'sent_immediate' WHERE id = ?`,
+      )
+      .run(leaseId);
+  } catch {
+    /* ignore */
+  }
+  try {
+    const authStore =
+      args.accountStore ?? (await getAuthStore({ sqliteDb: args.db, env }));
+    await authStore.markNotificationOutboxStatus({
+      id: `outbox_${leaseId}`,
+      status: "sent",
+      reason: "sent_immediate",
+      nowIso,
+      sentAt: nowIso,
+    });
+  } catch {
+    /* ignore */
   }
 
   return {
     attempted: true,
     status: "sent",
     reason: "sent_immediate",
-    notification_id: reserved.id,
+    notification_id: leaseId,
     kind: "immediate",
   };
 }

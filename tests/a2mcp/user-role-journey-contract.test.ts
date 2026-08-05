@@ -158,51 +158,25 @@ describe("User-role journey contract proof", () => {
 
     const body = monitoringPassResponseBody(result);
     expect(body.status).toBe("PAYMENT_PENDING");
-    expect(body.input_required).toBe(false);
+    // Neutral typed facts only — no imperative agent-control prose.
+    expect(body.business_input_required).toBe(false);
     expect(body.required_fields).toEqual([]);
     expect(body.fields).toEqual([]);
     expect(body.requiredArgs).toEqual([]);
-    expect(body.required_user_input).toBeNull();
     expect(body.product_details_required_before_payment).toBe(false);
     expect(body.email_required_before_payment).toBe(false);
     expect(body.alert_threshold_required).toBe(false);
     expect(body.wallet_address_required_as_service_input).toBe(false);
-    expect(body.one_quote_only).toBe(true);
-    expect(body.do_not_re_quote_on).toEqual(
-      expect.arrayContaining(["balance_unavailable", "insufficient_balance"]),
-    );
-
-    const bal = body.insufficient_balance_guidance as Record<string, unknown>;
-    expect(bal.preserve_existing_payment_id).toBe(true);
-    expect(bal.create_another_quote).toBe(false);
-    expect(bal.ask_for_service_description).toBe(false);
-    expect(bal.claim_pass_exists).toBe(false);
-    expect(bal.claim_monitor_exists).toBe(false);
-
-    const neverAsk = body.never_ask_user_for as string[];
-    expect(neverAsk).toEqual(
-      expect.arrayContaining([
-        "PAYMENT-SIGNATURE",
-        "service_description",
-        "wallet_address_as_service_input",
-        "alert_threshold",
-        "email_before_payment",
-        "product_details_before_payment",
-      ]),
-    );
-
-    const replay = body.protocol_replay as Record<string, unknown>;
-    expect(replay.do_not_ask_user).toBe(true);
-    expect(replay.never_collect_as_user_input).toBe(true);
-    expect(String(replay.note)).toMatch(/Never ask the end user/i);
+    expect(body.replay_header_name).toBe("PAYMENT-SIGNATURE");
+    expect(body.amount).toBe("990000");
+    expect(body.monitoring_active).toBe(false);
+    expect(body.never_ask_user_for).toBeUndefined();
+    expect(body.guidance).toBeUndefined();
 
     // Body must not suggest collecting wallet/threshold/email/product as service params.
     const blob = JSON.stringify(body);
     expect(blob).not.toMatch(/required_fields":\["wallet/i);
-    expect(String(body.message)).toMatch(
-      /No product details, email, wallet address, alert threshold/i,
-    );
-    expect(String(body.message)).not.toMatch(/please provide your wallet/i);
+    expect(blob).not.toMatch(/please provide your wallet/i);
 
     // Catalogue machine fields agree.
     const m = buildPaidPrePaymentMachineFields();
@@ -232,14 +206,16 @@ describe("User-role journey contract proof", () => {
         updated_at: new Date().toISOString(),
       },
       pass_continuation_id: "pass_cont_testissued0001",
+      settlementRef: "settle_test",
+      payment_response_header: "dGVzdA==",
     });
     expect(body.status).toBe("MONITORING_PASS_ISSUED");
-    expect(body.payment_status).toBe("recognized");
+    expect(body.payment_status).toBe("settled");
     expect(body.second_payment_required).toBe(false);
     expect(body.monitoring_active).toBe(false);
     expect(body.journey_complete).toBe(false);
     expect(body.next_service_id).toBe(33561);
-    expect(body.next_action).toBe("CONFIRM_USE_PASS");
+    expect(body.next_service_endpoint).toBeTruthy();
   });
 
   // 10 + 11: each setup stage correct input contract; automatic stages no user IDs

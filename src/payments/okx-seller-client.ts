@@ -1,11 +1,16 @@
 /**
  * Official OKX seller-side x402 facilitator HTTP client.
  *
- * Source of truth: github.com/okx/payments TypeScript OKXFacilitatorClient
- * (HMAC-SHA256 REST auth) + official paths:
+ * Aligns with @okxweb3/x402-core OKXFacilitatorClient:
+ *   GET  /api/v6/pay/x402/supported
  *   POST /api/v6/pay/x402/verify
  *   POST /api/v6/pay/x402/settle
  *   GET  /api/v6/pay/x402/settle/status?txHash=...
+ *
+ * Improvements over a raw re-export of the SDK client:
+ *   - require top-level OKX business `code === "0"` before reading `data`
+ *   - injectable fetch for tests
+ *   - classify transport failures after settle submission for settlement_unknown
  *
  * Never logs API secrets, payment payloads, or signatures.
  */
@@ -34,7 +39,7 @@ export type PaymentRequirements = {
   amount: string;
   resource: string;
   payTo: string;
-  /** Must mirror the accepts entry the buyer signed (Lane 8R.3B). */
+  /** Must mirror the accepts entry the buyer signed. */
   maxTimeoutSeconds?: number;
   extra?: Record<string, unknown>;
 };
@@ -67,10 +72,56 @@ export type OkxSettleStatusResponse = {
   network?: string;
 };
 
+export type OkxSupportedKind = {
+  x402Version: number;
+  scheme: string;
+  network: string;
+  extra?: Record<string, unknown>;
+};
+
+export type OkxSupportedResponse = {
+  kinds: OkxSupportedKind[];
+  extensions?: string[];
+  signers?: Record<string, string[]>;
+};
+
 export type OkxHttpFetch = (
   url: string,
   init: RequestInit,
 ) => Promise<Response>;
+
+/** Structured client errors — never include raw payment material. */
+export class OkxSellerHttpError extends Error {
+  readonly status: number;
+  readonly operation: "verify" | "settle" | "settle_status" | "supported";
+  constructor(
+    operation: OkxSellerHttpError["operation"],
+    status: number,
+    message?: string,
+  ) {
+    super(message ?? `okx_${operation}_http_${status}`);
+    this.name = "OkxSellerHttpError";
+    this.status = status;
+    this.operation = operation;
+  }
+}
+
+export class OkxSellerBusinessError extends Error {
+  readonly code: string;
+  readonly operation: "verify" | "settle" | "settle_status" | "supported";
+  readonly msg?: string;
+  constructor(
+    operation: OkxSellerBusinessError["operation"],
+    code: string,
+    msg?: string,
+  ) {
+    super(`okx_${operation}_business_${code}`);
+    this.name = "OkxSellerBusinessError";
+    this.code = code;
+    this.operation = operation;
+    this.msg = msg;
+  }
+}
 
 export function loadOkxSellerConfig(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
@@ -125,6 +176,46 @@ export function createOkxAccessHeaders(args: {
   };
 }
 
+/**
+ * Require top-level OKX envelope `code === "0"` before reading `data`.
+ * Falls back to treating a bare body as data only when `code` is absent
+ * (some mocked/test facilitators).
+ */
+export function parseOkxEnvelope<T>(
+  json: unknown,
+  operation: OkxSellerBusinessError["operation"],
+): T {
+  if (!json || typeof json !== "object") {
+    throw new OkxSellerBusinessError(operation, "malformed", "empty_body");
+  }
+  const obj = json as Record<string, unknown>;
+  if ("code" in obj) {
+    const code = String(obj.code);
+    if (code !== "0") {
+      const msg =
+        typeof obj.msg === "string"
+          ? obj.msg
+          : typeof obj.message === "string"
+            ? obj.message
+            : undefined;
+      throw new OkxSellerBusinessError(operation, code, sanitizeReason(msg));
+    }
+    return (obj.data ?? {}) as T;
+  }
+  // Bare payload (tests / older mocks)
+  return obj as T;
+}
+
+/** Strip anything that looks like a signature/hex blob from provider text. */
+export function sanitizeReason(raw: string | undefined | null): string | undefined {
+  if (raw == null) return undefined;
+  let s = String(raw).slice(0, 240);
+  // Collapse long hex / base64-looking segments
+  s = s.replace(/0x[a-fA-F0-9]{16,}/g, "0x[redacted]");
+  s = s.replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted]");
+  return s.trim() || undefined;
+}
+
 export class OkxSellerClient {
   constructor(
     private readonly config: OkxSellerConfig,
@@ -150,6 +241,45 @@ export class OkxSellerClient {
     });
   }
 
+  private async requestJson(
+    operation: OkxSellerHttpError["operation"],
+    method: string,
+    path: string,
+    body?: string,
+  ): Promise<unknown> {
+    let res: Response;
+    try {
+      res = await this.fetchImpl(this.config.baseUrl + path, {
+        method,
+        headers: this.headers(method, path, body),
+        body,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "network_error";
+      throw new OkxSellerHttpError(operation, 0, `okx_${operation}_transport: ${sanitizeReason(msg)}`);
+    }
+    if (!res.ok) {
+      console.error("nobu_okx_http_error", {
+        operation,
+        status: res.status,
+      });
+      throw new OkxSellerHttpError(operation, res.status);
+    }
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch {
+      throw new OkxSellerBusinessError(operation, "malformed", "invalid_json");
+    }
+    return parseOkxEnvelope(json, operation);
+  }
+
+  async getSupported(): Promise<OkxSupportedResponse> {
+    const path = "/api/v6/pay/x402/supported";
+    const data = await this.requestJson("supported", "GET", path);
+    return data as OkxSupportedResponse;
+  }
+
   async verify(
     payload: PaymentPayload,
     requirements: PaymentRequirements,
@@ -160,17 +290,8 @@ export class OkxSellerClient {
       paymentPayload: payload,
       paymentRequirements: requirements,
     });
-    const res = await this.fetchImpl(this.config.baseUrl + path, {
-      method: "POST",
-      headers: this.headers("POST", path, body),
-      body,
-    });
-    if (!res.ok) {
-      console.error("nobu_okx_verify_http_error", { status: res.status });
-      throw new Error("okx_verify_http_error");
-    }
-    const json = (await res.json()) as Record<string, unknown>;
-    return (json.data ?? json) as OkxVerifyResponse;
+    const data = await this.requestJson("verify", "POST", path, body);
+    return data as OkxVerifyResponse;
   }
 
   async settle(
@@ -187,30 +308,13 @@ export class OkxSellerClient {
       bodyObj.syncSettle = this.config.syncSettle;
     }
     const body = JSON.stringify(bodyObj);
-    const res = await this.fetchImpl(this.config.baseUrl + path, {
-      method: "POST",
-      headers: this.headers("POST", path, body),
-      body,
-    });
-    if (!res.ok) {
-      console.error("nobu_okx_settle_http_error", { status: res.status });
-      throw new Error("okx_settle_http_error");
-    }
-    const json = (await res.json()) as Record<string, unknown>;
-    return (json.data ?? json) as OkxSettleResponse;
+    const data = await this.requestJson("settle", "POST", path, body);
+    return data as OkxSettleResponse;
   }
 
   async getSettleStatus(txHash: string): Promise<OkxSettleStatusResponse> {
     const path = `/api/v6/pay/x402/settle/status?txHash=${encodeURIComponent(txHash)}`;
-    const res = await this.fetchImpl(this.config.baseUrl + path, {
-      method: "GET",
-      headers: this.headers("GET", path),
-    });
-    if (!res.ok) {
-      console.error("nobu_okx_settle_status_http_error", { status: res.status });
-      throw new Error("okx_settle_status_http_error");
-    }
-    const json = (await res.json()) as Record<string, unknown>;
-    return (json.data ?? json) as OkxSettleStatusResponse;
+    const data = await this.requestJson("settle_status", "GET", path);
+    return data as OkxSettleStatusResponse;
   }
 }

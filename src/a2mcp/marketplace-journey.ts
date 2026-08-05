@@ -271,14 +271,52 @@ export async function runMarketplaceJourney(
   if (!journey) {
     const passId = cleanString(raw.monitoring_pass_id);
     const continuationId = cleanString(raw.pass_continuation_id);
+    const claimCredential = cleanString(
+      raw.pass_claim_credential || raw.claim_credential,
+    );
     if (!passId && !continuationId) return marketplaceFirstContact();
+    // Public pass/journey ids alone cannot claim — require single-use claim
+    // credential when the continuation was issued with one.
     const resolution = await resolveMonitoringPassForAgent({
       monitoringPassId: passId || undefined,
       passContinuationId: continuationId || undefined,
+      passClaimCredential: claimCredential || undefined,
       now,
       sqliteDb: deps.sqliteDb,
       env: deps.env,
     });
+    if (resolution.http_status === 401) {
+      return {
+        http_status: 401,
+        body: {
+          status: "CLAIM_NOT_AUTHORIZED",
+          message:
+            "A valid single-use pass_claim_credential is required to start Purchase Setup. Public pass ids alone cannot claim a pass.",
+          monitoring_active: false,
+          second_payment_required: false,
+        },
+      };
+    }
+    // Public ids alone cannot create a Purchase Setup journey when a
+    // single-use claim credential was issued to the paid caller.
+    if (
+      resolution.http_status === 200 &&
+      resolution.body.status === "MONITORING_PASS_ISSUED" &&
+      resolution.body.claim_required === true &&
+      resolution.body.claim_authorized !== true
+    ) {
+      return {
+        http_status: 401,
+        body: {
+          status: "CLAIM_NOT_AUTHORIZED",
+          message:
+            "pass_claim_credential is required to start Purchase Setup. Public monitoring_pass_id alone cannot claim a pass.",
+          monitoring_active: false,
+          second_payment_required: false,
+          claim_required: true,
+        },
+      };
+    }
     if (
       resolution.http_status !== 200 ||
       resolution.body.status !== "MONITORING_PASS_ISSUED" ||
@@ -410,11 +448,26 @@ export async function runMarketplaceJourney(
       };
     }
     // Idempotent: existing activation is resolved; no new quote/pass consume.
+    // After email verification the connection_token boundary is authoritative.
+    const resumeToken = cleanString(raw.connection_token);
+    if (!resumeToken) {
+      return {
+        http_status: 401,
+        body: {
+          status: "ACTION_NOT_AUTHORIZED",
+          message:
+            "connection_token is required to resume activation after email verification.",
+          monitoring_active: false,
+          second_payment_required: false,
+          journey_id: journey.id,
+        },
+      };
+    }
     const resumed = await redeemMonitoringPassForAgent({
       monitoringPassId: journey.monitoring_pass_id,
       quoteId: journey.quote_id,
       connectionId: journey.connection_id,
-      trustedMarketplaceJourney: true,
+      connectionToken: resumeToken,
       now,
       sqliteDb: deps.sqliteDb,
       env: deps.env,
@@ -687,7 +740,18 @@ export async function runMarketplaceJourney(
       stage: "consents",
       nowIso,
     });
-    return incomplete("consents", journey.id, undefined, stageExtras);
+    // Connection token is returned once; subsequent stages require it.
+    // Claim credential is no longer needed once the verified connection exists.
+    const base = incomplete("consents", journey.id, undefined, stageExtras);
+    return {
+      ...base,
+      body: {
+        ...base.body,
+        connection_id: journey.connection_id,
+        connection_token: verified.connection_token,
+        connection_token_required: true,
+      },
+    };
   }
 
   if (
@@ -698,10 +762,26 @@ export async function runMarketplaceJourney(
   ) {
     return incomplete("consents", journey.id, undefined, stageExtras);
   }
+  // After email verification the connection-token boundary is authoritative.
+  const connectionToken = cleanString(raw.connection_token);
+  if (!connectionToken) {
+    return {
+      http_status: 401,
+      body: {
+        status: "ACTION_NOT_AUTHORIZED",
+        message:
+          "connection_token is required after email verification. Public journey ids alone cannot authorize preflight or redemption.",
+        monitoring_active: false,
+        second_payment_required: false,
+        journey_id: journey.id,
+        required_fields: ["connection_token", "monitoring_consent", "email_alert_consent"],
+      },
+    };
+  }
   // Eligibility preflight + pass redemption are provider-controlled automatic steps.
   const preflight = await preflightMonitoringForAgent({
     connectionId: journey.connection_id,
-    trustedMarketplaceJourney: true,
+    connectionToken,
     discoverySessionId: journey.discovery_session_id,
     monitoringConsent: true,
     emailAlertConsent: true,
@@ -727,7 +807,7 @@ export async function runMarketplaceJourney(
     monitoringPassId: journey.monitoring_pass_id,
     quoteId: preflight.quote_id,
     connectionId: journey.connection_id,
-    trustedMarketplaceJourney: true,
+    connectionToken,
     now,
     sqliteDb: deps.sqliteDb,
     env: deps.env,

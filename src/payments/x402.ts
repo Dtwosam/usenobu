@@ -1,11 +1,19 @@
 /**
  * x402 challenge/verification boundary.
  *
- * Lane 8R.0: production uses the official OKX seller HTTP adapter
- * (verify → settle → settle/status). Test mode may inject a fake verifier.
+ * Uses official @okxweb3/x402-core HTTP primitives for challenge and
+ * PAYMENT-RESPONSE receipt encoding. Production verification uses the OKX
+ * seller HTTP adapter (verify → settle → settle/status). Test mode may inject
+ * a fake verifier.
  *
- * Challenge shape matches OKX x402 v2 + exact scheme on X Layer USD₮0.
+ * Locked MVP terms (do not change without ASP re-registration):
+ *   x402Version 2, exact scheme, eip155:196, USD₮0 amount 990000.
  */
+import {
+  encodePaymentRequiredHeader,
+  encodePaymentResponseHeader,
+  decodePaymentSignatureHeader,
+} from "@okxweb3/x402-core/http";
 import { isAuthTestMode } from "../auth/config.js";
 import { isOkxSellerConfigured, loadOkxSellerConfig } from "./okx-seller-client.js";
 import { createOkxSellerVerifier } from "./okx-seller-verifier.js";
@@ -16,6 +24,8 @@ export const X402_VERSION = 2;
 export const X402_PAYMENT_HEADER_NAME = "PAYMENT-SIGNATURE";
 /** Header Nobu returns the encoded challenge under on a 402 response. */
 export const X402_CHALLENGE_HEADER_NAME = "PAYMENT-REQUIRED";
+/** Header Nobu returns after confirmed settlement (official receipt). */
+export const X402_PAYMENT_RESPONSE_HEADER_NAME = "PAYMENT-RESPONSE";
 
 /**
  * Official X Layer / USD₮0 worked example (OKX payments docs + okx/payments).
@@ -78,6 +88,8 @@ export interface BuildX402ChallengeArgs {
   quoteId?: string;
   payTo?: string | null;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  /** Optional facilitator-supported kind extras to merge into EIP-712 domain. */
+  supportedKindExtra?: Record<string, unknown> | null;
 }
 
 /**
@@ -107,7 +119,7 @@ export function buildX402Challenge(
         amount: MONITORING_PRICE_ATOMIC_UNITS,
         payTo,
         maxTimeoutSeconds: X402_MAX_TIMEOUT_SECONDS,
-        extra: buildSettlementExtra(args.quoteId),
+        extra: buildSettlementExtra(args.quoteId, args.supportedKindExtra),
       },
     ],
   };
@@ -116,17 +128,107 @@ export function buildX402Challenge(
 /** EIP-712 domain metadata, plus the quote binding when there is one. */
 export function buildSettlementExtra(
   quoteId?: string,
+  supportedKindExtra?: Record<string, unknown> | null,
 ): Record<string, string> {
   const extra: Record<string, string> = {
     name: SETTLEMENT_ASSET_EIP712_NAME,
     version: SETTLEMENT_ASSET_EIP712_VERSION,
   };
+  // Merge safe string extras from facilitator supported-kind (EIP-712 enrichment).
+  if (supportedKindExtra && typeof supportedKindExtra === "object") {
+    for (const [k, v] of Object.entries(supportedKindExtra)) {
+      if (typeof v === "string" && v.length > 0 && v.length < 128) {
+        // Never let facilitator override locked amount/network/asset via extra.
+        if (k === "name" || k === "version" || k === "decimals") {
+          extra[k] = v;
+        }
+      }
+      if (typeof v === "number" && k === "decimals") {
+        extra[k] = String(v);
+      }
+    }
+  }
+  // Locked domain wins over facilitator if conflicted on name/version for USD₮0.
+  extra.name = SETTLEMENT_ASSET_EIP712_NAME;
+  extra.version = SETTLEMENT_ASSET_EIP712_VERSION;
   if (quoteId) extra.quote_id = quoteId;
   return extra;
 }
 
+/**
+ * Encode challenge as PAYMENT-REQUIRED header value.
+ * Prefer official SDK encoder (PaymentRequired shape); fall back to base64 JSON.
+ */
 export function encodeX402ChallengeHeader(challenge: X402Challenge): string {
-  return Buffer.from(JSON.stringify(challenge), "utf8").toString("base64");
+  try {
+    // Official PaymentRequired: { x402Version, error?, resource, accepts }
+    return encodePaymentRequiredHeader(
+      challenge as unknown as Parameters<typeof encodePaymentRequiredHeader>[0],
+    );
+  } catch {
+    return Buffer.from(JSON.stringify(challenge), "utf8").toString("base64");
+  }
+}
+
+/**
+ * Encode a safe settlement receipt as PAYMENT-RESPONSE.
+ * Never includes raw payment signatures or authorization payloads.
+ */
+export function encodeX402PaymentResponseHeader(args: {
+  success: boolean;
+  transaction: string;
+  network?: string;
+  payer?: string;
+  status?: "pending" | "success" | "timeout";
+  amount?: string;
+  errorReason?: string;
+}): string {
+  const body = {
+    success: args.success,
+    transaction: args.transaction || "",
+    network: args.network ?? DEFAULT_SETTLEMENT_NETWORK,
+    ...(args.payer ? { payer: args.payer } : {}),
+    ...(args.status ? { status: args.status } : {}),
+    ...(args.amount ? { amount: args.amount } : {}),
+    ...(args.errorReason ? { errorReason: args.errorReason } : {}),
+  };
+  return encodePaymentResponseHeader(
+    body as unknown as Parameters<typeof encodePaymentResponseHeader>[0],
+  );
+}
+
+/**
+ * Decode PAYMENT-SIGNATURE via official SDK when possible.
+ * Returns null on malformed input. Never logs the raw value.
+ */
+export function decodePaymentSignatureHeaderSafe(
+  authorizationHeader: string,
+): Record<string, unknown> | null {
+  const raw = String(authorizationHeader || "").trim();
+  if (!raw) return null;
+  try {
+    if (raw.startsWith("{")) {
+      const obj = JSON.parse(raw) as unknown;
+      if (obj && typeof obj === "object") return obj as Record<string, unknown>;
+      return null;
+    }
+    try {
+      const decoded = decodePaymentSignatureHeader(raw);
+      if (decoded && typeof decoded === "object") {
+        return decoded as unknown as Record<string, unknown>;
+      }
+    } catch {
+      // Fall through to base64/base64url JSON parse
+    }
+    const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4 === 0 ? "" : "=".repeat(4 - (b64.length % 4));
+    const json = Buffer.from(b64 + pad, "base64").toString("utf8");
+    const obj = JSON.parse(json) as unknown;
+    if (obj && typeof obj === "object") return obj as Record<string, unknown>;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export interface X402VerifyInput {
@@ -138,7 +240,7 @@ export interface X402VerifyInput {
 }
 
 export type X402VerifyResult =
-  | { ok: true; settlementRef: string; verifiedVia: string }
+  | { ok: true; settlementRef: string; verifiedVia: string; payer?: string }
   | {
       ok: false;
       reason:
@@ -146,7 +248,13 @@ export type X402VerifyResult =
         | "not_configured"
         | "provider_error"
         | "amount_mismatch"
-        | "resource_mismatch";
+        | "resource_mismatch"
+        | "settlement_pending"
+        | "settlement_unknown"
+        | "rejected";
+      pendingTxHash?: string;
+      payer?: string;
+      sanitizedReason?: string;
     };
 
 export interface X402Verifier {

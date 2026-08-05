@@ -1,32 +1,13 @@
 /**
- * Lane 8R.3B — the paid A2MCP service: one $0.99 Nobu Monitoring Pass.
+ * Paid A2MCP service: one $0.99 Nobu Monitoring Pass.
  *
- * Why this exists. The previous paid endpoint (`/v1/agent/start-monitoring`)
- * only issued its x402 challenge *after* a caller already held a quote, a
- * verified connection, a confirmed product and recorded consent. A first-time
- * caller — including OKX's own validator — therefore got `400`/`401` instead
- * of `402`, and `agent x402-check` reported `valid: false`
- * (`docs/proof/lane-8r-3a-timeout-diagnosis/`).
+ * Flow: unpaid 402 challenge → signed PAYMENT-SIGNATURE replay →
+ * verify → settle (never issue before confirmed settlement) →
+ * exactly one pass → secure free continuation credential.
  *
- * A pass decouples payment from enrollment. First contact needs nothing:
- * GET or POST, with or without a body, always returns the 402 challenge.
- * Redemption (free `REDEEM_MONITORING_PASS` on `/v1/agent`) is where every
- * identity, confirmation, eligibility and consent gate still applies —
- * unchanged, and a failed redemption never consumes the pass.
- *
- * Exactly-once issuance is anchored on the OKX-verified settlement
- * reference, never on anything the caller supplies:
- *   - `monitoring_passes.settlement_ref` is UNIQUE, so one verified
- *     settlement can only ever produce one pass;
- *   - a duplicate, concurrent, or lost-response replay of the same signed
- *     payment re-verifies to the same settlement reference and therefore
- *     resolves to the same pass;
- *   - a pending settlement is recorded against the sha256 digest of the
- *     replayed header (never the header itself) so it stays recoverable;
- *   - provider reconciliation polls official settle/status from the stored
- *     opaque settlement_ref alone — no signed-header replay and no second
- *     charge — so marketplace job completion can converge without the buyer
- *     replaying PAYMENT-SIGNATURE.
+ * Exactly-once issuance is anchored on the OKX-verified settlement_ref
+ * (UNIQUE). Ambiguous settle transport becomes settlement_unknown — never
+ * a second challenge or automatic re-charge invitation.
  */
 import { randomBytes, randomUUID } from "node:crypto";
 import type { NobuDatabase } from "../db/index.js";
@@ -34,14 +15,19 @@ import {
   getAuthStore,
   type AuthStore,
   type MonitoringPassPaymentRow,
+  type MonitoringPassPaymentStatus,
   type MonitoringPassRow,
 } from "../auth/auth-store.js";
 import { sha256Hex } from "../auth/crypto.js";
 import {
   buildX402Challenge,
   encodeX402ChallengeHeader,
+  encodeX402PaymentResponseHeader,
   resolveX402Verifier,
   MONITORING_PRICE_USD,
+  DEFAULT_SETTLEMENT_NETWORK,
+  MONITORING_PRICE_ATOMIC_UNITS,
+  X402_PAYMENT_HEADER_NAME,
   type X402Challenge,
   type X402Verifier,
 } from "./x402.js";
@@ -56,13 +42,13 @@ import {
   type OkxHttpFetch,
   type OkxSettleStatusResponse,
 } from "./okx-seller-client.js";
-import { buildConversationContract } from "../a2mcp/conversation-contract.js";
 import {
-  buildPaidPrePaymentMachineFields,
   FREE_SERVICE_ID,
   MONITORING_PASS_RESOURCE_DESCRIPTION as CATALOGUE_PASS_DESCRIPTION,
   PAID_SERVICE_ID,
+  PAID_SERVICE_NAME,
   resolveFreeServiceEndpoint,
+  buildPaidPrePaymentMachineFields,
 } from "../a2mcp/service-catalogue.js";
 
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
@@ -74,33 +60,35 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Exact wording used in the challenge and in the unpaid 402 body (catalogue). */
 export const MONITORING_PASS_RESOURCE_DESCRIPTION = CATALOGUE_PASS_DESCRIPTION;
 
 export function monitoringPassRedeemableFor(env?: EnvRecord): string {
   return `Activating monitoring for one confirmed eligible Target purchase via REDEEM_MONITORING_PASS on ${resolveFreeServiceEndpoint(env)}`;
 }
 
-/** @deprecated Use monitoringPassRedeemableFor(env) — kept for import stability. */
+/** @deprecated Use monitoringPassRedeemableFor(env) */
 export const MONITORING_PASS_REDEEMABLE_FOR = monitoringPassRedeemableFor();
 
 function newId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
 }
 
-/**
- * The durable schema retains a hash column from the original token-bearing
- * contract. New passes store a server-only random digest there, but no pass
- * token is returned or accepted. The public pass id now carries full UUID
- * entropy and redemption still requires the authorized connection + quote.
- */
 function mintInternalPassSecretHash(): string {
   return sha256Hex(randomBytes(32).toString("base64url"));
 }
 
-/** Public pass ids carry full UUID entropy; no separate pass token is exposed. */
 function newPassId(): string {
   return `pass_${randomUUID().replace(/-/g, "")}`;
+}
+
+function newContinuationId(): string {
+  return `pass_cont_${randomUUID().replace(/-/g, "")}`;
+}
+
+/** Single-use high-entropy claim secret — returned only to paid caller; store only hash. */
+function mintClaimCredential(): { raw: string; hash: string } {
+  const raw = `pass_claim_${randomBytes(32).toString("base64url")}`;
+  return { raw, hash: sha256Hex(raw) };
 }
 
 async function resolveStore(
@@ -124,14 +112,11 @@ export function buildMonitoringPassChallenge(args: {
 }
 
 export interface MonitoringPassArgs {
-  /** Raw PAYMENT-SIGNATURE header from the replay, or null on first contact. */
   paymentAuthorizationHeader: string | null;
-  /** Absolute URL of this paid resource. */
   resource: string;
   now?: Date;
   sqliteDb?: NobuDatabase;
   env?: EnvRecord;
-  /** Tests only — forbidden outside test mode by resolveX402Verifier. */
   testVerifier?: X402Verifier;
 }
 
@@ -141,15 +126,20 @@ export type MonitoringPassResult =
       status: "MONITORING_PASS_ISSUED";
       http_status: 200;
       pass: MonitoringPassRow;
-      /** High-entropy handoff id for free RESOLVE_MONITORING_PASS. */
       pass_continuation_id: string;
+      /** Single-use claim secret — only on first successful issue response. */
+      pass_claim_credential?: string;
+      settlementRef: string;
+      payer?: string;
+      payment_response_header: string;
     }
   | {
       ok: true;
-      status: "PAYMENT_SETTLEMENT_PENDING";
+      status: "PAYMENT_SETTLEMENT_PENDING" | "PAYMENT_SETTLEMENT_UNKNOWN";
       http_status: 200;
       note: string;
       pass_continuation_id: string;
+      payment_response_header?: string;
     }
   | {
       ok: false;
@@ -157,36 +147,65 @@ export type MonitoringPassResult =
       http_status: 402;
       challenge: X402Challenge;
       challengeHeaderValue: string;
+    }
+  | {
+      ok: false;
+      status: "PAYMENT_REJECTED";
+      http_status: 402;
+      challenge: X402Challenge;
+      challengeHeaderValue: string;
+      sanitized_reason?: string;
     };
-
-function newContinuationId(): string {
-  return `pass_cont_${randomUUID().replace(/-/g, "")}`;
-}
 
 async function ensureContinuation(
   store: AuthStore,
   paymentId: string,
   nowIso: string,
   monitoringPassId?: string | null,
-): Promise<string> {
+  claimCredentialHash?: string | null,
+): Promise<{ id: string; claimCredentialRaw?: string }> {
+  let claimRaw: string | undefined;
+  let hash = claimCredentialHash ?? null;
+  if (!hash) {
+    const existing =
+      await store.getMonitoringPassContinuationByPaymentId(paymentId);
+    if (!existing?.claim_credential_hash) {
+      const minted = mintClaimCredential();
+      claimRaw = minted.raw;
+      hash = minted.hash;
+    }
+  }
   const row = await store.ensureMonitoringPassContinuation({
     id: newContinuationId(),
     paymentId,
     monitoringPassId: monitoringPassId ?? null,
     status: monitoringPassId ? "issued" : "pending",
+    claimCredentialHash: hash,
     nowIso,
   });
-  return row.id;
+  return { id: row.id, claimCredentialRaw: claimRaw };
 }
 
 function challengeResult(args: {
   resource: string;
   env?: EnvRecord;
+  rejected?: boolean;
+  sanitizedReason?: string;
 }): MonitoringPassResult {
   const challenge = buildMonitoringPassChallenge({
     resource: args.resource,
     env: args.env,
   });
+  if (args.rejected) {
+    return {
+      ok: false,
+      status: "PAYMENT_REJECTED",
+      http_status: 402,
+      challenge,
+      challengeHeaderValue: encodeX402ChallengeHeader(challenge),
+      sanitized_reason: args.sanitizedReason,
+    };
+  }
   return {
     ok: false,
     status: "PAYMENT_PENDING",
@@ -196,20 +215,34 @@ function challengeResult(args: {
   };
 }
 
-/**
- * Issues (or re-resolves) exactly one pass for a verified settlement.
- */
+function safeReceipt(args: {
+  success: boolean;
+  transaction: string;
+  payer?: string;
+  status?: "pending" | "success" | "timeout";
+}): string {
+  return encodeX402PaymentResponseHeader({
+    success: args.success,
+    transaction: args.transaction,
+    network: DEFAULT_SETTLEMENT_NETWORK,
+    payer: args.payer,
+    status: args.status,
+    amount: MONITORING_PRICE_ATOMIC_UNITS,
+  });
+}
+
 async function issuePassForSettlement(args: {
   store: AuthStore;
   settlementRef: string;
   paymentId: string;
   nowIso: string;
+  payer?: string | null;
 }): Promise<MonitoringPassResult> {
   const existing = await args.store.getMonitoringPassBySettlementRef(
     args.settlementRef,
   );
   if (existing) {
-    const contId = await ensureContinuation(
+    const cont = await ensureContinuation(
       args.store,
       args.paymentId,
       args.nowIso,
@@ -220,7 +253,16 @@ async function issuePassForSettlement(args: {
       status: "MONITORING_PASS_ISSUED",
       http_status: 200,
       pass: existing,
-      pass_continuation_id: contId,
+      pass_continuation_id: cont.id,
+      pass_claim_credential: cont.claimCredentialRaw,
+      settlementRef: args.settlementRef,
+      payer: args.payer ?? existing.payer_address ?? undefined,
+      payment_response_header: safeReceipt({
+        success: true,
+        transaction: args.settlementRef,
+        payer: args.payer ?? undefined,
+        status: "success",
+      }),
     };
   }
 
@@ -233,9 +275,10 @@ async function issuePassForSettlement(args: {
     priceAmount: MONITORING_PRICE_USD,
     priceCurrency: "USD",
     nowIso: args.nowIso,
+    payerAddress: args.payer ?? null,
   });
 
-  const contId = await ensureContinuation(
+  const cont = await ensureContinuation(
     args.store,
     args.paymentId,
     args.nowIso,
@@ -247,15 +290,22 @@ async function issuePassForSettlement(args: {
     status: "MONITORING_PASS_ISSUED",
     http_status: 200,
     pass: issued.pass,
-    pass_continuation_id: contId,
+    pass_continuation_id: cont.id,
+    pass_claim_credential: cont.claimCredentialRaw,
+    settlementRef: args.settlementRef,
+    payer: args.payer ?? undefined,
+    payment_response_header: safeReceipt({
+      success: true,
+      transaction: args.settlementRef,
+      payer: args.payer ?? undefined,
+      status: "success",
+    }),
   };
 }
 
 /**
  * GET/POST `/v1/agent/monitoring-pass`.
- *
- * No quote, connection, purchase or consent is consulted before the
- * challenge is issued — first contact is a pure challenge build.
+ * First contact is a pure challenge — no quote/connection/purchase.
  */
 export async function monitoringPassForAgent(
   args: MonitoringPassArgs,
@@ -263,7 +313,6 @@ export async function monitoringPassForAgent(
   const now = args.now ?? new Date();
   const nowIso = now.toISOString();
 
-  // First contact — always 402, immediately, with no dependency touched.
   if (!args.paymentAuthorizationHeader) {
     return challengeResult({ resource: args.resource, env: args.env });
   }
@@ -271,18 +320,27 @@ export async function monitoringPassForAgent(
   const store = await resolveStore(args.sqliteDb, args.env);
   const authorizationDigest = sha256Hex(args.paymentAuthorizationHeader);
 
-  // A repeated replay of the same signed payment must not settle twice.
   const priorPayment =
     await store.getMonitoringPassPaymentByDigest(authorizationDigest);
+
+  // Settled → issue/resolve pass; never re-challenge.
   if (priorPayment?.status === "settled" && priorPayment.settlement_ref) {
     return issuePassForSettlement({
       store,
       settlementRef: priorPayment.settlement_ref,
       paymentId: priorPayment.id,
       nowIso,
+      payer: priorPayment.payer_address,
     });
   }
-  if (priorPayment?.status === "verifying" && priorPayment.settlement_ref) {
+
+  // settlement_unknown / pending — resume without inviting a second payment.
+  if (
+    priorPayment &&
+    (priorPayment.status === "verifying" ||
+      priorPayment.status === "settlement_pending" ||
+      priorPayment.status === "settlement_unknown")
+  ) {
     return resumePendingPassSettlement({
       store,
       payment: priorPayment,
@@ -292,14 +350,44 @@ export async function monitoringPassForAgent(
     });
   }
 
+  // rejected/failed prior: do not auto re-challenge as if first contact —
+  // still allow a deliberate new payment only after conclusive failure.
+  if (
+    priorPayment &&
+    (priorPayment.status === "rejected" || priorPayment.status === "failed")
+  ) {
+    return challengeResult({
+      resource: args.resource,
+      env: args.env,
+      rejected: true,
+      sanitizedReason:
+        priorPayment.sanitized_settle_reason ||
+        priorPayment.sanitized_verify_reason ||
+        undefined,
+    });
+  }
+
   const payment = await store.upsertMonitoringPassPayment({
     id: newId("pass_pay"),
     authorizationDigest,
     nowIso,
+    status: "authorization_received",
+  });
+
+  await store.updateMonitoringPassPayment({
+    id: payment.id,
+    status: "verifying",
+    settlementRef: null,
+    nowIso,
+    lastProviderOperation: "verify",
+    incrementAttempt: true,
   });
 
   let settlementRef: string | null = null;
   let pendingTxHash: string | null = null;
+  let unknownTxHash: string | null = null;
+  let payer: string | undefined;
+  let isUnknown = false;
 
   if (args.testVerifier) {
     const verifier = resolveX402Verifier({
@@ -311,15 +399,49 @@ export async function monitoringPassForAgent(
       authorizationHeader: args.paymentAuthorizationHeader,
     });
     if (!verified.ok) {
-      await store.updateMonitoringPassPayment({
-        id: payment.id,
-        status: "failed",
-        settlementRef: null,
-        nowIso,
-      });
-      return challengeResult({ resource: args.resource, env: args.env });
+      if (verified.reason === "settlement_pending" && verified.pendingTxHash) {
+        pendingTxHash = verified.pendingTxHash;
+        payer = verified.payer;
+      } else if (verified.reason === "settlement_unknown") {
+        unknownTxHash = verified.pendingTxHash ?? null;
+        isUnknown = true;
+        payer = verified.payer;
+        await store.updateMonitoringPassPayment({
+          id: payment.id,
+          status: "settlement_unknown",
+          settlementRef: unknownTxHash,
+          nowIso,
+          payerAddress: payer ?? null,
+          sanitizedSettleReason: verified.sanitizedReason,
+          lastProviderOperation: "settle",
+        });
+      } else {
+        const status: MonitoringPassPaymentStatus =
+          verified.reason === "rejected" ||
+          verified.reason === "invalid_signature" ||
+          verified.reason === "amount_mismatch" ||
+          verified.reason === "resource_mismatch"
+            ? "rejected"
+            : "failed";
+        await store.updateMonitoringPassPayment({
+          id: payment.id,
+          status,
+          settlementRef: null,
+          nowIso,
+          sanitizedVerifyReason: verified.sanitizedReason,
+          lastProviderOperation: "verify",
+        });
+        return challengeResult({
+          resource: args.resource,
+          env: args.env,
+          rejected: status === "rejected",
+          sanitizedReason: verified.sanitizedReason,
+        });
+      }
+    } else {
+      settlementRef = verified.settlementRef;
+      payer = verified.payer;
     }
-    settlementRef = verified.settlementRef;
   } else if (isOkxSellerConfigured(args.env ?? process.env)) {
     const seller = createOkxSellerVerifier({ env: args.env });
     const detailed: OkxSellerVerifyOutcome =
@@ -329,60 +451,119 @@ export async function monitoringPassForAgent(
       });
     if (detailed.ok) {
       settlementRef = detailed.settlementRef;
+      payer = detailed.payer;
     } else if (
       detailed.reason === "settlement_pending" &&
       detailed.pendingTxHash
     ) {
       pendingTxHash = detailed.pendingTxHash;
-    } else {
+      payer = detailed.payer;
+    } else if (detailed.reason === "settlement_unknown") {
+      isUnknown = true;
+      unknownTxHash = detailed.pendingTxHash ?? null;
+      payer = detailed.payer;
       await store.updateMonitoringPassPayment({
         id: payment.id,
-        status: "failed",
+        status: "settlement_unknown",
+        settlementRef: unknownTxHash,
+        nowIso,
+        payerAddress: payer ?? null,
+        sanitizedSettleReason: detailed.sanitizedSettleReason,
+        lastProviderOperation: detailed.lastProviderOperation ?? "settle",
+      });
+    } else {
+      const status: MonitoringPassPaymentStatus =
+        detailed.reason === "invalid_signature" ||
+        detailed.reason === "amount_mismatch" ||
+        detailed.reason === "resource_mismatch" ||
+        detailed.reason === "rejected"
+          ? "rejected"
+          : "failed";
+      await store.updateMonitoringPassPayment({
+        id: payment.id,
+        status,
         settlementRef: null,
         nowIso,
+        payerAddress: detailed.payer ?? null,
+        sanitizedVerifyReason: detailed.sanitizedVerifyReason,
+        sanitizedSettleReason: detailed.sanitizedSettleReason,
+        lastProviderOperation: detailed.lastProviderOperation,
       });
-      return challengeResult({ resource: args.resource, env: args.env });
+      // Only conclusive rejections re-challenge. Never after unknown settlement.
+      return challengeResult({
+        resource: args.resource,
+        env: args.env,
+        rejected: status === "rejected",
+        sanitizedReason:
+          detailed.sanitizedSettleReason || detailed.sanitizedVerifyReason,
+      });
     }
   } else {
-    // No seller credentials — fail closed, never invent a settlement.
     await store.updateMonitoringPassPayment({
       id: payment.id,
       status: "failed",
       settlementRef: null,
       nowIso,
+      lastProviderOperation: "not_configured",
     });
     return challengeResult({ resource: args.resource, env: args.env });
+  }
+
+  if (isUnknown) {
+    const cont = await ensureContinuation(store, payment.id, nowIso);
+    return {
+      ok: true,
+      status: "PAYMENT_SETTLEMENT_UNKNOWN",
+      http_status: 200,
+      pass_continuation_id: cont.id,
+      note: "Settlement outcome is temporarily unknown after submission. Do not pay again. Nobu will reconcile from the durable payment record.",
+      payment_response_header: unknownTxHash
+        ? safeReceipt({
+            success: false,
+            transaction: unknownTxHash,
+            payer,
+            status: "pending",
+          })
+        : undefined,
+    };
   }
 
   if (pendingTxHash) {
     await store.updateMonitoringPassPayment({
       id: payment.id,
-      status: "verifying",
+      status: "settlement_pending",
       settlementRef: pendingTxHash,
       nowIso,
+      payerAddress: payer ?? null,
+      lastProviderOperation: "settle",
     });
-    // Bounded same-request settle/status poll so marketplace users receive a
-    // pass automatically when confirmation is already available — without
-    // owner intervention or a second payment challenge.
     const polled = await pollPendingSettlementToPass({
       store,
       paymentId: payment.id,
       env: args.env,
       nowIso,
+      payer,
     });
     if (polled) return polled;
 
-    const contId = await ensureContinuation(store, payment.id, nowIso);
+    const cont = await ensureContinuation(store, payment.id, nowIso);
     return {
       ok: true,
       status: "PAYMENT_SETTLEMENT_PENDING",
       http_status: 200,
-      pass_continuation_id: contId,
-      note: "Settlement submitted; awaiting on-chain confirmation. No pass is issued until it confirms. Do not pay again — use free RESOLVE_MONITORING_PASS with the same pass_continuation_id. Nobu will converge automatically; do not open a second payment.",
+      pass_continuation_id: cont.id,
+      note: "Settlement submitted; awaiting on-chain confirmation. No pass is issued until it confirms. Do not pay again — use free RESOLVE_MONITORING_PASS with the same pass_continuation_id.",
+      payment_response_header: safeReceipt({
+        success: true,
+        transaction: pendingTxHash,
+        payer,
+        status: "pending",
+      }),
     };
   }
 
   if (!settlementRef) {
+    // Defensive: no settlement and not pending/unknown → do not invent pass.
     return challengeResult({ resource: args.resource, env: args.env });
   }
 
@@ -391,6 +572,8 @@ export async function monitoringPassForAgent(
     status: "settled",
     settlementRef,
     nowIso,
+    payerAddress: payer ?? null,
+    lastProviderOperation: "settle",
   });
 
   return issuePassForSettlement({
@@ -398,22 +581,93 @@ export async function monitoringPassForAgent(
     settlementRef,
     paymentId: payment.id,
     nowIso,
+    payer,
   });
 }
 
-/**
- * Polls the official settle-status API for a settlement that was already
- * submitted. Never re-verifies or re-charges — it only reads the outcome of
- * the payment already recorded against this authorization digest / payment id.
- */
 async function resumePendingPassSettlement(args: {
   store: AuthStore;
-  payment: { id: string; settlement_ref: string | null };
+  payment: MonitoringPassPaymentRow;
   resource: string;
   env?: EnvRecord;
   nowIso: string;
   fetchImpl?: OkxHttpFetch;
 }): Promise<MonitoringPassResult> {
+  // settlement_unknown: keep unknown unless settle/status conclusively confirms.
+  // Never re-challenge and never invite another payment.
+  if (args.payment.status === "settlement_unknown") {
+    if (!args.payment.settlement_ref) {
+      const cont = await ensureContinuation(
+        args.store,
+        args.payment.id,
+        args.nowIso,
+      );
+      return {
+        ok: true,
+        status: "PAYMENT_SETTLEMENT_UNKNOWN",
+        http_status: 200,
+        pass_continuation_id: cont.id,
+        note: "Settlement outcome is still unknown. Do not pay again. Reconciliation will continue without a second charge.",
+      };
+    }
+    // Have a tx hash — try confirm; if still ambiguous stay unknown.
+    const outcomeUnknown = await confirmPendingPassPayment({
+      store: args.store,
+      payment: args.payment,
+      env: args.env,
+      nowIso: args.nowIso,
+      fetchImpl: args.fetchImpl,
+    });
+    if (outcomeUnknown.kind === "issued") {
+      const cont = await ensureContinuation(
+        args.store,
+        args.payment.id,
+        args.nowIso,
+        outcomeUnknown.pass.id,
+      );
+      return {
+        ok: true,
+        status: "MONITORING_PASS_ISSUED",
+        http_status: 200,
+        pass: outcomeUnknown.pass,
+        pass_continuation_id: cont.id,
+        pass_claim_credential: cont.claimCredentialRaw,
+        settlementRef: outcomeUnknown.pass.settlement_ref,
+        payment_response_header: safeReceipt({
+          success: true,
+          transaction: outcomeUnknown.pass.settlement_ref,
+          status: "success",
+        }),
+      };
+    }
+    if (outcomeUnknown.kind === "failed") {
+      return challengeResult({
+        resource: args.resource,
+        env: args.env,
+        rejected: true,
+      });
+    }
+    const cont = await ensureContinuation(
+      args.store,
+      args.payment.id,
+      args.nowIso,
+    );
+    return {
+      ok: true,
+      status: "PAYMENT_SETTLEMENT_UNKNOWN",
+      http_status: 200,
+      pass_continuation_id: cont.id,
+      note: "Settlement outcome is still unknown. Do not pay again.",
+      payment_response_header: args.payment.settlement_ref
+        ? safeReceipt({
+            success: true,
+            transaction: args.payment.settlement_ref,
+            status: "pending",
+          })
+        : undefined,
+    };
+  }
+
   const outcome = await confirmPendingPassPayment({
     store: args.store,
     payment: args.payment,
@@ -423,7 +677,7 @@ async function resumePendingPassSettlement(args: {
   });
 
   if (outcome.kind === "issued") {
-    const contId = await ensureContinuation(
+    const cont = await ensureContinuation(
       args.store,
       args.payment.id,
       args.nowIso,
@@ -434,31 +688,52 @@ async function resumePendingPassSettlement(args: {
       status: "MONITORING_PASS_ISSUED",
       http_status: 200,
       pass: outcome.pass,
-      pass_continuation_id: contId,
+      pass_continuation_id: cont.id,
+      pass_claim_credential: cont.claimCredentialRaw,
+      settlementRef: outcome.pass.settlement_ref,
+      payer: outcome.pass.payer_address ?? undefined,
+      payment_response_header: safeReceipt({
+        success: true,
+        transaction: outcome.pass.settlement_ref,
+        status: "success",
+      }),
     };
   }
   if (outcome.kind === "failed") {
-    return challengeResult({ resource: args.resource, env: args.env });
+    // Conclusive on-chain failure may re-challenge.
+    return challengeResult({
+      resource: args.resource,
+      env: args.env,
+      rejected: true,
+    });
   }
-  const contId = await ensureContinuation(
+
+  const cont = await ensureContinuation(
     args.store,
     args.payment.id,
     args.nowIso,
   );
+  const isUnknown =
+    args.payment.status === "settlement_unknown" ||
+    outcome.note?.includes("unknown");
   return {
     ok: true,
-    status: "PAYMENT_SETTLEMENT_PENDING",
+    status: isUnknown
+      ? "PAYMENT_SETTLEMENT_UNKNOWN"
+      : "PAYMENT_SETTLEMENT_PENDING",
     http_status: 200,
-    pass_continuation_id: contId,
+    pass_continuation_id: cont.id,
     note: outcome.note,
+    payment_response_header: args.payment.settlement_ref
+      ? safeReceipt({
+          success: true,
+          transaction: args.payment.settlement_ref,
+          status: "pending",
+        })
+      : undefined,
   };
 }
 
-/**
- * Hot-path automatic convergence after settle returns pending.
- * Polls settle/status a few times with short delays; issues one pass if
- * confirmed. Never re-charges. Returns null if still pending after budget.
- */
 async function pollPendingSettlementToPass(args: {
   store: AuthStore;
   paymentId: string;
@@ -466,6 +741,7 @@ async function pollPendingSettlementToPass(args: {
   nowIso: string;
   fetchImpl?: OkxHttpFetch;
   delaysMs?: readonly number[];
+  payer?: string;
 }): Promise<MonitoringPassResult | null> {
   const delays = args.delaysMs ?? SETTLE_POLL_DELAYS_MS;
   for (let i = 0; i < delays.length; i += 1) {
@@ -484,7 +760,7 @@ async function pollPendingSettlementToPass(args: {
       fetchImpl: args.fetchImpl,
     });
     if (outcome.kind === "issued") {
-      const contId = await ensureContinuation(
+      const cont = await ensureContinuation(
         args.store,
         args.paymentId,
         args.nowIso,
@@ -495,7 +771,16 @@ async function pollPendingSettlementToPass(args: {
         status: "MONITORING_PASS_ISSUED",
         http_status: 200,
         pass: outcome.pass,
-        pass_continuation_id: contId,
+        pass_continuation_id: cont.id,
+        pass_claim_credential: cont.claimCredentialRaw,
+        settlementRef: outcome.pass.settlement_ref,
+        payer: args.payer,
+        payment_response_header: safeReceipt({
+          success: true,
+          transaction: outcome.pass.settlement_ref,
+          payer: args.payer,
+          status: "success",
+        }),
       };
     }
     if (outcome.kind === "failed") return null;
@@ -503,10 +788,6 @@ async function pollPendingSettlementToPass(args: {
   return null;
 }
 
-/**
- * Confirm one payment by id only (continuation hot path). Does not scan
- * unrelated verifying rows.
- */
 export async function confirmPaymentById(args: {
   paymentId: string;
   now?: Date;
@@ -514,7 +795,7 @@ export async function confirmPaymentById(args: {
   env?: EnvRecord;
   fetchImpl?: OkxHttpFetch;
 }): Promise<{
-  kind: "issued" | "pending" | "failed" | "not_found";
+  kind: "issued" | "pending" | "failed" | "not_found" | "unknown";
   pass?: MonitoringPassRow;
   note?: string;
 }> {
@@ -522,6 +803,10 @@ export async function confirmPaymentById(args: {
   const store = await resolveStore(args.sqliteDb, args.env);
   const payment = await store.getMonitoringPassPaymentById(args.paymentId);
   if (!payment) return { kind: "not_found" };
+  if (payment.status === "settlement_unknown" && !payment.settlement_ref) {
+    await ensureContinuation(store, payment.id, nowIso);
+    return { kind: "unknown", note: "Settlement outcome unknown." };
+  }
   const outcome = await confirmPendingPassPayment({
     store,
     payment,
@@ -543,11 +828,6 @@ type ConfirmPendingOutcome =
   | { kind: "pending"; note: string }
   | { kind: "failed" };
 
-/**
- * Confirm one already-submitted settlement from its durable pending record.
- * Uses only the stored opaque settlement_ref + official settle/status.
- * Never re-reads a payment header and never creates a second challenge.
- */
 async function confirmPendingPassPayment(args: {
   store: AuthStore;
   payment: { id: string; settlement_ref: string | null; status?: string };
@@ -566,7 +846,6 @@ async function confirmPendingPassPayment(args: {
   const existingByRef =
     await args.store.getMonitoringPassBySettlementRef(pendingTxHash);
   if (existingByRef) {
-    // Ensure the payment row is marked settled if a pass already exists.
     if (args.payment.status !== "settled") {
       await args.store.updateMonitoringPassPayment({
         id: args.payment.id,
@@ -578,7 +857,6 @@ async function confirmPendingPassPayment(args: {
     return { kind: "issued", pass: existingByRef };
   }
 
-  // Already settled in durable storage but pass insert never completed.
   if (args.payment.status === "settled") {
     const issued = await issuePassForSettlement({
       store: args.store,
@@ -610,7 +888,7 @@ async function confirmPendingPassPayment(args: {
   } catch {
     return {
       kind: "pending",
-      note: "Settlement status unavailable; still not payment complete.",
+      note: "Settlement status unavailable; still not payment complete. Do not pay again.",
     };
   }
 
@@ -626,6 +904,8 @@ async function confirmPendingPassPayment(args: {
       status: "failed",
       settlementRef: null,
       nowIso: args.nowIso,
+      sanitizedSettleReason: status.errorReason || status.errorMessage,
+      lastProviderOperation: "settle_status",
     });
     return { kind: "failed" };
   }
@@ -636,12 +916,15 @@ async function confirmPendingPassPayment(args: {
     status: "settled",
     settlementRef,
     nowIso: args.nowIso,
+    payerAddress: status.payer ?? null,
+    lastProviderOperation: "settle_status",
   });
   const issued = await issuePassForSettlement({
     store: args.store,
     settlementRef,
     paymentId: args.payment.id,
     nowIso: args.nowIso,
+    payer: status.payer,
   });
   if (issued.ok && issued.status === "MONITORING_PASS_ISSUED") {
     return { kind: "issued", pass: issued.pass };
@@ -657,28 +940,15 @@ export type PassSettlementReconciliationResult = {
   issued: number;
   still_pending: number;
   failed: number;
-  /** Public pass ids only — never tokens, digests, headers, or settlement refs. */
   issued_pass_ids: string[];
-  /** Continuations created/linked for settled historical payments. */
   continuations_backfilled: number;
 };
 
-/**
- * Provider-controlled recovery for marketplace-completed payments that
- * returned `PAYMENT_SETTLEMENT_PENDING` and never received a signed replay.
- *
- * Scans durable verifying (and settled-without-pass) Monitoring Pass payment
- * rows, polls official settle/status using only the stored opaque tx hash,
- * and issues exactly one pass per confirmed settlement. Concurrent and
- * repeated runs cannot duplicate issuance (UNIQUE settlement_ref) and never
- * create a second payment challenge.
- */
 export async function reconcilePendingPassSettlements(args: {
   now?: Date;
   sqliteDb?: NobuDatabase;
   env?: EnvRecord;
   limit?: number;
-  /** Tests only — inject settle/status HTTP. Never used to replay payment. */
   fetchImpl?: OkxHttpFetch;
 } = {}): Promise<PassSettlementReconciliationResult> {
   const now = args.now ?? new Date();
@@ -689,8 +959,6 @@ export async function reconcilePendingPassSettlements(args: {
   const settledOrphan =
     await store.listSettledMonitoringPassPaymentsWithoutPass();
 
-  // Prefer verifying rows; then crash-recovery settled-without-pass rows.
-  // Deduplicate by payment id so a row cannot be processed twice in one run.
   const seen = new Set<string>();
   const batch: MonitoringPassPaymentRow[] = [];
   for (const row of [...verifying, ...settledOrphan]) {
@@ -706,6 +974,11 @@ export async function reconcilePendingPassSettlements(args: {
   const issuedPassIds: string[] = [];
 
   for (const payment of limited) {
+    if (payment.status === "settlement_unknown" && !payment.settlement_ref) {
+      stillPending += 1;
+      await ensureContinuation(store, payment.id, nowIso);
+      continue;
+    }
     const outcome = await confirmPendingPassPayment({
       store,
       payment,
@@ -727,7 +1000,6 @@ export async function reconcilePendingPassSettlements(args: {
     }
   }
 
-  // Historical backfill: settled+pass rows created before continuations existed.
   let continuationsBackfilled = 0;
   const missing = await store.listSettledPassPaymentsMissingContinuation();
   for (const payment of missing) {
@@ -748,166 +1020,107 @@ export async function reconcilePendingPassSettlements(args: {
 }
 
 /**
- * Response body shapes — never include settlement reference, digest, or
- * payment header. Exposes both custom journey fields and the
- * `fields`/`requiredArgs` names official Onchain OS 4.4.0 reads from
- * endpoint bodies after payment replay.
+ * Neutral typed unpaid body — facts only, no imperative agent-control prose.
  */
 export function monitoringPassResponseBody(
   result: MonitoringPassResult,
 ): Record<string, unknown> {
   if (result.ok && result.status === "MONITORING_PASS_ISSUED") {
-    // Prefer marketplace journey for full handoff; this body is a fallback.
-    const contract = buildConversationContract({
-      status: "MONITORING_PASS_ISSUED",
-      current_step: "confirm_use_pass",
-      completed_step: "MONITORING_PASS_ISSUED",
-      next_action: "CONFIRM_USE_PASS",
-      message:
-        "Your Monitoring Pass is ready. No additional payment is required. Continue free Purchase Setup on service 33561 — confirm use of this pass.",
-      guidance:
-        "Do not request another payment. Do not ask the user to find another endpoint or describe Nobu. Ask only whether to use the pass now (confirm_use_pass). After yes, collect purchase description only — not email or consent yet.",
-      payment_status: "recognized",
-      second_payment_required: false,
-      monitoring_active: false,
-      journey_complete: false,
-      retry_safe: true,
-      required_fields: ["confirm_use_pass"],
-      pass_continuation_id: result.pass_continuation_id,
-      monitoring_pass_id: result.pass.id,
-      next_service_id: FREE_SERVICE_ID,
-      input_required: true,
-      automatic_continue: false,
-      include_action_field: false,
-    });
     return {
-      agent_state: "MONITORING_PASS",
-      ...contract,
+      status: "MONITORING_PASS_ISSUED",
+      service_id: PAID_SERVICE_ID,
+      service_name: PAID_SERVICE_NAME,
+      deliverable: { type: "monitoring_pass", quantity: 1 },
       monitoring_pass_id: result.pass.id,
       pass_continuation_id: result.pass_continuation_id,
+      // claim credential only when freshly minted for this response
+      ...(result.pass_claim_credential
+        ? { pass_claim_credential: result.pass_claim_credential }
+        : {}),
       price_amount: result.pass.price_amount,
       price_currency: result.pass.price_currency,
       redeemable_for: MONITORING_PASS_REDEEMABLE_FOR,
+      monitoring_active: false,
+      payment_status: "settled",
+      second_payment_required: false,
       next_service_id: FREE_SERVICE_ID,
-      next_action_after_payment: "CONFIRM_USE_PASS",
+      next_service_endpoint: resolveFreeServiceEndpoint(),
+      journey_complete: false,
+      transaction_receipt: {
+        network: DEFAULT_SETTLEMENT_NETWORK,
+        // Safe public ref only — not a signature
+        settlement_confirmed: true,
+      },
     };
   }
 
   if (result.ok) {
-    const contract = buildConversationContract({
-      status: "PAYMENT_SETTLEMENT_PENDING",
-      completed_step: "PAYMENT_SUBMITTED",
-      next_action: "RESOLVE_MONITORING_PASS",
-      message: result.note,
-      guidance:
-        "Settlement is still confirming. Keep pass_continuation_id and call RESOLVE_MONITORING_PASS on free service 33561 shortly. Do not pay again. Do not claim a pass or monitor exists yet.",
-      payment_status: "pending",
-      second_payment_required: false,
-      monitoring_active: false,
-      journey_complete: false,
-      retry_safe: true,
-      required_fields: [],
-      required_user_input: null,
-      input_required: false,
-      automatic_continue: true,
-      pass_continuation_id: result.pass_continuation_id,
-      next_service_id: FREE_SERVICE_ID,
-      include_action_field: false,
-      protocol_replay: {
-        kind: "resolve_pending_settlement",
-        free_service_id: FREE_SERVICE_ID,
-        body: { pass_continuation_id: result.pass_continuation_id },
-        do_not_ask_user: true,
-      },
-    });
     return {
-      agent_state: "MONITORING_PASS",
-      ...contract,
+      status: result.status,
+      service_id: PAID_SERVICE_ID,
+      service_name: PAID_SERVICE_NAME,
+      deliverable: { type: "monitoring_pass", quantity: 1 },
       pass_continuation_id: result.pass_continuation_id,
+      monitoring_active: false,
+      payment_status:
+        result.status === "PAYMENT_SETTLEMENT_UNKNOWN" ? "unknown" : "pending",
+      second_payment_required: false,
+      next_service_id: FREE_SERVICE_ID,
+      note: result.note,
+      journey_complete: false,
     };
   }
 
-  // Unpaid first contact — official-valid x402 v2 402. Body and challenge agree.
+  // Unpaid / rejected first contact — neutral facts only.
   const machine = buildPaidPrePaymentMachineFields();
-  const contract = buildConversationContract({
-    status: "PAYMENT_PENDING",
-    completed_step: "MONITORING_PASS_EXPLAINED",
-    next_action: "COMPLETE_X402_PAYMENT",
-    message: String(machine.service_description),
-    guidance:
-      "Explain the deliverable once: one 0.99 USDT payment issues one Monitoring Pass and does not activate monitoring. Create exactly one payment quote for this challenge. Never ask the user for a PAYMENT-SIGNATURE value, service description, product details, email, wallet address as service input, or alert threshold. On balance_unavailable or insufficient_balance: explain only the balance blocker, preserve and reuse the existing payment id/quote until expiry, do not create another quote, and do not claim a pass or monitor exists.",
-    payment_status: "required",
-    second_payment_required: false,
-    monitoring_active: false,
-    journey_complete: false,
-    retry_safe: true,
-    required_fields: [],
-    required_user_input: null,
-    input_required: false,
-    automatic_continue: false,
-    include_action_field: false,
-    next_service_id: FREE_SERVICE_ID,
-    protocol_replay: {
-      kind: "x402_payment_signature_header",
-      header_name: "PAYMENT-SIGNATURE",
-      do_not_ask_user: true,
-      never_collect_as_user_input: true,
-      note: "Buyer agent attaches the signed payment in the PAYMENT-SIGNATURE HTTP header on replay. Never ask the end user to paste or type a PAYMENT-SIGNATURE value.",
-    },
-  });
+  const accept = result.challenge.accepts[0];
   return {
-    ...contract,
-    ...machine,
-    // Machine policy for calling agents (does not alter x402 header wire format).
-    quote_policy: "single_deliberate_attempt",
-    one_quote_only: true,
-    reuse_payment_id_until: "expired_or_conclusive_failure",
-    do_not_re_quote_on: [
-      "balance_unavailable",
-      "insufficient_balance",
-      "payment_pending",
-    ],
-    insufficient_balance_guidance: {
-      explain_only: "balance_blocker",
-      preserve_existing_payment_id: true,
-      preserve_existing_quote: true,
-      reuse_until_expiry: true,
-      create_another_quote: false,
-      ask_for_service_description: false,
-      ask_for_monitoring_parameters: false,
-      claim_pass_exists: false,
-      claim_monitor_exists: false,
-      user_message:
-        "Wallet balance is insufficient or unavailable for this 0.99 USDT payment. Keep the same payment quote until it expires. Do not open a second quote. Do not request product details, email, or service parameters.",
-    },
-    wallet_preflight_blocker:
-      "If walletError is balance_unavailable or balance is insufficient, explain only that blocker. Preserve and reuse the existing payment id/quote until expiry. Do not create another payment quote. Do not ask for service description or monitoring parameters. Do not claim a pass or monitor exists.",
-    never_ask_user_for: [
-      "PAYMENT-SIGNATURE",
-      "service_description",
-      "wallet_address_as_service_input",
-      "alert_threshold",
-      "email_before_payment",
-      "product_details_before_payment",
-    ],
+    status: result.status,
+    service_id: PAID_SERVICE_ID,
+    service_name: PAID_SERVICE_NAME,
+    deliverable: machine.deliverable,
+    business_input_required: false,
+    required_fields: [],
+    fields: [],
+    requiredArgs: [],
+    amount: accept?.amount ?? MONITORING_PRICE_ATOMIC_UNITS,
+    token: accept?.asset,
+    network: accept?.network,
+    scheme: accept?.scheme,
+    replay_header_name: X402_PAYMENT_HEADER_NAME,
+    monitoring_active: false,
+    payment_status: "required",
+    next_service_id_after_issuance: FREE_SERVICE_ID,
+    next_service_id: FREE_SERVICE_ID,
+    next_action_after_payment: "CONTINUE_PURCHASE_SETUP",
     x402Version: result.challenge.x402Version,
     resource: result.challenge.resource,
     accepts: result.challenge.accepts,
     selected_service_id: PAID_SERVICE_ID,
+    selected_service_name: PAID_SERVICE_NAME,
+    product_details_required_before_payment: false,
+    email_required_before_payment: false,
+    alert_threshold_required: false,
+    wallet_address_required_as_service_input: false,
+    journey_complete: false,
+    second_payment_required: false,
+    ...(result.status === "PAYMENT_REJECTED" && result.sanitized_reason
+      ? { sanitized_reason: result.sanitized_reason }
+      : {}),
   };
 }
+
 /**
  * Free-service resolution of a Monitoring Pass by continuation id or public
- * pass id. Unknown/guessed ids fail closed with a generic not-found shape.
- * Never returns digests, settlement refs, headers, or pass tokens.
+ * pass id. Public ids alone never authorize claiming a journey.
  */
 export async function resolveMonitoringPassForAgent(args: {
   passContinuationId?: string | null;
   monitoringPassId?: string | null;
+  passClaimCredential?: string | null;
   now?: Date;
   sqliteDb?: NobuDatabase;
   env?: EnvRecord;
-  /** Tests only — inject settle/status HTTP. */
   fetchImpl?: OkxHttpFetch;
 }): Promise<{
   http_status: number;
@@ -916,26 +1129,15 @@ export async function resolveMonitoringPassForAgent(args: {
   const nowIso = (args.now ?? new Date()).toISOString();
   const contId = String(args.passContinuationId || "").trim();
   const passId = String(args.monitoringPassId || "").trim();
+  const claimCred = String(args.passClaimCredential || "").trim();
   const genericMissing = {
-    agent_state: "MONITORING_PASS",
-    ...buildConversationContract({
-      status: "MONITORING_PASS_NOT_FOUND",
-      completed_step: "MONITORING_PASS_LOOKUP",
-      next_action: "UNDERSTAND_PURCHASE",
-      message:
-        "No Monitoring Pass was found for that reference. Do not invent a payment or status-check option.",
-      guidance:
-        "If the user just paid, wait briefly and retry RESOLVE_MONITORING_PASS with the same pass_continuation_id. Otherwise buy one Monitoring Pass on service 35958 once, or start free Purchase Setup only after they confirm they have a pass.",
-      payment_status: "not_required",
-      second_payment_required: false,
-      monitoring_active: false,
-      journey_complete: false,
-      retry_safe: true,
-      required_fields: ["purchase_text"],
-      next_service_id: FREE_SERVICE_ID,
-      include_action_field: false,
-      input_required: true,
-    }),
+    status: "MONITORING_PASS_NOT_FOUND",
+    monitoring_active: false,
+    payment_status: "not_required",
+    second_payment_required: false,
+    next_service_id: FREE_SERVICE_ID,
+    message:
+      "No Monitoring Pass was found for that reference. Do not invent a payment.",
   };
 
   if ((!contId && !passId) || (contId && passId)) {
@@ -946,8 +1148,6 @@ export async function resolveMonitoringPassForAgent(args: {
         status: "invalid_input",
         message:
           "Provide exactly one of pass_continuation_id or monitoring_pass_id.",
-        fields: ["action", "pass_continuation_id"],
-        requiredArgs: ["action", "pass_continuation_id"],
       },
     };
   }
@@ -957,8 +1157,6 @@ export async function resolveMonitoringPassForAgent(args: {
     ? await store.getMonitoringPassContinuationById(contId)
     : await store.getMonitoringPassContinuationByPassId(passId);
 
-  // Historical issued pass without a continuation yet: allow public pass id
-  // lookup and backfill exactly one continuation (still not a bearer for redeem).
   if (!continuation && passId) {
     const pass = await store.getMonitoringPassById(passId);
     if (pass && pass.status === "issued") {
@@ -976,6 +1174,31 @@ export async function resolveMonitoringPassForAgent(args: {
     return { http_status: 404, body: genericMissing };
   }
 
+  // Optional consume when caller presents claim credential (journey handoff).
+  // Public status lookup remains allowed; journey *creation* enforces claim.
+  const claimRequired = Boolean(
+    continuation.claim_credential_hash &&
+      !continuation.claim_credential_consumed_at,
+  );
+  let claimConsumed = false;
+  if (claimRequired && claimCred) {
+    claimConsumed = await store.consumeContinuationClaimCredential({
+      continuationId: continuation.id,
+      claimCredentialHash: sha256Hex(claimCred),
+      nowIso,
+    });
+    if (!claimConsumed) {
+      return {
+        http_status: 401,
+        body: {
+          status: "CLAIM_NOT_AUTHORIZED",
+          message: "Invalid or already-used claim credential.",
+          monitoring_active: false,
+        },
+      };
+    }
+  }
+
   if (continuation.status === "issued" && continuation.monitoring_pass_id) {
     const pass = await store.getMonitoringPassById(
       continuation.monitoring_pass_id,
@@ -984,36 +1207,22 @@ export async function resolveMonitoringPassForAgent(args: {
       return {
         http_status: 200,
         body: {
-          agent_state: "MONITORING_PASS",
-          ...buildConversationContract({
-            status: "MONITORING_PASS_ISSUED",
-            current_step: "confirm_use_pass",
-            completed_step: "MONITORING_PASS_ISSUED",
-            next_action: "CONFIRM_USE_PASS",
-            message:
-              "Your Monitoring Pass is ready. No additional payment is required. Use it now for free Purchase Setup on service 33561?",
-            guidance:
-              "No second payment is required. Ask only confirm_use_pass. Do not ask the user to locate another endpoint or describe Nobu. After yes, collect purchase description only — not email or consent yet.",
-            payment_status: "recognized",
-            second_payment_required: false,
-            monitoring_active: false,
-            journey_complete: false,
-            retry_safe: true,
-            required_fields: ["confirm_use_pass"],
-            monitoring_pass_id: pass.id,
-            pass_continuation_id: continuation.id,
-            next_service_id: FREE_SERVICE_ID,
-            include_action_field: false,
-            input_required: true,
-            automatic_continue: false,
-          }),
+          status: "MONITORING_PASS_ISSUED",
+          monitoring_pass_id: pass.id,
+          pass_continuation_id: continuation.id,
           pass_status: pass.status,
+          payment_status: "recognized",
+          second_payment_required: false,
+          monitoring_active: false,
+          next_service_id: FREE_SERVICE_ID,
+          // Public id alone is not authorization to start setup without claim
+          claim_required: claimRequired && !claimConsumed,
+          claim_authorized: claimConsumed || !claimRequired,
         },
       };
     }
   }
 
-  // Pending/partial: confirm THIS payment only — never scan unrelated rows.
   const payment = await store.getMonitoringPassPaymentById(
     continuation.payment_id,
   );
@@ -1034,6 +1243,7 @@ export async function resolveMonitoringPassForAgent(args: {
       );
       return resolveMonitoringPassForAgent({
         passContinuationId: continuation.id,
+        passClaimCredential: args.passClaimCredential,
         sqliteDb: args.sqliteDb,
         env: args.env,
         now: args.now,
@@ -1045,26 +1255,14 @@ export async function resolveMonitoringPassForAgent(args: {
   return {
     http_status: 200,
     body: {
-      agent_state: "MONITORING_PASS",
-      ...buildConversationContract({
-        status: "PAYMENT_SETTLEMENT_PENDING",
-        completed_step: "PAYMENT_SUBMITTED",
-        next_action: "RESOLVE_MONITORING_PASS",
-        message:
-          "Settlement is still confirming. Your Monitoring Pass is not ready yet. Do not pay again.",
-        guidance:
-          "Keep the pass_continuation_id and call RESOLVE_MONITORING_PASS again shortly. Nobu will issue the pass automatically when confirmation arrives. Do not invent other status checks or request email yet.",
-        payment_status: "pending",
-        second_payment_required: false,
-        monitoring_active: false,
-        journey_complete: false,
-        retry_safe: true,
-        required_fields: ["pass_continuation_id"],
-        pass_continuation_id: continuation.id,
-        next_service_id: FREE_SERVICE_ID,
-        include_action_field: false,
-        input_required: true,
-      }),
+      status: "PAYMENT_SETTLEMENT_PENDING",
+      pass_continuation_id: continuation.id,
+      payment_status: "pending",
+      second_payment_required: false,
+      monitoring_active: false,
+      next_service_id: FREE_SERVICE_ID,
+      message:
+        "Settlement is still confirming. Your Monitoring Pass is not ready yet. Do not pay again.",
     },
   };
 }

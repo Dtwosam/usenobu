@@ -392,7 +392,9 @@ export type PreflightMonitoringResult =
 export async function preflightMonitoringForAgent(args: {
   connectionId: string;
   connectionToken?: string;
-  /** Internal marketplace route only; never accepted from the HTTP body. */
+  /**
+   * @deprecated Not an authorization bypass. Connection token is required.
+   */
   trustedMarketplaceJourney?: true;
   discoverySessionId: string;
   monitoringConsent: boolean;
@@ -403,23 +405,15 @@ export async function preflightMonitoringForAgent(args: {
 }): Promise<PreflightMonitoringResult> {
   const store = await resolveStore(args.sqliteDb, args.env);
   const now = args.now ?? new Date();
-  const connection = args.trustedMarketplaceJourney
-    ? await store.getAgentConnectionById(args.connectionId)
-    : null;
-  const auth = args.trustedMarketplaceJourney
-    ? null
-    : await authorizeAgentConnection({
-        connectionId: args.connectionId,
-        connectionToken: args.connectionToken ?? "",
-        now,
-        sqliteDb: args.sqliteDb,
-        env: args.env,
-      });
-  const verifiedConnection = args.trustedMarketplaceJourney
-    ? connection
-    : auth?.ok
-      ? auth.connection
-      : null;
+  // Public journey/pass ids alone never authorize preflight.
+  const auth = await authorizeAgentConnection({
+    connectionId: args.connectionId,
+    connectionToken: args.connectionToken ?? "",
+    now,
+    sqliteDb: args.sqliteDb,
+    env: args.env,
+  });
+  const verifiedConnection = auth?.ok ? auth.connection : null;
   if (
     !verifiedConnection ||
     verifiedConnection.status !== "active" ||
@@ -629,27 +623,59 @@ export async function preflightMonitoringForAgent(args: {
     };
   }
 
+  // Atomically expire any stale issued quotes (including DB-issued but
+  // wall-clock expired rows that still block the partial unique index),
+  // then insert exactly one usable quote. Concurrent preflights converge
+  // on a single winner via UNIQUE + post-transaction read.
+  const expiresAt = new Date(now.getTime() + QUOTE_TTL_MS).toISOString();
   let quote;
   try {
-    quote = await authStore.insertMonitoringEnrollmentQuote({
-      connectionId: args.connectionId,
-      accountId,
-      purchaseId,
-      fingerprintId,
-      priceAmount: MONITORING_ENROLLMENT_PRICE_USD,
-      priceCurrency: "USD",
-      monitoringDeadline: (purchaseRow.monitoring_deadline as string | null) ?? null,
-      consentMonitoringAt: nowIso,
-      consentEmailAlertsAt: nowIso,
-      now,
-      ttlMs: QUOTE_TTL_MS,
-    });
+    if (typeof authStore.replaceIssuedEnrollmentQuote === "function") {
+      const replaced = await authStore.replaceIssuedEnrollmentQuote({
+        id: `quote_${Date.now().toString(16)}${Math.random().toString(16).slice(2, 8)}`,
+        connectionId: args.connectionId,
+        accountId,
+        purchaseId,
+        fingerprintId,
+        priceAmount: MONITORING_ENROLLMENT_PRICE_USD,
+        priceCurrency: "USD",
+        settlementAsset: null,
+        settlementNetwork: null,
+        monitoringDeadline:
+          (purchaseRow.monitoring_deadline as string | null) ?? null,
+        consentMonitoringAt: nowIso,
+        consentEmailAlertsAt: nowIso,
+        expiresAt,
+        nowIso,
+      });
+      quote = replaced.quote;
+    } else {
+      // Expire stale issued rows first so partial unique index releases.
+      await authStore.expireIssuedEnrollmentQuotesForPurchase({
+        purchaseId,
+        nowIso,
+      });
+      quote = await authStore.insertMonitoringEnrollmentQuote({
+        connectionId: args.connectionId,
+        accountId,
+        purchaseId,
+        fingerprintId,
+        priceAmount: MONITORING_ENROLLMENT_PRICE_USD,
+        priceCurrency: "USD",
+        monitoringDeadline:
+          (purchaseRow.monitoring_deadline as string | null) ?? null,
+        consentMonitoringAt: nowIso,
+        consentEmailAlertsAt: nowIso,
+        now,
+        ttlMs: QUOTE_TTL_MS,
+      });
+    }
   } catch {
-    // Race: another call minted the active quote first — reuse it. If no
-    // active quote can be found either, fail closed without ever having
-    // touched purchases.status (the fingerprint lock above never sets
-    // MONITORING_ACTIVE) — no active purchase is left behind.
-    const winner = await authStore.getActiveMonitoringEnrollmentQuote(purchaseId, nowIso);
+    // Race: another call minted the active quote first — reuse it.
+    const winner = await authStore.getActiveMonitoringEnrollmentQuote(
+      purchaseId,
+      nowIso,
+    );
     if (!winner) {
       return { ok: false, error: "quote_issuance_failed", http_status: 503 };
     }

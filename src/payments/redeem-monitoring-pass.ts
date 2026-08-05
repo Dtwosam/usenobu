@@ -49,7 +49,11 @@ export interface RedeemMonitoringPassArgs {
   quoteId: string;
   connectionId: string;
   connectionToken?: string;
-  /** Internal marketplace route only; never accepted from the HTTP body. */
+  /**
+   * @deprecated Removed as an authorization bypass. Connection token is
+   * required after email verification. Kept optional only for type
+   * compatibility with older tests — ignored when present.
+   */
   trustedMarketplaceJourney?: true;
   now?: Date;
   sqliteDb?: NobuDatabase;
@@ -88,24 +92,16 @@ export async function redeemMonitoringPassForAgent(
   const nowIso = now.toISOString();
 
   // --- Gate 1: authorized connection (handle alone is never authorization) ---
+  // trustedMarketplaceJourney is intentionally NOT an auth bypass.
   const store = await resolveStore(args.sqliteDb, args.env);
-  const connection = args.trustedMarketplaceJourney
-    ? await store.getAgentConnectionById(args.connectionId)
-    : null;
-  const auth = args.trustedMarketplaceJourney
-    ? null
-    : await authorizeAgentConnection({
-        connectionId: args.connectionId,
-        connectionToken: args.connectionToken ?? "",
-        now,
-        sqliteDb: args.sqliteDb,
-        env: args.env,
-      });
-  const verifiedConnection = args.trustedMarketplaceJourney
-    ? connection
-    : auth?.ok
-      ? auth.connection
-      : null;
+  const auth = await authorizeAgentConnection({
+    connectionId: args.connectionId,
+    connectionToken: args.connectionToken ?? "",
+    now,
+    sqliteDb: args.sqliteDb,
+    env: args.env,
+  });
+  const verifiedConnection = auth?.ok ? auth.connection : null;
   if (
     !verifiedConnection ||
     verifiedConnection.status !== "active" ||

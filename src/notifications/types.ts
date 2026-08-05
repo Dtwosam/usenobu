@@ -6,7 +6,11 @@
 export type EmailNotificationKind = "immediate" | "summary";
 
 export type EmailNotificationStatus =
+  | "pending"
+  | "sending"
   | "sent"
+  | "failed_retryable"
+  | "failed_terminal"
   | "suppressed"
   | "combined"
   | "failed";

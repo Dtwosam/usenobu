@@ -205,8 +205,15 @@ CREATE INDEX IF NOT EXISTS idx_monitor_activations_status
 CREATE TABLE IF NOT EXISTS monitoring_pass_payments (
   id TEXT PRIMARY KEY NOT NULL,
   authorization_digest TEXT NOT NULL UNIQUE,
-  status TEXT NOT NULL DEFAULT 'verifying', -- verifying | settled | failed
+  -- authorization_received | verifying | settlement_pending | settlement_unknown
+  -- | settled | rejected | failed
+  status TEXT NOT NULL DEFAULT 'authorization_received',
   settlement_ref TEXT,
+  payer_address TEXT,
+  sanitized_verify_reason TEXT,
+  sanitized_settle_reason TEXT,
+  last_provider_operation TEXT,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -216,7 +223,7 @@ CREATE INDEX IF NOT EXISTS idx_monitoring_pass_payments_status
 
 -- One verified settlement issues exactly one pass (UNIQUE settlement_ref).
 -- pass_token_hash is sha256 of the opaque token returned once to the buyer;
--- the token itself is never stored.
+-- the token itself is never stored. payer_address binds ownership when known.
 CREATE TABLE IF NOT EXISTS monitoring_passes (
   id TEXT PRIMARY KEY NOT NULL,
   pass_token_hash TEXT NOT NULL,
@@ -225,6 +232,7 @@ CREATE TABLE IF NOT EXISTS monitoring_passes (
   price_amount NUMERIC NOT NULL,
   price_currency TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'issued', -- issued | redeemed
+  payer_address TEXT,
   redeemed_at TEXT,
   redeemed_quote_id TEXT,
   redeemed_purchase_id TEXT,
@@ -239,11 +247,15 @@ CREATE INDEX IF NOT EXISTS idx_monitoring_passes_status
 -- continuation id per payment; never a payment header, digest, settlement
 -- ref, or transferable bearer for redemption. Status is pending until a
 -- Monitoring Pass is issued, then issued with monitoring_pass_id set.
+-- claim_credential_hash is sha256 of a single-use continuation secret returned
+-- only to the successful paid caller — public pass/journey ids alone cannot claim.
 CREATE TABLE IF NOT EXISTS monitoring_pass_continuations (
   id TEXT PRIMARY KEY NOT NULL,
   payment_id TEXT NOT NULL UNIQUE,
   monitoring_pass_id TEXT,
-  status TEXT NOT NULL DEFAULT 'pending', -- pending | issued
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | issued | claimed
+  claim_credential_hash TEXT,
+  claim_credential_consumed_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -272,6 +284,69 @@ CREATE TABLE IF NOT EXISTS marketplace_purchase_journeys (
 
 CREATE INDEX IF NOT EXISTS idx_marketplace_purchase_journeys_stage
   ON marketplace_purchase_journeys (stage);
+
+-- Paid-to-active repair: durable scheduler control plane (local SQLite is cache only).
+CREATE TABLE IF NOT EXISTS durable_monitor_schedule (
+  purchase_id TEXT PRIMARY KEY NOT NULL,
+  activation_id TEXT,
+  account_id TEXT,
+  status TEXT NOT NULL DEFAULT 'active', -- active | stopped | expired | blocked
+  next_check_at TEXT,
+  last_checked_at TEXT,
+  provider_backoff_until TEXT,
+  last_skip_reason TEXT,
+  hydration_blocker_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_durable_monitor_schedule_due
+  ON durable_monitor_schedule (status, next_check_at, purchase_id);
+
+CREATE TABLE IF NOT EXISTS durable_global_leases (
+  lease_key TEXT PRIMARY KEY NOT NULL,
+  holder_id TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS durable_search_budget (
+  period_key TEXT PRIMARY KEY NOT NULL,
+  used_count INTEGER NOT NULL DEFAULT 0,
+  limit_count INTEGER NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS durable_alert_opportunities (
+  opportunity_key TEXT PRIMARY KEY NOT NULL,
+  purchase_id TEXT NOT NULL,
+  alert_id TEXT,
+  reserved_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'reserved'
+);
+
+CREATE TABLE IF NOT EXISTS durable_notification_outbox (
+  id TEXT PRIMARY KEY NOT NULL,
+  opportunity_key TEXT NOT NULL UNIQUE,
+  purchase_id TEXT NOT NULL,
+  account_id TEXT NOT NULL,
+  alert_id TEXT,
+  kind TEXT NOT NULL,
+  -- pending | sending | sent | failed_retryable | failed_terminal | suppressed
+  status TEXT NOT NULL DEFAULT 'pending',
+  reason TEXT,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  lease_holder TEXT,
+  lease_expires_at TEXT,
+  next_attempt_at TEXT,
+  recipient_email_hash TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  sent_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_durable_notification_outbox_status
+  ON durable_notification_outbox (status, next_attempt_at);
 `;
 
 /** Best-effort column adds for existing durable DBs (Postgres / SQLite). */
@@ -287,5 +362,14 @@ export const AUTH_DURABLE_SCHEMA_PATCHES = [
   `ALTER TABLE account_purchase_blobs ADD COLUMN email_alerts_disabled_at TEXT`,
   // Speed/flow hardening — durable structured purchase after extract, before discovery.
   `ALTER TABLE marketplace_purchase_journeys ADD COLUMN purchase_snapshot_json TEXT`,
+  // Paid-to-active transactional repair — payment diagnostics (safe fields only).
+  `ALTER TABLE monitoring_pass_payments ADD COLUMN payer_address TEXT`,
+  `ALTER TABLE monitoring_pass_payments ADD COLUMN sanitized_verify_reason TEXT`,
+  `ALTER TABLE monitoring_pass_payments ADD COLUMN sanitized_settle_reason TEXT`,
+  `ALTER TABLE monitoring_pass_payments ADD COLUMN last_provider_operation TEXT`,
+  `ALTER TABLE monitoring_pass_payments ADD COLUMN attempt_count INTEGER DEFAULT 0`,
+  `ALTER TABLE monitoring_passes ADD COLUMN payer_address TEXT`,
+  `ALTER TABLE monitoring_pass_continuations ADD COLUMN claim_credential_hash TEXT`,
+  `ALTER TABLE monitoring_pass_continuations ADD COLUMN claim_credential_consumed_at TEXT`,
 ];
 

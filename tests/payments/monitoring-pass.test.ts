@@ -359,21 +359,15 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     const body = monitoringPassResponseBody(result);
     expect(body.status).toBe("PAYMENT_PENDING");
     expect(body.x402Version).toBe(2);
-    expect(body.next_action).toMatch(/COMPLETE_X402_PAYMENT|PAYMENT/i);
-    expect(body.completed_step).toBe("MONITORING_PASS_EXPLAINED");
+    // Neutral typed facts only — no imperative agent-control prose.
     expect(body.monitoring_active).toBe(false);
     expect(body.journey_complete).toBe(false);
-    expect(body.message).toMatch(/does not activate monitoring/i);
-    expect(body.guidance).toMatch(/one payment quote|balance_unavailable/i);
-    expect(body.one_quote_only).toBe(true);
-    expect(body.input_required).toBe(false);
+    expect(body.business_input_required).toBe(false);
+    expect(body.replay_header_name).toBe("PAYMENT-SIGNATURE");
+    expect(body.amount).toBe("990000");
     expect(body.fields).toEqual([]);
-    expect((body.protocol_replay as { do_not_ask_user?: boolean }).do_not_ask_user).toBe(
-      true,
-    );
-    expect(body.never_ask_user_for).toEqual(
-      expect.arrayContaining(["PAYMENT-SIGNATURE"]),
-    );
+    expect(body.never_ask_user_for).toBeUndefined();
+    expect(body.guidance).toBeUndefined();
   });
 
   // ---------------------------------------------------------------------
@@ -400,7 +394,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(issued.pass_continuation_id).toMatch(/^pass_cont_/);
 
     const body = monitoringPassResponseBody(issued);
-    expect(body.agent_state).toBe("MONITORING_PASS");
     expect(body.status).toBe("MONITORING_PASS_ISSUED");
     expect(body.monitoring_pass_id).toBe(issued.pass.id);
     expect(body.pass_continuation_id).toBe(issued.pass_continuation_id);
@@ -408,19 +401,12 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(body.price_amount).toBe(0.99);
     expect(body.price_currency).toBe("USD");
     expect(body.redeemable_for).toMatch(/REDEEM_MONITORING_PASS/);
-    expect(body.completed_step).toBe("MONITORING_PASS_ISSUED");
     expect(body.monitoring_active).toBe(false);
     expect(body.journey_complete).toBe(false);
-    expect(body.next_action).toBe("CONFIRM_USE_PASS");
     expect(body.next_service_id).toBe(33561);
-    expect(body.fields).toEqual(["confirm_use_pass"]);
-    expect(body.requiredArgs).toEqual(["confirm_use_pass"]);
     expect(body.second_payment_required).toBe(false);
-    expect(body.payment_status).toBe("recognized");
-    expect(body.monitoring_active).toBe(false);
-    expect(body.journey_complete).toBe(false);
-    expect(String(body.message)).toMatch(/Monitoring Pass is ready/i);
-    expect(body.guidance).toMatch(/confirm_use_pass|use the pass/i);
+    expect(body.payment_status).toBe("settled");
+    expect(issued.payment_response_header).toBeTruthy();
   });
 
   it("duplicate replay of the same payment returns the same pass", async () => {
@@ -862,13 +848,12 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
+      settlementRef: pass.settlement_ref,
+      payment_response_header: "dGVzdA==",
     });
     expect(body.status).toBe("MONITORING_PASS_ISSUED");
     expect(body.monitoring_active).toBe(false);
-    expect(body.next_action).toBe("CONFIRM_USE_PASS");
     expect(body.next_service_id).toBe(33561);
-    expect(body.fields).toEqual(["confirm_use_pass"]);
-    expect(body.requiredArgs).toEqual(["confirm_use_pass"]);
     expect(body.monitoring_pass_token).toBeUndefined();
     const bodyJson = JSON.stringify(body);
     expect(bodyJson).not.toContain(pendingTx);
@@ -991,9 +976,6 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(resolved.body.status).toBe("MONITORING_PASS_ISSUED");
     expect(resolved.body.monitoring_pass_id).toBe(recon.issued_pass_ids[0]);
     expect(resolved.body.monitoring_active).toBe(false);
-    expect(resolved.body.next_action).toBe("CONFIRM_USE_PASS");
-    expect(resolved.body.fields).toEqual(["confirm_use_pass"]);
-    expect(resolved.body.requiredArgs).toEqual(["confirm_use_pass"]);
     expect(resolved.body.next_service_id).toBe(33561);
     expect(resolved.body.second_payment_required).toBe(false);
     expect(JSON.stringify(resolved.body)).not.toContain(confirmedTx);
@@ -1105,6 +1087,7 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(resolved.body.second_payment_required).toBe(false);
     expect(resolved.body.payment_status).toBe("recognized");
     expect(resolved.body.monitoring_active).toBe(false);
+    // payment_status recognized = settled pass resolved for free continuation
     expect(passCount()).toBe(1);
     // Only the continuation's settlement_ref is polled — not the noise tx.
     expect(seen).toHaveLength(1);
@@ -1119,11 +1102,10 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
   it("issued and pending response bodies carry the conversation contract", async () => {
     const issued = await buyPass("settle_ref_contract_001", "hdr-contract-1");
     const issuedBody = monitoringPassResponseBody(issued);
-    expect(issuedBody.payment_status).toBe("recognized");
+    expect(issuedBody.payment_status).toBe("settled");
     expect(issuedBody.second_payment_required).toBe(false);
-    expect(issuedBody.retry_safe).toBe(true);
-    expect(issuedBody.completed_step).toBe("MONITORING_PASS_ISSUED");
     expect(issuedBody.monitoring_active).toBe(false);
+    expect(issuedBody.next_service_id).toBe(33561);
 
     const challenge = await monitoringPassForAgent({
       paymentAuthorizationHeader: null,
@@ -1133,16 +1115,11 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     const challengeBody = monitoringPassResponseBody(challenge);
     expect(challengeBody.status).toBe("PAYMENT_PENDING");
     expect(challengeBody.payment_status).toBe("required");
-    expect(challengeBody.completed_step).toBe("MONITORING_PASS_EXPLAINED");
-    expect(String(challengeBody.next_action)).toMatch(/COMPLETE_X402_PAYMENT|PAYMENT/i);
     expect(challengeBody.second_payment_required).toBe(false);
     expect(challengeBody.selected_service_id).toBe(35958);
-    expect(challengeBody.selected_service_name).toBe("Nobu Monitoring Pass");
-    expect(challengeBody.input_required).toBe(false);
-    expect(challengeBody.required_fields).toEqual([]);
     expect(challengeBody.fields).toEqual([]);
     expect(challengeBody.requiredArgs).toEqual([]);
-    expect(challengeBody.required_user_input).toBeNull();
+    expect(challengeBody.business_input_required).toBe(false);
     expect(challengeBody.product_details_required_before_payment).toBe(false);
     expect(challengeBody.email_required_before_payment).toBe(false);
     expect(challengeBody.alert_threshold_required).toBe(false);
@@ -1153,32 +1130,14 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(challengeBody.next_action_after_payment).toBe(
       "CONTINUE_PURCHASE_SETUP",
     );
-    expect(
-      (challengeBody.insufficient_balance_guidance as { create_another_quote?: boolean })
-        .create_another_quote,
-    ).toBe(false);
     expect(challengeBody.deliverable).toEqual({
       type: "monitoring_pass",
       quantity: 1,
     });
-    expect(String(challengeBody.service_description)).toMatch(
-      /No product details, email, wallet address, alert threshold/i,
-    );
-    expect(String(challengeBody.message)).toMatch(
-      /does not activate monitoring/i,
-    );
-    expect(challengeBody.one_quote_only).toBe(true);
-    expect(challengeBody.quote_policy).toBe("single_deliberate_attempt");
-    expect(challengeBody.do_not_re_quote_on).toEqual(
-      expect.arrayContaining(["balance_unavailable", "insufficient_balance"]),
-    );
-    expect(String(challengeBody.wallet_preflight_blocker)).toMatch(
-      /balance_unavailable/i,
-    );
-    expect(String(challengeBody.guidance)).toMatch(/one payment quote/i);
-    const services = challengeBody.available_services as Array<{
-      service_id: number;
-    }>;
-    expect(services.map((s) => s.service_id)).toEqual([33561, 35958]);
+    expect(challengeBody.replay_header_name).toBe("PAYMENT-SIGNATURE");
+    expect(challengeBody.amount).toBe("990000");
+    expect(challengeBody.never_ask_user_for).toBeUndefined();
+    expect(challengeBody.guidance).toBeUndefined();
+    expect(challengeBody.one_quote_only).toBeUndefined();
   });
 });
