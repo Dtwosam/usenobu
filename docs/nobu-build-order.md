@@ -5,30 +5,34 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Paid-to-active transactional follow-up PASS
+## Active closeout — Paid-to-active transaction audit repair FINAL PASS
 
-**State:** PASS — code + Production deploy + unpaid/malformed probes + focused suites.
+**State:** PASS — independent source-audit repair of remaining blockers; focused proof; typecheck; build.
 
-Follow-up repair (2026-08-05) code `617e783` / deploy `dpl_2tCWNPvVnx2DdKDmFYfiucrQFFvz`:
+Audit repair (2026-08-05) baseline `1c91472`:
 
-- Canonical ExactEvmScheme PaymentRequirements (challenge ≡ verify ≡ settle; extra.version 1).
-- HMAC recoverable claim credentials; atomic claim+journey; no public-id claim mint.
-- Multi-page durable scheduler; durable budget before SerpApi; lease in finally.
-- Authoritative durable notification outbox; scheduler outbox retry phase.
-- `SETTLEMENT_REVIEW_REQUIRED` + authenticated operator settlement-review route.
-- Focused 63/63; typecheck; build. No genuine payment, ASP update.
+- Read-only claim resolve; only atomic `claimPassAndCreateJourney` consumes credentials.
+- Concurrency-safe `ensureContinuation`; dedicated `NOBU_PASS_CLAIM_SECRET` fail-closed.
+- `durable_monitor_schedule` source of truth with consistent purchase_id keyset; lease finally.
+- Real durable outbox worker with evidence_json, expired-sending reclaim, Production send path.
+- Owner-only evidence-based settlement review + immutable sanitized audit.
+- Focused 51/51; typecheck; build. No genuine payment, ASP update.
 
 Exact next lane (optional operator):
 
 1. One interactive OKX.AI User-role chat against agent `5541` (at most one `0.99 USDT` payment) if a live video A→Z is required.
 2. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
 
-**Closeout proof:** `docs/proof/paid-to-active-transaction-followup/README.md`.  
-**Current verdict:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FOLLOWUP_PASS`.
+**Closeout proof:** `docs/proof/paid-to-active-transaction-audit-repair/README.md`.
+**Current verdict:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FINAL_PASS`.
+
+## Prior closeout — Paid-to-active transactional follow-up PASS
+
+**State:** superseded by audit repair above. Evidence: `docs/proof/paid-to-active-transaction-followup/`.
 
 ## Prior closeout — Paid-to-active transactional repair PASS
 
-**State:** superseded by follow-up repair above.
+**State:** superseded by follow-up then audit repair.
 
 Evidence: `docs/proof/paid-to-active-transaction-repair/`.
 

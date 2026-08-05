@@ -1,9 +1,13 @@
 # Nobu Current State
 
 **Date:** 2026-08-05
-**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FOLLOWUP_PASS` — audit follow-up: identical PaymentRequirements, recoverable HMAC claims, multi-page durable scheduler, authoritative outbox, SETTLEMENT_REVIEW_REQUIRED + operator path.
+**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FINAL_PASS` — independent source-audit repair of remaining paid-to-active blockers (read-only resolve + atomic claim+journey, concurrency-safe continuation, durable schedule SoT, real outbox worker, evidence-based owner settlement review).
 
-**Paid-to-active transactional follow-up (2026-08-05):** **PASS.** Baseline `08da02a` → code `617e783` (plus WIP foundations `037965a`). ExactEvmScheme-canonical requirements (extra.version **1**); deep-equality challenge=verify=settle; HMAC claim re-derive after response loss; atomic claim+journey; multi-page scheduler + durable budget before provider; durable outbox lease before send; `SETTLEMENT_REVIEW_REQUIRED` + `POST /v1/owner/settlement-review`. Focused 63/63; typecheck; build. Deploy `dpl_2tCWNPvVnx2DdKDmFYfiucrQFFvz`. No genuine payment, ASP update. Evidence: `docs/proof/paid-to-active-transaction-followup/`.
+**Paid-to-active transaction audit repair (2026-08-05):** **PASS.** Baseline `1c91472` → this repair. `resolveMonitoringPassForAgent` never consumes claims; only `claimPassAndCreateJourney` validates/consumes atomically; public IDs alone cannot start a journey; concurrent `ensureContinuation` shares one credential; missing `NOBU_PASS_CLAIM_SECRET` fails closed; `durable_monitor_schedule` is the scheduler work source with purchase_id keyset; Production outbox worker leases + evidence_json + provider send; owner-only evidence-based settlement review + audit table. Focused 51/51; typecheck; build. No genuine payment, ASP update. Evidence: `docs/proof/paid-to-active-transaction-audit-repair/`.
+
+**Prior audit state:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FOLLOWUP_AUDIT_BLOCKED` (cleared by this repair).
+
+**Paid-to-active transactional follow-up (2026-08-05):** **SUPERSEDED as current status** by audit repair above. Baseline `08da02a` → code `617e783` / docs `1c91472`. Deploy `dpl_2tCWNPvVnx2DdKDmFYfiucrQFFvz`. Evidence: `docs/proof/paid-to-active-transaction-followup/`.
 
 **Paid-to-active transactional repair (2026-08-05):** **PASS (prior).** Baseline `df6792d` → code `243efa7`. Deploy `dpl_5QAjtR215oFF56GT3PmYpxeQU9me`. Evidence: `docs/proof/paid-to-active-transaction-repair/`.
 
