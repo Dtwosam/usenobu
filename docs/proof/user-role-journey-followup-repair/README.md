@@ -3,7 +3,8 @@
 **Baseline:** `b0c28de03cc24b7668de1898718f8f237296d500`  
 **Deployed code commit:** `13113f1ed729fd67ff35919cbddf7b5f72e7b7ae`  
 **Deploy ID:** `dpl_BZPj3UKLyPbY1U1iFMSyGks33zYR` (`usenobu-o6k9mv5cb-…`)  
-**Proof-docs HEAD:** `bc784b1a454fd60c31eb391ef8cc7aabfb166bbf` (tip; substantive proof `3407d8f`)  
+**Substantive proof commit:** `3407d8f1859fc4a783012bbfe64a764b26cae342`  
+**Repository closeout tip before this correction:** `ad58774f9a9236b9ada3c1639d5b17590c1b1e1e`  
 **Verdict:** `NOBU_USER_ROLE_JOURNEY_FOLLOWUP_REPAIR_PASS`
 
 ## Findings repaired
