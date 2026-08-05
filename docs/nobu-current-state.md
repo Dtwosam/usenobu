@@ -1,9 +1,11 @@
 # Nobu Current State
 
 **Date:** 2026-08-05
-**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_REPAIR_PASS` — paid-to-active transactional repair: settlement-safe x402, durable payment states, secure pass handoff, quote lifecycle, activation reconcile, durable scheduler control plane, notification outbox.
+**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FOLLOWUP_PASS` — audit follow-up: identical PaymentRequirements, recoverable HMAC claims, multi-page durable scheduler, authoritative outbox, SETTLEMENT_REVIEW_REQUIRED + operator path.
 
-**Paid-to-active transactional repair (2026-08-05):** **PASS.** Baseline `df6792d` → code `243efa7` → proof docs (this HEAD). Live failure: buyer approval then `facilitator non-terminal: HTTP 402` with no receipt. Repair: official `@okxweb3/x402-core`/`x402-evm` primitives + `PAYMENT-RESPONSE`; states authorization_received→settled/unknown; neutral unpaid 402 body; single-use claim credential; connection-token after email verify; atomic quote replace; scheduler phase-0 settlement+activation reconcile; durable lease/schedule/outbox; graph hydration blockers. Focused 66/66; typecheck; build. Deploy `dpl_5QAjtR215oFF56GT3PmYpxeQU9me`; aliases `www.usenobu.xyz` + `usenobu.vercel.app`. Production unpaid 402 valid challenge; malformed 402 REJECTED. No genuine payment, ASP update, activation, resubmission. Evidence: `docs/proof/paid-to-active-transaction-repair/`.
+**Paid-to-active transactional follow-up (2026-08-05):** **PASS.** Baseline `08da02a` → code `617e783` (plus WIP foundations `037965a`). ExactEvmScheme-canonical requirements (extra.version **1**); deep-equality challenge=verify=settle; HMAC claim re-derive after response loss; atomic claim+journey; multi-page scheduler + durable budget before provider; durable outbox lease before send; `SETTLEMENT_REVIEW_REQUIRED` + `POST /v1/owner/settlement-review`. Focused 63/63; typecheck; build. Deploy `dpl_2tCWNPvVnx2DdKDmFYfiucrQFFvz`. No genuine payment, ASP update. Evidence: `docs/proof/paid-to-active-transaction-followup/`.
+
+**Paid-to-active transactional repair (2026-08-05):** **PASS (prior).** Baseline `df6792d` → code `243efa7`. Deploy `dpl_5QAjtR215oFF56GT3PmYpxeQU9me`. Evidence: `docs/proof/paid-to-active-transaction-repair/`.
 
 **User-role journey follow-up repair (2026-08-05):** **PASS (prior).** Baseline `b0c28de` → code `13113f1`. Bare `service_id` selection; `MORE_INFORMATION_REQUIRED`; durable `activation_pending`. Deploy `dpl_BZPj3UKLyPbY1U1iFMSyGks33zYR`. Evidence: `docs/proof/user-role-journey-followup-repair/`.
 

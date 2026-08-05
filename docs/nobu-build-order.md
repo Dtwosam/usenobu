@@ -5,26 +5,32 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Paid-to-active transactional repair PASS
+## Active closeout — Paid-to-active transactional follow-up PASS
 
-**State:** PASS — code + Production deploy + unpaid/malformed probes + focused transactional suite.
+**State:** PASS — code + Production deploy + unpaid/malformed probes + focused suites.
 
-Paid-to-active repair (2026-08-05) code `243efa7` / deploy `dpl_5QAjtR215oFF56GT3PmYpxeQU9me`:
+Follow-up repair (2026-08-05) code `617e783` / deploy `dpl_2tCWNPvVnx2DdKDmFYfiucrQFFvz`:
 
-- Settlement-safe x402: official core/evm packages, `PAYMENT-RESPONSE`, no pass pre-settlement.
-- Durable payment states including `settlement_unknown` (no second challenge).
-- Neutral unpaid 402 body; single-use pass claim credential; connection-token after email verify.
-- Atomic quote replace; activation + settlement reconcile on monitor-scheduler; durable lease/schedule/outbox.
-- Focused 66/66; typecheck; build; aliases `www.usenobu.xyz` + `usenobu.vercel.app`.
-- No genuine payment, ASP update, activation, resubmission.
+- Canonical ExactEvmScheme PaymentRequirements (challenge ≡ verify ≡ settle; extra.version 1).
+- HMAC recoverable claim credentials; atomic claim+journey; no public-id claim mint.
+- Multi-page durable scheduler; durable budget before SerpApi; lease in finally.
+- Authoritative durable notification outbox; scheduler outbox retry phase.
+- `SETTLEMENT_REVIEW_REQUIRED` + authenticated operator settlement-review route.
+- Focused 63/63; typecheck; build. No genuine payment, ASP update.
 
 Exact next lane (optional operator):
 
 1. One interactive OKX.AI User-role chat against agent `5541` (at most one `0.99 USDT` payment) if a live video A→Z is required.
 2. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
 
-**Closeout proof:** `docs/proof/paid-to-active-transaction-repair/README.md`.  
-**Current verdict:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_REPAIR_PASS`.
+**Closeout proof:** `docs/proof/paid-to-active-transaction-followup/README.md`.  
+**Current verdict:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FOLLOWUP_PASS`.
+
+## Prior closeout — Paid-to-active transactional repair PASS
+
+**State:** superseded by follow-up repair above.
+
+Evidence: `docs/proof/paid-to-active-transaction-repair/`.
 
 ## Prior closeout — OKX User-role marketplace journey repair PASS
 
