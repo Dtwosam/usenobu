@@ -1,8 +1,8 @@
 # Paid → Free machine continuation repair
 
 **Date:** 2026-08-05  
-**Baseline:** `6e56e07`  
-**Verdict:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_PASS` (local contract proof + Production unpaid probes)
+**Baseline:** `6e56e07` → fallback repair from `ebe24bd`  
+**Verdict:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_FINAL_PASS`
 
 ## Defects repaired
 
@@ -27,7 +27,7 @@ https://www.usenobu.xyz
 | Free Purchase Setup (33561) | `https://www.usenobu.xyz/v1/agent` |
 | Paid Monitoring Pass (35958) | `https://www.usenobu.xyz/v1/agent/monitoring-pass` |
 
-`DEFAULT_FREE_SERVICE_ENDPOINT` now matches the free path. Production `NOBU_FREE_SERVICE_ENDPOINT` is **unset**, so the corrected default applies. Repository `git grep usenobu.vercel.app` → zero matches (historical prose uses the obsolete-generated-alias wording or the canonical domain).
+`DEFAULT_FREE_SERVICE_ENDPOINT` now matches the free path. Production `NOBU_FREE_SERVICE_ENDPOINT` is **unset**, so the corrected default applies. Repository obsolete-hostname grep → zero matches (historical prose uses the obsolete-generated-alias wording or the canonical domain).
 
 ## Authoritative continuation: `protocol_continuation`
 
@@ -91,21 +91,30 @@ Proved:
 - `ACTIVATION_PENDING` continuation includes `connection_token`
 - secrets stay out of human-facing surfaces
 
-## Focused gates
+## Fallback repair (post-PASS closeout)
+
+Remaining defects closed from baseline `ebe24bd`:
+
+1. **Pass-resolution fallbacks** no longer put machine-owned names into `required_fields` / `fields` / `requiredArgs` / `required_user_input`. Missing, invalid, mismatched, historical, and unauthorized paths return empty user lists; 401 claim responses never instruct the user to supply credentials.
+2. **`buildConversationContract` + `sanitizeUserInputContractFields`** hard-filter explicit caller-provided `required_user_input` so bypass is impossible.
+3. **Shared `consentsStageResponse`** always requires the current raw `connection_token` and returns it only inside `protocol_continuation.body` for: successful email verification, incomplete consents, retryable preflight failure, and retryable redemption failure. Consent-stage without token → `INTERNAL_CONTINUATION_STATE_MISSING` immediately (no tokenless consent continuation).
+
+Focused test: `tests/a2mcp/paid-to-free-fallback-repair.test.ts` (plus generic A-to-Z still green).
+
+## Focused gates (fallback repair)
 
 | Gate | Result |
 |---|---|
-| generic A-to-Z + A2MCP marketplace/contract/catalogue | 37/37 |
-| monitoring-pass + claim + start-monitoring + free validation | 65/65 |
+| paid-to-free-fallback-repair + generic A-to-Z + marketplace | pass |
+| monitoring-pass + claim credential recovery | pass (status renamed to `INTERNAL_CONTINUATION_STATE_MISSING`) |
 | typecheck | clean |
 | `next build` | clean |
 | `git diff --check` | clean |
 | obsolete-hostname grep | zero matches |
-| secret scan (narrow) | no raw claim/token console leaks |
 
 ## Production probes (unpaid only)
 
-Deployed commit `7b7c810` → Production alias `https://www.usenobu.xyz` (deployment `usenobu-75tx7dext…`).
+Prior deploy `7b7c810` / `usenobu-75tx7dext…` on `https://www.usenobu.xyz`. Fallback repair redeploy records below after Production promote.
 
 | Probe | Result |
 |---|---|

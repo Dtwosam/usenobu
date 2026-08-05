@@ -1,9 +1,9 @@
 # Nobu Current State
 
 **Date:** 2026-08-05
-**Status:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_PASS` — paid Monitoring Pass → free Purchase Setup machine continuation repaired; sole Production domain `https://www.usenobu.xyz`; generic buyer-agent A-to-Z contract proof green.
+**Status:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_FINAL_PASS` — paid→free machine continuation + fallback sanitization; sole Production domain `https://www.usenobu.xyz`; generic A-to-Z and consent-token retry proofs green.
 
-**Paid-to-free machine continuation (2026-08-05):** **PASS.** Baseline `6e56e07`. Authoritative `protocol_continuation` on paid issuance and every free journey stage; machine-owned values never in user `required_fields`; `ACTIVATION_PENDING` carries `connection_token` in continuation only; free default endpoint locked to `https://www.usenobu.xyz/v1/agent`. Generic A-to-Z + marketplace + monitoring-pass focused gates green; typecheck + build clean; obsolete-hostname grep empty. No genuine payment, no ASP `#5541` edit. Live prior pass recovery: `EXISTING_LIVE_JOURNEY_RECOVERY_REQUIRED` (public ids cannot claim; operator recovery only). Evidence: `docs/proof/paid-to-free-machine-continuation/`.
+**Paid-to-free machine continuation final (2026-08-05):** **PASS.** Baseline `ebe24bd` (prior `6e56e07`). Fallback repair: pass-resolution never lists machine-owned fields; `sanitizeUserInputContractFields` hard-filters contracts; shared consents helper preserves `connection_token` on verification, incomplete consents, preflight/redeem retries; tokenless consent stage → `INTERNAL_CONTINUATION_STATE_MISSING`. Focused gates + typecheck + build clean. No genuine payment, no ASP edit. Evidence: `docs/proof/paid-to-free-machine-continuation/`.
 
 **Paid-to-active final transactional repair (2026-08-05):** **SUPERSEDED as current status** by machine-continuation lane above (provider-id + summary path remain). Baseline `ca83267` → code `5341168`. Deploy `dpl_9XND8k78yfbDfpQq5NSsStEviAhM` on sole Production domain `https://www.usenobu.xyz`. Evidence: `docs/proof/paid-to-active-transaction-live-ready/`.
 

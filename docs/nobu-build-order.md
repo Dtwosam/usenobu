@@ -5,17 +5,17 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Paid-to-free machine continuation PASS
+## Active closeout — Paid-to-free machine continuation FINAL PASS
 
-**State:** PASS — generic buyer agent can complete Monitoring Pass → free Purchase Setup using only Nobu response fields.
+**State:** FINAL PASS — generic buyer agent completes paid→free setup; fallback paths never solicit machine-owned fields; consent retries preserve `connection_token`.
 
-Repair (2026-08-05) baseline `6e56e07`:
+Repair (2026-08-05) baseline `6e56e07` → fallback `ebe24bd`:
 
 - Sole Production domain `https://www.usenobu.xyz` for free `/v1/agent` and paid `/v1/agent/monitoring-pass`.
-- Authoritative `protocol_continuation` (mirrored as `machine_continuation`) on paid issuance and every journey stage.
-- Machine-owned values never in user-required fields; secrets only in structured continuation body.
-- `ACTIVATION_PENDING` continuation includes `connection_token`; missing state → `INTERNAL_CONTINUATION_STATE_MISSING`.
-- Generic A-to-Z deterministic proof + focused marketplace/payment gates.
+- Authoritative `protocol_continuation` on paid issuance and every journey stage.
+- Machine-owned values never in user-required fields (including failed pass-resolution); hard sanitizer on contracts.
+- Shared consents response always carries token; tokenless consent → `INTERNAL_CONTINUATION_STATE_MISSING`.
+- Generic A-to-Z + fallback repair focused tests green.
 
 Exact next lane:
 
@@ -24,7 +24,7 @@ Exact next lane:
 3. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
 
 **Closeout proof:** `docs/proof/paid-to-free-machine-continuation/README.md`.
-**Current verdict:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_PASS`.
+**Current verdict:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_FINAL_PASS`.
 
 ## Prior closeout — Paid-to-active transaction LIVE READY / BLOCKED
 
