@@ -58,14 +58,8 @@ function assertHumanStage(
   expect(body.journey_complete).toBe(false);
   expect(body.payment_status).toBe("recognized");
   expect(body.retry_safe).toBe(true);
-  expect(body.machine_continuation).toEqual(
-    expect.objectContaining({
-      method: "POST",
-      service_id: 33561,
-      do_not_ask_user: true,
-      body: expect.objectContaining({ journey_id: body.journey_id }),
-    }),
-  );
+  // Human stages must not advertise automatic machine continuation.
+  expect(body.machine_continuation).toBeNull();
   // Never ask the user to type journey_id.
   expect(fields).not.toContain("journey_id");
   expect(JSON.stringify(body.fields)).not.toMatch(/UNDERSTAND_|RESOLVE_|REDEEM_/);

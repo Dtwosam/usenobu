@@ -355,11 +355,10 @@ export function marketplaceIncompleteContract(args: {
       ? args.candidatesMessage
       : meta.message);
 
-  const machine_continuation = freeSetupContinuation(
-    args.journeyId,
-    {},
-    args.env,
-  );
+  // machine_continuation only for genuinely automatic stages.
+  const machine_continuation = automatic
+    ? freeSetupContinuation(args.journeyId, {}, args.env)
+    : null;
 
   const contract = buildConversationContract({
     status: meta.status,
@@ -402,6 +401,119 @@ export function marketplaceIncompleteContract(args: {
     requiredArgs: automatic ? [] : userFields,
     required_fields: automatic ? [] : userFields,
     input_required: !automatic,
+  };
+}
+
+/**
+ * After discovery fails or returns zero safe candidates: stop automatic loops
+ * and ask the user for a clearer purchase description.
+ */
+export function marketplaceMoreInformationRequired(args: {
+  journeyId: string;
+  passContinuationId?: string | null;
+  monitoringPassId?: string | null;
+  message?: string;
+}): ConversationContract & {
+  current_step: string;
+  automatic_continue: false;
+  machine_continuation: null;
+  journey_id: string;
+} {
+  const message =
+    args.message ??
+    "No safe Target product candidate was found. Provide a clearer product clue such as a Target product URL, TCIN, model number, or fuller product description. Monitoring is not active.";
+  const userFields = ["purchase_description"] as const;
+  const contract = buildConversationContract({
+    status: "MORE_INFORMATION_REQUIRED",
+    current_step: "purchase_description",
+    completed_step: "PRODUCT_DISCOVERY_NO_RESULT",
+    next_action: "PROVIDE_PURCHASE_DESCRIPTION",
+    message,
+    guidance:
+      "Ask only for a clearer Target product clue (URL, TCIN, model, or fuller description). Do not re-run discovery automatically with the same details. Do not ask for email, consent, or payment.",
+    payment_status: "recognized",
+    second_payment_required: false,
+    monitoring_active: false,
+    journey_complete: false,
+    retry_safe: true,
+    required_fields: [...userFields],
+    required_user_input: {
+      required_fields: [...userFields],
+      description: message,
+    },
+    journey_id: args.journeyId,
+    pass_continuation_id: args.passContinuationId,
+    monitoring_pass_id: args.monitoringPassId,
+    next_service_id: FREE_SERVICE_ID,
+    input_required: true,
+    automatic_continue: false,
+    machine_continuation: null,
+    include_action_field: false,
+  });
+  return {
+    ...contract,
+    current_step: "purchase_description",
+    automatic_continue: false,
+    machine_continuation: null,
+    journey_id: args.journeyId,
+    fields: [...userFields],
+    requiredArgs: [...userFields],
+    required_fields: [...userFields],
+    input_required: true,
+  };
+}
+
+/** Automatic continuation while projection finishes after pass redemption. */
+export function marketplaceActivationPendingContract(args: {
+  journeyId: string;
+  monitoringPassId?: string | null;
+  passContinuationId?: string | null;
+  env?: EnvRecord;
+}): ConversationContract & {
+  current_step: "activation_pending";
+  automatic_continue: true;
+  machine_continuation: MachineContinuation;
+  journey_id: string;
+} {
+  const machine_continuation = freeSetupContinuation(
+    args.journeyId,
+    {},
+    args.env,
+  );
+  const contract = buildConversationContract({
+    status: "ACTIVATION_PENDING",
+    current_step: "activation_pending",
+    completed_step: "MONITORING_ACTIVATION_PENDING",
+    next_action: "RESOLVE_ACTIVATION",
+    message:
+      "Pass redemption was accepted. Activation is finishing. Do not pay or redeem again.",
+    guidance:
+      "Do not ask for consents, payment, or redemption again. POST machine_continuation.body with the same journey_id only. Never open a second payment.",
+    payment_status: "recognized",
+    second_payment_required: false,
+    monitoring_active: false,
+    journey_complete: false,
+    retry_safe: true,
+    required_fields: [],
+    required_user_input: null,
+    input_required: false,
+    automatic_continue: true,
+    machine_continuation,
+    journey_id: args.journeyId,
+    monitoring_pass_id: args.monitoringPassId,
+    pass_continuation_id: args.passContinuationId,
+    next_service_id: FREE_SERVICE_ID,
+  });
+  return {
+    ...contract,
+    current_step: "activation_pending",
+    automatic_continue: true,
+    machine_continuation,
+    journey_id: args.journeyId,
+    fields: [],
+    requiredArgs: [],
+    required_fields: [],
+    input_required: false,
   };
 }
 

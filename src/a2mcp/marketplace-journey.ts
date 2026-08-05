@@ -17,8 +17,10 @@ import { resolveMonitoringPassForAgent } from "../payments/monitoring-pass-servi
 import type { MatchableOffer } from "../matching/types.js";
 import {
   buildConversationContract,
+  marketplaceActivationPendingContract,
   marketplaceIncompleteContract,
   marketplaceMonitoringActiveContract,
+  marketplaceMoreInformationRequired,
   type MarketplaceStage,
 } from "./conversation-contract.js";
 import {
@@ -38,7 +40,7 @@ export type MarketplaceJourneyDeps = Omit<UnderstandDeps, "now"> & {
   offersOverride?: MatchableOffer[];
 };
 
-type JourneyStage = MarketplaceStage | "complete";
+type JourneyStage = MarketplaceStage | "activation_pending" | "complete";
 
 type PurchaseSnapshot = {
   purchase_price: number;
@@ -164,6 +166,7 @@ function cleanString(value: unknown): string {
 }
 
 function hasForbiddenEarlyInput(raw: Record<string, unknown>, stage: JourneyStage): boolean {
+  if (stage === "activation_pending" || stage === "complete") return false;
   const order: JourneyStage[] = [
     "confirm_use_pass",
     "purchase_description",
@@ -175,12 +178,37 @@ function hasForbiddenEarlyInput(raw: Record<string, unknown>, stage: JourneyStag
     "complete",
   ];
   const at = order.indexOf(stage);
+  if (at < 0) return false;
   if (at < order.indexOf("email") && "email" in raw) return true;
   if (
     at < order.indexOf("consents") &&
     ("monitoring_consent" in raw || "email_alert_consent" in raw)
   ) return true;
   return false;
+}
+
+function activationPendingResponse(
+  journeyId: string,
+  extras: {
+    passContinuationId?: string | null;
+    monitoringPassId?: string | null;
+    env?: EnvRecord;
+  },
+) {
+  const contract = marketplaceActivationPendingContract({
+    journeyId,
+    monitoringPassId: extras.monitoringPassId,
+    passContinuationId: extras.passContinuationId,
+    env: extras.env,
+  });
+  return {
+    http_status: 200 as const,
+    body: {
+      ...contract,
+      journey_id: journeyId,
+      free_service_endpoint: resolveFreeServiceEndpoint(extras.env),
+    },
+  };
 }
 
 export function isMarketplaceJourneyRequest(raw: unknown): boolean {
@@ -336,9 +364,127 @@ export async function runMarketplaceJourney(
         required_fields: [],
         input_required: false,
         automatic_continue: false,
+        machine_continuation: null,
       },
     };
   }
+
+  // Resume projection after pass redemption without re-preflight or re-redeem.
+  if (stage === "activation_pending") {
+    if (
+      !journey.quote_id ||
+      !journey.connection_id ||
+      !journey.monitoring_pass_id
+    ) {
+      return {
+        http_status: 400,
+        body: {
+          ...buildConversationContract({
+            status: "ACTIVATION_BLOCKED",
+            current_step: "activation_pending",
+            completed_step: "MONITORING_ACTIVATION_PENDING",
+            next_action: "CONTACT_SUPPORT_WITH_JOURNEY_ID",
+            message:
+              "Activation could not be resumed for this journey. Do not pay again. Do not redeem again.",
+            guidance:
+              "Do not request payment, consents, or a new pass. Keep the journey_id for support. Never open a second payment.",
+            payment_status: "recognized",
+            second_payment_required: false,
+            monitoring_active: false,
+            journey_complete: false,
+            retry_safe: false,
+            required_fields: [],
+            required_user_input: null,
+            input_required: false,
+            automatic_continue: false,
+            machine_continuation: null,
+            journey_id: journey.id,
+            monitoring_pass_id: journey.monitoring_pass_id,
+            next_service_id: FREE_SERVICE_ID,
+          }),
+          journey_id: journey.id,
+          fields: [],
+          requiredArgs: [],
+          second_payment_required: false,
+        },
+      };
+    }
+    // Idempotent: existing activation is resolved; no new quote/pass consume.
+    const resumed = await redeemMonitoringPassForAgent({
+      monitoringPassId: journey.monitoring_pass_id,
+      quoteId: journey.quote_id,
+      connectionId: journey.connection_id,
+      trustedMarketplaceJourney: true,
+      now,
+      sqliteDb: deps.sqliteDb,
+      env: deps.env,
+    });
+    if (
+      resumed.ok &&
+      (resumed.status === "MONITORING_STARTED" ||
+        resumed.status === "ALREADY_ACTIVE")
+    ) {
+      await store.updateMarketplacePurchaseJourney({
+        id: journey.id,
+        stage: "complete",
+        quoteId: journey.quote_id,
+        nowIso,
+      });
+      return {
+        http_status: 200,
+        body: {
+          ...marketplaceMonitoringActiveContract({
+            journeyId: journey.id,
+            monitoringPassId: journey.monitoring_pass_id,
+            passContinuationId: journey.pass_continuation_id,
+          }),
+          journey_id: journey.id,
+          fields: [],
+          requiredArgs: [],
+          required_fields: [],
+          input_required: false,
+          automatic_continue: false,
+          machine_continuation: null,
+        },
+      };
+    }
+    if (resumed.ok && resumed.status === "ACTIVATION_PENDING") {
+      return activationPendingResponse(journey.id, stageExtras);
+    }
+    return {
+      http_status: 400,
+      body: {
+        ...buildConversationContract({
+          status: "ACTIVATION_BLOCKED",
+          current_step: "activation_pending",
+          completed_step: "MONITORING_ACTIVATION_PENDING",
+          next_action: "CONTACT_SUPPORT_WITH_JOURNEY_ID",
+          message:
+            "Activation could not complete for this journey. Do not pay again. Do not redeem again.",
+          guidance:
+            "A conclusive activation failure was recorded. Never open a second payment. Keep journey_id and monitoring_pass_id for support.",
+          payment_status: "recognized",
+          second_payment_required: false,
+          monitoring_active: false,
+          journey_complete: false,
+          retry_safe: false,
+          required_fields: [],
+          required_user_input: null,
+          input_required: false,
+          automatic_continue: false,
+          machine_continuation: null,
+          journey_id: journey.id,
+          monitoring_pass_id: journey.monitoring_pass_id,
+          next_service_id: FREE_SERVICE_ID,
+        }),
+        journey_id: journey.id,
+        fields: [],
+        requiredArgs: [],
+        second_payment_required: false,
+      },
+    };
+  }
+
   if (hasForbiddenEarlyInput(raw, stage)) {
     return incomplete(stage, journey.id, undefined, stageExtras);
   }
@@ -422,13 +568,25 @@ export async function runMarketplaceJourney(
 
     const discovered = await runProductDiscoveryForSnapshot(snapshot, deps, now);
     if (!discovered.ok || discovered.candidates.length === 0) {
-      // Stay on automatic discovery retry — agent continues with machine payload.
-      return incomplete(
-        "product_discovery",
-        journey.id,
-        "No safe Target product candidate yet. Continuing discovery automatically, or send a clearer purchase_description with Target URL, TCIN, or model. Monitoring is not active.",
-        stageExtras,
-      );
+      // Stop automatic SerpApi loops — ask for a clearer product clue once.
+      await store.updateMarketplacePurchaseJourney({
+        id: journey.id,
+        stage: "purchase_description",
+        nowIso,
+      });
+      const moreInfo = marketplaceMoreInformationRequired({
+        journeyId: journey.id,
+        passContinuationId: journeyExtras.passContinuationId,
+        monitoringPassId: journeyExtras.monitoringPassId,
+      });
+      return {
+        http_status: 400 as const,
+        body: {
+          ...moreInfo,
+          journey_id: journey.id,
+          free_service_endpoint: resolveFreeServiceEndpoint(deps.env),
+        },
+      };
     }
     await store.updateMarketplacePurchaseJourney({
       id: journey.id,
@@ -583,36 +741,17 @@ export async function runMarketplaceJourney(
     );
   }
   if (redeemed.status === "ACTIVATION_PENDING") {
-    return {
-      http_status: 200,
-      body: {
-        ...buildConversationContract({
-          status: "ACTIVATION_PENDING",
-          current_step: "activation_pending",
-          completed_step: "MONITORING_ACTIVATION_PENDING",
-          next_action: "CHECK_MONITORING_STATUS",
-          message:
-            "Payment and pass redemption were accepted. Activation is finishing. Do not pay or redeem again.",
-          guidance:
-            "Retry status shortly with the same journey. Never open a second payment.",
-          payment_status: "recognized",
-          second_payment_required: false,
-          monitoring_active: false,
-          journey_complete: false,
-          retry_safe: true,
-          required_fields: [],
-          required_user_input: null,
-          input_required: false,
-          automatic_continue: true,
-          journey_id: journey.id,
-          monitoring_pass_id: journey.monitoring_pass_id,
-          next_service_id: FREE_SERVICE_ID,
-        }),
-        journey_id: journey.id,
-        fields: [],
-        requiredArgs: [],
-      },
-    };
+    await store.updateMarketplacePurchaseJourney({
+      id: journey.id,
+      stage: "activation_pending",
+      quoteId: preflight.quote_id,
+      nowIso,
+    });
+    return activationPendingResponse(journey.id, {
+      ...stageExtras,
+      monitoringPassId: journey.monitoring_pass_id,
+      passContinuationId: journey.pass_continuation_id,
+    });
   }
   await store.updateMarketplacePurchaseJourney({
     id: journey.id,
@@ -634,6 +773,7 @@ export async function runMarketplaceJourney(
       required_fields: [],
       input_required: false,
       automatic_continue: false,
+      machine_continuation: null,
     },
   };
 }

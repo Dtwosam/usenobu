@@ -86,9 +86,7 @@ describe("conversation contract", () => {
     expect(body.payment_status).toBe("recognized");
     expect(body.second_payment_required).toBe(false);
     expect(body.message).toMatch(/No additional payment/i);
-    expect(body.machine_continuation?.body).toEqual({
-      journey_id: "journey_test",
-    });
+    expect(body.machine_continuation).toBeNull();
   });
 
   it("product_discovery stage is automatic with machine continuation", () => {

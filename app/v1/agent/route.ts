@@ -9,7 +9,6 @@ import {
   buildServiceSelectedResponse,
   DESCRIBE_SERVICES_ACTION,
   SELECT_SERVICE_ACTION,
-  isServiceDiscoveryAction,
 } from "@/a2mcp/service-catalogue";
 import {
   isMarketplaceJourneyRequest,
@@ -163,15 +162,15 @@ export async function POST(req: Request) {
     return NextResponse.json(result.body, { status: result.http_status });
   }
 
-  // Service discovery machine actions (DESCRIBE_SERVICES / SELECT_SERVICE).
-  if (
-    raw &&
-    typeof raw === "object" &&
-    !Array.isArray(raw) &&
-    isServiceDiscoveryAction((raw as { action?: unknown }).action)
-  ) {
-    const discoveryAction = String((raw as { action: unknown }).action);
-    if (discoveryAction === DESCRIBE_SERVICES_ACTION) {
+  // Service discovery: DESCRIBE_SERVICES, SELECT_SERVICE, or bare service_id
+  // (required_fields advertise service_id only — action is optional).
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const body = raw as Record<string, unknown>;
+    const actionVal = body.action;
+    const hasServiceId =
+      body.service_id !== undefined && body.service_id !== null && body.service_id !== "";
+
+    if (actionVal === DESCRIBE_SERVICES_ACTION) {
       auditA2mcp({
         at: new Date().toISOString(),
         route: ROUTE,
@@ -194,27 +193,37 @@ export async function POST(req: Request) {
       return serviceSelectionResponse();
     }
 
-    const selected = buildServiceSelectedResponse(raw);
-    auditA2mcp({
-      at: new Date().toISOString(),
-      route: ROUTE,
-      client_key: key,
-      http_status: selected.http_status,
-      outcome: String(selected.body.status),
-      duration_ms: Date.now() - started,
-    });
-    logA2mcpRequest({
-      route: ROUTE,
-      method: "POST",
-      contentType,
-      contentLength,
-      body: raw,
-      recognisedAction: SELECT_SERVICE_ACTION,
-      httpStatus: selected.http_status,
-      durationMs: Date.now() - started,
-      outcome: String(selected.body.status),
-    });
-    return NextResponse.json(selected.body, { status: selected.http_status });
+    // Bare service_id or explicit SELECT_SERVICE + service_id — same handler.
+    const isSelectAction = actionVal === SELECT_SERVICE_ACTION;
+    const isBareServiceId =
+      hasServiceId &&
+      (actionVal === undefined ||
+        actionVal === null ||
+        actionVal === "" ||
+        typeof actionVal !== "string");
+    if (isSelectAction || isBareServiceId) {
+      const selected = buildServiceSelectedResponse(raw);
+      auditA2mcp({
+        at: new Date().toISOString(),
+        route: ROUTE,
+        client_key: key,
+        http_status: selected.http_status,
+        outcome: String(selected.body.status),
+        duration_ms: Date.now() - started,
+      });
+      logA2mcpRequest({
+        route: ROUTE,
+        method: "POST",
+        contentType,
+        contentLength,
+        body: raw,
+        recognisedAction: SELECT_SERVICE_ACTION,
+        httpStatus: selected.http_status,
+        durationMs: Date.now() - started,
+        outcome: String(selected.body.status),
+      });
+      return NextResponse.json(selected.body, { status: selected.http_status });
+    }
   }
 
   // Generic Agent-5541 first contact: both services, require service_id.
