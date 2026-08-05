@@ -30,6 +30,11 @@ import type {
   NotificationProcessResult,
   PriceDropEmailEvidence,
 } from "./types.js";
+import { createHash } from "node:crypto";
+
+function shaShort(s: string): string {
+  return createHash("sha256").update(s).digest("hex").slice(0, 24);
+}
 
 function loadAlertEvidence(
   db: NobuDatabase,
@@ -415,11 +420,80 @@ export async function processPriceDropEmailForNewAlert(args: {
     };
   }
 
-  // Immediate email path — transactional outbox:
-  // 1) reserve unique opportunity as pending (not sent)
-  // 2) acquire send lease (sending)
-  // 3) call provider once
-  // 4) mark sent only after provider success
+  // Authoritative durable outbox (local ledger is mirror only):
+  // 1) reserve durable opportunity
+  // 2) insert/resolve durable outbox pending
+  // 3) acquire durable outbox lease
+  // 4) call provider once
+  // 5) mark sent only after provider success
+  const authStore =
+    args.accountStore ?? (await getAuthStore({ sqliteDb: args.db, env }));
+  const holderId = `send_${evidence.opportunity_key.slice(0, 24)}`;
+  const outboxId = `outbox_${shaShort(evidence.opportunity_key)}`;
+  const leaseExpires = new Date(Date.parse(nowIso) + 60_000).toISOString();
+
+  const reservedOpp = await authStore.tryReserveAlertOpportunity({
+    opportunityKey: evidence.opportunity_key,
+    purchaseId: args.purchaseId,
+    alertId: args.alertId,
+    nowIso,
+  });
+  // Insert or resolve outbox row (idempotent on opportunity_key).
+  const outboxInsert = await authStore.insertNotificationOutbox({
+    id: outboxId,
+    opportunityKey: evidence.opportunity_key,
+    purchaseId: args.purchaseId,
+    accountId: ownerRef,
+    alertId: args.alertId,
+    kind: "immediate",
+    status: "pending",
+    reason: "pending_send",
+    recipientEmailHash: hashEmailForLog(account.email_normalized),
+    nowIso,
+  });
+  const existingOutbox = await authStore.getNotificationOutboxByOpportunity(
+    evidence.opportunity_key,
+  );
+  if (existingOutbox?.status === "sent") {
+    // Local mirror
+    insertNotification({
+      db: args.db,
+      purchase_id: args.purchaseId,
+      account_id: ownerRef,
+      alert_id: args.alertId,
+      opportunity_key: evidence.opportunity_key,
+      kind: "immediate",
+      status: "sent",
+      reason: "duplicate_opportunity",
+      recipient_email_hash: hashEmailForLog(account.email_normalized),
+      created_at: nowIso,
+    });
+    return {
+      attempted: false,
+      status: "sent",
+      reason: "duplicate_opportunity",
+      notification_id: existingOutbox.id,
+      kind: "immediate",
+    };
+  }
+
+  const durableLeased = await authStore.tryLeaseNotificationOutbox({
+    opportunityKey: evidence.opportunity_key,
+    holderId,
+    leaseExpiresAt: leaseExpires,
+    nowIso,
+  });
+  if (!durableLeased) {
+    return {
+      attempted: false,
+      status: "suppressed",
+      reason: "duplicate_opportunity",
+      notification_id: outboxInsert.id,
+      kind: "immediate",
+    };
+  }
+
+  // Local mirror only — does not authorize delivery.
   const reserved = insertNotification({
     db: args.db,
     purchase_id: args.purchaseId,
@@ -427,89 +501,13 @@ export async function processPriceDropEmailForNewAlert(args: {
     alert_id: args.alertId,
     opportunity_key: evidence.opportunity_key,
     kind: "immediate",
-    status: "pending",
-    reason: "pending_send",
+    status: "sending",
+    reason: "sending",
     recipient_email_hash: hashEmailForLog(account.email_normalized),
     created_at: nowIso,
   });
-  if (!reserved.created) {
-    const existing = findNotificationByOpportunity(
-      args.db,
-      evidence.opportunity_key,
-    );
-    // Crash before send remains retryable when status is pending/failed_retryable.
-    if (
-      existing &&
-      (existing.status === "pending" ||
-        existing.status === "failed_retryable" ||
-        existing.status === "failed")
-    ) {
-      // Fall through to lease + send on the existing row.
-    } else {
-      return {
-        attempted: false,
-        status: existing?.status === "sent" ? "sent" : "suppressed",
-        reason: "duplicate_opportunity",
-        notification_id: reserved.id,
-        kind: existing?.kind,
-      };
-    }
-  }
-
-  // Acquire send lease — concurrent workers: only one becomes sending.
   const leaseId = reserved.id;
-  let leased = false;
-  try {
-    const r = args.db
-      .prepare(
-        `UPDATE email_notifications
-         SET status = 'sending', reason = 'sending'
-         WHERE id = ? AND status IN ('pending', 'failed_retryable', 'failed')`,
-      )
-      .run(leaseId);
-    leased = Number(r.changes ?? 0) === 1;
-  } catch {
-    leased = false;
-  }
-  if (!leased) {
-    const existing = findNotificationByOpportunity(
-      args.db,
-      evidence.opportunity_key,
-    );
-    return {
-      attempted: false,
-      status: (existing?.status as EmailNotificationStatus) ?? "suppressed",
-      reason: "duplicate_opportunity",
-      notification_id: leaseId,
-      kind: "immediate",
-    };
-  }
-
-  // Durable outbox reservation (cross-instance idempotency).
-  try {
-    const authStore =
-      args.accountStore ?? (await getAuthStore({ sqliteDb: args.db, env }));
-    await authStore.tryReserveAlertOpportunity({
-      opportunityKey: evidence.opportunity_key,
-      purchaseId: args.purchaseId,
-      alertId: args.alertId,
-      nowIso,
-    });
-    await authStore.insertNotificationOutbox({
-      id: `outbox_${leaseId}`,
-      opportunityKey: evidence.opportunity_key,
-      purchaseId: args.purchaseId,
-      accountId: ownerRef,
-      alertId: args.alertId,
-      kind: "immediate",
-      status: "sending",
-      reason: "sending",
-      recipientEmailHash: hashEmailForLog(account.email_normalized),
-      nowIso,
-    });
-  } catch {
-    /* durable outbox is best-effort alongside local ledger */
-  }
+  void reservedOpp;
 
   const send = await sendPriceDropEmail({
     emailNormalized: account.email_normalized,
@@ -535,18 +533,16 @@ export async function processPriceDropEmailForNewAlert(args: {
     } catch {
       /* ignore */
     }
-    try {
-      const authStore =
-        args.accountStore ?? (await getAuthStore({ sqliteDb: args.db, env }));
-      await authStore.markNotificationOutboxStatus({
-        id: `outbox_${leaseId}`,
-        status: failStatus,
-        reason,
-        nowIso,
-      });
-    } catch {
-      /* ignore */
-    }
+    await authStore.markNotificationOutboxStatus({
+      id: durableLeased.id,
+      status: failStatus,
+      reason,
+      nowIso,
+      nextAttemptAt:
+        failStatus === "failed_retryable"
+          ? new Date(Date.parse(nowIso) + 60_000).toISOString()
+          : null,
+    });
     return {
       attempted: true,
       status: failStatus === "failed_terminal" ? "failed" : "failed",
@@ -556,26 +552,20 @@ export async function processPriceDropEmailForNewAlert(args: {
     };
   }
 
-  // Mark sent only after provider success.
+  // Mark sent only after provider success (durable first, then local mirror).
+  await authStore.markNotificationOutboxStatus({
+    id: durableLeased.id,
+    status: "sent",
+    reason: "sent_immediate",
+    nowIso,
+    sentAt: nowIso,
+  });
   try {
     args.db
       .prepare(
         `UPDATE email_notifications SET status = 'sent', reason = 'sent_immediate' WHERE id = ?`,
       )
       .run(leaseId);
-  } catch {
-    /* ignore */
-  }
-  try {
-    const authStore =
-      args.accountStore ?? (await getAuthStore({ sqliteDb: args.db, env }));
-    await authStore.markNotificationOutboxStatus({
-      id: `outbox_${leaseId}`,
-      status: "sent",
-      reason: "sent_immediate",
-      nowIso,
-      sentAt: nowIso,
-    });
   } catch {
     /* ignore */
   }

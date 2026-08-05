@@ -365,15 +365,65 @@ export async function runMarketplaceJourney(
         },
       };
     }
-    journey = await store.ensureMarketplacePurchaseJourney({
-      id: newJourneyId(),
-      monitoringPassId: resolution.body.monitoring_pass_id,
-      passContinuationId:
-        typeof resolution.body.pass_continuation_id === "string"
-          ? resolution.body.pass_continuation_id
-          : null,
-      nowIso,
-    });
+    const contIdForClaim =
+      typeof resolution.body.pass_continuation_id === "string"
+        ? resolution.body.pass_continuation_id
+        : continuationId;
+    // Atomic claim + journey: never consume claim without creating journey.
+    if (claimCredential && contIdForClaim) {
+      const { sha256Hex } = await import("../auth/crypto.js");
+      const claimed = await store.claimPassAndCreateJourney({
+        continuationId: contIdForClaim,
+        claimCredentialHash: sha256Hex(claimCredential),
+        journeyId: newJourneyId(),
+        monitoringPassId: resolution.body.monitoring_pass_id,
+        nowIso,
+      });
+      if (claimed.outcome === "claim_invalid") {
+        return {
+          http_status: 401,
+          body: {
+            status: "CLAIM_NOT_AUTHORIZED",
+            message:
+              "Invalid or already-used pass_claim_credential. Public pass ids alone cannot claim a pass.",
+            monitoring_active: false,
+            second_payment_required: false,
+          },
+        };
+      }
+      if (claimed.outcome === "pass_mismatch") {
+        return {
+          http_status: 401,
+          body: {
+            status: "CLAIM_NOT_AUTHORIZED",
+            message: "Pass and continuation do not match.",
+            monitoring_active: false,
+            second_payment_required: false,
+          },
+        };
+      }
+      journey = claimed.journey;
+    } else if (resolution.body.claim_required === true) {
+      return {
+        http_status: 401,
+        body: {
+          status: "CLAIM_NOT_AUTHORIZED",
+          message:
+            "pass_claim_credential is required to start Purchase Setup.",
+          monitoring_active: false,
+          second_payment_required: false,
+          claim_required: true,
+        },
+      };
+    } else {
+      // Legacy path only when continuation never had a claim hash.
+      journey = await store.ensureMarketplacePurchaseJourney({
+        id: newJourneyId(),
+        monitoringPassId: resolution.body.monitoring_pass_id,
+        passContinuationId: contIdForClaim || null,
+        nowIso,
+      });
+    }
   }
 
   const journeyExtras = {

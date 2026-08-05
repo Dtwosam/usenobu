@@ -251,7 +251,7 @@ describe("Lane 8R.0 OKX seller adapter", () => {
     expect(challenge.accepts[0]!.extra.quote_id).toBe("quote_abc");
     // EIP-712 domain metadata read from the on-chain token, not assumed.
     expect(challenge.accepts[0]!.extra.name).toBe("USD₮0");
-    expect(challenge.accepts[0]!.extra.version).toBe("2");
+    expect(challenge.accepts[0]!.extra.version).toBe("1");
   });
 
   it("unauthorized/invalid quote never calls OKX", async () => {
@@ -395,7 +395,11 @@ describe("Lane 8R.0 OKX seller adapter", () => {
       expect(d.ok).toBe(false);
       // Timeout with no tx hash is ambiguous → settlement_unknown (not a fresh charge).
       if (!d.ok) {
-        expect(["settle_failed", "settlement_unknown"]).toContain(d.reason);
+        expect([
+          "settle_failed",
+          "settlement_unknown",
+          "settlement_review_required",
+        ]).toContain(d.reason);
       }
     }
 

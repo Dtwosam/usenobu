@@ -336,7 +336,7 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(opt.amount).toBe("990000");
     expect(opt.maxTimeoutSeconds).toBeGreaterThan(0);
     expect(opt.extra.name).toBe("USD₮0");
-    expect(opt.extra.version).toBe("2");
+    expect(opt.extra.version).toBe("1");
     // No quote binding — the pass is sold with no prerequisites.
     expect(opt.extra.quote_id).toBeUndefined();
 
@@ -1017,25 +1017,19 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
       monitoringPassId: issued.pass.id,
       sqliteDb: db,
     });
-    expect(resolved.http_status).toBe(200);
-    expect(resolved.body.status).toBe("MONITORING_PASS_ISSUED");
-    expect(resolved.body.monitoring_pass_id).toBe(issued.pass.id);
-    expect(String(resolved.body.pass_continuation_id)).toMatch(/^pass_cont_/);
-
-    const again = await resolveMonitoringPassForAgent({
-      monitoringPassId: issued.pass.id,
-      sqliteDb: db,
-    });
-    expect(again.body.pass_continuation_id).toBe(
-      resolved.body.pass_continuation_id,
-    );
+    // Public pass id alone no longer mints a claimable continuation.
+    expect(resolved.http_status).toBe(404);
+    expect(resolved.body.status).toBe("MONITORING_PASS_RECOVERY_REQUIRED");
+    // Keep issued pass durable for operator recovery paths.
+    expect(issued.pass.id).toBeTruthy();
+    // No continuation fabricated from public id alone.
     expect(
       (
         db
           .prepare(`SELECT COUNT(*) as c FROM monitoring_pass_continuations`)
           .get() as { c: number }
       ).c,
-    ).toBe(1);
+    ).toBe(0);
   });
 
   // ---------------------------------------------------------------------

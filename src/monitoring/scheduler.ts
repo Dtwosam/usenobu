@@ -38,6 +38,19 @@ export interface ScheduledMonitorOptions {
    */
   accountStore?: unknown;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  /**
+   * Durable AuthStore for authoritative search-budget reservation.
+   * Local ledger is cache only — provider fetch requires durable reserve.
+   */
+  durableAuthStore?: {
+    tryReserveSearchBudget: (args: {
+      periodKey: string;
+      limitCount: number;
+      nowIso: string;
+    }) => Promise<{ reserved: boolean; used: number }>;
+  };
+  durableBudgetPeriodKey?: string;
+  durableMonthlySearchLimit?: number;
 }
 
 export interface ScheduledMonitorResult {
@@ -224,6 +237,46 @@ export async function runScheduledMonitoringTick(
 
   for (const row of toProcess) {
     try {
+      // Authoritative durable budget — local ledger cannot authorize spend.
+      if (options.durableAuthStore && options.durableBudgetPeriodKey) {
+        const reserved = await options.durableAuthStore.tryReserveSearchBudget({
+          periodKey: options.durableBudgetPeriodKey,
+          limitCount:
+            options.durableMonthlySearchLimit ??
+            options.monthly_search_limit ??
+            500,
+          nowIso: asOf,
+        });
+        if (!reserved.reserved) {
+          releaseCheckLock(options.db, row.id, asOf);
+          skipped_budget += 1;
+          updatePurchaseSchedule({
+            db: options.db,
+            purchaseId: row.id,
+            asOf,
+            skipReason: "budget_exhausted",
+          });
+          insertMonitorRun({
+            db: options.db,
+            purchase_id: row.id,
+            mode: "scheduled",
+            outcome: "skipped",
+            skip_reason: "budget_exhausted",
+            searches_consumed: 0,
+            notes: "durable_budget_exhausted_before_provider",
+            started_at: asOf,
+            finished_at: asOf,
+          });
+          results.push({
+            purchase_id: row.id,
+            outcome: "skipped",
+            skip_reason: "budget_exhausted",
+            alert_created: false,
+          });
+          continue;
+        }
+      }
+
       const batch = await runMonitoringPass({
         db: options.db,
         mode: "scheduled",

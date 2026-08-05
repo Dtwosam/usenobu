@@ -327,7 +327,10 @@ describe("Paid-to-active transaction repair", () => {
     });
     expect(r2.ok).toBe(false);
     if (r2.ok) return;
-    expect(r2.reason).toBe("settlement_unknown");
+    // No tx hash after transport loss → review required (not auto-reconcile claim).
+    expect(["settlement_unknown", "settlement_review_required"]).toContain(
+      r2.reason,
+    );
   });
 
   it("settlement_unknown does not create a second challenge", async () => {

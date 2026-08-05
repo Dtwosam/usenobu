@@ -263,4 +263,4 @@ export function resolveX402Verifier(
   return notConfiguredVerifier;
 }
 
-export { buildCanonicalPaymentRequirements, buildX402ChallengeAsync };
+export { buildCanonicalPaymentRequirements };

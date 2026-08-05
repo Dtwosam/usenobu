@@ -21,6 +21,7 @@ import {
 import { sha256Hex } from "../auth/crypto.js";
 import {
   buildX402Challenge,
+  buildX402ChallengeAsync,
   encodeX402ChallengeHeader,
   encodeX402PaymentResponseHeader,
   resolveX402Verifier,
@@ -50,6 +51,8 @@ import {
   resolveFreeServiceEndpoint,
   buildPaidPrePaymentMachineFields,
 } from "../a2mcp/service-catalogue.js";
+import { derivePassClaimCredential } from "./claim-credential.js";
+import type { CanonicalPaymentRequirements } from "./canonical-requirements.js";
 
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -85,12 +88,6 @@ function newContinuationId(): string {
   return `pass_cont_${randomUUID().replace(/-/g, "")}`;
 }
 
-/** Single-use high-entropy claim secret — returned only to paid caller; store only hash. */
-function mintClaimCredential(): { raw: string; hash: string } {
-  const raw = `pass_claim_${randomBytes(32).toString("base64url")}`;
-  return { raw, hash: sha256Hex(raw) };
-}
-
 async function resolveStore(
   sqliteDb?: NobuDatabase,
   env?: EnvRecord,
@@ -104,6 +101,22 @@ export function buildMonitoringPassChallenge(args: {
   payTo?: string | null;
 }): X402Challenge {
   return buildX402Challenge({
+    resource: args.resource,
+    description: MONITORING_PASS_RESOURCE_DESCRIPTION,
+    payTo: args.payTo,
+    env: args.env,
+  });
+}
+
+export async function buildMonitoringPassChallengeAsync(args: {
+  resource: string;
+  env?: EnvRecord;
+  payTo?: string | null;
+}): Promise<{
+  challenge: X402Challenge;
+  requirements: CanonicalPaymentRequirements;
+}> {
+  return buildX402ChallengeAsync({
     resource: args.resource,
     description: MONITORING_PASS_RESOURCE_DESCRIPTION,
     payTo: args.payTo,
@@ -135,11 +148,16 @@ export type MonitoringPassResult =
     }
   | {
       ok: true;
-      status: "PAYMENT_SETTLEMENT_PENDING" | "PAYMENT_SETTLEMENT_UNKNOWN";
+      status:
+        | "PAYMENT_SETTLEMENT_PENDING"
+        | "PAYMENT_SETTLEMENT_UNKNOWN"
+        | "SETTLEMENT_REVIEW_REQUIRED";
       http_status: 200;
       note: string;
       pass_continuation_id: string;
       payment_response_header?: string;
+      /** Safe operator reference only — never a payment signature. */
+      operator_reference?: string;
     }
   | {
       ok: false;
@@ -157,26 +175,35 @@ export type MonitoringPassResult =
       sanitized_reason?: string;
     };
 
+/**
+ * Ensure one continuation per payment with HMAC-derived claim hash.
+ * Raw credential is re-derivable until consumed (response-loss recovery).
+ */
 async function ensureContinuation(
   store: AuthStore,
   paymentId: string,
   nowIso: string,
   monitoringPassId?: string | null,
-  claimCredentialHash?: string | null,
+  env?: EnvRecord,
 ): Promise<{ id: string; claimCredentialRaw?: string }> {
-  let claimRaw: string | undefined;
-  let hash = claimCredentialHash ?? null;
-  if (!hash) {
-    const existing =
-      await store.getMonitoringPassContinuationByPaymentId(paymentId);
-    if (!existing?.claim_credential_hash) {
-      const minted = mintClaimCredential();
-      claimRaw = minted.raw;
-      hash = minted.hash;
-    }
-  }
+  const existing =
+    await store.getMonitoringPassContinuationByPaymentId(paymentId);
+  const continuationId = existing?.id ?? newContinuationId();
+
+  const derived = derivePassClaimCredential({
+    paymentId,
+    continuationId,
+    env,
+  });
+  const hash = derived?.hash ?? null;
+  // Only return raw when unconsumed so replay recovers the same credential.
+  const claimRaw =
+    derived && !existing?.claim_credential_consumed_at
+      ? derived.raw
+      : undefined;
+
   const row = await store.ensureMonitoringPassContinuation({
-    id: newContinuationId(),
+    id: continuationId,
     paymentId,
     monitoringPassId: monitoringPassId ?? null,
     status: monitoringPassId ? "issued" : "pending",
@@ -186,13 +213,13 @@ async function ensureContinuation(
   return { id: row.id, claimCredentialRaw: claimRaw };
 }
 
-function challengeResult(args: {
+async function challengeResult(args: {
   resource: string;
   env?: EnvRecord;
   rejected?: boolean;
   sanitizedReason?: string;
-}): MonitoringPassResult {
-  const challenge = buildMonitoringPassChallenge({
+}): Promise<MonitoringPassResult> {
+  const { challenge } = await buildMonitoringPassChallengeAsync({
     resource: args.resource,
     env: args.env,
   });
@@ -237,6 +264,7 @@ async function issuePassForSettlement(args: {
   paymentId: string;
   nowIso: string;
   payer?: string | null;
+  env?: EnvRecord;
 }): Promise<MonitoringPassResult> {
   const existing = await args.store.getMonitoringPassBySettlementRef(
     args.settlementRef,
@@ -247,6 +275,7 @@ async function issuePassForSettlement(args: {
       args.paymentId,
       args.nowIso,
       existing.id,
+      args.env,
     );
     return {
       ok: true,
@@ -283,6 +312,7 @@ async function issuePassForSettlement(args: {
     args.paymentId,
     args.nowIso,
     issued.pass.id,
+    args.env,
   );
 
   return {
@@ -323,7 +353,7 @@ export async function monitoringPassForAgent(
   const priorPayment =
     await store.getMonitoringPassPaymentByDigest(authorizationDigest);
 
-  // Settled → issue/resolve pass; never re-challenge.
+  // Settled → issue/resolve pass; never re-challenge. Claim credential re-derived.
   if (priorPayment?.status === "settled" && priorPayment.settlement_ref) {
     return issuePassForSettlement({
       store,
@@ -331,15 +361,17 @@ export async function monitoringPassForAgent(
       paymentId: priorPayment.id,
       nowIso,
       payer: priorPayment.payer_address,
+      env: args.env,
     });
   }
 
-  // settlement_unknown / pending — resume without inviting a second payment.
+  // settlement_unknown / pending / review — resume without inviting a second payment.
   if (
     priorPayment &&
     (priorPayment.status === "verifying" ||
       priorPayment.status === "settlement_pending" ||
-      priorPayment.status === "settlement_unknown")
+      priorPayment.status === "settlement_unknown" ||
+      priorPayment.status === "settlement_review_required")
   ) {
     return resumePendingPassSettlement({
       store,
@@ -388,6 +420,16 @@ export async function monitoringPassForAgent(
   let unknownTxHash: string | null = null;
   let payer: string | undefined;
   let isUnknown = false;
+  let isReviewRequired = false;
+  let canonicalRequirements: CanonicalPaymentRequirements | undefined;
+
+  // One canonical requirements object for challenge-equivalent verify/settle.
+  const { requirements: challengeReqs } =
+    await buildMonitoringPassChallengeAsync({
+      resource: args.resource,
+      env: args.env,
+    });
+  canonicalRequirements = challengeReqs;
 
   if (args.testVerifier) {
     const verifier = resolveX402Verifier({
@@ -397,11 +439,27 @@ export async function monitoringPassForAgent(
     const verified = await verifier.verifyPayment({
       resource: args.resource,
       authorizationHeader: args.paymentAuthorizationHeader,
+      requirements: canonicalRequirements,
     });
     if (!verified.ok) {
       if (verified.reason === "settlement_pending" && verified.pendingTxHash) {
         pendingTxHash = verified.pendingTxHash;
         payer = verified.payer;
+      } else if (
+        verified.reason === "settlement_review_required" ||
+        (verified.reason === "settlement_unknown" && !verified.pendingTxHash)
+      ) {
+        isReviewRequired = true;
+        payer = verified.payer;
+        await store.updateMonitoringPassPayment({
+          id: payment.id,
+          status: "settlement_review_required",
+          settlementRef: null,
+          nowIso,
+          payerAddress: payer ?? null,
+          sanitizedSettleReason: verified.sanitizedReason,
+          lastProviderOperation: "settle",
+        });
       } else if (verified.reason === "settlement_unknown") {
         unknownTxHash = verified.pendingTxHash ?? null;
         isUnknown = true;
@@ -448,6 +506,7 @@ export async function monitoringPassForAgent(
       await seller.verifyAndSettleDetailed({
         resource: args.resource,
         authorizationHeader: args.paymentAuthorizationHeader,
+        requirements: canonicalRequirements,
       });
     if (detailed.ok) {
       settlementRef = detailed.settlementRef;
@@ -458,6 +517,21 @@ export async function monitoringPassForAgent(
     ) {
       pendingTxHash = detailed.pendingTxHash;
       payer = detailed.payer;
+    } else if (
+      detailed.reason === "settlement_review_required" ||
+      (detailed.reason === "settlement_unknown" && !detailed.pendingTxHash)
+    ) {
+      isReviewRequired = true;
+      payer = detailed.payer;
+      await store.updateMonitoringPassPayment({
+        id: payment.id,
+        status: "settlement_review_required",
+        settlementRef: null,
+        nowIso,
+        payerAddress: payer ?? null,
+        sanitizedSettleReason: detailed.sanitizedSettleReason,
+        lastProviderOperation: detailed.lastProviderOperation ?? "settle",
+      });
     } else if (detailed.reason === "settlement_unknown") {
       isUnknown = true;
       unknownTxHash = detailed.pendingTxHash ?? null;
@@ -489,7 +563,6 @@ export async function monitoringPassForAgent(
         sanitizedSettleReason: detailed.sanitizedSettleReason,
         lastProviderOperation: detailed.lastProviderOperation,
       });
-      // Only conclusive rejections re-challenge. Never after unknown settlement.
       return challengeResult({
         resource: args.resource,
         env: args.env,
@@ -509,14 +582,40 @@ export async function monitoringPassForAgent(
     return challengeResult({ resource: args.resource, env: args.env });
   }
 
+  if (isReviewRequired) {
+    const cont = await ensureContinuation(
+      store,
+      payment.id,
+      nowIso,
+      null,
+      args.env,
+    );
+    return {
+      ok: true,
+      status: "SETTLEMENT_REVIEW_REQUIRED",
+      http_status: 200,
+      pass_continuation_id: cont.id,
+      operator_reference: payment.id,
+      note: "Settlement outcome cannot be confirmed automatically (no queryable transaction). Payment is locked. Do not pay again. Operator review required with verified transaction evidence.",
+    };
+  }
+
   if (isUnknown) {
-    const cont = await ensureContinuation(store, payment.id, nowIso);
+    const cont = await ensureContinuation(
+      store,
+      payment.id,
+      nowIso,
+      null,
+      args.env,
+    );
     return {
       ok: true,
       status: "PAYMENT_SETTLEMENT_UNKNOWN",
       http_status: 200,
       pass_continuation_id: cont.id,
-      note: "Settlement outcome is temporarily unknown after submission. Do not pay again. Nobu will reconcile from the durable payment record.",
+      note: unknownTxHash
+        ? "Settlement submitted but confirmation is temporarily unavailable. Do not pay again. Nobu will reconcile from the durable payment record using the stored transaction reference."
+        : "Settlement outcome is temporarily unknown. Do not pay again.",
       payment_response_header: unknownTxHash
         ? safeReceipt({
             success: false,
@@ -546,7 +645,13 @@ export async function monitoringPassForAgent(
     });
     if (polled) return polled;
 
-    const cont = await ensureContinuation(store, payment.id, nowIso);
+    const cont = await ensureContinuation(
+      store,
+      payment.id,
+      nowIso,
+      null,
+      args.env,
+    );
     return {
       ok: true,
       status: "PAYMENT_SETTLEMENT_PENDING",
@@ -563,7 +668,6 @@ export async function monitoringPassForAgent(
   }
 
   if (!settlementRef) {
-    // Defensive: no settlement and not pending/unknown → do not invent pass.
     return challengeResult({ resource: args.resource, env: args.env });
   }
 
@@ -582,6 +686,7 @@ export async function monitoringPassForAgent(
     paymentId: payment.id,
     nowIso,
     payer,
+    env: args.env,
   });
 }
 
@@ -604,10 +709,11 @@ async function resumePendingPassSettlement(args: {
       );
       return {
         ok: true,
-        status: "PAYMENT_SETTLEMENT_UNKNOWN",
+        status: "SETTLEMENT_REVIEW_REQUIRED",
         http_status: 200,
         pass_continuation_id: cont.id,
-        note: "Settlement outcome is still unknown. Do not pay again. Reconciliation will continue without a second charge.",
+        operator_reference: args.payment.id,
+        note: "Settlement outcome cannot be confirmed automatically (no queryable transaction). Payment is locked. Do not pay again. Operator review required.",
       };
     }
     // Have a tx hash — try confirm; if still ambiguous stay unknown.
@@ -1063,11 +1169,18 @@ export function monitoringPassResponseBody(
       pass_continuation_id: result.pass_continuation_id,
       monitoring_active: false,
       payment_status:
-        result.status === "PAYMENT_SETTLEMENT_UNKNOWN" ? "unknown" : "pending",
+        result.status === "SETTLEMENT_REVIEW_REQUIRED"
+          ? "review_required"
+          : result.status === "PAYMENT_SETTLEMENT_UNKNOWN"
+            ? "unknown"
+            : "pending",
       second_payment_required: false,
       next_service_id: FREE_SERVICE_ID,
       note: result.note,
       journey_complete: false,
+      ...(result.operator_reference
+        ? { operator_reference: result.operator_reference }
+        : {}),
     };
   }
 
@@ -1158,16 +1271,17 @@ export async function resolveMonitoringPassForAgent(args: {
     : await store.getMonitoringPassContinuationByPassId(passId);
 
   if (!continuation && passId) {
-    const pass = await store.getMonitoringPassById(passId);
-    if (pass && pass.status === "issued") {
-      continuation = await store.ensureMonitoringPassContinuation({
-        id: newContinuationId(),
-        paymentId: pass.payment_id,
-        monitoringPassId: pass.id,
-        status: "issued",
-        nowIso,
-      });
-    }
+    // Public pass ids alone cannot mint a secure continuation/claim.
+    return {
+      http_status: 404,
+      body: {
+        status: "MONITORING_PASS_RECOVERY_REQUIRED",
+        message:
+          "This pass cannot be claimed by public id alone. Use pass_continuation_id and pass_claim_credential from the paid response. Historical passes need operator recovery.",
+        monitoring_active: false,
+        second_payment_required: false,
+      },
+    };
   }
 
   if (!continuation) {

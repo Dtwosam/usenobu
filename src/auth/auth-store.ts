@@ -150,6 +150,7 @@ export type MonitoringPassPaymentStatus =
   | "verifying"
   | "settlement_pending"
   | "settlement_unknown"
+  | "settlement_review_required"
   | "settled"
   | "rejected"
   | "failed";
@@ -568,6 +569,24 @@ export interface AuthStore {
     claimCredentialHash: string;
     nowIso: string;
   }): Promise<boolean>;
+  /**
+   * Atomic: validate claim hash → create/resolve journey → mark claim consumed
+   * and link journey. Crash-safe: claim is never consumed without a journey.
+   */
+  claimPassAndCreateJourney(args: {
+    continuationId: string;
+    claimCredentialHash: string;
+    journeyId: string;
+    monitoringPassId: string;
+    nowIso: string;
+  }): Promise<
+    | {
+        outcome: "created" | "already_existed";
+        journey: MarketplacePurchaseJourneyRow;
+      }
+    | { outcome: "claim_invalid" }
+    | { outcome: "pass_mismatch" }
+  >;
   getMonitoringPassContinuationById(
     id: string,
   ): Promise<MonitoringPassContinuationRow | null>;
@@ -744,6 +763,11 @@ export interface AuthStore {
   getNotificationOutboxByOpportunity(
     opportunityKey: string,
   ): Promise<DurableNotificationOutboxRow | null>;
+  /** Due pending/failed_retryable rows, plus expired sending leases. */
+  listDueNotificationOutbox(args: {
+    nowIso: string;
+    limit: number;
+  }): Promise<DurableNotificationOutboxRow[]>;
 }
 
 export function mintAccountId(): string {
@@ -1664,6 +1688,112 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         );
       return Number(r.changes ?? 0) === 1;
     },
+    async claimPassAndCreateJourney(args) {
+      db.exec("BEGIN");
+      try {
+        const cont = db
+          .prepare(
+            `SELECT * FROM monitoring_pass_continuations WHERE id = ?`,
+          )
+          .get(args.continuationId) as
+          | MonitoringPassContinuationRow
+          | undefined;
+        if (!cont) {
+          db.exec("ROLLBACK");
+          return { outcome: "claim_invalid" as const };
+        }
+        if (
+          cont.monitoring_pass_id &&
+          cont.monitoring_pass_id !== args.monitoringPassId
+        ) {
+          db.exec("ROLLBACK");
+          return { outcome: "pass_mismatch" as const };
+        }
+        // Already claimed for this pass: return existing journey.
+        if (cont.claim_credential_consumed_at) {
+          const existing = db
+            .prepare(
+              `SELECT * FROM marketplace_purchase_journeys WHERE monitoring_pass_id = ?`,
+            )
+            .get(args.monitoringPassId) as
+            | MarketplacePurchaseJourneyRow
+            | undefined;
+          db.exec("COMMIT");
+          if (existing) {
+            return {
+              outcome: "already_existed" as const,
+              journey: existing,
+            };
+          }
+          return { outcome: "claim_invalid" as const };
+        }
+        if (
+          !cont.claim_credential_hash ||
+          cont.claim_credential_hash !== args.claimCredentialHash
+        ) {
+          db.exec("ROLLBACK");
+          return { outcome: "claim_invalid" as const };
+        }
+
+        // Insert journey first; only then consume claim (same transaction).
+        db.prepare(
+          `INSERT INTO marketplace_purchase_journeys
+           (id, monitoring_pass_id, pass_continuation_id, stage, created_at, updated_at)
+           VALUES (?,?,?,'confirm_use_pass',?,?)
+           ON CONFLICT(monitoring_pass_id) DO NOTHING`,
+        ).run(
+          args.journeyId,
+          args.monitoringPassId,
+          args.continuationId,
+          args.nowIso,
+          args.nowIso,
+        );
+
+        const journey = db
+          .prepare(
+            `SELECT * FROM marketplace_purchase_journeys WHERE monitoring_pass_id = ?`,
+          )
+          .get(args.monitoringPassId) as MarketplacePurchaseJourneyRow;
+
+        const consumed = db
+          .prepare(
+            `UPDATE monitoring_pass_continuations
+             SET claim_credential_consumed_at = ?,
+                 monitoring_pass_id = COALESCE(monitoring_pass_id, ?),
+                 status = 'claimed',
+                 updated_at = ?
+             WHERE id = ?
+               AND claim_credential_hash = ?
+               AND claim_credential_consumed_at IS NULL`,
+          )
+          .run(
+            args.nowIso,
+            args.monitoringPassId,
+            args.nowIso,
+            args.continuationId,
+            args.claimCredentialHash,
+          );
+        if (Number(consumed.changes ?? 0) !== 1 && !journey) {
+          db.exec("ROLLBACK");
+          return { outcome: "claim_invalid" as const };
+        }
+        db.exec("COMMIT");
+        return {
+          outcome:
+            journey.id === args.journeyId
+              ? ("created" as const)
+              : ("already_existed" as const),
+          journey,
+        };
+      } catch (err) {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        throw err;
+      }
+    },
     async getMonitoringPassContinuationById(id) {
       return (
         (db
@@ -2187,6 +2317,23 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           .get(opportunityKey) as DurableNotificationOutboxRow | undefined) ??
         null
       );
+    },
+    async listDueNotificationOutbox(args) {
+      return db
+        .prepare(
+          `SELECT * FROM durable_notification_outbox
+           WHERE (
+             status IN ('pending', 'failed_retryable')
+             AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+           ) OR (
+             status = 'sending'
+             AND lease_expires_at IS NOT NULL
+             AND lease_expires_at <= ?
+           )
+           ORDER BY created_at ASC
+           LIMIT ?`,
+        )
+        .all(args.nowIso, args.nowIso, args.limit) as DurableNotificationOutboxRow[];
     },
   };
 }
@@ -3117,6 +3264,101 @@ export function createPostgresAuthStore(
       );
       return (r.rowCount ?? 0) === 1;
     },
+    async claimPassAndCreateJourney(args) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const contRes = await client.query(
+          `SELECT * FROM monitoring_pass_continuations WHERE id = $1`,
+          [args.continuationId],
+        );
+        const cont = contRes.rows[0] as
+          | MonitoringPassContinuationRow
+          | undefined;
+        if (!cont) {
+          await client.query("ROLLBACK");
+          return { outcome: "claim_invalid" as const };
+        }
+        if (
+          cont.monitoring_pass_id &&
+          cont.monitoring_pass_id !== args.monitoringPassId
+        ) {
+          await client.query("ROLLBACK");
+          return { outcome: "pass_mismatch" as const };
+        }
+        if (cont.claim_credential_consumed_at) {
+          const existing = await client.query(
+            `SELECT * FROM marketplace_purchase_journeys WHERE monitoring_pass_id = $1`,
+            [args.monitoringPassId],
+          );
+          await client.query("COMMIT");
+          if (existing.rows[0]) {
+            return {
+              outcome: "already_existed" as const,
+              journey: existing.rows[0] as MarketplacePurchaseJourneyRow,
+            };
+          }
+          return { outcome: "claim_invalid" as const };
+        }
+        if (
+          !cont.claim_credential_hash ||
+          cont.claim_credential_hash !== args.claimCredentialHash
+        ) {
+          await client.query("ROLLBACK");
+          return { outcome: "claim_invalid" as const };
+        }
+        await client.query(
+          `INSERT INTO marketplace_purchase_journeys
+           (id, monitoring_pass_id, pass_continuation_id, stage, created_at, updated_at)
+           VALUES ($1,$2,$3,'confirm_use_pass',$4,$4)
+           ON CONFLICT (monitoring_pass_id) DO NOTHING`,
+          [
+            args.journeyId,
+            args.monitoringPassId,
+            args.continuationId,
+            args.nowIso,
+          ],
+        );
+        const journeyRes = await client.query(
+          `SELECT * FROM marketplace_purchase_journeys WHERE monitoring_pass_id = $1`,
+          [args.monitoringPassId],
+        );
+        const journey = journeyRes.rows[0] as MarketplacePurchaseJourneyRow;
+        await client.query(
+          `UPDATE monitoring_pass_continuations
+           SET claim_credential_consumed_at = $1,
+               monitoring_pass_id = COALESCE(monitoring_pass_id, $2),
+               status = 'claimed',
+               updated_at = $1
+           WHERE id = $3
+             AND claim_credential_hash = $4
+             AND claim_credential_consumed_at IS NULL`,
+          [
+            args.nowIso,
+            args.monitoringPassId,
+            args.continuationId,
+            args.claimCredentialHash,
+          ],
+        );
+        await client.query("COMMIT");
+        return {
+          outcome:
+            journey.id === args.journeyId
+              ? ("created" as const)
+              : ("already_existed" as const),
+          journey,
+        };
+      } catch (err) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        throw err;
+      } finally {
+        client.release();
+      }
+    },
     async getMonitoringPassContinuationById(id) {
       const r = await q<MonitoringPassContinuationRow>(
         `SELECT * FROM monitoring_pass_continuations WHERE id = $1`,
@@ -3612,6 +3854,23 @@ export function createPostgresAuthStore(
         [opportunityKey],
       );
       return r.rows[0] ?? null;
+    },
+    async listDueNotificationOutbox(args) {
+      const r = await q<DurableNotificationOutboxRow>(
+        `SELECT * FROM durable_notification_outbox
+         WHERE (
+           status IN ('pending', 'failed_retryable')
+           AND (next_attempt_at IS NULL OR next_attempt_at <= $1)
+         ) OR (
+           status = 'sending'
+           AND lease_expires_at IS NOT NULL
+           AND lease_expires_at <= $1
+         )
+         ORDER BY created_at ASC
+         LIMIT $2`,
+        [args.nowIso, args.limit],
+      );
+      return r.rows;
     },
   };
 }

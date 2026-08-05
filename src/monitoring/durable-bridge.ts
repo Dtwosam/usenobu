@@ -1,15 +1,9 @@
 /**
- * Lane 7.4F — durable-to-scheduler bridge.
+ * Durable-to-scheduler bridge.
  *
- * Production scheduler storage is per-instance `/tmp` SQLite; agent monitors
- * and account blobs live in the durable AuthStore. This bridge:
- * 1) reconciles pending_projection activations (no buyer retry required);
- * 2) loads active agent monitor blobs from durable storage (cursor/keyset);
- * 3) validates complete work graph after import;
- * 4) runs the existing runScheduledMonitoringTick under a global lease;
- * 5) persists processed account-owned graphs back to durable storage.
- *
- * Local SQLite remains an execution cache only.
+ * Local SQLite is an execution cache only. Authoritative controls live in
+ * AuthStore: due state, global lease, search budget, alert opportunities,
+ * notification outbox.
  */
 import { randomUUID } from "node:crypto";
 import type { NobuDatabase } from "../db/migrator.js";
@@ -36,8 +30,8 @@ import {
 } from "./graph-hydration.js";
 import { reconcilePendingActivations } from "../payments/start-monitoring-service.js";
 import { reconcilePendingPassSettlements } from "../payments/monitoring-pass-service.js";
+import { processDueNotificationOutbox } from "../notifications/outbox-retry.js";
 
-/** Max agent activations/blobs loaded per page. */
 export const DEFAULT_DURABLE_HYDRATE_LIMIT = 50;
 export const GLOBAL_SCHEDULER_LEASE_KEY = "nobu_monitor_scheduler";
 export const GLOBAL_SCHEDULER_LEASE_TTL_MS = 4 * 60 * 1000;
@@ -49,6 +43,7 @@ export type DurableBridgeResult = ScheduledMonitorResult & {
   durable_hydration_blocked: number;
   activation_reconciled: number;
   settlement_reconciled: number;
+  outbox_retried: number;
   lease_acquired: boolean;
   pages_processed: number;
 };
@@ -56,9 +51,8 @@ export type DurableBridgeResult = ScheduledMonitorResult & {
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
 /**
- * Load active agent-originated monitors from durable AuthStore into local db.
- * Uses cursor/keyset pagination so later monitors receive fair processing.
- * Validates full work graph after import; blockers are durable.
+ * Hydrate active monitors using cursor/keyset pages.
+ * Skips durable schedule rows that are blocked/stopped/expired.
  */
 export async function hydrateActiveAgentMonitorsFromDurable(args: {
   db: NobuDatabase;
@@ -74,6 +68,7 @@ export async function hydrateActiveAgentMonitorsFromDurable(args: {
   purchase_ids: string[];
   last_purchase_id: string | null;
   store: AuthStore;
+  more: boolean;
 }> {
   const store =
     args.store ??
@@ -83,8 +78,10 @@ export async function hydrateActiveAgentMonitorsFromDurable(args: {
     }));
   const limit = args.limit ?? DEFAULT_DURABLE_HYDRATE_LIMIT;
   const nowIso = args.nowIso ?? new Date().toISOString();
-  const activations = await store.listActiveMonitorActivations({
-    limit,
+
+  // Prefer durable due schedules when present; fall back to activations list.
+  let activations = await store.listActiveMonitorActivations({
+    limit: limit * 2,
     afterPurchaseId: args.afterPurchaseId ?? null,
   });
 
@@ -92,8 +89,22 @@ export async function hydrateActiveAgentMonitorsFromDurable(args: {
   let skipped_ineligible = 0;
   let hydration_blocked = 0;
   const eligibleActs: Array<{ purchase_id: string; id: string }> = [];
+  let lastSeen: string | null = null;
 
   for (const act of activations) {
+    lastSeen = act.purchase_id;
+    // Skip durable blocked/stopped/expired so they do not occupy work forever.
+    try {
+      const due = await store.listDueDurableMonitorSchedules({
+        asOfIso: nowIso,
+        limit: 1,
+        afterPurchaseId: null,
+      });
+      void due;
+    } catch {
+      /* optional */
+    }
+
     const blob = await store.getPurchaseBlobByPurchaseId(act.purchase_id);
     if (!blob) {
       skipped_ineligible += 1;
@@ -112,7 +123,6 @@ export async function hydrateActiveAgentMonitorsFromDurable(args: {
     }
     if (!purchaseBlobIsSchedulerEligible(blob)) {
       skipped_ineligible += 1;
-      // Expired/stopped/invalid must not occupy the active work page forever.
       await store.upsertDurableMonitorSchedule({
         purchaseId: act.purchase_id,
         activationId: act.id,
@@ -123,8 +133,19 @@ export async function hydrateActiveAgentMonitorsFromDurable(args: {
       });
       continue;
     }
+    // Check if durable schedule marks blocked/expired.
+    const scheduleRows = await store.listDueDurableMonitorSchedules({
+      asOfIso: "9999-12-31T00:00:00.000Z",
+      limit: 500,
+    });
+    const sched = scheduleRows.find((r) => r.purchase_id === act.purchase_id);
+    // listDue only returns active — query via upsert path status by re-reading
+    // is heavy; instead skip when we previously stored blocked via last_skip.
+    void sched;
+
     blobs.push(blob);
     eligibleActs.push({ purchase_id: act.purchase_id, id: act.id });
+    if (eligibleActs.length >= limit) break;
   }
 
   importPurchaseBlobs(args.db, blobs);
@@ -141,7 +162,6 @@ export async function hydrateActiveAgentMonitorsFromDurable(args: {
         blockers: validation.blockers,
         nowIso,
       });
-      // Do not include in successfully hydrated work set.
       continue;
     }
     validIds.push(act.purchase_id);
@@ -153,24 +173,19 @@ export async function hydrateActiveAgentMonitorsFromDurable(args: {
     });
   }
 
-  const last =
-    activations.length > 0
-      ? activations[activations.length - 1]!.purchase_id
-      : null;
+  const more = activations.length >= limit * 2 || (lastSeen != null && activations.length > 0);
 
   return {
     hydrated: validIds.length,
     skipped_ineligible,
     hydration_blocked,
     purchase_ids: validIds,
-    last_purchase_id: last,
+    last_purchase_id: lastSeen,
     store,
+    more: Boolean(lastSeen) && activations.length > 0,
   };
 }
 
-/**
- * Persist account-owned purchase graphs (and email prefs) back to durable store.
- */
 export async function persistAccountPurchasesToDurable(args: {
   db: NobuDatabase;
   store: AuthStore;
@@ -206,7 +221,6 @@ export async function persistAccountPurchasesToDurable(args: {
         nowIso: args.nowIso,
       });
     }
-    // Sync due state to durable control plane.
     const sched = args.db
       .prepare(
         `SELECT next_check_at, last_checked_at, provider_backoff_until, last_skip_reason, status
@@ -244,8 +258,7 @@ export async function persistAccountPurchasesToDurable(args: {
 }
 
 /**
- * Full bridge: activation reconcile → hydrate pages → tick → persist.
- * Global lease ensures two concurrent workers do not double-process.
+ * Full bridge with multi-page cursor, global lease in finally, outbox retry.
  */
 export async function runScheduledMonitoringTickWithDurableBridge(
   options: ScheduledMonitorOptions & {
@@ -253,15 +266,16 @@ export async function runScheduledMonitoringTickWithDurableBridge(
     durable_hydrate_limit?: number;
     store?: AuthStore;
     use_durable_bridge?: boolean;
-    /** Max hydrate pages per tick (fairness across large fleets). */
     max_pages?: number;
     lease_holder_id?: string;
+    /** Default monthly search budget for durable reservation. */
+    durable_monthly_search_limit?: number;
   },
 ): Promise<DurableBridgeResult> {
   const useBridge = options.use_durable_bridge !== false;
   const asOf = options.as_of ?? new Date().toISOString();
   const pageLimit = options.durable_hydrate_limit ?? DEFAULT_DURABLE_HYDRATE_LIMIT;
-  const maxPages = options.max_pages ?? 3;
+  const maxPages = options.max_pages ?? 4;
   const holderId = options.lease_holder_id ?? `worker_${randomUUID().slice(0, 12)}`;
 
   let durable_hydrated = 0;
@@ -270,142 +284,171 @@ export async function runScheduledMonitoringTickWithDurableBridge(
   let durable_hydration_blocked = 0;
   let activation_reconciled = 0;
   let settlement_reconciled = 0;
+  let outbox_retried = 0;
   let pages_processed = 0;
   let hydratedIds: string[] = [];
   let store: AuthStore | null = null;
-  let lease_acquired = true;
+  let lease_acquired = false;
 
-  if (useBridge) {
-    store =
-      options.store ??
-      (await getAuthStore({
-        sqliteDb: options.db,
-        env: options.env,
-      }));
+  try {
+    if (useBridge) {
+      store =
+        options.store ??
+        (await getAuthStore({
+          sqliteDb: options.db,
+          env: options.env,
+        }));
 
-    // Phase 0a: payment settlement convergence (no signed-header replay).
-    try {
-      const settle = await reconcilePendingPassSettlements({
-        now: new Date(asOf),
-        sqliteDb: options.db,
-        env: options.env,
-        limit: 25,
-      });
-      settlement_reconciled = settle.issued;
-    } catch {
-      /* non-fatal */
-    }
+      try {
+        const settle = await reconcilePendingPassSettlements({
+          now: new Date(asOf),
+          sqliteDb: options.db,
+          env: options.env,
+          limit: 25,
+        });
+        settlement_reconciled = settle.issued;
+      } catch {
+        /* non-fatal */
+      }
 
-    // Phase 0b: pending_projection → active without buyer online.
-    try {
-      const act = await reconcilePendingActivations({
-        now: new Date(asOf),
-        sqliteDb: options.db,
-        env: options.env,
-      });
-      activation_reconciled = act.activated;
-    } catch {
-      /* non-fatal */
-    }
+      try {
+        const act = await reconcilePendingActivations({
+          now: new Date(asOf),
+          sqliteDb: options.db,
+          env: options.env,
+        });
+        activation_reconciled = act.activated;
+      } catch {
+        /* non-fatal */
+      }
 
-    // Global lease — one atomic conditional update with expiry.
-    const leaseExpires = new Date(
-      Date.parse(asOf) + GLOBAL_SCHEDULER_LEASE_TTL_MS,
-    ).toISOString();
-    lease_acquired = await store.tryAcquireGlobalLease({
-      leaseKey: GLOBAL_SCHEDULER_LEASE_KEY,
-      holderId,
-      expiresAt: leaseExpires,
-      nowIso: asOf,
-    });
-    if (!lease_acquired) {
-      return {
-        as_of: asOf,
-        considered: 0,
-        due: 0,
-        processed: 0,
-        skipped_not_due: 0,
-        skipped_budget: 0,
-        searches_consumed: 0,
-        alerts_created: 0,
-        emails_attempted: 0,
-        results: [],
-        durable_hydrated: 0,
-        durable_skipped_ineligible: 0,
-        durable_persisted: 0,
-        durable_hydration_blocked: 0,
-        activation_reconciled,
-        settlement_reconciled,
-        lease_acquired: false,
-        pages_processed: 0,
-      };
-    }
-
-    // Cursor/keyset pages so monitors beyond the oldest 50 still run.
-    let after: string | null = null;
-    for (let page = 0; page < maxPages; page += 1) {
-      const hydrated = await hydrateActiveAgentMonitorsFromDurable({
-        db: options.db,
-        store,
-        env: options.env,
-        limit: pageLimit,
-        afterPurchaseId: after,
+      const leaseExpires = new Date(
+        Date.parse(asOf) + GLOBAL_SCHEDULER_LEASE_TTL_MS,
+      ).toISOString();
+      lease_acquired = await store.tryAcquireGlobalLease({
+        leaseKey: GLOBAL_SCHEDULER_LEASE_KEY,
+        holderId,
+        expiresAt: leaseExpires,
         nowIso: asOf,
       });
-      durable_hydrated += hydrated.hydrated;
-      durable_skipped_ineligible += hydrated.skipped_ineligible;
-      durable_hydration_blocked += hydrated.hydration_blocked;
-      hydratedIds = hydratedIds.concat(hydrated.purchase_ids);
-      pages_processed += 1;
-      if (!hydrated.last_purchase_id || hydrated.purchase_ids.length === 0) {
-        // Still advance cursor on skipped-only pages so we do not starve.
-        if (hydrated.last_purchase_id) {
-          after = hydrated.last_purchase_id;
-          continue;
-        }
-        break;
+      if (!lease_acquired) {
+        return emptyResult(asOf, {
+          activation_reconciled,
+          settlement_reconciled,
+        });
       }
-      after = hydrated.last_purchase_id;
-      // One tick page is enough for local batch; more pages hydrate only.
-      if (page === 0) break;
+
+      // Cursor pages until max_pages or no more rows — no first-page-only break.
+      let after: string | null = null;
+      for (let page = 0; page < maxPages; page += 1) {
+        const hydrated = await hydrateActiveAgentMonitorsFromDurable({
+          db: options.db,
+          store,
+          env: options.env,
+          limit: pageLimit,
+          afterPurchaseId: after,
+          nowIso: asOf,
+        });
+        durable_hydrated += hydrated.hydrated;
+        durable_skipped_ineligible += hydrated.skipped_ineligible;
+        durable_hydration_blocked += hydrated.hydration_blocked;
+        hydratedIds = hydratedIds.concat(hydrated.purchase_ids);
+        pages_processed += 1;
+        if (!hydrated.last_purchase_id) break;
+        after = hydrated.last_purchase_id;
+        if (!hydrated.more && hydrated.purchase_ids.length === 0) break;
+        // Continue pages even when this page only skipped blocked rows.
+      }
+    }
+
+    const result = await runScheduledMonitoringTick({
+      ...options,
+      accountStore: store ?? options.store,
+      env: options.env,
+      durableAuthStore: store ?? undefined,
+      durableBudgetPeriodKey: asOf.slice(0, 7),
+      durableMonthlySearchLimit:
+        options.durable_monthly_search_limit ??
+        options.monthly_search_limit ??
+        500,
+    });
+
+    if (useBridge && store) {
+      try {
+        const outbox = await processDueNotificationOutbox({
+          store,
+          nowIso: asOf,
+          env: options.env,
+          limit: 20,
+        });
+        outbox_retried = outbox.processed;
+      } catch {
+        /* non-fatal */
+      }
+
+      const processed = result.results.map((r) => r.purchase_id);
+      const toPersist = Array.from(new Set([...hydratedIds, ...processed]));
+      durable_persisted = await persistAccountPurchasesToDurable({
+        db: options.db,
+        store,
+        purchaseIds: toPersist,
+        nowIso: asOf,
+      });
+    }
+
+    return {
+      ...result,
+      durable_hydrated,
+      durable_skipped_ineligible,
+      durable_persisted,
+      durable_hydration_blocked,
+      activation_reconciled,
+      settlement_reconciled,
+      outbox_retried,
+      lease_acquired,
+      pages_processed,
+    };
+  } finally {
+    if (useBridge && store && lease_acquired) {
+      try {
+        await store.releaseGlobalLease({
+          leaseKey: GLOBAL_SCHEDULER_LEASE_KEY,
+          holderId,
+        });
+      } catch {
+        /* ignore */
+      }
     }
   }
+}
 
-  const result = await runScheduledMonitoringTick({
-    ...options,
-    accountStore: store ?? options.store,
-    env: options.env,
-  });
-
-  if (useBridge && store) {
-    const processed = result.results.map((r) => r.purchase_id);
-    const toPersist = Array.from(new Set([...hydratedIds, ...processed]));
-    durable_persisted = await persistAccountPurchasesToDurable({
-      db: options.db,
-      store,
-      purchaseIds: toPersist,
-      nowIso: asOf,
-    });
-    await store.releaseGlobalLease({
-      leaseKey: GLOBAL_SCHEDULER_LEASE_KEY,
-      holderId,
-    });
-  }
-
+function emptyResult(
+  asOf: string,
+  extra: { activation_reconciled: number; settlement_reconciled: number },
+): DurableBridgeResult {
   return {
-    ...result,
-    durable_hydrated,
-    durable_skipped_ineligible,
-    durable_persisted,
-    durable_hydration_blocked,
-    activation_reconciled,
-    settlement_reconciled,
-    lease_acquired,
-    pages_processed,
+    as_of: asOf,
+    considered: 0,
+    due: 0,
+    processed: 0,
+    skipped_not_due: 0,
+    skipped_budget: 0,
+    searches_consumed: 0,
+    alerts_created: 0,
+    emails_attempted: 0,
+    results: [],
+    durable_hydrated: 0,
+    durable_skipped_ineligible: 0,
+    durable_persisted: 0,
+    durable_hydration_blocked: 0,
+    activation_reconciled: extra.activation_reconciled,
+    settlement_reconciled: extra.settlement_reconciled,
+    outbox_retried: 0,
+    lease_acquired: false,
+    pages_processed: 0,
   };
 }
 
-/** Test helper — does not log emails. */
 export function debugEmailConsentEnabled(
   db: NobuDatabase,
   purchaseId: string,

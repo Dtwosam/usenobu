@@ -94,11 +94,14 @@ export async function buildCanonicalPaymentRequirements(args: {
   // enhancePaymentRequirements is identity for ExactEvmScheme but keeps us on
   // the official server path if the package later enriches.
   const enhanced = await schemeServer.enhancePaymentRequirements(
-    requirements,
+    {
+      ...requirements,
+      network: DEFAULT_SETTLEMENT_NETWORK as `${string}:${string}`,
+    },
     {
       x402Version: X402_VERSION,
       scheme: "exact",
-      network: DEFAULT_SETTLEMENT_NETWORK,
+      network: DEFAULT_SETTLEMENT_NETWORK as `${string}:${string}`,
       extra: fromNetwork.extra,
     },
     [],
