@@ -238,6 +238,11 @@ export async function persistAccountPurchasesToDurable(args: {
  * Ensure durable schedule rows exist for active activations (bootstrap).
  * Called once per tick before due-page selection.
  */
+/**
+ * Bootstrap schedules for active activations that have no schedule row yet.
+ * Never overwrites existing status / next_check / backoff / skip / blockers.
+ * Must run only while holding the global scheduler lease.
+ */
 export async function bootstrapDurableSchedulesFromActivations(args: {
   store: AuthStore;
   nowIso: string;
@@ -254,14 +259,13 @@ export async function bootstrapDurableSchedulesFromActivations(args: {
     });
     if (!batch.length) break;
     for (const act of batch) {
-      await args.store.upsertDurableMonitorSchedule({
+      const ins = await args.store.insertDurableMonitorScheduleIfMissing({
         purchaseId: act.purchase_id,
         activationId: act.id,
         status: "active",
-        nextCheckAt: null,
         nowIso: args.nowIso,
       });
-      n += 1;
+      if (ins.created) n += 1;
     }
     cursor = batch[batch.length - 1]!.purchase_id;
     if (batch.length < pageSize) break;
@@ -333,16 +337,6 @@ export async function runScheduledMonitoringTickWithDurableBridge(
         /* non-fatal */
       }
 
-      // Bootstrap schedule rows for active activations (idempotent).
-      try {
-        await bootstrapDurableSchedulesFromActivations({
-          store,
-          nowIso: asOf,
-        });
-      } catch {
-        /* non-fatal */
-      }
-
       const leaseExpires = new Date(
         Date.parse(asOf) + GLOBAL_SCHEDULER_LEASE_TTL_MS,
       ).toISOString();
@@ -357,6 +351,16 @@ export async function runScheduledMonitoringTickWithDurableBridge(
           activation_reconciled,
           settlement_reconciled,
         });
+      }
+
+      // Bootstrap only under the global lease; insert-if-missing never revives terminals.
+      try {
+        await bootstrapDurableSchedulesFromActivations({
+          store,
+          nowIso: asOf,
+        });
+      } catch {
+        /* non-fatal */
       }
 
       let after: string | null = null;

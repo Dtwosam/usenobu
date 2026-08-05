@@ -363,6 +363,27 @@ CREATE TABLE IF NOT EXISTS settlement_review_audit (
 
 CREATE INDEX IF NOT EXISTS idx_settlement_review_audit_payment
   ON settlement_review_audit (payment_id);
+
+-- One non-null settlement reference belongs to exactly one payment claim.
+CREATE TABLE IF NOT EXISTS settlement_ref_claims (
+  settlement_ref TEXT PRIMARY KEY NOT NULL,
+  payment_id TEXT NOT NULL,
+  decision TEXT NOT NULL,
+  claimed_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_settlement_ref_claims_payment
+  ON settlement_ref_claims (payment_id);
+
+-- Durable account-level notification rate (summary 24h window, etc.).
+CREATE TABLE IF NOT EXISTS durable_account_notification_rate (
+  rate_key TEXT PRIMARY KEY NOT NULL,
+  account_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  window_start TEXT NOT NULL,
+  used_count INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
 `;
 
 /** Best-effort column adds for existing durable DBs (Postgres / SQLite). */

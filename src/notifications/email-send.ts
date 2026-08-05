@@ -197,3 +197,76 @@ export function buildSummaryEmailText(args: {
     text: lines.join("\n"),
   };
 }
+
+/**
+ * Send a summary using the actual summary subject/body (not the single price-drop template).
+ */
+export async function sendSummaryEmailDirect(args: {
+  emailNormalized: string;
+  subject: string;
+  text: string;
+  env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  idempotencyKey?: string;
+}): Promise<SendPriceDropEmailResult> {
+  const env = args.env ?? process.env;
+
+  if (isAuthTestMode(env)) {
+    testCaptures.push({
+      toHash: hashEmailForLog(args.emailNormalized),
+      subject: args.subject,
+      text: args.text,
+      purchase_id: "summary",
+      alert_id: "summary",
+      at: new Date().toISOString(),
+    });
+    return { ok: true, mode: "test" };
+  }
+
+  const apiKey = String(
+    env.RESEND_API_KEY || env.EMAIL_PROVIDER_API_KEY || "",
+  ).trim();
+  const from = String(
+    env.EMAIL_FROM_ADDRESS || env.AUTH_EMAIL_FROM || "",
+  ).trim();
+
+  if (!apiKey || !from) {
+    if (env.NODE_ENV !== "production" && env.VERCEL !== "1") {
+      testCaptures.push({
+        toHash: hashEmailForLog(args.emailNormalized),
+        subject: args.subject,
+        text: args.text,
+        purchase_id: "summary",
+        alert_id: "summary",
+        at: new Date().toISOString(),
+      });
+      return { ok: true, mode: "dev_log" };
+    }
+    return { ok: false, error: "not_configured" };
+  }
+
+  try {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    };
+    if (args.idempotencyKey) {
+      headers["Idempotency-Key"] = args.idempotencyKey.slice(0, 256);
+    }
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        from,
+        to: [args.emailNormalized],
+        subject: args.subject,
+        text: args.text,
+      }),
+    });
+    if (!res.ok) {
+      return { ok: false, error: "provider_error" };
+    }
+    return { ok: true, mode: "resend" };
+  } catch {
+    return { ok: false, error: "provider_error" };
+  }
+}

@@ -510,6 +510,22 @@ describe("4. durable outbox worker", () => {
       nowIso,
     );
     await store.markAccountVerified(account.id, nowIso);
+    for (const pid of ["pur_out_1", "pur_out_2", "pur_out_3", "pur_out_4"]) {
+      await store.savePurchaseBlob({
+        accountId: account.id,
+        purchaseId: pid,
+        blobJson: JSON.stringify({
+          purchase: { id: pid, status: "MONITORING_ACTIVE" },
+        }),
+        nowIso,
+      });
+      await store.updatePurchaseLifecycleMeta({
+        accountId: account.id,
+        purchaseId: pid,
+        email_alerts_enabled: 1,
+        nowIso,
+      });
+    }
 
     const evidence = {
       product_title: "Widget",

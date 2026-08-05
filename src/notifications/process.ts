@@ -24,7 +24,11 @@ import {
   MAX_SUMMARY_PER_ACCOUNT_24H,
 } from "./ledger.js";
 import { sendPriceDropEmail, buildSummaryEmailText } from "./email-send.js";
-import { buildOutboxEvidenceJson } from "./outbox-retry.js";
+import {
+  buildOutboxEvidenceJson,
+  buildSummaryOutboxEvidenceJson,
+  summaryWindowStart,
+} from "./outbox-retry.js";
 import { hashEmailForLog } from "./mask-email.js";
 import type {
   EmailNotificationStatus,
@@ -311,8 +315,9 @@ export async function processPriceDropEmailForNewAlert(args: {
     }
 
     // Summary uses durable outbox (not direct local-only send).
-    // Opportunity key is stable per account + 24h window so only one message.
-    const summaryKey = `summary_${ownerRef}_${since.slice(0, 13)}`;
+    // Opportunity key is stable per account + UTC day (durable 24h window).
+    const dayWindow = summaryWindowStart(nowIso);
+    const summaryKey = `summary_${ownerRef}_${dayWindow}`;
     const existingSummary = findNotificationByOpportunity(args.db, summaryKey);
     if (existingSummary?.status === "sent") {
       return {
@@ -331,15 +336,16 @@ export async function processPriceDropEmailForNewAlert(args: {
       alert_id: args.alertId,
       opportunity_key: summaryKey,
     };
-    const summaryEvidenceJson = JSON.stringify({
-      ...JSON.parse(buildOutboxEvidenceJson(summaryEvidence)),
-      summary_items: [
-        {
-          product_title: evidence.product_title,
-          potential_recovery: evidence.potential_recovery,
-          reviewUrl,
-        },
-      ],
+    const summaryItems = [
+      {
+        product_title: evidence.product_title,
+        potential_recovery: evidence.potential_recovery,
+        reviewUrl,
+      },
+    ];
+    const summaryEvidenceJson = buildSummaryOutboxEvidenceJson({
+      evidence: summaryEvidence,
+      items: summaryItems,
     });
     const summaryOutboxId = `outbox_${shaShort(summaryKey)}`;
     await authStoreSummary.insertNotificationOutbox({

@@ -708,6 +708,20 @@ export interface AuthStore {
     hydrationBlockerJson?: string | null;
     nowIso: string;
   }): Promise<void>;
+  /**
+   * Bootstrap only: insert schedule when missing. Never overwrites status,
+   * next_check_at, backoff, skip reason, or hydration blockers.
+   */
+  insertDurableMonitorScheduleIfMissing(args: {
+    purchaseId: string;
+    activationId?: string | null;
+    accountId?: string | null;
+    status?: string;
+    nowIso: string;
+  }): Promise<{ created: boolean }>;
+  getDurableMonitorSchedule(
+    purchaseId: string,
+  ): Promise<DurableMonitorScheduleRow | null>;
   listDueDurableMonitorSchedules(args: {
     asOfIso: string;
     limit: number;
@@ -766,6 +780,32 @@ export interface AuthStore {
     reviewerKeyId?: string | null;
     nowIso: string;
   }): Promise<void>;
+  /**
+   * Atomically claim a settlement_ref for one payment, mark payment status,
+   * and insert immutable review audit. Rejects if ref is already claimed
+   * by another payment/pass/audit.
+   */
+  claimSettlementReviewDecision(args: {
+    paymentId: string;
+    settlementRef: string;
+    decision: "settled" | "failed";
+    evidenceSource: string;
+    evidenceRefHash: string;
+    reviewerKeyId?: string | null;
+    payerAddress?: string | null;
+    sanitizedSettleReason?: string | null;
+    auditId: string;
+    nowIso: string;
+  }): Promise<
+    | { ok: true }
+    | { ok: false; reason: "ref_already_claimed" | "payment_not_reviewable" | "conflict" }
+  >;
+  getSettlementRefClaim(
+    settlementRef: string,
+  ): Promise<{ settlement_ref: string; payment_id: string; decision: string } | null>;
+  getMonitoringPassPaymentBySettlementRef(
+    settlementRef: string,
+  ): Promise<MonitoringPassPaymentRow | null>;
   markNotificationOutboxStatus(args: {
     id: string;
     status: string;
@@ -783,6 +823,23 @@ export interface AuthStore {
     nowIso: string;
     limit: number;
   }): Promise<DurableNotificationOutboxRow[]>;
+  /**
+   * Durable account-level rate limit (e.g. one summary per 24h window).
+   * Returns reserved:true only for the first claim of the rate_key up to limitCount.
+   */
+  tryReserveNotificationRate(args: {
+    rateKey: string;
+    accountId: string;
+    kind: string;
+    windowStart: string;
+    limitCount: number;
+    nowIso: string;
+  }): Promise<{ reserved: boolean; used: number }>;
+  /** Best-effort decrement after a failed send that already reserved a slot. */
+  releaseNotificationRate(args: {
+    rateKey: string;
+    nowIso: string;
+  }): Promise<void>;
 }
 
 export function mintAccountId(): string {
@@ -2162,6 +2219,33 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         args.nowIso,
       );
     },
+    async insertDurableMonitorScheduleIfMissing(args) {
+      const r = db
+        .prepare(
+          `INSERT INTO durable_monitor_schedule
+           (purchase_id, activation_id, account_id, status, next_check_at,
+            last_checked_at, provider_backoff_until, last_skip_reason,
+            hydration_blocker_json, created_at, updated_at)
+           VALUES (?,?,?,?,NULL,NULL,NULL,NULL,NULL,?,?)
+           ON CONFLICT(purchase_id) DO NOTHING`,
+        )
+        .run(
+          args.purchaseId,
+          args.activationId ?? null,
+          args.accountId ?? null,
+          args.status ?? "active",
+          args.nowIso,
+          args.nowIso,
+        );
+      return { created: Number(r.changes ?? 0) === 1 };
+    },
+    async getDurableMonitorSchedule(purchaseId) {
+      return (
+        (db
+          .prepare(`SELECT * FROM durable_monitor_schedule WHERE purchase_id = ?`)
+          .get(purchaseId) as DurableMonitorScheduleRow | undefined) ?? null
+      );
+    },
     async listDueDurableMonitorSchedules(args) {
       // Authoritative work page: active only, due, backoff elapsed, keyset by purchase_id.
       if (args.afterPurchaseId) {
@@ -2365,6 +2449,153 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         args.nowIso,
       );
     },
+    async getSettlementRefClaim(settlementRef) {
+      return (
+        (db
+          .prepare(
+            `SELECT settlement_ref, payment_id, decision FROM settlement_ref_claims
+             WHERE settlement_ref = ?`,
+          )
+          .get(settlementRef) as
+          | { settlement_ref: string; payment_id: string; decision: string }
+          | undefined) ?? null
+      );
+    },
+    async getMonitoringPassPaymentBySettlementRef(settlementRef) {
+      return (
+        (db
+          .prepare(
+            `SELECT * FROM monitoring_pass_payments
+             WHERE settlement_ref = ? COLLATE NOCASE
+             LIMIT 1`,
+          )
+          .get(settlementRef) as MonitoringPassPaymentRow | undefined) ?? null
+      );
+    },
+    async claimSettlementReviewDecision(args) {
+      const ref = String(args.settlementRef || "").trim();
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        const payment = db
+          .prepare(`SELECT * FROM monitoring_pass_payments WHERE id = ?`)
+          .get(args.paymentId) as MonitoringPassPaymentRow | undefined;
+        if (
+          !payment ||
+          (payment.status !== "settlement_review_required" &&
+            payment.status !== "settlement_unknown")
+        ) {
+          db.exec("ROLLBACK");
+          return { ok: false as const, reason: "payment_not_reviewable" as const };
+        }
+
+        // Reject if another payment already holds this settlement_ref.
+        const otherPay = db
+          .prepare(
+            `SELECT id FROM monitoring_pass_payments
+             WHERE settlement_ref = ? COLLATE NOCASE AND id != ? LIMIT 1`,
+          )
+          .get(ref, args.paymentId) as { id: string } | undefined;
+        if (otherPay) {
+          db.exec("ROLLBACK");
+          return { ok: false as const, reason: "ref_already_claimed" as const };
+        }
+
+        // Reject if another Monitoring Pass already uses this settlement_ref.
+        const otherPass = db
+          .prepare(
+            `SELECT id FROM monitoring_passes
+             WHERE settlement_ref = ? COLLATE NOCASE AND payment_id != ? LIMIT 1`,
+          )
+          .get(ref, args.paymentId) as { id: string } | undefined;
+        if (otherPass) {
+          db.exec("ROLLBACK");
+          return { ok: false as const, reason: "ref_already_claimed" as const };
+        }
+
+        // Reject if audit already used this evidence for a different payment.
+        const otherAudit = db
+          .prepare(
+            `SELECT payment_id FROM settlement_review_audit
+             WHERE evidence_ref_hash = ? AND payment_id != ? LIMIT 1`,
+          )
+          .get(args.evidenceRefHash, args.paymentId) as
+          | { payment_id: string }
+          | undefined;
+        if (otherAudit) {
+          db.exec("ROLLBACK");
+          return { ok: false as const, reason: "ref_already_claimed" as const };
+        }
+
+        const existingClaim = db
+          .prepare(
+            `SELECT payment_id FROM settlement_ref_claims WHERE settlement_ref = ?`,
+          )
+          .get(ref) as { payment_id: string } | undefined;
+        if (existingClaim && existingClaim.payment_id !== args.paymentId) {
+          db.exec("ROLLBACK");
+          return { ok: false as const, reason: "ref_already_claimed" as const };
+        }
+        if (!existingClaim) {
+          try {
+            db.prepare(
+              `INSERT INTO settlement_ref_claims
+               (settlement_ref, payment_id, decision, claimed_at)
+               VALUES (?,?,?,?)`,
+            ).run(ref, args.paymentId, args.decision, args.nowIso);
+          } catch {
+            db.exec("ROLLBACK");
+            return { ok: false as const, reason: "ref_already_claimed" as const };
+          }
+        }
+
+        const paymentStatus =
+          args.decision === "settled" ? "settled" : "failed";
+        const settlementVal =
+          args.decision === "settled" ? ref : null;
+        db.prepare(
+          `UPDATE monitoring_pass_payments
+           SET status = ?,
+               settlement_ref = ?,
+               updated_at = ?,
+               payer_address = COALESCE(?, payer_address),
+               sanitized_settle_reason = COALESCE(?, sanitized_settle_reason),
+               last_provider_operation = 'operator_review'
+           WHERE id = ?
+             AND status IN ('settlement_review_required', 'settlement_unknown')`,
+        ).run(
+          paymentStatus,
+          settlementVal,
+          args.nowIso,
+          args.payerAddress ?? null,
+          args.sanitizedSettleReason ?? null,
+          args.paymentId,
+        );
+
+        db.prepare(
+          `INSERT INTO settlement_review_audit
+           (id, payment_id, decision, evidence_source, evidence_ref_hash, reviewer_key_id, created_at)
+           VALUES (?,?,?,?,?,?,?)`,
+        ).run(
+          args.auditId,
+          args.paymentId,
+          args.decision,
+          args.evidenceSource,
+          args.evidenceRefHash,
+          args.reviewerKeyId ?? null,
+          args.nowIso,
+        );
+
+        db.exec("COMMIT");
+        return { ok: true as const };
+      } catch {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        return { ok: false as const, reason: "conflict" as const };
+      }
+    },
     async markNotificationOutboxStatus(args) {
       const r = db
         .prepare(
@@ -2418,6 +2649,53 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
            LIMIT ?`,
         )
         .all(args.nowIso, args.nowIso, args.limit) as DurableNotificationOutboxRow[];
+    },
+    async tryReserveNotificationRate(args) {
+      db.prepare(
+        `INSERT INTO durable_account_notification_rate
+         (rate_key, account_id, kind, window_start, used_count, updated_at)
+         VALUES (?,?,?,?,0,?)
+         ON CONFLICT(rate_key) DO NOTHING`,
+      ).run(
+        args.rateKey,
+        args.accountId,
+        args.kind,
+        args.windowStart,
+        args.nowIso,
+      );
+      const row = db
+        .prepare(
+          `SELECT used_count FROM durable_account_notification_rate WHERE rate_key = ?`,
+        )
+        .get(args.rateKey) as { used_count: number } | undefined;
+      const used = Number(row?.used_count ?? 0);
+      if (used >= args.limitCount) {
+        return { reserved: false, used };
+      }
+      const r = db
+        .prepare(
+          `UPDATE durable_account_notification_rate
+           SET used_count = used_count + 1, updated_at = ?
+           WHERE rate_key = ? AND used_count < ?`,
+        )
+        .run(args.nowIso, args.rateKey, args.limitCount);
+      if (Number(r.changes ?? 0) !== 1) {
+        const again = db
+          .prepare(
+            `SELECT used_count FROM durable_account_notification_rate WHERE rate_key = ?`,
+          )
+          .get(args.rateKey) as { used_count: number } | undefined;
+        return { reserved: false, used: Number(again?.used_count ?? used) };
+      }
+      return { reserved: true, used: used + 1 };
+    },
+    async releaseNotificationRate(args) {
+      db.prepare(
+        `UPDATE durable_account_notification_rate
+         SET used_count = CASE WHEN used_count > 0 THEN used_count - 1 ELSE 0 END,
+             updated_at = ?
+         WHERE rate_key = ?`,
+      ).run(args.nowIso, args.rateKey);
     },
   };
 }
@@ -3775,6 +4053,31 @@ export function createPostgresAuthStore(
         ],
       );
     },
+    async insertDurableMonitorScheduleIfMissing(args) {
+      const r = await q(
+        `INSERT INTO durable_monitor_schedule
+         (purchase_id, activation_id, account_id, status, next_check_at,
+          last_checked_at, provider_backoff_until, last_skip_reason,
+          hydration_blocker_json, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,NULL,NULL,NULL,NULL,NULL,$5,$5)
+         ON CONFLICT (purchase_id) DO NOTHING`,
+        [
+          args.purchaseId,
+          args.activationId ?? null,
+          args.accountId ?? null,
+          args.status ?? "active",
+          args.nowIso,
+        ],
+      );
+      return { created: (r.rowCount ?? 0) === 1 };
+    },
+    async getDurableMonitorSchedule(purchaseId) {
+      const r = await q<DurableMonitorScheduleRow>(
+        `SELECT * FROM durable_monitor_schedule WHERE purchase_id = $1`,
+        [purchaseId],
+      );
+      return r.rows[0] ?? null;
+    },
     async listDueDurableMonitorSchedules(args) {
       // Match SQLite: active + due + backoff elapsed, keyset by purchase_id.
       if (args.afterPurchaseId) {
@@ -3958,6 +4261,151 @@ export function createPostgresAuthStore(
         ],
       );
     },
+    async getSettlementRefClaim(settlementRef) {
+      const r = await q<{
+        settlement_ref: string;
+        payment_id: string;
+        decision: string;
+      }>(
+        `SELECT settlement_ref, payment_id, decision FROM settlement_ref_claims
+         WHERE settlement_ref = $1`,
+        [settlementRef],
+      );
+      return r.rows[0] ?? null;
+    },
+    async getMonitoringPassPaymentBySettlementRef(settlementRef) {
+      const r = await q<MonitoringPassPaymentRow>(
+        `SELECT * FROM monitoring_pass_payments
+         WHERE lower(settlement_ref) = lower($1)
+         LIMIT 1`,
+        [settlementRef],
+      );
+      return r.rows[0] ?? null;
+    },
+    async claimSettlementReviewDecision(args) {
+      const ref = String(args.settlementRef || "").trim();
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const payRes = await client.query(
+          `SELECT * FROM monitoring_pass_payments WHERE id = $1 FOR UPDATE`,
+          [args.paymentId],
+        );
+        const payment = payRes.rows[0] as MonitoringPassPaymentRow | undefined;
+        if (
+          !payment ||
+          (payment.status !== "settlement_review_required" &&
+            payment.status !== "settlement_unknown")
+        ) {
+          await client.query("ROLLBACK");
+          return {
+            ok: false as const,
+            reason: "payment_not_reviewable" as const,
+          };
+        }
+        const otherPay = await client.query(
+          `SELECT id FROM monitoring_pass_payments
+           WHERE lower(settlement_ref) = lower($1) AND id != $2 LIMIT 1`,
+          [ref, args.paymentId],
+        );
+        if (otherPay.rows[0]) {
+          await client.query("ROLLBACK");
+          return { ok: false as const, reason: "ref_already_claimed" as const };
+        }
+        const otherPass = await client.query(
+          `SELECT id FROM monitoring_passes
+           WHERE lower(settlement_ref) = lower($1) AND payment_id != $2 LIMIT 1`,
+          [ref, args.paymentId],
+        );
+        if (otherPass.rows[0]) {
+          await client.query("ROLLBACK");
+          return { ok: false as const, reason: "ref_already_claimed" as const };
+        }
+        const otherAudit = await client.query(
+          `SELECT payment_id FROM settlement_review_audit
+           WHERE evidence_ref_hash = $1 AND payment_id != $2 LIMIT 1`,
+          [args.evidenceRefHash, args.paymentId],
+        );
+        if (otherAudit.rows[0]) {
+          await client.query("ROLLBACK");
+          return { ok: false as const, reason: "ref_already_claimed" as const };
+        }
+        const existingClaim = await client.query(
+          `SELECT payment_id FROM settlement_ref_claims WHERE settlement_ref = $1 FOR UPDATE`,
+          [ref],
+        );
+        if (
+          existingClaim.rows[0] &&
+          existingClaim.rows[0].payment_id !== args.paymentId
+        ) {
+          await client.query("ROLLBACK");
+          return { ok: false as const, reason: "ref_already_claimed" as const };
+        }
+        if (!existingClaim.rows[0]) {
+          try {
+            await client.query(
+              `INSERT INTO settlement_ref_claims
+               (settlement_ref, payment_id, decision, claimed_at)
+               VALUES ($1,$2,$3,$4)`,
+              [ref, args.paymentId, args.decision, args.nowIso],
+            );
+          } catch {
+            await client.query("ROLLBACK");
+            return {
+              ok: false as const,
+              reason: "ref_already_claimed" as const,
+            };
+          }
+        }
+        const paymentStatus =
+          args.decision === "settled" ? "settled" : "failed";
+        const settlementVal = args.decision === "settled" ? ref : null;
+        await client.query(
+          `UPDATE monitoring_pass_payments
+           SET status = $1,
+               settlement_ref = $2,
+               updated_at = $3,
+               payer_address = COALESCE($4, payer_address),
+               sanitized_settle_reason = COALESCE($5, sanitized_settle_reason),
+               last_provider_operation = 'operator_review'
+           WHERE id = $6
+             AND status IN ('settlement_review_required', 'settlement_unknown')`,
+          [
+            paymentStatus,
+            settlementVal,
+            args.nowIso,
+            args.payerAddress ?? null,
+            args.sanitizedSettleReason ?? null,
+            args.paymentId,
+          ],
+        );
+        await client.query(
+          `INSERT INTO settlement_review_audit
+           (id, payment_id, decision, evidence_source, evidence_ref_hash, reviewer_key_id, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [
+            args.auditId,
+            args.paymentId,
+            args.decision,
+            args.evidenceSource,
+            args.evidenceRefHash,
+            args.reviewerKeyId ?? null,
+            args.nowIso,
+          ],
+        );
+        await client.query("COMMIT");
+        return { ok: true as const };
+      } catch {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        return { ok: false as const, reason: "conflict" as const };
+      } finally {
+        client.release();
+      }
+    },
     async markNotificationOutboxStatus(args) {
       const r = await q(
         `UPDATE durable_notification_outbox
@@ -4005,6 +4453,53 @@ export function createPostgresAuthStore(
         [args.nowIso, args.limit],
       );
       return r.rows;
+    },
+    async tryReserveNotificationRate(args) {
+      await q(
+        `INSERT INTO durable_account_notification_rate
+         (rate_key, account_id, kind, window_start, used_count, updated_at)
+         VALUES ($1,$2,$3,$4,0,$5)
+         ON CONFLICT (rate_key) DO NOTHING`,
+        [
+          args.rateKey,
+          args.accountId,
+          args.kind,
+          args.windowStart,
+          args.nowIso,
+        ],
+      );
+      const r = await q(
+        `UPDATE durable_account_notification_rate
+         SET used_count = used_count + 1, updated_at = $1
+         WHERE rate_key = $2 AND used_count < $3
+         RETURNING used_count`,
+        [args.nowIso, args.rateKey, args.limitCount],
+      );
+      if ((r.rowCount ?? 0) !== 1) {
+        const cur = await q<{ used_count: number }>(
+          `SELECT used_count FROM durable_account_notification_rate WHERE rate_key = $1`,
+          [args.rateKey],
+        );
+        return {
+          reserved: false,
+          used: Number(cur.rows[0]?.used_count ?? 0),
+        };
+      }
+      return {
+        reserved: true,
+        used: Number(
+          (r.rows[0] as { used_count: number } | undefined)?.used_count ?? 1,
+        ),
+      };
+    },
+    async releaseNotificationRate(args) {
+      await q(
+        `UPDATE durable_account_notification_rate
+         SET used_count = CASE WHEN used_count > 0 THEN used_count - 1 ELSE 0 END,
+             updated_at = $1
+         WHERE rate_key = $2`,
+        [args.nowIso, args.rateKey],
+      );
     },
   };
 }
