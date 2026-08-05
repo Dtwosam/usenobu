@@ -7,21 +7,21 @@ The build proceeds lane by lane. A lane closes only when its required proof pass
 
 ## Active closeout — Paid-to-active transaction LIVE READY / BLOCKED
 
-**State:** BLOCKED — code repairs complete; authenticated readiness booleans not confirmed via CLI.
+**State:** BLOCKED — final code repair complete; authenticated readiness booleans not confirmed in this shell.
 
-Live-ready closeout (2026-08-05) baseline `63a999f`:
+Final transactional repair (2026-08-05) baseline `ca83267` → code `5341168`, deploy `dpl_9XND8k78yfbDfpQq5NSsStEviAhM`:
 
-- Failed settlement decisions require payment-binding commercial evidence.
-- Canonical lowercase settlement_ref for all claims/stores.
-- Rolling 24h summary send state (not calendar day).
-- `NOBU_PASS_CLAIM_SECRET` provisioned on Production; readiness route owner-only.
+- Persist opaque `provider_payment_id` / `provider_authorization_id` from verify/settle/status.
+- Failed settlement requires payment-specific binding (A stored tx / B provider payment id / C provider auth id).
+- Shared `processNotificationOutboxOpportunity` for every summary (initial + retry worker).
+- Rolling 24h `durable_summary_send_state` remains sole summary rate authority.
 - Focused tests + typecheck + build. No genuine payment, ASP update.
 
-**Blocker:** Vercel Sensitive env redaction prevents local authenticated `GET /v1/owner/config-readiness` boolean capture. Operator must confirm all six booleans true once with a live OWNER_OPS_SECRET (never commit it).
+**Blocker:** `OWNER_OPS_SECRET` not available in operator shell; Vercel Sensitive env redaction prevents CLI pull. Operator must confirm all six readiness booleans true once (never commit the secret).
 
 Exact next lane:
 
-1. Operator confirms readiness booleans → re-open as `NOBU_PAID_TO_ACTIVE_TRANSACTION_LIVE_READY`.
+1. Operator runs authenticated `GET /v1/owner/config-readiness` and records six booleans → if all true, verdict becomes `NOBU_PAID_TO_ACTIVE_TRANSACTION_LIVE_READY`.
 2. Optional User-role chat against agent `5541` (at most one payment) only after readiness PASS.
 3. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
 

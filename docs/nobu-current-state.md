@@ -1,9 +1,11 @@
 # Nobu Current State
 
 **Date:** 2026-08-05
-**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_CLOSEOUT_BLOCKED` — code closeout repairs complete; authenticated Production readiness boolean body not operator-verifiable from CLI (Sensitive env redaction). Do not authorize payment until all six readiness booleans are confirmed true.
+**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_CLOSEOUT_BLOCKED` — final code repair complete (provider-id binding + shared durable summary path); authenticated Production readiness boolean body not available in this operator shell (`OWNER_OPS_SECRET` absent; Vercel Sensitive env redaction). Do not authorize payment until all six readiness booleans are confirmed true.
 
-**Paid-to-active live-ready closeout (2026-08-05):** **BLOCKED (readiness probe).** Baseline `63a999f`. Failed-settlement binding + canonical settlement refs + rolling 24h summary reserve implemented and tested. `NOBU_PASS_CLAIM_SECRET` added to Production (was missing). Wrong-token readiness → 401 (owner secret live). Vercel CLI `env pull` / `env run` redacts Sensitive secrets to empty, so authenticated boolean body cannot be recorded from this operator environment. Evidence: `docs/proof/paid-to-active-transaction-live-ready/`.
+**Paid-to-active final transactional repair (2026-08-05):** **BLOCKED (readiness probe).** Baseline `ca83267` → code `5341168`. Deploy `dpl_9XND8k78yfbDfpQq5NSsStEviAhM` on `https://www.usenobu.xyz` + `https://usenobu.vercel.app`. Persist `provider_payment_id` / `provider_authorization_id`; failed settlement requires payment-specific binding A/B/C; all summary sends (including first attempt) go through `processNotificationOutboxOpportunity` with rolling 24h authority. Focused tests 76/76 related suites; typecheck + build clean. Unpaid probes 200/400/402/402/401. No genuine payment, no ASP change. Evidence: `docs/proof/paid-to-active-transaction-live-ready/`.
+
+**Paid-to-active live-ready closeout (2026-08-05):** **SUPERSEDED** by final repair above. Baseline `63a999f` / prior code `62e410e`. Evidence path retained and updated.
 
 **Paid-to-active transaction closeout (2026-08-05):** **SUPERSEDED.** Baseline `50c0d54`. Evidence: `docs/proof/paid-to-active-transaction-closeout/`.
 
