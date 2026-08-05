@@ -18,6 +18,7 @@ import { POST as freePost } from "../../app/v1/agent/route.js";
 import { runMarketplaceJourney } from "../../src/a2mcp/marketplace-journey.js";
 import { marketplaceIncompleteContract } from "../../src/a2mcp/conversation-contract.js";
 import { sha256Hex } from "../../src/auth/crypto.js";
+import { derivePassClaimCredential } from "../../src/payments/claim-credential.js";
 import type { MatchableOffer } from "../../src/matching/types.js";
 import * as startMonitoring from "../../src/payments/start-monitoring-service.js";
 
@@ -173,6 +174,11 @@ describe("no-result discovery and activation_pending", () => {
     const paymentId = `pay_${seed}`;
     const passId = `pass_${seed}_1234567890abcdef`;
     const continuationId = `pass_cont_${seed}_1234567890abcdef`;
+    const derived = derivePassClaimCredential({
+      paymentId,
+      continuationId,
+      env: { NOBU_AUTH_TEST_MODE: "1" },
+    })!;
     db.prepare(
       `INSERT INTO monitoring_pass_payments
        (id, authorization_digest, status, settlement_ref, created_at, updated_at)
@@ -186,21 +192,25 @@ describe("no-result discovery and activation_pending", () => {
     ).run(passId, sha256Hex(`token-${seed}`), `settled-${seed}`, paymentId, nowIso, nowIso);
     db.prepare(
       `INSERT INTO monitoring_pass_continuations
-       (id, payment_id, monitoring_pass_id, status, created_at, updated_at)
-       VALUES (?,?,?,'issued',?,?)`,
-    ).run(continuationId, paymentId, passId, nowIso, nowIso);
-    return { passId, continuationId };
+       (id, payment_id, monitoring_pass_id, status, claim_credential_hash, created_at, updated_at)
+       VALUES (?,?,?,'issued',?,?,?)`,
+    ).run(continuationId, paymentId, passId, derived.hash, nowIso, nowIso);
+    return {
+      passId,
+      continuationId,
+      claimCredential: derived.raw,
+    };
   }
 
   it("5/6 no-candidate discovery stops and requests clearer description", async () => {
-    const { passId } = seedIssuedPass("nodisc");
+    const { passId, continuationId, claimCredential } = seedIssuedPass("nodisc");
     const deps = {
       sqliteDb: db,
       forceDeterministic: true,
       offersOverride: [] as MatchableOffer[],
       sourceKey: "no-disc",
     };
-    const resolved = await runMarketplaceJourney({ monitoring_pass_id: passId }, deps);
+    const resolved = await runMarketplaceJourney({ monitoring_pass_id: passId, pass_continuation_id: continuationId, pass_claim_credential: claimCredential }, deps);
     const journeyId = String(resolved.body.journey_id);
     await runMarketplaceJourney(
       { journey_id: journeyId, confirm_use_pass: true },
@@ -236,7 +246,7 @@ describe("no-result discovery and activation_pending", () => {
   });
 
   it("8-11 activation_pending is durable, resumable, and does not re-charge", async () => {
-    const { passId } = seedIssuedPass("actpend");
+    const { passId, continuationId, claimCredential } = seedIssuedPass("actpend");
     const deps = {
       sqliteDb: db,
       forceDeterministic: true,
@@ -255,7 +265,7 @@ describe("no-result discovery and activation_pending", () => {
         monitor_id: args.activation.monitor_id,
       }));
 
-    const resolved = await runMarketplaceJourney({ monitoring_pass_id: passId }, deps);
+    const resolved = await runMarketplaceJourney({ monitoring_pass_id: passId, pass_continuation_id: continuationId, pass_claim_credential: claimCredential }, deps);
     const journeyId = String(resolved.body.journey_id);
     await runMarketplaceJourney(
       { journey_id: journeyId, confirm_use_pass: true },
@@ -286,16 +296,18 @@ describe("no-result discovery and activation_pending", () => {
     const store = await getAuthStore({ sqliteDb: db });
     const j1 = await store.getMarketplacePurchaseJourneyById(journeyId);
     const code = peekCapturedAgentEmailCode(j1!.connection_id!);
-    await runMarketplaceJourney(
+    const verified = await runMarketplaceJourney(
       { journey_id: journeyId, verification_code: code },
       deps,
     );
+    const connectionToken = String(verified.body.connection_token || "");
 
     const pending = await runMarketplaceJourney(
       {
         journey_id: journeyId,
         monitoring_consent: true,
         email_alert_consent: true,
+        connection_token: connectionToken,
       },
       deps,
     );
@@ -341,8 +353,12 @@ describe("no-result discovery and activation_pending", () => {
        WHERE quote_id = ?`,
     ).run(quoteId);
 
-    // Retry with journey_id only — no consents, no new payment.
-    const resumed = await runMarketplaceJourney({ journey_id: journeyId }, deps);
+    // Resume activation_pending without re-consent or re-payment.
+    // connection_token remains the post-verification authority for redeem/project.
+    const resumed = await runMarketplaceJourney(
+      { journey_id: journeyId, connection_token: connectionToken },
+      deps,
+    );
     expect(resumed.http_status).toBe(200);
     expect(resumed.body.status).toBe("MONITORING_ACTIVE");
     expect(resumed.body.monitoring_active).toBe(true);

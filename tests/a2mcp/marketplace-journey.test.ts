@@ -14,6 +14,7 @@ import { runMarketplaceJourney } from "../../src/a2mcp/marketplace-journey.js";
 import { POST as paidServicePost } from "../../app/v1/agent/monitoring-pass/route.js";
 import { reconcilePendingPassSettlements } from "../../src/payments/monitoring-pass-service.js";
 import { sha256Hex } from "../../src/auth/crypto.js";
+import { derivePassClaimCredential } from "../../src/payments/claim-credential.js";
 import type { MatchableOffer } from "../../src/matching/types.js";
 import type { OkxHttpFetch } from "../../src/payments/okx-seller-client.js";
 
@@ -126,11 +127,20 @@ describe("Lane 8R marketplace Purchase Setup", () => {
     }
   });
 
-  function seedIssuedPass(seed: string): { passId: string; continuationId: string } {
+  function seedIssuedPass(seed: string): {
+    passId: string;
+    continuationId: string;
+    claimCredential: string;
+  } {
     const nowIso = new Date().toISOString();
     const paymentId = `pay_${seed}`;
     const passId = `pass_${seed}_1234567890abcdef`;
     const continuationId = `pass_cont_${seed}_1234567890abcdef`;
+    const derived = derivePassClaimCredential({
+      paymentId,
+      continuationId,
+      env: { NOBU_AUTH_TEST_MODE: "1" },
+    })!;
     db.prepare(
       `INSERT INTO monitoring_pass_payments
        (id, authorization_digest, status, settlement_ref, created_at, updated_at)
@@ -144,10 +154,10 @@ describe("Lane 8R marketplace Purchase Setup", () => {
     ).run(passId, sha256Hex(`token-${seed}`), `settled-${seed}`, paymentId, nowIso, nowIso);
     db.prepare(
       `INSERT INTO monitoring_pass_continuations
-       (id, payment_id, monitoring_pass_id, status, created_at, updated_at)
-       VALUES (?,?,?,'issued',?,?)`,
-    ).run(continuationId, paymentId, passId, nowIso, nowIso);
-    return { passId, continuationId };
+       (id, payment_id, monitoring_pass_id, status, claim_credential_hash, created_at, updated_at)
+       VALUES (?,?,?,'issued',?,?,?)`,
+    ).run(continuationId, paymentId, passId, derived.hash, nowIso, nowIso);
+    return { passId, continuationId, claimCredential: derived.raw };
   }
 
   function passCount(): number {
@@ -155,7 +165,7 @@ describe("Lane 8R marketplace Purchase Setup", () => {
   }
 
   it("happy path resolves a pass and activates only after every ordered stage", async () => {
-    const { passId } = seedIssuedPass("happy");
+    const { passId, continuationId, claimCredential } = seedIssuedPass("happy");
     const deps = {
       sqliteDb: db,
       forceDeterministic: true,
@@ -163,7 +173,14 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       sourceKey: "focused-happy-path",
     };
 
-    const resolved = await runMarketplaceJourney({ monitoring_pass_id: passId }, deps);
+    const resolved = await runMarketplaceJourney(
+      {
+        monitoring_pass_id: passId,
+        pass_continuation_id: continuationId,
+        pass_claim_credential: claimCredential,
+      },
+      deps,
+    );
     expect(resolved.http_status).toBe(400);
     assertHumanStage(resolved.body, "confirm_use_pass", {
       status: "MONITORING_PASS_ISSUED",
@@ -237,12 +254,15 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       "monitoring_consent",
       "email_alert_consent",
     ], { currentStep: "consents" });
+    const connectionToken = String(verified.body.connection_token || "");
+    expect(connectionToken).toBeTruthy();
 
     const active = await runMarketplaceJourney(
       {
         journey_id: journeyId,
         monitoring_consent: true,
         email_alert_consent: true,
+        connection_token: connectionToken,
       },
       deps,
     );
@@ -265,11 +285,13 @@ describe("Lane 8R marketplace Purchase Setup", () => {
   });
 
   it("safety keeps issued-pass setup free, actionless, and stage ordered", async () => {
-    const { passId } = seedIssuedPass("safety");
+    const { passId, continuationId, claimCredential } = seedIssuedPass("safety");
     const beforePasses = passCount();
     const early = await runMarketplaceJourney(
       {
         monitoring_pass_id: passId,
+        pass_continuation_id: continuationId,
+        pass_claim_credential: claimCredential,
         email: "too-early@example.com",
         monitoring_consent: true,
         email_alert_consent: true,
@@ -286,7 +308,11 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       new Request("https://usenobu.vercel.app/v1/agent/monitoring-pass", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ monitoring_pass_id: passId }),
+        body: JSON.stringify({
+          monitoring_pass_id: passId,
+          pass_continuation_id: continuationId,
+          pass_claim_credential: claimCredential,
+        }),
       }),
     );
     expect(paidUrlAttempt.status).toBe(400);

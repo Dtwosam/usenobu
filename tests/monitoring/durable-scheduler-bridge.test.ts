@@ -408,13 +408,30 @@ describe("Lane 7.4F durable scheduler bridge", () => {
       return priceDropFetcher(10)(args);
     };
 
+    // Bootstrap may create a schedule from the activation; hydrate only selects
+    // active+due schedules and drops ineligible (stopped) purchases.
+    const { bootstrapDurableSchedulesFromActivations } = await import(
+      "../../src/monitoring/durable-bridge.js"
+    );
+    await bootstrapDurableSchedulesFromActivations({
+      store,
+      nowIso: AS_OF,
+    });
+    // Mark schedule stopped if purchase is stopped (source-of-truth alignment).
+    await store.upsertDurableMonitorSchedule({
+      purchaseId: "pur_stopped",
+      status: "stopped",
+      lastSkipReason: "purchase_stopped",
+      nowIso: AS_OF,
+    });
     const hydrated = await hydrateActiveAgentMonitorsFromDurable({
       db: local,
       store,
       limit: DEFAULT_DURABLE_HYDRATE_LIMIT,
     });
+    // Stopped schedules never occupy due pages.
     expect(hydrated.hydrated).toBe(0);
-    expect(hydrated.skipped_ineligible).toBeGreaterThanOrEqual(1);
+    expect(hydrated.purchase_ids).not.toContain("pur_stopped");
 
     const tick = await runScheduledMonitoringTickWithDurableBridge({
       db: local,

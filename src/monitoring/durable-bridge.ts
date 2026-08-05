@@ -1,9 +1,8 @@
 /**
  * Durable-to-scheduler bridge.
  *
- * Local SQLite is an execution cache only. Authoritative controls live in
- * AuthStore: due state, global lease, search budget, alert opportunities,
- * notification outbox.
+ * durable_monitor_schedule is the authoritative work source.
+ * Local SQLite is an execution cache only.
  */
 import { randomUUID } from "node:crypto";
 import type { NobuDatabase } from "../db/migrator.js";
@@ -18,7 +17,10 @@ import {
   importPurchaseBlobs,
   purchaseBlobIsSchedulerEligible,
 } from "../auth/purchase-blobs.js";
-import { isEmailAlertsEnabled, getEmailAlertPref } from "../notifications/prefs.js";
+import {
+  isEmailAlertsEnabled,
+  getEmailAlertPref,
+} from "../notifications/prefs.js";
 import {
   runScheduledMonitoringTick,
   type ScheduledMonitorOptions,
@@ -34,7 +36,8 @@ import { processDueNotificationOutbox } from "../notifications/outbox-retry.js";
 
 export const DEFAULT_DURABLE_HYDRATE_LIMIT = 50;
 export const GLOBAL_SCHEDULER_LEASE_KEY = "nobu_monitor_scheduler";
-export const GLOBAL_SCHEDULER_LEASE_TTL_MS = 4 * 60 * 1000;
+/** Lease TTL must exceed max tick wall time; renew if needed. */
+export const GLOBAL_SCHEDULER_LEASE_TTL_MS = 10 * 60 * 1000;
 
 export type DurableBridgeResult = ScheduledMonitorResult & {
   durable_hydrated: number;
@@ -46,13 +49,15 @@ export type DurableBridgeResult = ScheduledMonitorResult & {
   outbox_retried: number;
   lease_acquired: boolean;
   pages_processed: number;
+  provider_fetch_ids: string[];
 };
 
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
 /**
- * Hydrate active monitors using cursor/keyset pages.
- * Skips durable schedule rows that are blocked/stopped/expired.
+ * Hydrate from durable_monitor_schedule (source of truth), not raw activations.
+ * Keyset: ORDER BY purchase_id ASC, purchase_id > cursor.
+ * Only active + due schedules; blocked/stopped/expired never occupy the page.
  */
 export async function hydrateActiveAgentMonitorsFromDurable(args: {
   db: NobuDatabase;
@@ -79,101 +84,73 @@ export async function hydrateActiveAgentMonitorsFromDurable(args: {
   const limit = args.limit ?? DEFAULT_DURABLE_HYDRATE_LIMIT;
   const nowIso = args.nowIso ?? new Date().toISOString();
 
-  // Prefer durable due schedules when present; fall back to activations list.
-  let activations = await store.listActiveMonitorActivations({
-    limit: limit * 2,
+  // Authoritative due page from durable schedule.
+  const dueRows = await store.listDueDurableMonitorSchedules({
+    asOfIso: nowIso,
+    limit: limit + 1,
     afterPurchaseId: args.afterPurchaseId ?? null,
   });
+  const page = dueRows.slice(0, limit);
+  const more = dueRows.length > limit;
 
   const blobs: PurchaseBlobRow[] = [];
   let skipped_ineligible = 0;
   let hydration_blocked = 0;
-  const eligibleActs: Array<{ purchase_id: string; id: string }> = [];
+  const validIds: string[] = [];
   let lastSeen: string | null = null;
 
-  for (const act of activations) {
-    lastSeen = act.purchase_id;
-    // Skip durable blocked/stopped/expired so they do not occupy work forever.
-    try {
-      const due = await store.listDueDurableMonitorSchedules({
-        asOfIso: nowIso,
-        limit: 1,
-        afterPurchaseId: null,
+  for (const row of page) {
+    lastSeen = row.purchase_id;
+    const blob = await store.getPurchaseBlobByPurchaseId(row.purchase_id);
+    if (!blob || !purchaseBlobIsSchedulerEligible(blob)) {
+      skipped_ineligible += 1;
+      await store.upsertDurableMonitorSchedule({
+        purchaseId: row.purchase_id,
+        activationId: row.activation_id,
+        accountId: row.account_id,
+        status: "stopped",
+        lastSkipReason: "ineligible_or_missing_blob",
+        nowIso,
       });
-      void due;
-    } catch {
-      /* optional */
+      continue;
     }
 
-    const blob = await store.getPurchaseBlobByPurchaseId(act.purchase_id);
-    if (!blob) {
+    const activation = await store.getActiveMonitorActivationByPurchaseId(
+      row.purchase_id,
+    );
+    if (!activation) {
       skipped_ineligible += 1;
       await store.upsertDurableMonitorSchedule({
-        purchaseId: act.purchase_id,
-        activationId: act.id,
-        status: "blocked",
-        lastSkipReason: "missing_blob",
-        hydrationBlockerJson: JSON.stringify({
-          code: "missing_blob",
-          at: nowIso,
-        }),
-        nowIso,
-      });
-      continue;
-    }
-    if (!purchaseBlobIsSchedulerEligible(blob)) {
-      skipped_ineligible += 1;
-      await store.upsertDurableMonitorSchedule({
-        purchaseId: act.purchase_id,
-        activationId: act.id,
-        accountId: blob.account_id,
+        purchaseId: row.purchase_id,
         status: "stopped",
-        lastSkipReason: "ineligible_blob",
+        lastSkipReason: "activation_not_active",
         nowIso,
       });
       continue;
     }
-    // Check if durable schedule marks blocked/expired.
-    const scheduleRows = await store.listDueDurableMonitorSchedules({
-      asOfIso: "9999-12-31T00:00:00.000Z",
-      limit: 500,
-    });
-    const sched = scheduleRows.find((r) => r.purchase_id === act.purchase_id);
-    // listDue only returns active — query via upsert path status by re-reading
-    // is heavy; instead skip when we previously stored blocked via last_skip.
-    void sched;
 
     blobs.push(blob);
-    eligibleActs.push({ purchase_id: act.purchase_id, id: act.id });
-    if (eligibleActs.length >= limit) break;
   }
 
   importPurchaseBlobs(args.db, blobs);
 
-  const validIds: string[] = [];
-  for (const act of eligibleActs) {
-    const validation = validateHydratedPurchaseGraph(args.db, act.purchase_id);
+  for (const blob of blobs) {
+    const validation = validateHydratedPurchaseGraph(
+      args.db,
+      blob.purchase_id,
+    );
     if (!validation.ok) {
       hydration_blocked += 1;
       await recordHydrationBlocker({
         store,
-        purchaseId: act.purchase_id,
-        activationId: act.id,
+        purchaseId: blob.purchase_id,
         blockers: validation.blockers,
         nowIso,
       });
       continue;
     }
-    validIds.push(act.purchase_id);
-    await store.upsertDurableMonitorSchedule({
-      purchaseId: act.purchase_id,
-      activationId: act.id,
-      status: "active",
-      nowIso,
-    });
+    validIds.push(blob.purchase_id);
   }
-
-  const more = activations.length >= limit * 2 || (lastSeen != null && activations.length > 0);
 
   return {
     hydrated: validIds.length,
@@ -182,7 +159,7 @@ export async function hydrateActiveAgentMonitorsFromDurable(args: {
     purchase_ids: validIds,
     last_purchase_id: lastSeen,
     store,
-    more: Boolean(lastSeen) && activations.length > 0,
+    more,
   };
 }
 
@@ -258,8 +235,40 @@ export async function persistAccountPurchasesToDurable(args: {
 }
 
 /**
- * Full bridge with multi-page cursor, global lease in finally, outbox retry.
+ * Ensure durable schedule rows exist for active activations (bootstrap).
+ * Called once per tick before due-page selection.
  */
+export async function bootstrapDurableSchedulesFromActivations(args: {
+  store: AuthStore;
+  nowIso: string;
+  limit?: number;
+}): Promise<number> {
+  let n = 0;
+  let cursor: string | null = null;
+  const pageSize = 50;
+  const maxPages = 20;
+  for (let p = 0; p < maxPages; p++) {
+    const batch = await args.store.listActiveMonitorActivations({
+      limit: pageSize,
+      afterPurchaseId: cursor,
+    });
+    if (!batch.length) break;
+    for (const act of batch) {
+      await args.store.upsertDurableMonitorSchedule({
+        purchaseId: act.purchase_id,
+        activationId: act.id,
+        status: "active",
+        nextCheckAt: null,
+        nowIso: args.nowIso,
+      });
+      n += 1;
+    }
+    cursor = batch[batch.length - 1]!.purchase_id;
+    if (batch.length < pageSize) break;
+  }
+  return n;
+}
+
 export async function runScheduledMonitoringTickWithDurableBridge(
   options: ScheduledMonitorOptions & {
     env?: EnvRecord;
@@ -268,15 +277,16 @@ export async function runScheduledMonitoringTickWithDurableBridge(
     use_durable_bridge?: boolean;
     max_pages?: number;
     lease_holder_id?: string;
-    /** Default monthly search budget for durable reservation. */
     durable_monthly_search_limit?: number;
   },
 ): Promise<DurableBridgeResult> {
   const useBridge = options.use_durable_bridge !== false;
   const asOf = options.as_of ?? new Date().toISOString();
-  const pageLimit = options.durable_hydrate_limit ?? DEFAULT_DURABLE_HYDRATE_LIMIT;
+  const pageLimit =
+    options.durable_hydrate_limit ?? DEFAULT_DURABLE_HYDRATE_LIMIT;
   const maxPages = options.max_pages ?? 4;
-  const holderId = options.lease_holder_id ?? `worker_${randomUUID().slice(0, 12)}`;
+  const holderId =
+    options.lease_holder_id ?? `worker_${randomUUID().slice(0, 12)}`;
 
   let durable_hydrated = 0;
   let durable_skipped_ineligible = 0;
@@ -289,6 +299,7 @@ export async function runScheduledMonitoringTickWithDurableBridge(
   let hydratedIds: string[] = [];
   let store: AuthStore | null = null;
   let lease_acquired = false;
+  const provider_fetch_ids: string[] = [];
 
   try {
     if (useBridge) {
@@ -322,6 +333,16 @@ export async function runScheduledMonitoringTickWithDurableBridge(
         /* non-fatal */
       }
 
+      // Bootstrap schedule rows for active activations (idempotent).
+      try {
+        await bootstrapDurableSchedulesFromActivations({
+          store,
+          nowIso: asOf,
+        });
+      } catch {
+        /* non-fatal */
+      }
+
       const leaseExpires = new Date(
         Date.parse(asOf) + GLOBAL_SCHEDULER_LEASE_TTL_MS,
       ).toISOString();
@@ -338,7 +359,6 @@ export async function runScheduledMonitoringTickWithDurableBridge(
         });
       }
 
-      // Cursor pages until max_pages or no more rows — no first-page-only break.
       let after: string | null = null;
       for (let page = 0; page < maxPages; page += 1) {
         const hydrated = await hydrateActiveAgentMonitorsFromDurable({
@@ -356,13 +376,15 @@ export async function runScheduledMonitoringTickWithDurableBridge(
         pages_processed += 1;
         if (!hydrated.last_purchase_id) break;
         after = hydrated.last_purchase_id;
-        if (!hydrated.more && hydrated.purchase_ids.length === 0) break;
-        // Continue pages even when this page only skipped blocked rows.
+        if (!hydrated.more) break;
       }
     }
 
+    // Provider fetch ids are recorded from tick results (checked/error), not from
+    // fetcher argument shape (which carries purchase + fingerprint, not purchase_id).
     const result = await runScheduledMonitoringTick({
       ...options,
+      fetchObservation: options.fetchObservation,
       accountStore: store ?? options.store,
       env: options.env,
       durableAuthStore: store ?? undefined,
@@ -373,6 +395,12 @@ export async function runScheduledMonitoringTickWithDurableBridge(
         500,
     });
 
+    for (const r of result.results) {
+      if (r.outcome === "checked" || r.outcome === "error") {
+        provider_fetch_ids.push(r.purchase_id);
+      }
+    }
+
     if (useBridge && store) {
       try {
         const outbox = await processDueNotificationOutbox({
@@ -380,6 +408,7 @@ export async function runScheduledMonitoringTickWithDurableBridge(
           nowIso: asOf,
           env: options.env,
           limit: 20,
+          db: options.db,
         });
         outbox_retried = outbox.processed;
       } catch {
@@ -407,6 +436,7 @@ export async function runScheduledMonitoringTickWithDurableBridge(
       outbox_retried,
       lease_acquired,
       pages_processed,
+      provider_fetch_ids: Array.from(new Set(provider_fetch_ids)),
     };
   } finally {
     if (useBridge && store && lease_acquired) {
@@ -446,6 +476,7 @@ function emptyResult(
     outbox_retried: 0,
     lease_acquired: false,
     pages_processed: 0,
+    provider_fetch_ids: [],
   };
 }
 

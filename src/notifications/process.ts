@@ -24,6 +24,7 @@ import {
   MAX_SUMMARY_PER_ACCOUNT_24H,
 } from "./ledger.js";
 import { sendPriceDropEmail, buildSummaryEmailText } from "./email-send.js";
+import { buildOutboxEvidenceJson } from "./outbox-retry.js";
 import { hashEmailForLog } from "./mask-email.js";
 import type {
   EmailNotificationStatus,
@@ -309,10 +310,11 @@ export async function processPriceDropEmailForNewAlert(args: {
       };
     }
 
-    // Summary email uses a separate opportunity key so only one summary is sent
+    // Summary uses durable outbox (not direct local-only send).
+    // Opportunity key is stable per account + 24h window so only one message.
     const summaryKey = `summary_${ownerRef}_${since.slice(0, 13)}`;
     const existingSummary = findNotificationByOpportunity(args.db, summaryKey);
-    if (existingSummary) {
+    if (existingSummary?.status === "sent") {
       return {
         attempted: false,
         status: "combined",
@@ -322,20 +324,52 @@ export async function processPriceDropEmailForNewAlert(args: {
       };
     }
 
-    // Reserve summary outbox as pending, then send once.
-    const summaryReserved = insertNotification({
-      db: args.db,
-      purchase_id: args.purchaseId,
-      account_id: ownerRef,
+    const authStoreSummary =
+      args.accountStore ?? (await getAuthStore({ sqliteDb: args.db, env }));
+    const summaryEvidence: PriceDropEmailEvidence = {
+      ...evidence,
       alert_id: args.alertId,
       opportunity_key: summaryKey,
+    };
+    const summaryEvidenceJson = JSON.stringify({
+      ...JSON.parse(buildOutboxEvidenceJson(summaryEvidence)),
+      summary_items: [
+        {
+          product_title: evidence.product_title,
+          potential_recovery: evidence.potential_recovery,
+          reviewUrl,
+        },
+      ],
+    });
+    const summaryOutboxId = `outbox_${shaShort(summaryKey)}`;
+    await authStoreSummary.insertNotificationOutbox({
+      id: summaryOutboxId,
+      opportunityKey: summaryKey,
+      purchaseId: args.purchaseId,
+      accountId: ownerRef,
+      alertId: args.alertId,
       kind: "summary",
       status: "pending",
       reason: "pending_summary",
-      recipient_email_hash: hashEmailForLog(account.email_normalized),
-      created_at: nowIso,
+      recipientEmailHash: hashEmailForLog(account.email_normalized),
+      evidenceJson: summaryEvidenceJson,
+      nowIso,
     });
-    if (!summaryReserved.created) {
+    const existingDurableSummary =
+      await authStoreSummary.getNotificationOutboxByOpportunity(summaryKey);
+    if (existingDurableSummary?.status === "sent") {
+      insertNotification({
+        db: args.db,
+        purchase_id: args.purchaseId,
+        account_id: ownerRef,
+        alert_id: args.alertId,
+        opportunity_key: summaryKey,
+        kind: "summary",
+        status: "sent",
+        reason: "duplicate_summary",
+        recipient_email_hash: hashEmailForLog(account.email_normalized),
+        created_at: nowIso,
+      });
       return {
         attempted: false,
         status: "combined",
@@ -345,14 +379,22 @@ export async function processPriceDropEmailForNewAlert(args: {
       };
     }
 
-    try {
-      args.db
-        .prepare(
-          `UPDATE email_notifications SET status = 'sending' WHERE id = ? AND status = 'pending'`,
-        )
-        .run(summaryReserved.id);
-    } catch {
-      /* ignore */
+    const holderId = `send_${summaryKey.slice(0, 24)}`;
+    const leaseExpires = new Date(Date.parse(nowIso) + 60_000).toISOString();
+    const leased = await authStoreSummary.tryLeaseNotificationOutbox({
+      opportunityKey: summaryKey,
+      holderId,
+      leaseExpiresAt: leaseExpires,
+      nowIso,
+    });
+    if (!leased) {
+      return {
+        attempted: false,
+        status: "combined",
+        reason: "combined_into_summary",
+        notification_id: reserved.id,
+        kind: "summary",
+      };
     }
 
     const summaryBody = buildSummaryEmailText({
@@ -365,30 +407,41 @@ export async function processPriceDropEmailForNewAlert(args: {
       ],
     });
 
-    // Exactly one summary provider call — no preliminary immediate email.
+    // Provider call authorized only by durable lease (idempotency key = opportunity).
     const summarySend = await sendSummaryEmail({
       emailNormalized: account.email_normalized,
       subject: summaryBody.subject,
       text: summaryBody.text,
       env,
+      idempotencyKey: summaryKey,
     });
 
     if (!summarySend.ok) {
-      try {
-        args.db
-          .prepare(
-            `UPDATE email_notifications SET status = ?, reason = ? WHERE id = ?`,
-          )
-          .run(
-            "failed_retryable",
-            summarySend.error === "not_configured"
-              ? "not_configured"
-              : "provider_send_failed",
-            summaryReserved.id,
-          );
-      } catch {
-        /* ignore */
-      }
+      await authStoreSummary.markNotificationOutboxStatus({
+        id: leased.id,
+        status: "failed_retryable",
+        reason:
+          summarySend.error === "not_configured"
+            ? "not_configured"
+            : "provider_send_failed",
+        nowIso,
+        nextAttemptAt: new Date(Date.parse(nowIso) + 30_000).toISOString(),
+      });
+      insertNotification({
+        db: args.db,
+        purchase_id: args.purchaseId,
+        account_id: ownerRef,
+        alert_id: args.alertId,
+        opportunity_key: summaryKey,
+        kind: "summary",
+        status: "failed",
+        reason:
+          summarySend.error === "not_configured"
+            ? "not_configured"
+            : "provider_send_failed",
+        recipient_email_hash: hashEmailForLog(account.email_normalized),
+        created_at: nowIso,
+      });
       return {
         attempted: true,
         status: "failed",
@@ -401,15 +454,25 @@ export async function processPriceDropEmailForNewAlert(args: {
       };
     }
 
-    try {
-      args.db
-        .prepare(
-          `UPDATE email_notifications SET status = 'sent', reason = 'sent_summary' WHERE id = ?`,
-        )
-        .run(summaryReserved.id);
-    } catch {
-      /* ignore */
-    }
+    await authStoreSummary.markNotificationOutboxStatus({
+      id: leased.id,
+      status: "sent",
+      reason: "sent_summary",
+      nowIso,
+      sentAt: nowIso,
+    });
+    insertNotification({
+      db: args.db,
+      purchase_id: args.purchaseId,
+      account_id: ownerRef,
+      alert_id: args.alertId,
+      opportunity_key: summaryKey,
+      kind: "summary",
+      status: "sent",
+      reason: "sent_summary",
+      recipient_email_hash: hashEmailForLog(account.email_normalized),
+      created_at: nowIso,
+    });
 
     return {
       attempted: true,
@@ -438,7 +501,7 @@ export async function processPriceDropEmailForNewAlert(args: {
     alertId: args.alertId,
     nowIso,
   });
-  // Insert or resolve outbox row (idempotent on opportunity_key).
+  // Insert or resolve outbox row (idempotent on opportunity_key) with evidence.
   const outboxInsert = await authStore.insertNotificationOutbox({
     id: outboxId,
     opportunityKey: evidence.opportunity_key,
@@ -449,6 +512,7 @@ export async function processPriceDropEmailForNewAlert(args: {
     status: "pending",
     reason: "pending_send",
     recipientEmailHash: hashEmailForLog(account.email_normalized),
+    evidenceJson: buildOutboxEvidenceJson(evidence),
     nowIso,
   });
   const existingOutbox = await authStore.getNotificationOutboxByOpportunity(
@@ -493,20 +557,8 @@ export async function processPriceDropEmailForNewAlert(args: {
     };
   }
 
-  // Local mirror only — does not authorize delivery.
-  const reserved = insertNotification({
-    db: args.db,
-    purchase_id: args.purchaseId,
-    account_id: ownerRef,
-    alert_id: args.alertId,
-    opportunity_key: evidence.opportunity_key,
-    kind: "immediate",
-    status: "sending",
-    reason: "sending",
-    recipient_email_hash: hashEmailForLog(account.email_normalized),
-    created_at: nowIso,
-  });
-  const leaseId = reserved.id;
+  // Durable outbox authorizes delivery. Local ledger only records terminal
+  // outcomes (CHECK allows: sent | suppressed | combined | failed).
   void reservedOpp;
 
   const send = await sendPriceDropEmail({
@@ -515,6 +567,7 @@ export async function processPriceDropEmailForNewAlert(args: {
     reviewUrl,
     disableAlertsUrl,
     env,
+    idempotencyKey: evidence.opportunity_key,
   });
 
   if (!send.ok) {
@@ -524,15 +577,6 @@ export async function processPriceDropEmailForNewAlert(args: {
       send.error === "not_configured"
         ? "not_configured"
         : "provider_send_failed";
-    try {
-      args.db
-        .prepare(
-          `UPDATE email_notifications SET status = ?, reason = ? WHERE id = ?`,
-        )
-        .run(failStatus, reason, leaseId);
-    } catch {
-      /* ignore */
-    }
     await authStore.markNotificationOutboxStatus({
       id: durableLeased.id,
       status: failStatus,
@@ -543,11 +587,23 @@ export async function processPriceDropEmailForNewAlert(args: {
           ? new Date(Date.parse(nowIso) + 60_000).toISOString()
           : null,
     });
+    const failedLocal = insertNotification({
+      db: args.db,
+      purchase_id: args.purchaseId,
+      account_id: ownerRef,
+      alert_id: args.alertId,
+      opportunity_key: evidence.opportunity_key,
+      kind: "immediate",
+      status: "failed",
+      reason,
+      recipient_email_hash: hashEmailForLog(account.email_normalized),
+      created_at: nowIso,
+    });
     return {
       attempted: true,
-      status: failStatus === "failed_terminal" ? "failed" : "failed",
+      status: "failed",
       reason,
-      notification_id: leaseId,
+      notification_id: failedLocal.id,
       kind: "immediate",
     };
   }
@@ -560,21 +616,24 @@ export async function processPriceDropEmailForNewAlert(args: {
     nowIso,
     sentAt: nowIso,
   });
-  try {
-    args.db
-      .prepare(
-        `UPDATE email_notifications SET status = 'sent', reason = 'sent_immediate' WHERE id = ?`,
-      )
-      .run(leaseId);
-  } catch {
-    /* ignore */
-  }
+  const sentLocal = insertNotification({
+    db: args.db,
+    purchase_id: args.purchaseId,
+    account_id: ownerRef,
+    alert_id: args.alertId,
+    opportunity_key: evidence.opportunity_key,
+    kind: "immediate",
+    status: "sent",
+    reason: "sent_immediate",
+    recipient_email_hash: hashEmailForLog(account.email_normalized),
+    created_at: nowIso,
+  });
 
   return {
     attempted: true,
     status: "sent",
     reason: "sent_immediate",
-    notification_id: leaseId,
+    notification_id: sentLocal.id,
     kind: "immediate",
   };
 }
@@ -584,6 +643,8 @@ async function sendSummaryEmail(args: {
   subject: string;
   text: string;
   env: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  /** Deterministic provider key derived from opportunity_key when supported. */
+  idempotencyKey?: string;
 }): Promise<{ ok: true } | { ok: false; error: "not_configured" | "provider_error" }> {
   const { isAuthTestMode } = await import("../auth/config.js");
   if (isAuthTestMode(args.env)) {
@@ -632,12 +693,16 @@ async function sendSummaryEmail(args: {
     return { ok: false, error: "not_configured" };
   }
   try {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    };
+    if (args.idempotencyKey) {
+      headers["Idempotency-Key"] = args.idempotencyKey.slice(0, 256);
+    }
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         from,
         to: [args.emailNormalized],

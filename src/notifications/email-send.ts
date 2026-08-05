@@ -87,6 +87,8 @@ export async function sendPriceDropEmail(args: {
   reviewUrl: string;
   disableAlertsUrl: string;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  /** Deterministic provider key (typically opportunity_key). */
+  idempotencyKey?: string;
 }): Promise<SendPriceDropEmailResult> {
   const env = args.env ?? process.env;
   const built = buildPriceDropEmailText({
@@ -134,12 +136,18 @@ export async function sendPriceDropEmail(args: {
   }
 
   try {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    };
+    const idem =
+      args.idempotencyKey?.trim() || args.evidence.opportunity_key?.trim();
+    if (idem) {
+      headers["Idempotency-Key"] = idem.slice(0, 256);
+    }
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         from,
         to: [args.emailNormalized],

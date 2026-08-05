@@ -231,6 +231,7 @@ export type DurableNotificationOutboxRow = {
   lease_expires_at: string | null;
   next_attempt_at: string | null;
   recipient_email_hash: string | null;
+  evidence_json?: string | null;
   created_at: string;
   updated_at: string;
   sent_at: string | null;
@@ -440,6 +441,10 @@ export interface AuthStore {
   }): Promise<boolean>;
   getMonitorActivationByQuoteId(
     quoteId: string,
+  ): Promise<MonitorActivationRow | null>;
+  /** Active activation for a purchase, if any. */
+  getActiveMonitorActivationByPurchaseId(
+    purchaseId: string,
   ): Promise<MonitorActivationRow | null>;
   /**
    * The Lane 7.4D durable saga step 1 — one atomic transaction within this
@@ -743,6 +748,7 @@ export interface AuthStore {
     status: string;
     reason?: string | null;
     recipientEmailHash?: string | null;
+    evidenceJson?: string | null;
     nowIso: string;
   }): Promise<{ id: string; created: boolean }>;
   tryLeaseNotificationOutbox(args: {
@@ -751,6 +757,15 @@ export interface AuthStore {
     leaseExpiresAt: string;
     nowIso: string;
   }): Promise<DurableNotificationOutboxRow | null>;
+  insertSettlementReviewAudit(args: {
+    id: string;
+    paymentId: string;
+    decision: string;
+    evidenceSource: string;
+    evidenceRefHash: string;
+    reviewerKeyId?: string | null;
+    nowIso: string;
+  }): Promise<void>;
   markNotificationOutboxStatus(args: {
     id: string;
     status: string;
@@ -1413,6 +1428,16 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         .get(quoteId) as MonitorActivationRow | undefined;
       return row ?? null;
     },
+    async getActiveMonitorActivationByPurchaseId(purchaseId) {
+      const row = db
+        .prepare(
+          `SELECT * FROM monitor_activations
+           WHERE purchase_id = ? AND status = 'active'
+           ORDER BY created_at ASC LIMIT 1`,
+        )
+        .get(purchaseId) as MonitorActivationRow | undefined;
+      return row ?? null;
+    },
     async recordSettledPaymentAndActivation(args) {
       db.exec("BEGIN");
       try {
@@ -1709,7 +1734,15 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           db.exec("ROLLBACK");
           return { outcome: "pass_mismatch" as const };
         }
-        // Already claimed for this pass: return existing journey.
+        // Credential must always match stored hash (even when already consumed).
+        if (
+          !cont.claim_credential_hash ||
+          cont.claim_credential_hash !== args.claimCredentialHash
+        ) {
+          db.exec("ROLLBACK");
+          return { outcome: "claim_invalid" as const };
+        }
+        // Already claimed: recover existing journey only with matching credential.
         if (cont.claim_credential_consumed_at) {
           const existing = db
             .prepare(
@@ -1725,13 +1758,6 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
               journey: existing,
             };
           }
-          return { outcome: "claim_invalid" as const };
-        }
-        if (
-          !cont.claim_credential_hash ||
-          cont.claim_credential_hash !== args.claimCredentialHash
-        ) {
-          db.exec("ROLLBACK");
           return { outcome: "claim_invalid" as const };
         }
 
@@ -2078,6 +2104,7 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
     async listActiveMonitorActivations(args) {
       const limit = Math.min(Math.max(1, args?.limit ?? 50), 200);
       const after = args?.afterPurchaseId ?? null;
+      // Consistent keyset: ORDER BY purchase_id ASC on every page.
       if (after) {
         return db
           .prepare(
@@ -2090,7 +2117,7 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
       return db
         .prepare(
           `SELECT * FROM monitor_activations WHERE status = 'active'
-           ORDER BY created_at ASC
+           ORDER BY purchase_id ASC
            LIMIT ?`,
         )
         .all(limit) as MonitorActivationRow[];
@@ -2136,43 +2163,63 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
       );
     },
     async listDueDurableMonitorSchedules(args) {
+      // Authoritative work page: active only, due, backoff elapsed, keyset by purchase_id.
       if (args.afterPurchaseId) {
         return db
           .prepare(
             `SELECT * FROM durable_monitor_schedule
              WHERE status = 'active'
                AND (next_check_at IS NULL OR next_check_at <= ?)
+               AND (provider_backoff_until IS NULL OR provider_backoff_until <= ?)
                AND purchase_id > ?
              ORDER BY purchase_id ASC LIMIT ?`,
           )
-          .all(args.asOfIso, args.afterPurchaseId, args.limit) as DurableMonitorScheduleRow[];
+          .all(
+            args.asOfIso,
+            args.asOfIso,
+            args.afterPurchaseId,
+            args.limit,
+          ) as DurableMonitorScheduleRow[];
       }
       return db
         .prepare(
           `SELECT * FROM durable_monitor_schedule
            WHERE status = 'active'
              AND (next_check_at IS NULL OR next_check_at <= ?)
+             AND (provider_backoff_until IS NULL OR provider_backoff_until <= ?)
            ORDER BY purchase_id ASC LIMIT ?`,
         )
-        .all(args.asOfIso, args.limit) as DurableMonitorScheduleRow[];
+        .all(args.asOfIso, args.asOfIso, args.limit) as DurableMonitorScheduleRow[];
     },
     async tryAcquireGlobalLease(args) {
-      db.prepare(
-        `INSERT INTO durable_global_leases (lease_key, holder_id, expires_at, updated_at)
-         VALUES (?,?,?,?)
-         ON CONFLICT(lease_key) DO UPDATE SET
-           holder_id = excluded.holder_id,
-           expires_at = excluded.expires_at,
-           updated_at = excluded.updated_at
-         WHERE durable_global_leases.expires_at <= excluded.updated_at
-            OR durable_global_leases.holder_id = excluded.holder_id`,
-      ).run(args.leaseKey, args.holderId, args.expiresAt, args.nowIso);
-      const row = db
-        .prepare(
-          `SELECT holder_id FROM durable_global_leases WHERE lease_key = ?`,
-        )
-        .get(args.leaseKey) as { holder_id: string } | undefined;
-      return row?.holder_id === args.holderId;
+      // Serialize concurrent acquirers on this connection (SQLite).
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        db.prepare(
+          `INSERT INTO durable_global_leases (lease_key, holder_id, expires_at, updated_at)
+           VALUES (?,?,?,?)
+           ON CONFLICT(lease_key) DO UPDATE SET
+             holder_id = excluded.holder_id,
+             expires_at = excluded.expires_at,
+             updated_at = excluded.updated_at
+           WHERE durable_global_leases.expires_at <= excluded.updated_at
+              OR durable_global_leases.holder_id = excluded.holder_id`,
+        ).run(args.leaseKey, args.holderId, args.expiresAt, args.nowIso);
+        const row = db
+          .prepare(
+            `SELECT holder_id FROM durable_global_leases WHERE lease_key = ?`,
+          )
+          .get(args.leaseKey) as { holder_id: string } | undefined;
+        db.exec("COMMIT");
+        return row?.holder_id === args.holderId;
+      } catch (err) {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        throw err;
+      }
     },
     async releaseGlobalLease(args) {
       db.prepare(
@@ -2235,8 +2282,9 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         db.prepare(
           `INSERT INTO durable_notification_outbox
            (id, opportunity_key, purchase_id, account_id, alert_id, kind,
-            status, reason, attempt_count, recipient_email_hash, created_at, updated_at)
-           VALUES (?,?,?,?,?,?,?,?,0,?,?,?)`,
+            status, reason, attempt_count, recipient_email_hash, evidence_json,
+            created_at, updated_at)
+           VALUES (?,?,?,?,?,?,?,?,0,?,?,?,?)`,
         ).run(
           args.id,
           args.opportunityKey,
@@ -2247,6 +2295,7 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           args.status,
           args.reason ?? null,
           args.recipientEmailHash ?? null,
+          args.evidenceJson ?? null,
           args.nowIso,
           args.nowIso,
         );
@@ -2255,10 +2304,23 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         const existing = await this.getNotificationOutboxByOpportunity(
           args.opportunityKey,
         );
+        // Best-effort: fill evidence_json if previously null
+        if (args.evidenceJson && existing) {
+          try {
+            db.prepare(
+              `UPDATE durable_notification_outbox
+               SET evidence_json = COALESCE(evidence_json, ?)
+               WHERE opportunity_key = ?`,
+            ).run(args.evidenceJson, args.opportunityKey);
+          } catch {
+            /* ignore */
+          }
+        }
         return { id: existing?.id ?? args.id, created: false };
       }
     },
     async tryLeaseNotificationOutbox(args) {
+      // Atomically lease pending/failed_retryable OR reclaim expired sending.
       const r = db
         .prepare(
           `UPDATE durable_notification_outbox
@@ -2268,8 +2330,14 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
                updated_at = ?,
                attempt_count = COALESCE(attempt_count, 0) + 1
            WHERE opportunity_key = ?
-             AND status IN ('pending', 'failed_retryable')
-             AND (lease_expires_at IS NULL OR lease_expires_at <= ?)`,
+             AND (
+               (status IN ('pending', 'failed_retryable')
+                 AND (lease_expires_at IS NULL OR lease_expires_at <= ?))
+               OR
+               (status = 'sending'
+                 AND lease_expires_at IS NOT NULL
+                 AND lease_expires_at <= ?)
+             )`,
         )
         .run(
           args.holderId,
@@ -2277,9 +2345,25 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           args.nowIso,
           args.opportunityKey,
           args.nowIso,
+          args.nowIso,
         );
       if (Number(r.changes ?? 0) !== 1) return null;
       return this.getNotificationOutboxByOpportunity(args.opportunityKey);
+    },
+    async insertSettlementReviewAudit(args) {
+      db.prepare(
+        `INSERT INTO settlement_review_audit
+         (id, payment_id, decision, evidence_source, evidence_ref_hash, reviewer_key_id, created_at)
+         VALUES (?,?,?,?,?,?,?)`,
+      ).run(
+        args.id,
+        args.paymentId,
+        args.decision,
+        args.evidenceSource,
+        args.evidenceRefHash,
+        args.reviewerKeyId ?? null,
+        args.nowIso,
+      );
     },
     async markNotificationOutboxStatus(args) {
       const r = db
@@ -2990,6 +3074,15 @@ export function createPostgresAuthStore(
       );
       return r.rows[0] ?? null;
     },
+    async getActiveMonitorActivationByPurchaseId(purchaseId) {
+      const r = await q<MonitorActivationRow>(
+        `SELECT * FROM monitor_activations
+         WHERE purchase_id = $1 AND status = 'active'
+         ORDER BY created_at ASC LIMIT 1`,
+        [purchaseId],
+      );
+      return r.rows[0] ?? null;
+    },
     async recordSettledPaymentAndActivation(args) {
       const client = await pool.connect();
       try {
@@ -3286,6 +3379,13 @@ export function createPostgresAuthStore(
           await client.query("ROLLBACK");
           return { outcome: "pass_mismatch" as const };
         }
+        if (
+          !cont.claim_credential_hash ||
+          cont.claim_credential_hash !== args.claimCredentialHash
+        ) {
+          await client.query("ROLLBACK");
+          return { outcome: "claim_invalid" as const };
+        }
         if (cont.claim_credential_consumed_at) {
           const existing = await client.query(
             `SELECT * FROM marketplace_purchase_journeys WHERE monitoring_pass_id = $1`,
@@ -3298,13 +3398,6 @@ export function createPostgresAuthStore(
               journey: existing.rows[0] as MarketplacePurchaseJourneyRow,
             };
           }
-          return { outcome: "claim_invalid" as const };
-        }
-        if (
-          !cont.claim_credential_hash ||
-          cont.claim_credential_hash !== args.claimCredentialHash
-        ) {
-          await client.query("ROLLBACK");
           return { outcome: "claim_invalid" as const };
         }
         await client.query(
@@ -3626,6 +3719,7 @@ export function createPostgresAuthStore(
     async listActiveMonitorActivations(args) {
       const limit = Math.min(Math.max(1, args?.limit ?? 50), 200);
       const after = args?.afterPurchaseId ?? null;
+      // Consistent keyset: ORDER BY purchase_id ASC on every page.
       if (after) {
         const r = await q<MonitorActivationRow>(
           `SELECT * FROM monitor_activations
@@ -3637,7 +3731,7 @@ export function createPostgresAuthStore(
       }
       const r = await q<MonitorActivationRow>(
         `SELECT * FROM monitor_activations WHERE status = 'active'
-         ORDER BY created_at ASC
+         ORDER BY purchase_id ASC
          LIMIT $1`,
         [limit],
       );
@@ -3682,11 +3776,13 @@ export function createPostgresAuthStore(
       );
     },
     async listDueDurableMonitorSchedules(args) {
+      // Match SQLite: active + due + backoff elapsed, keyset by purchase_id.
       if (args.afterPurchaseId) {
         const r = await q<DurableMonitorScheduleRow>(
           `SELECT * FROM durable_monitor_schedule
            WHERE status = 'active'
              AND (next_check_at IS NULL OR next_check_at <= $1)
+             AND (provider_backoff_until IS NULL OR provider_backoff_until <= $1)
              AND purchase_id > $2
            ORDER BY purchase_id ASC LIMIT $3`,
           [args.asOfIso, args.afterPurchaseId, args.limit],
@@ -3697,6 +3793,7 @@ export function createPostgresAuthStore(
         `SELECT * FROM durable_monitor_schedule
          WHERE status = 'active'
            AND (next_check_at IS NULL OR next_check_at <= $1)
+           AND (provider_backoff_until IS NULL OR provider_backoff_until <= $1)
          ORDER BY purchase_id ASC LIMIT $2`,
         [args.asOfIso, args.limit],
       );
@@ -3780,8 +3877,9 @@ export function createPostgresAuthStore(
         await q(
           `INSERT INTO durable_notification_outbox
            (id, opportunity_key, purchase_id, account_id, alert_id, kind,
-            status, reason, attempt_count, recipient_email_hash, created_at, updated_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,0,$9,$10,$10)`,
+            status, reason, attempt_count, recipient_email_hash, evidence_json,
+            created_at, updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,0,$9,$10,$11,$11)`,
           [
             args.id,
             args.opportunityKey,
@@ -3792,6 +3890,7 @@ export function createPostgresAuthStore(
             args.status,
             args.reason ?? null,
             args.recipientEmailHash ?? null,
+            args.evidenceJson ?? null,
             args.nowIso,
           ],
         );
@@ -3800,10 +3899,23 @@ export function createPostgresAuthStore(
         const existing = await this.getNotificationOutboxByOpportunity(
           args.opportunityKey,
         );
+        if (args.evidenceJson && existing) {
+          try {
+            await q(
+              `UPDATE durable_notification_outbox
+               SET evidence_json = COALESCE(evidence_json, $1)
+               WHERE opportunity_key = $2`,
+              [args.evidenceJson, args.opportunityKey],
+            );
+          } catch {
+            /* ignore */
+          }
+        }
         return { id: existing?.id ?? args.id, created: false };
       }
     },
     async tryLeaseNotificationOutbox(args) {
+      // Atomically lease pending/failed_retryable OR reclaim expired sending.
       const r = await q(
         `UPDATE durable_notification_outbox
          SET status = 'sending',
@@ -3812,8 +3924,14 @@ export function createPostgresAuthStore(
              updated_at = $3,
              attempt_count = COALESCE(attempt_count, 0) + 1
          WHERE opportunity_key = $4
-           AND status IN ('pending', 'failed_retryable')
-           AND (lease_expires_at IS NULL OR lease_expires_at <= $3)`,
+           AND (
+             (status IN ('pending', 'failed_retryable')
+               AND (lease_expires_at IS NULL OR lease_expires_at <= $3))
+             OR
+             (status = 'sending'
+               AND lease_expires_at IS NOT NULL
+               AND lease_expires_at <= $3)
+           )`,
         [
           args.holderId,
           args.leaseExpiresAt,
@@ -3823,6 +3941,22 @@ export function createPostgresAuthStore(
       );
       if ((r.rowCount ?? 0) !== 1) return null;
       return this.getNotificationOutboxByOpportunity(args.opportunityKey);
+    },
+    async insertSettlementReviewAudit(args) {
+      await q(
+        `INSERT INTO settlement_review_audit
+         (id, payment_id, decision, evidence_source, evidence_ref_hash, reviewer_key_id, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          args.id,
+          args.paymentId,
+          args.decision,
+          args.evidenceSource,
+          args.evidenceRefHash,
+          args.reviewerKeyId ?? null,
+          args.nowIso,
+        ],
+      );
     },
     async markNotificationOutboxStatus(args) {
       const r = await q(

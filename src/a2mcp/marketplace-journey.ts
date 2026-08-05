@@ -297,13 +297,14 @@ export async function runMarketplaceJourney(
         },
       };
     }
-    // Public ids alone cannot create a Purchase Setup journey when a
-    // single-use claim credential was issued to the paid caller.
+    // Resolve is read-only and never sets claim_authorized. When a claim
+    // credential is required, only claimPassAndCreateJourney may authorize.
+    // Public ids without a credential cannot create a journey.
     if (
       resolution.http_status === 200 &&
       resolution.body.status === "MONITORING_PASS_ISSUED" &&
       resolution.body.claim_required === true &&
-      resolution.body.claim_authorized !== true
+      !claimCredential
     ) {
       return {
         http_status: 401,
@@ -403,26 +404,19 @@ export async function runMarketplaceJourney(
         };
       }
       journey = claimed.journey;
-    } else if (resolution.body.claim_required === true) {
+    } else {
+      // No legacy public-ID journey path — claim credential is always required.
       return {
         http_status: 401,
         body: {
           status: "CLAIM_NOT_AUTHORIZED",
           message:
-            "pass_claim_credential is required to start Purchase Setup.",
+            "pass_claim_credential is required to start Purchase Setup. Public pass or continuation ids alone cannot create a journey.",
           monitoring_active: false,
           second_payment_required: false,
           claim_required: true,
         },
       };
-    } else {
-      // Legacy path only when continuation never had a claim hash.
-      journey = await store.ensureMarketplacePurchaseJourney({
-        id: newJourneyId(),
-        monitoringPassId: resolution.body.monitoring_pass_id,
-        passContinuationId: contIdForClaim || null,
-        nowIso,
-      });
     }
   }
 

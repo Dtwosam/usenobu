@@ -340,6 +340,8 @@ CREATE TABLE IF NOT EXISTS durable_notification_outbox (
   lease_expires_at TEXT,
   next_attempt_at TEXT,
   recipient_email_hash TEXT,
+  -- Sanitized reconstruction inputs (no plaintext secrets / email body).
+  evidence_json TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   sent_at TEXT
@@ -347,6 +349,20 @@ CREATE TABLE IF NOT EXISTS durable_notification_outbox (
 
 CREATE INDEX IF NOT EXISTS idx_durable_notification_outbox_status
   ON durable_notification_outbox (status, next_attempt_at);
+
+-- Operator settlement review audit (sanitized; no payment signatures).
+CREATE TABLE IF NOT EXISTS settlement_review_audit (
+  id TEXT PRIMARY KEY NOT NULL,
+  payment_id TEXT NOT NULL,
+  decision TEXT NOT NULL,
+  evidence_source TEXT NOT NULL,
+  evidence_ref_hash TEXT NOT NULL,
+  reviewer_key_id TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_settlement_review_audit_payment
+  ON settlement_review_audit (payment_id);
 `;
 
 /** Best-effort column adds for existing durable DBs (Postgres / SQLite). */
@@ -371,5 +387,6 @@ export const AUTH_DURABLE_SCHEMA_PATCHES = [
   `ALTER TABLE monitoring_passes ADD COLUMN payer_address TEXT`,
   `ALTER TABLE monitoring_pass_continuations ADD COLUMN claim_credential_hash TEXT`,
   `ALTER TABLE monitoring_pass_continuations ADD COLUMN claim_credential_consumed_at TEXT`,
+  `ALTER TABLE durable_notification_outbox ADD COLUMN evidence_json TEXT`,
 ];
 

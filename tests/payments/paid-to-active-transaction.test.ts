@@ -471,7 +471,7 @@ describe("Paid-to-active transaction repair", () => {
     const claim = result.pass_claim_credential;
     expect(claim).toBeTruthy();
 
-    // Public id status lookup still works
+    // Resolve is read-only: public id status works; never authorizes claim.
     const status = await resolveMonitoringPassForAgent({
       monitoringPassId: passId,
       sqliteDb: db,
@@ -479,17 +479,20 @@ describe("Paid-to-active transaction repair", () => {
     });
     expect(status.http_status).toBe(200);
     expect(status.body.claim_required).toBe(true);
+    expect(status.body.claim_authorized).toBe(false);
 
-    // Wrong credential rejected
+    // Wrong credential on resolve does not consume and does not authorize.
     const bad = await resolveMonitoringPassForAgent({
       passContinuationId: contId,
       passClaimCredential: "pass_claim_wrong",
       sqliteDb: db,
       env: testEnv,
     });
-    expect(bad.http_status).toBe(401);
+    expect(bad.http_status).toBe(200);
+    expect(bad.body.claim_authorized).toBe(false);
+    expect(bad.body.claim_required).toBe(true);
 
-    // Valid credential once
+    // Valid credential on resolve also does not consume (claim_authorized false).
     const good = await resolveMonitoringPassForAgent({
       passContinuationId: contId,
       passClaimCredential: claim,
@@ -497,23 +500,42 @@ describe("Paid-to-active transaction repair", () => {
       env: testEnv,
     });
     expect(good.http_status).toBe(200);
-    expect(good.body.claim_authorized).toBe(true);
+    expect(good.body.claim_authorized).toBe(false);
+    expect(good.body.claim_required).toBe(true);
 
-    // After consume: status lookup works; presenting the same secret again
-    // is rejected as already-used when still presented as a claim attempt.
-    const reuse = await resolveMonitoringPassForAgent({
-      passContinuationId: contId,
-      passClaimCredential: claim,
-      sqliteDb: db,
-      env: testEnv,
+    // Atomic claim via store still requires matching hash.
+    const store = await getAuthStore({ sqliteDb: db, env: testEnv });
+    const { sha256Hex } = await import("../../src/auth/crypto.js");
+    const claimed = await store.claimPassAndCreateJourney({
+      continuationId: contId!,
+      claimCredentialHash: sha256Hex(claim!),
+      journeyId: "journey_claim_once",
+      monitoringPassId: passId,
+      nowIso: new Date().toISOString(),
     });
-    // Consumed credential: claim_required false, but if presented and hash
-    // no longer matches unconsumed state the consume fails — OR status is
-    // allowed without re-claim. Either is safe; assert no double-claim grant.
-    expect([200, 401]).toContain(reuse.http_status);
-    if (reuse.http_status === 200) {
-      // Status-only path after claim — credential no longer required.
-      expect(reuse.body.claim_required).toBe(false);
+    expect(claimed.outcome).toBe("created");
+
+    // Invalid credential cannot recover journey after consumption.
+    const invalid = await store.claimPassAndCreateJourney({
+      continuationId: contId!,
+      claimCredentialHash: sha256Hex("pass_claim_wrong"),
+      journeyId: "journey_claim_bad",
+      monitoringPassId: passId,
+      nowIso: new Date().toISOString(),
+    });
+    expect(invalid.outcome).toBe("claim_invalid");
+
+    // Matching credential recovers same journey (lost response recovery).
+    const recover = await store.claimPassAndCreateJourney({
+      continuationId: contId!,
+      claimCredentialHash: sha256Hex(claim!),
+      journeyId: "journey_claim_recover",
+      monitoringPassId: passId,
+      nowIso: new Date().toISOString(),
+    });
+    expect(recover.outcome).toBe("already_existed");
+    if (recover.outcome === "already_existed" || recover.outcome === "created") {
+      expect(recover.journey.id).toBe("journey_claim_once");
     }
   });
 

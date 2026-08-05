@@ -78,14 +78,15 @@ export function insertNotification(args: {
         created_at,
       );
     return { id, created: true };
-  } catch {
+  } catch (err) {
     // Unique race — treat as existing
     const again = findNotificationByOpportunity(
       args.db,
       args.opportunity_key,
     );
     if (again) return { id: again.id, created: false };
-    throw new Error("email_notification_insert_failed");
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`email_notification_insert_failed: ${message}`);
   }
 }
 
