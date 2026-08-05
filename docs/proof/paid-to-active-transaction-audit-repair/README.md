@@ -76,7 +76,20 @@ Focused suite: `tests/payments/paid-to-active-audit-repair.test.ts` + related cl
 
 ## Production
 
-Deploy only after focused proof (this document). Production probes remain unpaid and malformed-only. No genuine payment, ASP update, activation, resubmission, wallet funding, new Agent, or new service.
+- Code commit: `d9ff024`
+- Proof commit: `3c2e1fa`
+- Deploy: Production READY, aliased `https://www.usenobu.xyz` (Vercel deployment URL `https://usenobu-r5zxawgqe-dtwoflicks-2878s-projects.vercel.app`)
+
+Production probes (unpaid / malformed only):
+
+| Probe | Result |
+|-------|--------|
+| `GET /health` | 200 ok |
+| `POST /v1/agent` `{}` | 400 service selection / input |
+| `POST /v1/agent/monitoring-pass` unpaid | 402 PAYMENT_PENDING, amount 990000, eip155:196 |
+| `POST /v1/agent/monitoring-pass` malformed signature | 402 PAYMENT_REJECTED |
+
+No genuine payment, ASP update, activation, resubmission, wallet funding, new Agent, or new service.
 
 ## Status progression
 
