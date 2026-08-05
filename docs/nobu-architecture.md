@@ -9,11 +9,11 @@
 
 **Agent surfaces**
 
-- Free `POST /v1/agent` — marketplace journey (pass handoff → purchase setup → redeem) plus legacy action enum (understand, discover, confirm, email, preflight, redeem, list/status, alerts, stop). First contact introduces both free Purchase Setup and paid Monitoring Pass.
-- Paid `POST /v1/agent/monitoring-pass` — `$0.99` x402 v2 exact on X Layer (`eip155:196`) USD₮0 amount `990000`; official OKX seller **verify → settle → settle/status**; pending settlements poll settle/status on the hot path and via continuation-targeted RESOLVE; exactly one Monitoring Pass per settlement. Body with `pass_continuation_id` / `monitoring_pass_id` never re-challenges.
+- Free `POST /v1/agent` (service **33561**, registered `https://usenobu.vercel.app/v1/agent`) — generic Agent-only first contact returns `SERVICE_SELECTION_REQUIRED` with both services (`src/a2mcp/service-catalogue.ts`); machine actions `DESCRIBE_SERVICES` / `SELECT_SERVICE`; marketplace journey (pass handoff → purchase setup → redeem) plus legacy action enum. Free service never returns 402 and never sells a pass.
+- Paid `POST /v1/agent/monitoring-pass` (service **35958**, registered `https://www.usenobu.xyz/v1/agent/monitoring-pass`, distinct host) — `$0.99` x402 v2 exact on X Layer (`eip155:196`) USD₮0 amount `990000`; unpaid body has empty required fields and structured deliverable; official OKX seller **verify → settle → settle/status**; exactly one Monitoring Pass per settlement. Payment does not activate monitoring.
 - Legacy private `POST /v1/agent/start-monitoring` retained internally.
 - Topology: **separate free and paid A2MCP services under one ASP identity** (`#5541`); no second ASP.
-- Conversation contract: every Nobu-controlled response carries status, completed_step, next_action, payment_status, second_payment_required, monitoring_active, journey_complete, retry_safe, fields/requiredArgs, guidance.
+- Conversation contract: every Nobu-controlled response carries status, completed_step, next_action, payment_status, second_payment_required, monitoring_active, journey_complete, retry_safe, fields/requiredArgs, guidance. `next_action` alone does **not** imply a user-facing `action` field.
 
 **Shared pipeline**
 

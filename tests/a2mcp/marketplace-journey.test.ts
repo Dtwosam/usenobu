@@ -40,28 +40,64 @@ function targetOffer(): MatchableOffer {
   };
 }
 
-function assertIncomplete(
+function assertHumanStage(
   body: Record<string, unknown>,
-  stageFields: string | string[],
+  userFields: string | string[],
+  opts?: { status?: string; currentStep?: string },
 ): void {
-  const expectedFields = Array.isArray(stageFields) ? stageFields : [stageFields];
-  // product_discovery only needs journey_id (already the sole field).
-  const fields =
-    expectedFields.length === 1 && expectedFields[0] === "journey_id"
-      ? ["journey_id"]
-      : [...expectedFields, "journey_id"];
-  expect(body.status).toBe("input_required");
+  const fields = Array.isArray(userFields) ? userFields : [userFields];
+  // Human stages: only user-visible fields — never journey_id as required input.
+  expect(body.input_required).toBe(true);
+  expect(body.automatic_continue).toBe(false);
   expect(body.fields).toEqual(fields);
   expect(body.requiredArgs).toEqual(fields);
+  expect(body.required_fields).toEqual(fields);
   expect(body.journey_id).toBeTruthy();
   expect(body.second_payment_required).toBe(false);
   expect(body.monitoring_active).toBe(false);
   expect(body.journey_complete).toBe(false);
   expect(body.payment_status).toBe("recognized");
   expect(body.retry_safe).toBe(true);
-  expect(String(body.guidance || "").length).toBeGreaterThan(0);
-  // Marketplace journey never exposes free-service action enums as required next steps.
+  expect(body.machine_continuation).toEqual(
+    expect.objectContaining({
+      method: "POST",
+      service_id: 33561,
+      do_not_ask_user: true,
+      body: expect.objectContaining({ journey_id: body.journey_id }),
+    }),
+  );
+  // Never ask the user to type journey_id.
+  expect(fields).not.toContain("journey_id");
   expect(JSON.stringify(body.fields)).not.toMatch(/UNDERSTAND_|RESOLVE_|REDEEM_/);
+  if (opts?.status) expect(body.status).toBe(opts.status);
+  if (opts?.currentStep) expect(body.current_step).toBe(opts.currentStep);
+}
+
+function assertAutomaticStage(body: Record<string, unknown>): void {
+  expect(body.input_required).toBe(false);
+  expect(body.automatic_continue).toBe(true);
+  expect(body.fields).toEqual([]);
+  expect(body.requiredArgs).toEqual([]);
+  expect(body.required_fields).toEqual([]);
+  expect(body.required_user_input).toBeNull();
+  expect(body.journey_id).toBeTruthy();
+  expect(body.machine_continuation).toEqual(
+    expect.objectContaining({
+      method: "POST",
+      service_id: 33561,
+      do_not_ask_user: true,
+      body: expect.objectContaining({ journey_id: body.journey_id }),
+    }),
+  );
+  expect(String(body.guidance || "")).toMatch(/Do not ask the user to resubmit journey_id/i);
+}
+
+/** @deprecated name kept for call-site clarity during migration */
+function assertIncomplete(
+  body: Record<string, unknown>,
+  stageFields: string | string[],
+): void {
+  assertHumanStage(body, stageFields);
 }
 
 describe("Lane 8R marketplace Purchase Setup", () => {
@@ -135,7 +171,12 @@ describe("Lane 8R marketplace Purchase Setup", () => {
 
     const resolved = await runMarketplaceJourney({ monitoring_pass_id: passId }, deps);
     expect(resolved.http_status).toBe(400);
-    assertIncomplete(resolved.body, "confirm_use_pass");
+    assertHumanStage(resolved.body, "confirm_use_pass", {
+      status: "MONITORING_PASS_ISSUED",
+      currentStep: "confirm_use_pass",
+    });
+    expect(resolved.body.next_action).toBe("CONFIRM_USE_PASS");
+    expect(resolved.body.next_service_id).toBe(33561);
     expect(String(resolved.body.message)).toContain("No additional payment");
     const journeyId = String(resolved.body.journey_id);
 
@@ -143,7 +184,9 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       { journey_id: journeyId, confirm_use_pass: true },
       deps,
     );
-    assertIncomplete(confirmedUse.body, "purchase_description");
+    assertHumanStage(confirmedUse.body, "purchase_description", {
+      currentStep: "purchase_description",
+    });
 
     const purchaseDescription = [
       "I bought an Example Gadget from Target online",
@@ -155,16 +198,21 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       { journey_id: journeyId, purchase_description: purchaseDescription },
       deps,
     );
-    assertIncomplete(extracted.body, "journey_id");
+    // Product discovery is automatic — do not ask the user to resubmit journey_id.
+    expect(extracted.http_status).toBe(200);
+    assertAutomaticStage(extracted.body);
     expect(extracted.body.completed_step).toBe("PURCHASE_DETAILS_CAPTURED");
-    expect(String(extracted.body.message)).toMatch(/saved|Resubmit/i);
+    expect(extracted.body.current_step).toBe("product_discovery");
+    expect(extracted.body.next_action).toBe("RUN_PRODUCT_DISCOVERY");
 
     // Discovery is a separate stage so extract is never a silent multi-provider wait.
     const discovered = await runMarketplaceJourney(
       { journey_id: journeyId },
       deps,
     );
-    assertIncomplete(discovered.body, "candidate_id");
+    assertHumanStage(discovered.body, "candidate_id", {
+      currentStep: "candidate_id",
+    });
     const candidateId = String(discovered.body.message).match(/cand_[a-zA-Z0-9_-]+/)?.[0];
     expect(candidateId).toBeTruthy();
 
@@ -172,13 +220,15 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       { journey_id: journeyId, candidate_id: candidateId },
       deps,
     );
-    assertIncomplete(candidate.body, "email");
+    assertHumanStage(candidate.body, "email", { currentStep: "email" });
 
     const email = await runMarketplaceJourney(
       { journey_id: journeyId, email: "marketplace-proof@example.com" },
       deps,
     );
-    assertIncomplete(email.body, "verification_code");
+    assertHumanStage(email.body, "verification_code", {
+      currentStep: "verification_code",
+    });
     const store = await getAuthStore({ sqliteDb: db });
     const durableJourney = await store.getMarketplacePurchaseJourneyById(journeyId);
     expect(durableJourney?.connection_id).toBeTruthy();
@@ -189,10 +239,10 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       { journey_id: journeyId, verification_code: code },
       deps,
     );
-    assertIncomplete(verified.body, [
+    assertHumanStage(verified.body, [
       "monitoring_consent",
       "email_alert_consent",
-    ]);
+    ], { currentStep: "consents" });
 
     const active = await runMarketplaceJourney(
       {
@@ -205,7 +255,9 @@ describe("Lane 8R marketplace Purchase Setup", () => {
     expect(active.http_status).toBe(200);
     expect(active.body.status).toBe("MONITORING_ACTIVE");
     expect(active.body.monitoring_active).toBe(true);
+    expect(active.body.journey_complete).toBe(true);
     expect(active.body.second_payment_required).toBe(false);
+    expect(active.body.payment_status).toBe("recognized");
     // Marketplace complete responses stay free of low-level credential fields.
     expect(JSON.stringify(active.body)).not.toMatch(
       /connection_token|quote_id|discovery_session_id/i,
@@ -231,7 +283,9 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       { sqliteDb: db },
     );
     expect(early.http_status).toBe(400);
-    assertIncomplete(early.body, "confirm_use_pass");
+    assertHumanStage(early.body, "confirm_use_pass", {
+      status: "MONITORING_PASS_ISSUED",
+    });
     const journeyId = String(early.body.journey_id);
 
     const paidUrlAttempt = await paidServicePost(
@@ -242,16 +296,17 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       }),
     );
     expect(paidUrlAttempt.status).toBe(400);
-    assertIncomplete(
+    assertHumanStage(
       (await paidUrlAttempt.json()) as Record<string, unknown>,
       "confirm_use_pass",
+      { status: "MONITORING_PASS_ISSUED" },
     );
 
     const purchaseStage = await runMarketplaceJourney(
       { journey_id: journeyId, confirm_use_pass: true },
       { sqliteDb: db },
     );
-    assertIncomplete(purchaseStage.body, "purchase_description");
+    assertHumanStage(purchaseStage.body, "purchase_description");
     const stillPurchaseOnly = await runMarketplaceJourney(
       {
         journey_id: journeyId,
@@ -261,7 +316,7 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       },
       { sqliteDb: db },
     );
-    assertIncomplete(stillPurchaseOnly.body, "purchase_description");
+    assertHumanStage(stillPurchaseOnly.body, "purchase_description");
 
     expect(passCount()).toBe(beforePasses);
     expect(

@@ -10,13 +10,47 @@
  * This module is deliberately pure: building the descriptor performs no
  * Groq, SerpApi, email, or Postgres work, so first contact cannot inherit any
  * dependency's latency or failure mode.
+ *
+ * Marketplace generic first contact now returns SERVICE_SELECTION_REQUIRED
+ * from the canonical service catalogue (see service-catalogue.ts). This file
+ * retains the low-level free-service action list and READY descriptor for
+ * protocol callers that already know they are on Purchase Setup.
  */
 
-/** Public customer guide referenced from machine-readable responses. */
-export const NOBU_DOCUMENTATION_URL = "https://www.usenobu.xyz/okx";
+import {
+  buildFreeCatalogueService,
+  buildPaidCatalogueService,
+  DESCRIBE_SERVICES_ACTION,
+  FREE_SERVICE_ID,
+  FREE_SERVICE_NAME,
+  listAvailableServices,
+  NOBU_DOCUMENTATION_URL,
+  PAID_SERVICE_ID,
+  PAID_SERVICE_NAME,
+  PAID_SERVICE_PRICE_LABEL,
+  SELECT_SERVICE_ACTION,
+  SERVICE_SELECTION_CALLING_AGENT_GUIDANCE,
+  type CatalogueService,
+} from "./service-catalogue.js";
+
+export { NOBU_DOCUMENTATION_URL };
 
 /** Every action the free A2MCP service accepts, with its required fields. */
 export const FREE_AGENT_ACTIONS = [
+  {
+    action: DESCRIBE_SERVICES_ACTION,
+    summary:
+      "List both registered Nobu services. Calling agents should invoke this automatically on generic Agent-5541 contact; never ask the user for an internal action name.",
+    required_fields: ["action"],
+    optional_fields: [],
+  },
+  {
+    action: SELECT_SERVICE_ACTION,
+    summary:
+      "Select exactly one registered service by service_id (33561 free or 35958 paid).",
+    required_fields: ["action", "service_id"],
+    optional_fields: [],
+  },
   {
     action: "UNDERSTAND_PURCHASE",
     summary:
@@ -160,7 +194,7 @@ export const FREE_AGENT_ACTIONS = [
   },
 ] as const;
 
-/** Action names recognised by the free dispatcher. */
+/** Action names recognised by the free dispatcher (incl. service discovery). */
 export const FREE_AGENT_ACTION_NAMES: readonly string[] =
   FREE_AGENT_ACTIONS.map((a) => a.action);
 
@@ -170,6 +204,7 @@ export type FreeServiceDescriptor = {
   agent: string;
   introduction: string;
   service: string;
+  service_id: typeof FREE_SERVICE_ID;
   message: string;
   protocol: string;
   request: {
@@ -180,7 +215,9 @@ export type FreeServiceDescriptor = {
   supported_actions: typeof FREE_AGENT_ACTIONS;
   recommended_first_action: string;
   example_request: Record<string, unknown>;
+  available_services: readonly CatalogueService[];
   paid_service: {
+    service_id: typeof PAID_SERVICE_ID;
     name: string;
     endpoint: string;
     price: string;
@@ -190,42 +227,75 @@ export type FreeServiceDescriptor = {
   documentation: string;
   next_action: string;
   completed_step: string;
-  payment_status: "required" | "not_required" | "pending" | "recognized";
+  payment_status: "not_required";
   second_payment_required: false;
   monitoring_active: false;
   journey_complete: false;
   retry_safe: true;
+  input_required: false;
   fields?: readonly string[];
   requiredArgs?: readonly string[];
-  required_user_input: Record<string, unknown>;
+  required_user_input: Record<string, unknown> | null;
   guidance: string;
 };
 
-export type FreeServiceInputRequired = Omit<
-  FreeServiceDescriptor,
-  "agent_state" | "status" | "message"
-> & {
+export type FreeServiceInputRequired = {
   agent_state: "SERVICE_INPUT";
   status: "input_required";
+  agent: string;
+  introduction: string;
+  service: string;
+  service_id: typeof FREE_SERVICE_ID;
   message: string;
+  protocol: string;
+  request: FreeServiceDescriptor["request"];
+  supported_actions: typeof FREE_AGENT_ACTIONS;
+  recommended_first_action: typeof DESCRIBE_SERVICES_ACTION;
+  example_request: Record<string, unknown>;
+  available_services: readonly CatalogueService[];
+  paid_service: FreeServiceDescriptor["paid_service"];
+  retailer_support: string;
+  documentation: string;
+  next_action: typeof DESCRIBE_SERVICES_ACTION;
+  completed_step: string;
+  payment_status: "not_required";
+  second_payment_required: false;
+  monitoring_active: false;
+  journey_complete: false;
+  retry_safe: true;
+  input_required: true;
   fields: readonly ["action"];
   requiredArgs: readonly ["action"];
+  required_user_input: {
+    action: typeof DESCRIBE_SERVICES_ACTION;
+    required_fields: readonly [];
+    description: string;
+  };
+  guidance: string;
+  auto_invoke: typeof DESCRIBE_SERVICES_ACTION;
+  do_not_ask_user_for_internal_action: true;
 };
 
 /**
  * Pure — no network, database, AI, or email work. Safe to return on the
  * hot path of an unshaped first contact.
+ *
+ * Free Purchase Setup never requires payment. Paid Monitoring Pass is listed
+ * via available_services / paid_service with its own registered endpoint.
  */
 export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
+  const free = buildFreeCatalogueService();
+  const paid = buildPaidCatalogueService();
   return {
     agent_state: "SERVICE_DESCRIPTOR",
     status: "READY",
     introduction:
       "Nobu monitors exact Target online purchases and alerts when a safely matched lower price may create a chance to request an adjustment. Target decides any refund.",
-    service: "Nobu Purchase Setup",
+    service: FREE_SERVICE_NAME,
+    service_id: FREE_SERVICE_ID,
     agent: "Nobu — AI post-purchase monitoring agent",
     message:
-      "Purchase Setup (33561) is free. Monitoring Pass (35958) is 0.99 USDT once and does not start monitoring. Choose one next step.",
+      "You are on free Nobu Purchase Setup (33561). It does not sell a Monitoring Pass and does not activate monitoring by first contact alone. Paid Monitoring Pass is service 35958 at its own endpoint.",
     protocol: "A2MCP",
     request: {
       method: "POST",
@@ -233,66 +303,90 @@ export function buildFreeServiceDescriptor(): FreeServiceDescriptor {
       envelope: '{"action":"<ACTION>", ...required fields}',
     },
     supported_actions: FREE_AGENT_ACTIONS,
-    recommended_first_action: "UNDERSTAND_PURCHASE",
+    recommended_first_action: DESCRIBE_SERVICES_ACTION,
     example_request: {
-      action: "UNDERSTAND_PURCHASE",
-      purchase_text:
-        "I bought an Apple AirTag from Target online on 2026-07-20 for $29.99",
+      action: DESCRIBE_SERVICES_ACTION,
     },
+    available_services: listAvailableServices(),
     paid_service: {
-      name: "Nobu Monitoring Pass",
-      endpoint: "https://usenobu.vercel.app/v1/agent/monitoring-pass",
-      price: "0.99 USDT",
-      description:
-        "One Monitoring Pass only. Does not activate monitoring. One quote, one payment; never re-quote on balance_unavailable.",
+      service_id: PAID_SERVICE_ID,
+      name: paid.name,
+      endpoint: paid.endpoint,
+      price: paid.price,
+      description: paid.description,
     },
     retailer_support:
       "Target only for MVP. Target makes the final adjustment decision.",
     documentation: NOBU_DOCUMENTATION_URL,
-    next_action:
-      "No pass yet → service 35958 once (one quote only). Already paid → RESOLVE_MONITORING_PASS with pass_continuation_id or monitoring_pass_id. Pass ready → purchase description only.",
+    next_action: DESCRIBE_SERVICES_ACTION,
     completed_step: "NOBU_INTRODUCED",
-    payment_status: "required",
+    payment_status: "not_required",
     second_payment_required: false,
     monitoring_active: false,
     journey_complete: false,
     retry_safe: true,
-    fields: ["action"],
-    requiredArgs: ["action"],
-    required_user_input: {
-      action: "UNDERSTAND_PURCHASE",
-      required_fields: ["purchase_text"],
-      description:
-        "If the user already has a pass, send purchase_text only. Otherwise route to service 35958 once first.",
-    },
-    guidance:
-      "Explain both services once: free 33561 vs paid 35958 (0.99 USDT). One deliberate payment quote only; never re-quote on balance_unavailable. After payment, never request a second charge. Setup order: pass → purchase details → discovery → exact confirm → email → code → both consents → redeem. Never guarantee a Target adjustment.",
+    input_required: false,
+    fields: [],
+    requiredArgs: [],
+    required_user_input: null,
+    guidance: `${SERVICE_SELECTION_CALLING_AGENT_GUIDANCE} Free service ${FREE_SERVICE_ID} never charges. Paid service ${PAID_SERVICE_ID} is ${PAID_SERVICE_PRICE_LABEL} for one Monitoring Pass only.`,
   };
 }
 
 /**
- * Official Onchain OS 4.4.0 endpoint validation treats this 400 response as
- * an input-required service and uses `requiredArgs`/`fields` to continue its
- * service-input flow. `action` is the only field required by every request;
- * `supported_actions` truthfully declares each action's remaining fields.
+ * Low-level empty free-service probe that still exposes the protocol `action`
+ * field for A2MCP compatibility. Instructs the calling agent to invoke
+ * DESCRIBE_SERVICES automatically — never ask the end user for an internal
+ * action name. Payment is not required on free Purchase Setup.
+ *
+ * Marketplace generic first contact prefers buildServiceSelectionRequired().
  */
 export function buildFreeServiceInputRequired(): FreeServiceInputRequired {
   const descriptor = buildFreeServiceDescriptor();
   return {
-    ...descriptor,
     agent_state: "SERVICE_INPUT",
     status: "input_required",
+    agent: descriptor.agent,
+    introduction: descriptor.introduction,
+    service: descriptor.service,
+    service_id: FREE_SERVICE_ID,
     message:
-      "Purchase Setup is free (no x402). No pass yet: use service 35958 once (0.99 USDT, one quote). Already paid: send monitoring_pass_id or pass_continuation_id / RESOLVE. Pass ready: send a purchase description action.",
+      "Invoke DESCRIBE_SERVICES automatically to list both Nobu services. Do not ask the user for an internal action name. Do not assume a service from Agent ID alone. Free Purchase Setup (33561) never requires payment.",
+    protocol: descriptor.protocol,
+    request: descriptor.request,
+    supported_actions: FREE_AGENT_ACTIONS,
+    recommended_first_action: DESCRIBE_SERVICES_ACTION,
+    example_request: { action: DESCRIBE_SERVICES_ACTION },
+    available_services: descriptor.available_services,
+    paid_service: descriptor.paid_service,
+    retailer_support: descriptor.retailer_support,
+    documentation: NOBU_DOCUMENTATION_URL,
+    next_action: DESCRIBE_SERVICES_ACTION,
+    completed_step: "NOBU_INTRODUCED",
+    payment_status: "not_required",
+    second_payment_required: false,
+    monitoring_active: false,
+    journey_complete: false,
+    retry_safe: true,
+    input_required: true,
     fields: ["action"],
     requiredArgs: ["action"],
+    required_user_input: {
+      action: DESCRIBE_SERVICES_ACTION,
+      required_fields: [],
+      description:
+        "Calling agent: auto-invoke DESCRIBE_SERVICES. Never ask the user to name an internal action or describe Nobu.",
+    },
+    guidance: SERVICE_SELECTION_CALLING_AGENT_GUIDANCE,
+    auto_invoke: DESCRIBE_SERVICES_ACTION,
+    do_not_ask_user_for_internal_action: true,
   };
 }
 
 /**
  * True when a parsed request body carries no action this service recognises.
- * Those callers get the pure input-required response. A recognised action
- * always falls through to the existing dispatcher unchanged.
+ * Those callers get the pure service-selection / first-contact response. A
+ * recognised action always falls through to the existing dispatcher unchanged.
  */
 export function isFirstContactRequest(raw: unknown): boolean {
   if (raw === null || raw === undefined) return true;

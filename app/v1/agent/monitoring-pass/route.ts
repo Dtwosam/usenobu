@@ -13,6 +13,7 @@ import {
   X402_CHALLENGE_HEADER_NAME,
   X402_PAYMENT_HEADER_NAME,
 } from "@/payments/x402";
+import { resolvePaidServiceEndpoint } from "@/a2mcp/service-catalogue";
 
 /**
  * Lane 8R.3B — paid A2MCP service `35958`, "Nobu Monitoring Pass" ($0.99).
@@ -22,6 +23,9 @@ import {
  * business execution and without requiring a quote, connection, purchase or
  * consent. The signed replay travels in PAYMENT-SIGNATURE (never the body)
  * and returns the issued Monitoring Pass.
+ *
+ * Registered paid endpoint (distinct from free service host):
+ * https://www.usenobu.xyz/v1/agent/monitoring-pass
  */
 
 const ROUTE = "/v1/agent/monitoring-pass";
@@ -34,12 +38,13 @@ function clientKey(req: Request): string {
   return "local";
 }
 
-/** A2MCP agent host, distinct from the consumer web origin (www.usenobu.xyz). */
+/**
+ * x402 resource.url must match the registered paid endpoint.
+ * Uses NOBU_PAID_SERVICE_ENDPOINT or the catalogue default — never derived
+ * from the free-service host.
+ */
 function resolveResourceUrl(env: NodeJS.ProcessEnv = process.env): string {
-  const base =
-    env.NOBU_A2MCP_BASE_URL?.trim().replace(/\/$/, "") ||
-    "https://usenobu.vercel.app";
-  return `${base}/v1/agent/monitoring-pass`;
+  return resolvePaidServiceEndpoint(env);
 }
 
 async function handle(req: Request, method: "GET" | "POST") {

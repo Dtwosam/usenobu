@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { auditA2mcp, defaultA2mcpRateLimiter } from "@/a2mcp/index";
 import {
-  buildFreeServiceInputRequired,
   isFirstContactRequest,
   NOBU_DOCUMENTATION_URL,
 } from "@/a2mcp/service-descriptor";
+import {
+  buildServiceSelectionRequired,
+  buildServiceSelectedResponse,
+  DESCRIBE_SERVICES_ACTION,
+  SELECT_SERVICE_ACTION,
+  isServiceDiscoveryAction,
+} from "@/a2mcp/service-catalogue";
 import {
   isMarketplaceJourneyRequest,
   runMarketplaceJourney,
@@ -23,31 +29,34 @@ function clientKey(req: Request): string {
   return "local";
 }
 
-/** Pure first-contact descriptor — introduces both services; no DB/AI work. */
-function inputRequiredResponse(): NextResponse {
-  return NextResponse.json(buildFreeServiceInputRequired(), { status: 400 });
+/**
+ * Generic Agent-5541 first contact — present both services, require service_id.
+ * Pure: no DB/AI work. Payment is not required until service 35958 is selected.
+ */
+function serviceSelectionResponse(): NextResponse {
+  return NextResponse.json(buildServiceSelectionRequired(), { status: 400 });
 }
 
 /**
  * GET /v1/agent — validation/input-discovery path.
  *
- * Official Onchain OS 4.4.0 probes with GET before a business request. A 400
- * `input_required` response with truthful field metadata lets its input flow
- * continue without putting this free endpoint behind 402.
+ * Official Onchain OS 4.4.0 probes with GET before a business request.
+ * Generic Agent contact returns SERVICE_SELECTION_REQUIRED with both
+ * registered services — never assumes paid service or payment.
  */
 export async function GET(req: Request) {
   const started = Date.now();
-  const res = inputRequiredResponse();
+  const res = serviceSelectionResponse();
   logA2mcpRequest({
     route: ROUTE,
     method: "GET",
     contentType: req.headers.get("content-type"),
     contentLength: parseContentLength(req.headers.get("content-length")),
     body: null,
-    recognisedAction: null,
+    recognisedAction: DESCRIBE_SERVICES_ACTION,
     httpStatus: 400,
     durationMs: Date.now() - started,
-    outcome: "input_required",
+    outcome: "SERVICE_SELECTION_REQUIRED",
   });
   return res;
 }
@@ -154,14 +163,44 @@ export async function POST(req: Request) {
     return NextResponse.json(result.body, { status: result.http_status });
   }
 
-  // Empty validation/first contact routes issued-pass users to free setup.
-  if (isFirstContactRequest(raw)) {
+  // Service discovery machine actions (DESCRIBE_SERVICES / SELECT_SERVICE).
+  if (
+    raw &&
+    typeof raw === "object" &&
+    !Array.isArray(raw) &&
+    isServiceDiscoveryAction((raw as { action?: unknown }).action)
+  ) {
+    const discoveryAction = String((raw as { action: unknown }).action);
+    if (discoveryAction === DESCRIBE_SERVICES_ACTION) {
+      auditA2mcp({
+        at: new Date().toISOString(),
+        route: ROUTE,
+        client_key: key,
+        http_status: 400,
+        outcome: "SERVICE_SELECTION_REQUIRED",
+        duration_ms: Date.now() - started,
+      });
+      logA2mcpRequest({
+        route: ROUTE,
+        method: "POST",
+        contentType,
+        contentLength,
+        body: raw,
+        recognisedAction: DESCRIBE_SERVICES_ACTION,
+        httpStatus: 400,
+        durationMs: Date.now() - started,
+        outcome: "SERVICE_SELECTION_REQUIRED",
+      });
+      return serviceSelectionResponse();
+    }
+
+    const selected = buildServiceSelectedResponse(raw);
     auditA2mcp({
       at: new Date().toISOString(),
       route: ROUTE,
       client_key: key,
-      http_status: 400,
-      outcome: "input_required",
+      http_status: selected.http_status,
+      outcome: String(selected.body.status),
       duration_ms: Date.now() - started,
     });
     logA2mcpRequest({
@@ -170,12 +209,37 @@ export async function POST(req: Request) {
       contentType,
       contentLength,
       body: raw,
-      recognisedAction: null,
+      recognisedAction: SELECT_SERVICE_ACTION,
+      httpStatus: selected.http_status,
+      durationMs: Date.now() - started,
+      outcome: String(selected.body.status),
+    });
+    return NextResponse.json(selected.body, { status: selected.http_status });
+  }
+
+  // Generic Agent-5541 first contact: both services, require service_id.
+  // Never assume 35958, never require payment, never ask user to describe Nobu.
+  if (isFirstContactRequest(raw)) {
+    auditA2mcp({
+      at: new Date().toISOString(),
+      route: ROUTE,
+      client_key: key,
+      http_status: 400,
+      outcome: "SERVICE_SELECTION_REQUIRED",
+      duration_ms: Date.now() - started,
+    });
+    logA2mcpRequest({
+      route: ROUTE,
+      method: "POST",
+      contentType,
+      contentLength,
+      body: raw,
+      recognisedAction: DESCRIBE_SERVICES_ACTION,
       httpStatus: 400,
       durationMs: Date.now() - started,
-      outcome: "input_required",
+      outcome: "SERVICE_SELECTION_REQUIRED",
     });
-    return inputRequiredResponse();
+    return serviceSelectionResponse();
   }
 
   const action = String((raw as { action: unknown }).action);

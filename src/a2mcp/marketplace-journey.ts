@@ -18,7 +18,15 @@ import type { MatchableOffer } from "../matching/types.js";
 import {
   buildConversationContract,
   marketplaceIncompleteContract,
+  marketplaceMonitoringActiveContract,
+  type MarketplaceStage,
 } from "./conversation-contract.js";
+import {
+  buildServiceSelectionRequired,
+  FREE_SERVICE_ID,
+  PAID_SERVICE_ID,
+  resolveFreeServiceEndpoint,
+} from "./service-catalogue.js";
 
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -30,15 +38,7 @@ export type MarketplaceJourneyDeps = Omit<UnderstandDeps, "now"> & {
   offersOverride?: MatchableOffer[];
 };
 
-type JourneyStage =
-  | "confirm_use_pass"
-  | "purchase_description"
-  | "product_discovery"
-  | "candidate_id"
-  | "email"
-  | "verification_code"
-  | "consents"
-  | "complete";
+type JourneyStage = MarketplaceStage | "complete";
 
 type PurchaseSnapshot = {
   purchase_price: number;
@@ -54,12 +54,14 @@ type PurchaseSnapshot = {
 };
 
 function incomplete(
-  stage: Exclude<JourneyStage, "complete">,
+  stage: MarketplaceStage,
   journeyId: string,
   message?: string,
   extras?: {
     passContinuationId?: string | null;
     monitoringPassId?: string | null;
+    env?: EnvRecord;
+    candidatesMessage?: string;
   },
 ) {
   const contract = marketplaceIncompleteContract({
@@ -68,12 +70,18 @@ function incomplete(
     message,
     passContinuationId: extras?.passContinuationId,
     monitoringPassId: extras?.monitoringPassId,
+    env: extras?.env,
+    candidatesMessage: extras?.candidatesMessage,
   });
+  // Automatic stages use 200 so buyer agents auto-continue without treating
+  // the response as a human field-collection error.
+  const http_status = contract.automatic_continue ? 200 : 400;
   return {
-    http_status: 400 as const,
+    http_status: http_status as 200 | 400,
     body: {
       ...contract,
       journey_id: journeyId,
+      free_service_endpoint: resolveFreeServiceEndpoint(extras?.env),
     },
   };
 }
@@ -197,37 +205,22 @@ export function isMarketplaceJourneyRequest(raw: unknown): boolean {
   );
 }
 
+/**
+ * Marketplace path without a pass reference: present both services.
+ * Never assume paid service 35958 or require payment before service choice.
+ */
 export function marketplaceFirstContact() {
-  const contract = buildConversationContract({
-    status: "input_required",
-    completed_step: "NOBU_INTRODUCED",
-    next_action: "PROVIDE_MONITORING_PASS",
-    message:
-      "Nobu: free Purchase Setup + 0.99 USDT Monitoring Pass (pass does not start monitoring). Send monitoring_pass_id or pass_continuation_id if already paid; otherwise buy one pass on service 35958 once.",
-    guidance:
-      "No pass → service 35958 once, one payment quote only; never re-quote on balance_unavailable. Already paid → send pass id or continuation here. Do not ask email/consent yet. Target decides any adjustment.",
-    payment_status: "required",
-    second_payment_required: false,
-    monitoring_active: false,
-    journey_complete: false,
-    retry_safe: true,
-    required_fields: null,
-    required_user_input: {
-      required_fields: ["monitoring_pass_id"],
-      optional_fields: ["pass_continuation_id"],
-      description:
-        "Pass reference after payment. If none, use service 35958 once (one quote).",
-    },
-    extra_fields: ["monitoring_pass_id"],
-    next_service_id: 33561,
-  });
+  const selection = buildServiceSelectionRequired();
   return {
     http_status: 400 as const,
     body: {
-      ...contract,
+      ...selection,
       journey_id: "",
-      fields: ["monitoring_pass_id"],
-      requiredArgs: ["monitoring_pass_id"],
+      // Callers mid-journey with an existing pass may still send these after
+      // selecting free Purchase Setup; they are not required before choice.
+      optional_pass_fields: ["monitoring_pass_id", "pass_continuation_id"],
+      free_service_id: FREE_SERVICE_ID,
+      paid_service_id: PAID_SERVICE_ID,
     },
   };
 }
@@ -298,7 +291,7 @@ export async function runMarketplaceJourney(
             },
             extra_fields: [referenceField],
             pass_continuation_id: cont,
-            next_service_id: pending ? 33561 : 35958,
+            next_service_id: pending ? FREE_SERVICE_ID : PAID_SERVICE_ID,
           }),
           journey_id: "",
           fields: [referenceField],
@@ -323,57 +316,49 @@ export async function runMarketplaceJourney(
   };
 
   const stage = journey.stage as JourneyStage;
+  const stageExtras = {
+    ...journeyExtras,
+    env: deps.env,
+  };
+
   if (stage === "complete") {
     return {
       http_status: 200,
       body: {
-        ...buildConversationContract({
-          status: "MONITORING_ACTIVE",
-          completed_step: "MONITORING_PASS_REDEEMED",
-          next_action: "CHECK_MONITORING_STATUS",
-          message:
-            "Monitoring is active. A lower price, alert, or adjustment is never guaranteed. Target makes the final decision.",
-          guidance:
-            "Monitoring is active. Status can be checked later. Stopping keeps history and never implies a refund.",
-          payment_status: "recognized",
-          second_payment_required: false,
-          monitoring_active: true,
-          journey_complete: true,
-          retry_safe: true,
-          required_fields: null,
-          required_user_input: null,
-          journey_id: journey.id,
-          monitoring_pass_id: journey.monitoring_pass_id,
-          pass_continuation_id: journey.pass_continuation_id,
-          next_service_id: 33561,
+        ...marketplaceMonitoringActiveContract({
+          journeyId: journey.id,
+          monitoringPassId: journey.monitoring_pass_id,
+          passContinuationId: journey.pass_continuation_id,
         }),
         journey_id: journey.id,
         fields: [],
         requiredArgs: [],
+        required_fields: [],
+        input_required: false,
+        automatic_continue: false,
       },
     };
   }
   if (hasForbiddenEarlyInput(raw, stage)) {
-    return incomplete(stage, journey.id, undefined, journeyExtras);
+    return incomplete(stage, journey.id, undefined, stageExtras);
   }
 
   if (stage === "confirm_use_pass") {
     if (raw.confirm_use_pass !== true) {
-      return incomplete(stage, journey.id, undefined, journeyExtras);
+      return incomplete(stage, journey.id, undefined, stageExtras);
     }
     await store.updateMarketplacePurchaseJourney({
       id: journey.id,
       stage: "purchase_description",
       nowIso,
     });
-    return incomplete("purchase_description", journey.id, undefined, journeyExtras);
+    return incomplete("purchase_description", journey.id, undefined, stageExtras);
   }
 
   if (stage === "purchase_description") {
     const description = cleanString(raw.purchase_description || raw.purchase_text);
-    if (!description) return incomplete(stage, journey.id, undefined, journeyExtras);
-    // Extract only — product discovery is a separate stage so the user is never
-    // left in a long silent extract+SerpApi wait with no resume token.
+    if (!description) return incomplete(stage, journey.id, undefined, stageExtras);
+    // Extract only — product discovery is a separate automatic stage.
     const understood = await understandPurchase(description, {
       llm: deps.llm,
       forceDeterministic: deps.forceDeterministic,
@@ -385,7 +370,7 @@ export async function runMarketplaceJourney(
         stage,
         journey.id,
         "Could not extract enough purchase details. Provide price, date, and a product clue for a recent Target online purchase.",
-        journeyExtras,
+        stageExtras,
       );
     }
     const snapshot = snapshotFromExtracted(understood.body.extracted_purchase);
@@ -395,12 +380,8 @@ export async function runMarketplaceJourney(
       purchaseSnapshotJson: JSON.stringify(snapshot),
       nowIso,
     });
-    return incomplete(
-      "product_discovery",
-      journey.id,
-      "Purchase details saved. Resubmit this journey_id to find Target product candidates. Do not re-send email or payment.",
-      journeyExtras,
-    );
+    // Automatic continue — do not ask the user to resubmit journey_id.
+    return incomplete("product_discovery", journey.id, undefined, stageExtras);
   }
 
   if (stage === "product_discovery") {
@@ -419,7 +400,7 @@ export async function runMarketplaceJourney(
           "purchase_description",
           journey.id,
           "Could not extract enough purchase details. Provide price, date, and a product clue for a recent Target online purchase.",
-          journeyExtras,
+          stageExtras,
         );
       }
       snapshot = snapshotFromExtracted(understood.body.extracted_purchase);
@@ -435,17 +416,18 @@ export async function runMarketplaceJourney(
         "purchase_description",
         journey.id,
         "Purchase details are missing. Describe the recent Target online purchase again.",
-        journeyExtras,
+        stageExtras,
       );
     }
 
     const discovered = await runProductDiscoveryForSnapshot(snapshot, deps, now);
     if (!discovered.ok || discovered.candidates.length === 0) {
+      // Stay on automatic discovery retry — agent continues with machine payload.
       return incomplete(
         "product_discovery",
         journey.id,
-        "No safe Target product candidate yet. Resubmit this journey_id to retry discovery, or send a clearer purchase_description with Target URL, TCIN, or model. Monitoring is not active.",
-        journeyExtras,
+        "No safe Target product candidate yet. Continuing discovery automatically, or send a clearer purchase_description with Target URL, TCIN, or model. Monitoring is not active.",
+        stageExtras,
       );
     }
     await store.updateMarketplacePurchaseJourney({
@@ -454,21 +436,19 @@ export async function runMarketplaceJourney(
       discoverySessionId: discovered.discovery_session_id,
       nowIso,
     });
-    const candidateMessage = discovered.candidates
+    const candidateMessage = `Choose the exact Target product candidate: ${discovered.candidates
       .map((candidate) => `${candidate.candidate_id}: ${candidate.title}`)
-      .join("; ");
-    return incomplete(
-      "candidate_id",
-      journey.id,
-      `Choose the exact Target product candidate: ${candidateMessage}`,
-      journeyExtras,
-    );
+      .join("; ")}`;
+    return incomplete("candidate_id", journey.id, candidateMessage, {
+      ...stageExtras,
+      candidatesMessage: candidateMessage,
+    });
   }
 
   if (stage === "candidate_id") {
     const candidateId = cleanString(raw.candidate_id);
     if (!candidateId || !journey.discovery_session_id) {
-      return incomplete(stage, journey.id, undefined, journeyExtras);
+      return incomplete(stage, journey.id, undefined, stageExtras);
     }
     const confirmed = await confirmProductForAgent({
       discoverySessionId: journey.discovery_session_id,
@@ -482,7 +462,7 @@ export async function runMarketplaceJourney(
         stage,
         journey.id,
         "That candidate could not be confirmed. Choose an exact Target-sold candidate from the list, or return with a clearer purchase description.",
-        journeyExtras,
+        stageExtras,
       );
     }
     const session = await store.getDiscoverySessionById(journey.discovery_session_id);
@@ -494,12 +474,12 @@ export async function runMarketplaceJourney(
         : null,
       nowIso,
     });
-    return incomplete("email", journey.id, undefined, journeyExtras);
+    return incomplete("email", journey.id, undefined, stageExtras);
   }
 
   if (stage === "email") {
     const email = cleanString(raw.email);
-    if (!email) return incomplete(stage, journey.id, undefined, journeyExtras);
+    if (!email) return incomplete(stage, journey.id, undefined, stageExtras);
     const begun = await beginAgentEmailVerification({
       email,
       sourceKey: deps.sourceKey,
@@ -512,7 +492,7 @@ export async function runMarketplaceJourney(
         stage,
         journey.id,
         "Email verification could not start. Provide a valid email you control, or wait if rate-limited.",
-        journeyExtras,
+        stageExtras,
       );
     }
     await store.updateMarketplacePurchaseJourney({
@@ -521,13 +501,13 @@ export async function runMarketplaceJourney(
       connectionId: begun.connection_id,
       nowIso,
     });
-    return incomplete("verification_code", journey.id, undefined, journeyExtras);
+    return incomplete("verification_code", journey.id, undefined, stageExtras);
   }
 
   if (stage === "verification_code") {
     const code = cleanString(raw.verification_code || raw.code);
     if (!code || !journey.connection_id) {
-      return incomplete(stage, journey.id, undefined, journeyExtras);
+      return incomplete(stage, journey.id, undefined, stageExtras);
     }
     const verified = await verifyAgentEmailCode({
       connectionId: journey.connection_id,
@@ -541,7 +521,7 @@ export async function runMarketplaceJourney(
         stage,
         journey.id,
         "That verification code was not accepted. Enter the current six-digit code, or request a new email code.",
-        journeyExtras,
+        stageExtras,
       );
     }
     await store.updateMarketplacePurchaseJourney({
@@ -549,7 +529,7 @@ export async function runMarketplaceJourney(
       stage: "consents",
       nowIso,
     });
-    return incomplete("consents", journey.id, undefined, journeyExtras);
+    return incomplete("consents", journey.id, undefined, stageExtras);
   }
 
   if (
@@ -558,8 +538,9 @@ export async function runMarketplaceJourney(
     !journey.connection_id ||
     !journey.discovery_session_id
   ) {
-    return incomplete("consents", journey.id, undefined, journeyExtras);
+    return incomplete("consents", journey.id, undefined, stageExtras);
   }
+  // Eligibility preflight + pass redemption are provider-controlled automatic steps.
   const preflight = await preflightMonitoringForAgent({
     connectionId: journey.connection_id,
     trustedMarketplaceJourney: true,
@@ -575,7 +556,7 @@ export async function runMarketplaceJourney(
       "consents",
       journey.id,
       "Eligibility or consent preflight did not pass. Confirm both consents and that the purchase is an eligible Target online purchase within the policy window.",
-      journeyExtras,
+      stageExtras,
     );
   }
   await store.updateMarketplacePurchaseJourney({
@@ -598,7 +579,7 @@ export async function runMarketplaceJourney(
       "consents",
       journey.id,
       "The Monitoring Pass could not be redeemed. Do not pay again. Retry consents/preflight if the pass is still unused, or resolve pass status first.",
-      journeyExtras,
+      stageExtras,
     );
   }
   if (redeemed.status === "ACTIVATION_PENDING") {
@@ -607,6 +588,7 @@ export async function runMarketplaceJourney(
       body: {
         ...buildConversationContract({
           status: "ACTIVATION_PENDING",
+          current_step: "activation_pending",
           completed_step: "MONITORING_ACTIVATION_PENDING",
           next_action: "CHECK_MONITORING_STATUS",
           message:
@@ -618,10 +600,13 @@ export async function runMarketplaceJourney(
           monitoring_active: false,
           journey_complete: false,
           retry_safe: true,
-          required_fields: null,
+          required_fields: [],
+          required_user_input: null,
+          input_required: false,
+          automatic_continue: true,
           journey_id: journey.id,
           monitoring_pass_id: journey.monitoring_pass_id,
-          next_service_id: 33561,
+          next_service_id: FREE_SERVICE_ID,
         }),
         journey_id: journey.id,
         fields: [],
@@ -638,27 +623,17 @@ export async function runMarketplaceJourney(
   return {
     http_status: 200,
     body: {
-      ...buildConversationContract({
-        status: "MONITORING_ACTIVE",
-        completed_step: "MONITORING_PASS_REDEEMED",
-        next_action: "CHECK_MONITORING_STATUS",
-        message:
-          "Monitoring is active. A lower price, alert, or adjustment is never guaranteed. Target makes the final decision.",
-        guidance:
-          "Monitoring is active. Status can be checked later. Stopping keeps history and never implies a refund.",
-        payment_status: "recognized",
-        second_payment_required: false,
-        monitoring_active: true,
-        journey_complete: true,
-        retry_safe: true,
-        required_fields: null,
-        journey_id: journey.id,
-        monitoring_pass_id: journey.monitoring_pass_id,
-        next_service_id: 33561,
+      ...marketplaceMonitoringActiveContract({
+        journeyId: journey.id,
+        monitoringPassId: journey.monitoring_pass_id,
+        passContinuationId: journey.pass_continuation_id,
       }),
       journey_id: journey.id,
       fields: [],
       requiredArgs: [],
+      required_fields: [],
+      input_required: false,
+      automatic_continue: false,
     },
   };
 }

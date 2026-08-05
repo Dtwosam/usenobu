@@ -57,6 +57,13 @@ import {
   type OkxSettleStatusResponse,
 } from "./okx-seller-client.js";
 import { buildConversationContract } from "../a2mcp/conversation-contract.js";
+import {
+  buildPaidPrePaymentMachineFields,
+  FREE_SERVICE_ID,
+  MONITORING_PASS_RESOURCE_DESCRIPTION as CATALOGUE_PASS_DESCRIPTION,
+  PAID_SERVICE_ID,
+  resolveFreeServiceEndpoint,
+} from "../a2mcp/service-catalogue.js";
 
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -67,12 +74,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Exact wording used in the challenge and in the issued-pass response. */
-export const MONITORING_PASS_RESOURCE_DESCRIPTION =
-  "One Nobu Monitoring Pass ($0.99). Redeemable once to activate price monitoring for one confirmed, eligible Target purchase. Payment does not guarantee a price drop, alert, refund, adjustment or savings.";
+/** Exact wording used in the challenge and in the unpaid 402 body (catalogue). */
+export const MONITORING_PASS_RESOURCE_DESCRIPTION = CATALOGUE_PASS_DESCRIPTION;
 
-export const MONITORING_PASS_REDEEMABLE_FOR =
-  "Activating monitoring for one confirmed eligible Target purchase via REDEEM_MONITORING_PASS on https://usenobu.vercel.app/v1/agent";
+export function monitoringPassRedeemableFor(env?: EnvRecord): string {
+  return `Activating monitoring for one confirmed eligible Target purchase via REDEEM_MONITORING_PASS on ${resolveFreeServiceEndpoint(env)}`;
+}
+
+/** @deprecated Use monitoringPassRedeemableFor(env) — kept for import stability. */
+export const MONITORING_PASS_REDEEMABLE_FOR = monitoringPassRedeemableFor();
 
 function newId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
@@ -747,23 +757,28 @@ export function monitoringPassResponseBody(
   result: MonitoringPassResult,
 ): Record<string, unknown> {
   if (result.ok && result.status === "MONITORING_PASS_ISSUED") {
+    // Prefer marketplace journey for full handoff; this body is a fallback.
     const contract = buildConversationContract({
       status: "MONITORING_PASS_ISSUED",
+      current_step: "confirm_use_pass",
       completed_step: "MONITORING_PASS_ISSUED",
-      next_action: "UNDERSTAND_PURCHASE",
+      next_action: "CONFIRM_USE_PASS",
       message:
-        "Your Monitoring Pass is ready. No additional payment is required. Continue with free Purchase Setup on service 33561.",
+        "Your Monitoring Pass is ready. No additional payment is required. Continue free Purchase Setup on service 33561 — confirm use of this pass.",
       guidance:
-        "Do not request another payment. Ask if the user wants to use the pass now. If yes, collect only the recent Target purchase description — do not ask for email or consent yet. Redeem later after preflight with this monitoring_pass_id.",
+        "Do not request another payment. Do not ask the user to find another endpoint or describe Nobu. Ask only whether to use the pass now (confirm_use_pass). After yes, collect purchase description only — not email or consent yet.",
       payment_status: "recognized",
       second_payment_required: false,
       monitoring_active: false,
       journey_complete: false,
       retry_safe: true,
-      required_fields: ["purchase_text"],
+      required_fields: ["confirm_use_pass"],
       pass_continuation_id: result.pass_continuation_id,
       monitoring_pass_id: result.pass.id,
-      next_service_id: 33561,
+      next_service_id: FREE_SERVICE_ID,
+      input_required: true,
+      automatic_continue: false,
+      include_action_field: false,
     });
     return {
       agent_state: "MONITORING_PASS",
@@ -773,11 +788,8 @@ export function monitoringPassResponseBody(
       price_amount: result.pass.price_amount,
       price_currency: result.pass.price_currency,
       redeemable_for: MONITORING_PASS_REDEEMABLE_FOR,
-      required_purchase_input: [
-        "purchase_text",
-        "purchase_price",
-        "purchase_date",
-      ],
+      next_service_id: FREE_SERVICE_ID,
+      next_action_after_payment: "CONFIRM_USE_PASS",
     };
   }
 
@@ -788,15 +800,25 @@ export function monitoringPassResponseBody(
       next_action: "RESOLVE_MONITORING_PASS",
       message: result.note,
       guidance:
-        "Settlement is still confirming. Keep pass_continuation_id and call RESOLVE_MONITORING_PASS on free service 33561 shortly. Do not pay again and do not invent other status checks.",
+        "Settlement is still confirming. Keep pass_continuation_id and call RESOLVE_MONITORING_PASS on free service 33561 shortly. Do not pay again. Do not claim a pass or monitor exists yet.",
       payment_status: "pending",
       second_payment_required: false,
       monitoring_active: false,
       journey_complete: false,
       retry_safe: true,
-      required_fields: ["pass_continuation_id"],
+      required_fields: [],
+      required_user_input: null,
+      input_required: false,
+      automatic_continue: true,
       pass_continuation_id: result.pass_continuation_id,
-      next_service_id: 33561,
+      next_service_id: FREE_SERVICE_ID,
+      include_action_field: false,
+      protocol_replay: {
+        kind: "resolve_pending_settlement",
+        free_service_id: FREE_SERVICE_ID,
+        body: { pass_continuation_id: result.pass_continuation_id },
+        do_not_ask_user: true,
+      },
     });
     return {
       agent_state: "MONITORING_PASS",
@@ -805,28 +827,37 @@ export function monitoringPassResponseBody(
     };
   }
 
+  // Unpaid first contact — official-valid x402 v2 402. Body and challenge agree.
+  const machine = buildPaidPrePaymentMachineFields();
   const contract = buildConversationContract({
     status: "PAYMENT_PENDING",
     completed_step: "MONITORING_PASS_EXPLAINED",
-    next_action: "REPLAY_WITH_PAYMENT-SIGNATURE",
-    message:
-      "Pay 0.99 USDT once for one Monitoring Pass. Payment does not start monitoring. After settlement, continue free Purchase Setup.",
+    next_action: "COMPLETE_X402_PAYMENT",
+    message: String(machine.service_description),
     guidance:
-      "Create exactly one payment quote for this challenge, then confirm that single payment id. Do not re-quote on balance_unavailable or insufficient_balance — fix wallet sign-in / X Layer USD₮0 first and reuse the current payment id until it expires. After pay, replay with PAYMENT-SIGNATURE (or RESOLVE with pass_continuation_id). Never guarantee a Target adjustment.",
+      "Explain the deliverable once: one 0.99 USDT payment issues one Monitoring Pass and does not activate monitoring. Create exactly one payment quote for this challenge. Never ask the user for a PAYMENT-SIGNATURE value, service description, product details, email, wallet address as service input, or alert threshold. On balance_unavailable or insufficient_balance: explain only the balance blocker, preserve and reuse the existing payment id/quote until expiry, do not create another quote, and do not claim a pass or monitor exists.",
     payment_status: "required",
     second_payment_required: false,
     monitoring_active: false,
     journey_complete: false,
     retry_safe: true,
-    required_fields: null,
-    required_user_input: {
-      description:
-        "One deliberate x402 payment only, then replay with PAYMENT-SIGNATURE.",
+    required_fields: [],
+    required_user_input: null,
+    input_required: false,
+    automatic_continue: false,
+    include_action_field: false,
+    next_service_id: FREE_SERVICE_ID,
+    protocol_replay: {
+      kind: "x402_payment_signature_header",
+      header_name: "PAYMENT-SIGNATURE",
+      do_not_ask_user: true,
+      never_collect_as_user_input: true,
+      note: "Buyer agent attaches the signed payment in the PAYMENT-SIGNATURE HTTP header on replay. Never ask the end user to paste or type a PAYMENT-SIGNATURE value.",
     },
-    next_service_id: 35958,
   });
   return {
     ...contract,
+    ...machine,
     // Machine policy for calling agents (does not alter x402 header wire format).
     quote_policy: "single_deliberate_attempt",
     one_quote_only: true,
@@ -836,11 +867,33 @@ export function monitoringPassResponseBody(
       "insufficient_balance",
       "payment_pending",
     ],
+    insufficient_balance_guidance: {
+      explain_only: "balance_blocker",
+      preserve_existing_payment_id: true,
+      preserve_existing_quote: true,
+      reuse_until_expiry: true,
+      create_another_quote: false,
+      ask_for_service_description: false,
+      ask_for_monitoring_parameters: false,
+      claim_pass_exists: false,
+      claim_monitor_exists: false,
+      user_message:
+        "Wallet balance is insufficient or unavailable for this 0.99 USDT payment. Keep the same payment quote until it expires. Do not open a second quote. Do not request product details, email, or service parameters.",
+    },
     wallet_preflight_blocker:
-      "If walletError is balance_unavailable, stop and fix wallet session/balance lookup. Do not create another payment quote.",
+      "If walletError is balance_unavailable or balance is insufficient, explain only that blocker. Preserve and reuse the existing payment id/quote until expiry. Do not create another payment quote. Do not ask for service description or monitoring parameters. Do not claim a pass or monitor exists.",
+    never_ask_user_for: [
+      "PAYMENT-SIGNATURE",
+      "service_description",
+      "wallet_address_as_service_input",
+      "alert_threshold",
+      "email_before_payment",
+      "product_details_before_payment",
+    ],
     x402Version: result.challenge.x402Version,
     resource: result.challenge.resource,
     accepts: result.challenge.accepts,
+    selected_service_id: PAID_SERVICE_ID,
   };
 }
 /**
@@ -873,13 +926,15 @@ export async function resolveMonitoringPassForAgent(args: {
         "No Monitoring Pass was found for that reference. Do not invent a payment or status-check option.",
       guidance:
         "If the user just paid, wait briefly and retry RESOLVE_MONITORING_PASS with the same pass_continuation_id. Otherwise buy one Monitoring Pass on service 35958 once, or start free Purchase Setup only after they confirm they have a pass.",
-      payment_status: "required",
+      payment_status: "not_required",
       second_payment_required: false,
       monitoring_active: false,
       journey_complete: false,
       retry_safe: true,
       required_fields: ["purchase_text"],
-      next_service_id: 33561,
+      next_service_id: FREE_SERVICE_ID,
+      include_action_field: false,
+      input_required: true,
     }),
   };
 
@@ -932,21 +987,25 @@ export async function resolveMonitoringPassForAgent(args: {
           agent_state: "MONITORING_PASS",
           ...buildConversationContract({
             status: "MONITORING_PASS_ISSUED",
+            current_step: "confirm_use_pass",
             completed_step: "MONITORING_PASS_ISSUED",
-            next_action: "UNDERSTAND_PURCHASE",
+            next_action: "CONFIRM_USE_PASS",
             message:
-              "Your Monitoring Pass is ready. Would you like to use it now to monitor a recent Target purchase?",
+              "Your Monitoring Pass is ready. No additional payment is required. Use it now for free Purchase Setup on service 33561?",
             guidance:
-              "No second payment is required. After the user says yes, call UNDERSTAND_PURCHASE with purchase_text only. Do not ask for email or consent until product confirmation. Redeem later with this monitoring_pass_id after preflight.",
+              "No second payment is required. Ask only confirm_use_pass. Do not ask the user to locate another endpoint or describe Nobu. After yes, collect purchase description only — not email or consent yet.",
             payment_status: "recognized",
             second_payment_required: false,
             monitoring_active: false,
             journey_complete: false,
             retry_safe: true,
-            required_fields: ["purchase_text"],
+            required_fields: ["confirm_use_pass"],
             monitoring_pass_id: pass.id,
             pass_continuation_id: continuation.id,
-            next_service_id: 33561,
+            next_service_id: FREE_SERVICE_ID,
+            include_action_field: false,
+            input_required: true,
+            automatic_continue: false,
           }),
           pass_status: pass.status,
         },
@@ -1002,7 +1061,9 @@ export async function resolveMonitoringPassForAgent(args: {
         retry_safe: true,
         required_fields: ["pass_continuation_id"],
         pass_continuation_id: continuation.id,
-        next_service_id: 33561,
+        next_service_id: FREE_SERVICE_ID,
+        include_action_field: false,
+        input_required: true,
       }),
     },
   };

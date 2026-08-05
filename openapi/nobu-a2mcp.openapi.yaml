@@ -1,72 +1,77 @@
 openapi: 3.1.0
 info:
   title: Nobu A2MCP API
-  version: 1.3.0
+  version: 1.4.0
   description: >-
-    Nobu is an AI post-purchase monitoring agent. Free A2MCP endpoints:
-    structured Target price check and bounded free agent actions on POST /v1/agent.
-    Paid Monitoring Pass purchase is a separate route (POST /v1/agent/monitoring-pass);
-    see openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml.
-    Target is the only retailer currently supported. Target verifies prices and
-    makes the final decision. Observed prices are third-party SerpApi observations.
+    Nobu is an AI post-purchase monitoring agent (Agent 5541). Free A2MCP service
+    33561 (Nobu Purchase Setup) is registered at https://usenobu.vercel.app/v1/agent.
+    Paid service 35958 (Nobu Monitoring Pass, 0.99 USDT) is registered at
+    https://www.usenobu.xyz/v1/agent/monitoring-pass — a distinct host from free.
+    Canonical service catalogue: src/a2mcp/service-catalogue.ts.
+    Generic Agent-only first contact returns SERVICE_SELECTION_REQUIRED with both
+    services; never assumes a service from Agent ID alone. Target is the only
+    retailer currently supported. Target makes the final adjustment decision.
+    Observed prices are third-party SerpApi observations.
 servers:
   - url: https://usenobu.vercel.app
-    description: Public HTTPS free A2MCP (UseNobu production)
+    description: Registered free A2MCP host (service 33561 Purchase Setup)
+  - url: https://www.usenobu.xyz
+    description: Registered paid A2MCP host (service 35958 Monitoring Pass)
   - url: http://127.0.0.1:3000
     description: Local Next.js dev only — not external proof
 paths:
   /v1/agent:
     get:
-      operationId: nobuPurchaseSetupInputRequirements
-      summary: Start free Purchase Setup for an existing Monitoring Pass
+      operationId: nobuServiceDiscovery
+      summary: Generic Agent 5541 first contact — list both services
       description: >-
-        Returns the exact marketplace first-contact input shape. The endpoint
-        never requires Nobu's internal action enum and never returns HTTP 402.
-        A caller may start with monitoring_pass_id or pass_continuation_id;
-        monitoring_pass_id is the first advertised field for Onchain OS.
+        Returns SERVICE_SELECTION_REQUIRED with available_services for 33561
+        (free) and 35958 (paid). payment_status is not_required. Calling agents
+        must present both services and ask which the user wants; never assume a
+        service from Agent ID alone; never ask the user to describe Nobu; never
+        inspect payment balance before the paid service is selected.
       responses:
         '400':
-          description: Existing Monitoring Pass reference required
+          description: Service selection required (both services listed)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServiceInputRequired'
+                $ref: '#/components/schemas/ServiceSelectionRequired'
     post:
       operationId: nobuPurchaseSetup
-      summary: Stateful free Purchase Setup for an existing Monitoring Pass
+      summary: Free Purchase Setup, service discovery, or low-level actions
       description: >-
-        The marketplace contract infers each internal operation from durable
-        journey state. Incomplete calls return a conversation contract
-        (status, completed_step, next_action, payment_status,
-        second_payment_required, monitoring_active, journey_complete, retry_safe,
-        fields, requiredArgs, message, guidance, journey_id). The ordered stages
-        are pass confirmation, purchase description, product discovery, exact
-        candidate confirmation, email, verification code, both consents,
-        provider-controlled preflight and provider-controlled pass redemption.
-        Marketplace callers never provide connection credentials, quote ids or
-        payment material. Legacy low-level action requests remain
-        backward-compatible but are not the marketplace contract.
+        Generic / empty first contact returns SERVICE_SELECTION_REQUIRED.
+        Machine actions DESCRIBE_SERVICES and SELECT_SERVICE support discovery.
+        After an issued Monitoring Pass, the marketplace contract infers each
+        internal operation from durable journey state. Incomplete journey calls
+        return a conversation contract (status, completed_step, next_action,
+        payment_status, second_payment_required, monitoring_active,
+        journey_complete, retry_safe, fields, requiredArgs, message, guidance,
+        journey_id). Free service never returns HTTP 402 and never sells a pass.
+        Legacy low-level action requests remain backward-compatible.
       requestBody:
         required: false
         content:
           application/json:
             schema:
               oneOf:
+                - $ref: '#/components/schemas/ServiceDiscoveryRequest'
                 - $ref: '#/components/schemas/MarketplaceJourneyRequest'
                 - $ref: '#/components/schemas/AgentRequest'
                 - type: object
                   maxProperties: 0
-                  description: Empty validation body; answered with pass requirements.
+                  description: Empty validation body; SERVICE_SELECTION_REQUIRED.
       responses:
         '200':
-          description: MONITORING_ACTIVE, returned only after successful pass redemption
+          description: SERVICE_SELECTED, MONITORING_ACTIVE, or low-level success
         '400':
-          description: Current marketplace stage input required or invalid low-level input
+          description: Service selection, marketplace stage input, or invalid input
           content:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/ServiceInputRequired'
+                  - $ref: '#/components/schemas/ServiceSelectionRequired'
                   - $ref: '#/components/schemas/MarketplaceJourneyInputRequired'
         '401':
           description: Protected legacy action is not authorized
@@ -107,35 +112,142 @@ paths:
           description: Service health
 components:
   schemas:
-    ServiceInputRequired:
+    CatalogueService:
       type: object
-      additionalProperties: false
-      description: Exact empty first-contact response for free Purchase Setup.
-      required: [status, journey_id, fields, requiredArgs, message]
+      required:
+        - service_id
+        - name
+        - price
+        - endpoint
+        - description
+      properties:
+        service_id:
+          type: integer
+          enum: [33561, 35958]
+        name:
+          type: string
+          enum: ["Nobu Purchase Setup", "Nobu Monitoring Pass"]
+        price_kind:
+          type: string
+          enum: [free, paid]
+        price:
+          type: string
+          description: "free or 0.99 USDT"
+        price_usdt:
+          type: number
+        endpoint:
+          type: string
+          format: uri
+        description:
+          type: string
+        sells_monitoring_pass:
+          type: boolean
+        activates_monitoring:
+          type: boolean
+        parameters_required_before_payment:
+          type: array
+          items:
+            type: string
+    ServiceSelectionRequired:
+      type: object
+      description: >-
+        Generic Agent-5541 first contact. Source of truth:
+        src/a2mcp/service-catalogue.ts buildServiceSelectionRequired().
+      required:
+        - status
+        - agent_id
+        - agent_name
+        - service_selection_required
+        - available_services
+        - input_required
+        - required_fields
+        - fields
+        - requiredArgs
+        - payment_status
+        - monitoring_active
+        - journey_complete
+        - message
       properties:
         status:
           type: string
-          const: input_required
-        journey_id:
+          const: SERVICE_SELECTION_REQUIRED
+        agent_id:
+          type: integer
+          const: 5541
+        agent_name:
           type: string
-          const: ''
+          const: Nobu
+        service_selection_required:
+          type: boolean
+          const: true
+        available_services:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/CatalogueService'
+        input_required:
+          type: boolean
+          const: true
+        required_fields:
+          type: array
+          prefixItems:
+            - type: string
+              const: service_id
+          minItems: 1
+          maxItems: 1
         fields:
           type: array
           prefixItems:
             - type: string
-              const: monitoring_pass_id
+              const: service_id
           minItems: 1
           maxItems: 1
         requiredArgs:
           type: array
           prefixItems:
             - type: string
-              const: monitoring_pass_id
+              const: service_id
           minItems: 1
           maxItems: 1
+        payment_status:
+          type: string
+          const: not_required
+        monitoring_active:
+          type: boolean
+          const: false
+        journey_complete:
+          type: boolean
+          const: false
+        auto_invoke:
+          type: string
+          const: DESCRIBE_SERVICES
+        next_action:
+          type: string
+          const: SELECT_SERVICE
         message:
           type: string
-          description: Distinguishes existing-pass free setup from the separate one-time pass purchase.
+        guidance:
+          type: string
+    ServiceDiscoveryRequest:
+      type: object
+      description: Machine protocol for marketplace service discovery.
+      oneOf:
+        - type: object
+          required: [action]
+          properties:
+            action:
+              type: string
+              const: DESCRIBE_SERVICES
+        - type: object
+          required: [action, service_id]
+          properties:
+            action:
+              type: string
+              const: SELECT_SERVICE
+            service_id:
+              type: integer
+              enum: [33561, 35958]
     MarketplaceJourneyRequest:
       type: object
       additionalProperties: false

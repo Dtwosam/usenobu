@@ -5,27 +5,26 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Complete speed and flow hardening
+## Active closeout — OKX User-role marketplace journey repair
 
-**State:** code + deploy + non-paid payment-confirmation rehearsal done; blocked on complete real OKX.AI User-role A→Z proof.  
-**Video gate:** `READY_FOR_FAST_FRESH_VIDEO_RECORDING`.
+**State:** code complete on service catalogue + discovery + paid pre-payment contract; deploy and real OKX.AI User-role A→Z still required.
 
-Speed/flow hardening result:
+Marketplace journey repair (2026-08-05):
 
-- Starting HEAD: `6ac1bf01d6f6e06a31c3af69ef75e742e033c262`.
-- Audit + design first: `docs/proof/complete-speed-and-flow-hardening/01-audit.md`, `02-design.md`.
-- One-quote payment policy on 402 body; free full conversation contract; marketplace extract/discovery split; A2A ready.
-- Production deploy `dpl_E6xegDEY2eTCsBFCHtEsacDcdo9b`; alias `usenobu.vercel.app`.
-- Non-paid rehearsal: **one** quote, `hasBalance: true`, ~3.2 s, no payment authorized.
-- ASP `#5541` / services / price unchanged; no Production DB edits.
+- Canonical catalogue `src/a2mcp/service-catalogue.ts`: Agent 5541; free 33561 @ `usenobu.vercel.app/v1/agent`; paid 35958 @ `www.usenobu.xyz/v1/agent/monitoring-pass`.
+- Generic first contact → `SERVICE_SELECTION_REQUIRED` (both services; `payment_status: not_required`).
+- Machine actions `DESCRIBE_SERVICES` / `SELECT_SERVICE`.
+- Paid unpaid 402 body: empty required fields, structured deliverable, locked no-parameters message.
+- Conversation contract: `next_action` does not invent user-facing `action`.
+- Focused tests green; typecheck clean.
 
 Exact next lane:
 
-1. Record one interactive OKX.AI User-role journey against agent `5541` (at most one new `0.99 USDT` payment; never re-quote on `balance_unavailable`).
-2. Prove full A→Z; record under `docs/proof/complete-speed-and-flow-hardening/`; flip to PASS only if all acceptance bullets pass.
+1. Deploy production and re-alias free + paid hosts as registered.
+2. Record one interactive OKX.AI User-role journey against agent `5541` (service choice → at most one `0.99 USDT` payment; never re-quote on `balance_unavailable`).
+3. Prove full A→Z; flip to PASS only if calling agents no longer assume a service from Agent ID alone.
 
-**Closeout proof:** `docs/proof/complete-speed-and-flow-hardening/README.md`.  
-**Current verdict:** `NOBU_COMPLETE_SPEED_AND_FLOW_HARDENING_BLOCKED_REAL_OKX_USER_JOURNEY_INCOMPLETE`.
+**Current verdict:** `NOBU_OKX_USER_MARKETPLACE_JOURNEY_REPAIR_CODE_COMPLETE`.
 
 ## Prior closeout — Complete production hardening
 

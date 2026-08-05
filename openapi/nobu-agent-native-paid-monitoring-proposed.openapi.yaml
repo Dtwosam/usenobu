@@ -32,8 +32,12 @@ info:
 servers:
   - url: https://usenobu.vercel.app
     description: >-
-      UseNobu production host for free /v1/agent and paid /v1/agent/monitoring-pass.
-      Paid service is registered on ASP #5541; the agent is listed as of 2026-07-28.
+      Registered free host for service 33561 (Nobu Purchase Setup) at /v1/agent.
+  - url: https://www.usenobu.xyz
+    description: >-
+      Registered paid host for service 35958 (Nobu Monitoring Pass) at
+      /v1/agent/monitoring-pass. Distinct from the free service host.
+      Canonical catalogue: src/a2mcp/service-catalogue.ts.
 paths:
   /v1/agent:
     post:
@@ -115,11 +119,23 @@ paths:
           description: >-
             PAYMENT-REQUIRED header carries base64 of
             {x402Version: 2, resource: {url, description, mimeType}, accepts[]}.
+            resource.url is the registered paid endpoint
+            https://www.usenobu.xyz/v1/agent/monitoring-pass (or
+            NOBU_PAID_SERVICE_ENDPOINT). resource.description matches the body
+            service_description from the canonical catalogue.
             accepts[0]: scheme exact, network eip155:196, USD₮0 asset, amount
             990000 base units ($0.99), server-controlled payTo,
             maxTimeoutSeconds, and extra.name/extra.version EIP-712 token
             metadata. No quote binding.
-            The body explains that payment issues one pass only and does not start monitoring.
+            Body machine fields: selected_service_id 35958, available_services,
+            service_confirmation_required true, deliverable
+            {type: monitoring_pass, quantity: 1}, input_required false,
+            required_fields/fields/requiredArgs empty arrays,
+            required_user_input null, product_details/email/alert/wallet
+            service-input flags false, payment_status required,
+            monitoring_active false, journey_complete false,
+            next_service_id 33561, next_action_after_payment
+            CONTINUE_PURCHASE_SETUP. No product details needed before payment.
         '400':
           description: >-
             After exactly-once issuance, the signed replay remains non-terminal
