@@ -1,9 +1,11 @@
 # Nobu Current State
 
 **Date:** 2026-08-05
-**Status:** `NOBU_USER_ROLE_JOURNEY_FOLLOWUP_REPAIR_PASS` — bare service_id selection, no-result discovery stop, durable activation_pending resume; Production deploy + unpaid probes + x402-check valid.
+**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_REPAIR_PASS` — paid-to-active transactional repair: settlement-safe x402, durable payment states, secure pass handoff, quote lifecycle, activation reconcile, durable scheduler control plane, notification outbox.
 
-**User-role journey follow-up repair (2026-08-05):** **PASS.** Baseline `b0c28de` → code `13113f1` → proof docs (this HEAD). Audit findings: service_id-only selection looped; no-result discovery auto-looped SerpApi; ACTIVATION_PENDING not durable/resumable; human stages carried machine_continuation. Repair: bare `service_id` selects 33561/35958; `MORE_INFORMATION_REQUIRED` after zero candidates; durable `activation_pending` with journey_id-only resume via existing redeem/activation path; human `machine_continuation: null`. Focused 71/71. Deploy `dpl_BZPj3UKLyPbY1U1iFMSyGks33zYR`; free alias re-pointed. Production bare service_id probes 200; x402-check valid. No payment, ASP update, activation, resubmission. Evidence: `docs/proof/user-role-journey-followup-repair/`.
+**Paid-to-active transactional repair (2026-08-05):** **PASS.** Baseline `df6792d` → code `243efa7` → proof docs (this HEAD). Live failure: buyer approval then `facilitator non-terminal: HTTP 402` with no receipt. Repair: official `@okxweb3/x402-core`/`x402-evm` primitives + `PAYMENT-RESPONSE`; states authorization_received→settled/unknown; neutral unpaid 402 body; single-use claim credential; connection-token after email verify; atomic quote replace; scheduler phase-0 settlement+activation reconcile; durable lease/schedule/outbox; graph hydration blockers. Focused 66/66; typecheck; build. Deploy `dpl_5QAjtR215oFF56GT3PmYpxeQU9me`; aliases `www.usenobu.xyz` + `usenobu.vercel.app`. Production unpaid 402 valid challenge; malformed 402 REJECTED. No genuine payment, ASP update, activation, resubmission. Evidence: `docs/proof/paid-to-active-transaction-repair/`.
+
+**User-role journey follow-up repair (2026-08-05):** **PASS (prior).** Baseline `b0c28de` → code `13113f1`. Bare `service_id` selection; `MORE_INFORMATION_REQUIRED`; durable `activation_pending`. Deploy `dpl_BZPj3UKLyPbY1U1iFMSyGks33zYR`. Evidence: `docs/proof/user-role-journey-followup-repair/`.
 
 **OKX User-role marketplace journey repair (2026-08-05):** **PASS (prior).** Baseline `3d9c865` → `c35468f` / proof `b0c28de`. Catalogue + SERVICE_SELECTION_REQUIRED + paid 402 machine fields + CONFIRM_USE_PASS. Deploy `dpl_BcEVaj8A1zGW6FL41FANa6z1z6tc`. Evidence: `docs/proof/user-role-journey-repair/`.
 
