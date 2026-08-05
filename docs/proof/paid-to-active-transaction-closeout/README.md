@@ -56,4 +56,10 @@
 
 ## Production
 
-Deploy after focused proof. Probes unpaid/malformed only.
+- Code: `c777841`
+- Proof: `d316d46`
+- Deploy READY → `https://www.usenobu.xyz` (`usenobu-ajofjkdjc-…`)
+
+Probes (unpaid/malformed only): health 200; free POST `{}` 400; unpaid monitoring-pass 402; malformed signature 402; config-readiness without owner secret 401/503.
+
+No genuine payment, ASP update, activation, or resubmission.
