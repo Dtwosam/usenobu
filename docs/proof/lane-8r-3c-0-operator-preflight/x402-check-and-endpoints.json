@@ -2,7 +2,7 @@
   "captured_at": "2026-07-26 (this session, pre-operator-decision)",
   "note": "Read-only re-verification that the Lane 8R.3B production repair is still live and unchanged before any operator ASP update. payTo masked by lane policy.",
   "production_free_endpoint": {
-    "url": "https://usenobu.vercel.app/v1/agent",
+    "url": "https://www.usenobu.xyz/v1/agent",
     "method": "POST",
     "body": "(none)",
     "status": 200,
@@ -10,7 +10,7 @@
     "conclusion": "Unchanged from Lane 8R.3B production proof."
   },
   "production_paid_endpoint": {
-    "url": "https://usenobu.vercel.app/v1/agent/monitoring-pass",
+    "url": "https://www.usenobu.xyz/v1/agent/monitoring-pass",
     "method": "POST",
     "body": "(none)",
     "status": 402,
@@ -18,7 +18,7 @@
     "decoded_challenge": {
       "x402Version": 2,
       "resource": {
-        "url": "https://usenobu.vercel.app/v1/agent/monitoring-pass",
+        "url": "https://www.usenobu.xyz/v1/agent/monitoring-pass",
         "description": "One Nobu Monitoring Pass ($0.99). Redeemable once to activate price monitoring for one confirmed, eligible Target purchase. Payment does not guarantee a price drop, alert, refund, adjustment or savings.",
         "mimeType": "application/json"
       },
@@ -39,7 +39,7 @@
   "official_x402_check": {
     "tool": "onchainos agent x402-check (official Onchain OS CLI v4.2.4)",
     "new_paid_endpoint_monitoring_pass": {
-      "endpoint": "https://usenobu.vercel.app/v1/agent/monitoring-pass",
+      "endpoint": "https://www.usenobu.xyz/v1/agent/monitoring-pass",
       "valid": true,
       "x402Version": 2,
       "scheme": "exact",
@@ -51,7 +51,7 @@
       "payTo": "0x2746...REDACTED...B70B"
     },
     "old_registered_endpoint_start_monitoring": {
-      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "endpoint": "https://www.usenobu.xyz/v1/agent/start-monitoring",
       "valid": false,
       "reason": "Endpoint returned HTTP 405 (not 402); not a valid x402 service.",
       "statusCode": 405

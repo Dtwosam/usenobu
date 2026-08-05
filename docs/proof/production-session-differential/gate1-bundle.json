@@ -1,6 +1,6 @@
 {
   "at": "2026-07-15T10:51:08.329Z",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "old_copy": "We found more than one possible Target product. Add a model, TCIN or UPC so Nobu can avoid choosing the wrong item.",
   "new_copy": "Nobu found several different Target products and could not safely choose one.",
   "pages": {
@@ -23,6 +23,6 @@
   "review_probe": {
     "status": 200,
     "redirected": true,
-    "url": "https://usenobu.vercel.app/purchases/new?error=session_lost"
+    "url": "https://www.usenobu.xyz/purchases/new?error=session_lost"
   }
 }

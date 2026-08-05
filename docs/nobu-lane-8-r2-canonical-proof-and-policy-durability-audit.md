@@ -1,10 +1,10 @@
 # Lane 8-R2 — Canonical Proof Acceptance and Policy-Ops Durability Audit
 
-**Lane:** 8-R2  
-**Mode:** Verification-first (no product feature implementation)  
-**Audit date:** 2026-07-19  
-**Baseline commit:** `24c59f5517122adca3ec3961d410aa517e807f67`  
-**Branch:** `master`  
+**Lane:** 8-R2
+**Mode:** Verification-first (no product feature implementation)
+**Audit date:** 2026-07-19
+**Baseline commit:** `24c59f5517122adca3ec3961d410aa517e807f67`
+**Branch:** `master`
 **Final verdict:** **`NOBU_LANE_8_R2_BLOCKED_POLICY_STATE_NOT_DURABLE`**
 
 ---
@@ -52,7 +52,7 @@ Source of R1A production evidence:
 
 | # | Required evidence | Status | Evidence |
 |---|---|---|---|
-| 1 | Request used `POST https://usenobu.vercel.app/v1/agent` | **PASS** | R1A session command + R2 reconstructed request archive; production alias confirmed via Vercel inspect |
+| 1 | Request used `POST https://www.usenobu.xyz/v1/agent` | **PASS** | R1A session command + R2 reconstructed request archive; production alias confirmed via Vercel inspect |
 | 2 | Action was `CHECK_CONFIRMED_PURCHASE` | **PASS** | Reconstructed request body (not in response JSON; request was not originally archived as a file — reconstructed in R2 without re-query) |
 | 3 | Exact deployment and source commit recorded | **PASS with note** | Deployment: `usenobu-e9x1qi35w-dtwoflicks-2878s-projects.vercel.app` / id `dpl_3TvMaGr1aWXFa5kUeEsTw4KFvFCm`. Source tree became commit `24c59f5` immediately after deploy; deploy timestamp slightly precedes commit timestamp (local tree deploy then commit) |
 | 4 | Request and response archived and redacted | **PASS with note** | Response committed in R1A. Request reconstructed and archived in R2 (no secrets; no new SerpApi call) |
@@ -94,15 +94,15 @@ Secondary archival gaps (request file, explicit HTTP status line, exact SerpApi 
 
 `src/web/db.ts` → `resolveWebDbPath()`:
 
-- If `NOBU_DB_PATH` set → that path  
-- Else if `VERCEL=1` → **`/tmp/nobu.web.sqlite`**  
+- If `NOBU_DB_PATH` set → that path
+- Else if `VERCEL=1` → **`/tmp/nobu.web.sqlite`**
 - Else local → `data/nobu.web.sqlite`
 
 **`/tmp` on Vercel is ephemeral per instance lifecycle.** It does not survive:
 
-- cold starts that land on a different instance without shared volume  
-- redeployments  
-- multi-instance concurrency as a single source of truth  
+- cold starts that land on a different instance without shared volume
+- redeployments
+- multi-instance concurrency as a single source of truth
 
 ### Production environment (names only)
 
@@ -116,8 +116,8 @@ Architecture docs mention PostgreSQL for deployed persistence; **no production P
 
 ### Split-brain note
 
-- Free A2MCP evaluation uses **memory-store**, not the owner SQLite path.  
-- Owner `UNCHANGED` updates SQLite (`/tmp` on Vercel), **not** the A2MCP memory seed.  
+- Free A2MCP evaluation uses **memory-store**, not the owner SQLite path.
+- Owner `UNCHANGED` updates SQLite (`/tmp` on Vercel), **not** the A2MCP memory seed.
 - Even if owner SQLite were durable, A2MCP would not automatically share that state without an integration that does not exist today.
 
 ---
@@ -150,15 +150,15 @@ Covers: CURRENT/CHECK_DUE/SOURCE_UNAVAILABLE/CHANGE_DETECTED/RETIRED rules; memo
 
 Required sequence (status → CHECK_DUE → `UNCHANGED` → CURRENT → cold start/redeploy recheck) **could not be run in production** because:
 
-1. `OWNER_OPS_SECRET` / `CRON_SECRET` are **not configured** → all owner mutations return 503.  
+1. `OWNER_OPS_SECRET` / `CRON_SECRET` are **not configured** → all owner mutations return 503.
 2. Even if secrets were set, storage is `/tmp` SQLite + separate process memory for A2MCP — durability would still fail static architecture criteria.
 
 **Not performed in production (by design of this audit):**
 
-- Forced CHECK_DUE transition  
-- Authorized `UNCHANGED`  
-- Redeploy to prove survival  
-- Concurrent multi-instance write/read  
+- Forced CHECK_DUE transition
+- Authorized `UNCHANGED`
+- Redeploy to prove survival
+- Concurrent multi-instance write/read
 
 **Do not** mark RETIRED or fake material change — complied.
 
@@ -190,16 +190,16 @@ Static code + env inspection is sufficient to reject durability without performi
 
 ## 7. Exact blockers
 
-1. **Production policy-ops state is not durable.**  
-   - A2MCP/health: in-process memory (`memory-store.ts`).  
-   - Owner API: SQLite under **`/tmp/nobu.web.sqlite`** on Vercel (ephemeral).  
+1. **Production policy-ops state is not durable.**
+   - A2MCP/health: in-process memory (`memory-store.ts`).
+   - Owner API: SQLite under **`/tmp/nobu.web.sqlite`** on Vercel (ephemeral).
    - No `DATABASE_URL` / external durable store configured or used by policy ops.
 
-2. **Owner runtime write path is not operable in production.**  
-   - Neither `OWNER_OPS_SECRET` nor `CRON_SECRET` is set in Vercel production env.  
+2. **Owner runtime write path is not operable in production.**
+   - Neither `OWNER_OPS_SECRET` nor `CRON_SECRET` is set in Vercel production env.
    - `UNCHANGED`-without-redeploy cannot be exercised on production today.
 
-3. **A2MCP and owner stores are not the same backing store.**  
+3. **A2MCP and owner stores are not the same backing store.**
    - Even a durable owner SQLite would not update free-endpoint evaluation until shared.
 
 4. **Secondary archival gap (non-blocking for price-drop acceptance):** exact SerpApi search unit count for the R1A probe was never instrumented in the response.
@@ -218,15 +218,15 @@ Static code + env inspection is sufficient to reject durability without performi
 
 Smallest exact implementation scope:
 
-1. Introduce a **production-durable** backend for policy operations tables (e.g. Vercel Postgres / Neon / other non-ephemeral store already acceptable to Nobu ops — **not** `/tmp` SQLite, **not** process memory alone).  
-2. Wire **both** owner routes and A2MCP/health policy runtime to that single store (or a shared read path).  
-3. Configure `OWNER_OPS_SECRET` (or `CRON_SECRET`) in production.  
-4. Prove with redacted production evidence:  
-   - unauthorized → 401 when secret set;  
-   - scheduler → at most one active alert;  
-   - `UNCHANGED` → `CURRENT`;  
-   - state survives **new request**, **cold start**, and **redeploy**.  
-5. Do **not** change Agent `5541`, OKX listing, retailers, or matching fail-closed rules.  
+1. Introduce a **production-durable** backend for policy operations tables (e.g. Vercel Postgres / Neon / other non-ephemeral store already acceptable to Nobu ops — **not** `/tmp` SQLite, **not** process memory alone).
+2. Wire **both** owner routes and A2MCP/health policy runtime to that single store (or a shared read path).
+3. Configure `OWNER_OPS_SECRET` (or `CRON_SECRET`) in production.
+4. Prove with redacted production evidence:
+   - unauthorized → 401 when secret set;
+   - scheduler → at most one active alert;
+   - `UNCHANGED` → `CURRENT`;
+   - state survives **new request**, **cold start**, and **redeploy**.
+5. Do **not** change Agent `5541`, OKX listing, retailers, or matching fail-closed rules.
 6. Do **not** silently auto-apply material policy changes.
 
 Optional follow-on (not R2A required): instrument SerpApi search count on A2MCP responses for future proofs.
@@ -250,16 +250,16 @@ After 8-R2A durability PASS → resume **8-R3 OKX listing resolution** (agent `5
 
 ### `docs/nobu-current-state.md` (proposal only)
 
-- Record Lane 8-R2 audit: **BLOCKED_POLICY_STATE_NOT_DURABLE** at audit commit (this document).  
-- Canonical live `PRICE_DROP_DETECTED` on `/v1/agent` **accepted** from R1A proof (AirTag $35 → $29.99, 2026-07-19).  
-- Policy ops durability is **not** production-ready: memory + `/tmp` SQLite; no owner secret in prod.  
-- Next implementation: **8-R2A durable policy store**.  
+- Record Lane 8-R2 audit: **BLOCKED_POLICY_STATE_NOT_DURABLE** at audit commit (this document).
+- Canonical live `PRICE_DROP_DETECTED` on `/v1/agent` **accepted** from R1A proof (AirTag $35 → $29.99, 2026-07-19).
+- Policy ops durability is **not** production-ready: memory + `/tmp` SQLite; no owner secret in prod.
+- Next implementation: **8-R2A durable policy store**.
 - Agent `5541` still under review; listing untouched.
 
 ### `docs/nobu-build-order.md` (proposal only)
 
-- Close 8-R2 audit as blocked on durability.  
-- Insert **8-R2A — Durable policy-operations store** before 8-R3.  
+- Close 8-R2 audit as blocked on durability.
+- Insert **8-R2A — Durable policy-operations store** before 8-R3.
 - Keep 8-R3 OKX / 8-R4 deadline / Lane 9 after durability PASS.
 
 ---
@@ -271,15 +271,15 @@ git rev-parse HEAD
 git branch --show-current
 git status --short
 git show 24c59f5 --stat
-npx vercel inspect usenobu.vercel.app
+npx vercel inspect www.usenobu.xyz
 npx vercel env ls production
 npx vitest run tests/policy/policy-operations.test.ts tests/policy/freshness.test.ts
 # Production HTTP (no SerpApi):
-GET  https://usenobu.vercel.app/health
-GET  https://usenobu.vercel.app/v1/owner/policy-status
-GET  https://usenobu.vercel.app/v1/owner/policy-status  (bad bearer)
-POST https://usenobu.vercel.app/v1/owner/policy-scheduler
-GET  https://usenobu.vercel.app/owner/policy
+GET  https://www.usenobu.xyz/health
+GET  https://www.usenobu.xyz/v1/owner/policy-status
+GET  https://www.usenobu.xyz/v1/owner/policy-status  (bad bearer)
+POST https://www.usenobu.xyz/v1/owner/policy-scheduler
+GET  https://www.usenobu.xyz/owner/policy
 git diff --check  # on new audit/proof paths
 git status --short
 ```
@@ -290,8 +290,8 @@ git status --short
 
 ## Hard locks compliance
 
-- Agent `5541` / OKX listing / ASP: **untouched**  
-- Registered endpoint/service/fee: **untouched**  
-- No second retailer; matching not weakened  
-- No manufactured price drop; **no extra SerpApi spend**  
-- No application/production code changes in this verification lane  
+- Agent `5541` / OKX listing / ASP: **untouched**
+- Registered endpoint/service/fee: **untouched**
+- No second retailer; matching not weakened
+- No manufactured price drop; **no extra SerpApi spend**
+- No application/production code changes in this verification lane

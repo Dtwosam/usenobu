@@ -1,6 +1,6 @@
 # Find-Product Navigation Repair
 
-**Date:** 2026-07-15  
+**Date:** 2026-07-15
 **Verdict:** `NOBU_FIND_PRODUCT_NAVIGATION_PASS`
 
 ## Proven root cause
@@ -25,17 +25,17 @@
 
 ## Repair
 
-1. Validate purchase id (`pur_[hex]`) before redirect; never redirect with empty/wrong ids  
-2. Require successful session cookie write before redirect  
-3. Compress session snapshot (`deflate` + `z.` prefix) so purchase + discovery fit under ~4KB  
-4. Never mid-truncate JSON (invalid evaluation crashed review)  
-5. Empty live candidates → stay on form: *Nobu could not find a reliable Target product right now.*  
-6. Persist failure → stay on form: *Nobu could not save this purchase. Please try again.*  
+1. Validate purchase id (`pur_[hex]`) before redirect; never redirect with empty/wrong ids
+2. Require successful session cookie write before redirect
+3. Compress session snapshot (`deflate` + `z.` prefix) so purchase + discovery fit under ~4KB
+4. Never mid-truncate JSON (invalid evaluation crashed review)
+5. Empty live candidates → stay on form: *Nobu could not find a reliable Target product right now.*
+6. Persist failure → stay on form: *Nobu could not save this purchase. Please try again.*
 7. Missing purchase on review → redirect to form with `session_lost` (not bare 404)
 
 No changes to SerpApi matching thresholds, policy, monitoring logic, `/v1/agent`, or ASP `5541`.
 
-## Production proof (`https://usenobu.vercel.app`)
+## Production proof (`https://www.usenobu.xyz`)
 
 | Check | Result |
 |---|---|
@@ -51,10 +51,10 @@ Files: `production-proof.json`, screenshots `01`–`04`, diagnostics `reproduce.
 
 ## Tests
 
-- Navigation unit tests (id/path/errors)  
-- `npm test` (241)  
-- `npm run typecheck`  
-- `npm run build`  
-- Production browser proof  
-- `/health` ok  
-- `POST /v1/agent` frozen 404  
+- Navigation unit tests (id/path/errors)
+- `npm test` (241)
+- `npm run typecheck`
+- `npm run build`
+- Production browser proof
+- `/health` ok
+- `POST /v1/agent` frozen 404

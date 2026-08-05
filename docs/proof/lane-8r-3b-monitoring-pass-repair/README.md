@@ -3,7 +3,7 @@
 **Status:** `NOBU_LANE_8R_3B_READY_FOR_OPERATOR_ALIGNMENT_AND_PROOF`
 **Date:** 2026-07-26
 **Base commit:** `32ddaa0` · **Repair commit:** `1dac265`
-**Production deployment:** `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB` (`usenobu-j2kc5se0f`), explicitly re-aliased to `usenobu.vercel.app`
+**Production deployment:** `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB` (`usenobu-j2kc5se0f`), explicitly re-aliased to `www.usenobu.xyz`
 
 **Not `PASS`.** ASP `#5541` service `35958` still points at the old `/v1/agent/start-monitoring` endpoint. The single metadata update that repoints it is prepared but deliberately **not executed** — see `operator-runbook.md`. No `agent update`, no activation, no resubmission, and no genuine payment was performed in this lane.
 
@@ -33,7 +33,7 @@ No A2A, MCP SSE, `tools/list`, or guessed discovery document was implemented.
 
 ## 2. What changed
 
-### Free service `33561` — `https://usenobu.vercel.app/v1/agent` (endpoint unchanged)
+### Free service `33561` — `https://www.usenobu.xyz/v1/agent` (endpoint unchanged)
 
 A bodyless `POST`, `{}`, or any envelope with no recognised `action` (`message`, `query`, `prompt`, or anything else) now returns `200` with a `status: READY` descriptor listing every supported action with its required fields, the recommended first action, one working example request, the paid service, and a clear `next_action`. `GET` returns the same descriptor.
 
@@ -41,7 +41,7 @@ The descriptor is **pure** — `buildFreeServiceDescriptor()` performs no Groq, 
 
 Malformed JSON still returns `400`, now guided (`error`, `status`, `message`, `next_action`, `documentation`). A **recognised** action with invalid fields still returns its existing `400` — valid-action behaviour is unchanged, and a focused test asserts that every recognised action name is never treated as first contact.
 
-### Paid service `35958` — new endpoint `https://usenobu.vercel.app/v1/agent/monitoring-pass`
+### Paid service `35958` — new endpoint `https://www.usenobu.xyz/v1/agent/monitoring-pass`
 
 Sells one `$0.99` **Nobu Monitoring Pass**. Every initial call — `GET` or `POST`, body or none — returns `402` with the base64 x402 v2 challenge in `PAYMENT-REQUIRED`, **before any business execution and with no quote, connection, purchase or consent consulted**. That is the whole repair: Lane 8R.3A proved prerequisite-gated first contact was why OKX's validator reported `valid: false`.
 
@@ -101,7 +101,7 @@ Baseline evidence: `pre-existing-failures.md`. **All 19 were subsequently fixed 
 
 ## 4. Production proof
 
-Deployment `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB`, alias `usenobu.vercel.app` re-pointed explicitly (it does not auto-follow `vercel deploy --prod`).
+Deployment `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB`, alias `www.usenobu.xyz` re-pointed explicitly (it does not auto-follow `vercel deploy --prod`).
 
 | Case | Method | Status | Duration | `PAYMENT-REQUIRED` |
 |---|---|---|---|---|

@@ -1,6 +1,6 @@
 {
   "at": "2026-07-14T14:34:06.737Z",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "sprint": "A.3",
   "product": "Conair ExtremeSteam Handheld Garment Steamer",
   "checks": {
@@ -39,7 +39,7 @@
   "live_check": {
     "query_timestamp": "2026-07-14T14:34:14.862Z",
     "elapsed_ms": 572,
-    "final_url": "https://usenobu.vercel.app/purchases/pur_83a406d73857?checked=1&outcome=no_match&data_source=LIVE",
+    "final_url": "https://www.usenobu.xyz/purchases/pur_83a406d73857?checked=1&outcome=no_match&data_source=LIVE",
     "outcome": "no_match",
     "data_source": "LIVE",
     "error": null,

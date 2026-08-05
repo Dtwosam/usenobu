@@ -5,7 +5,7 @@
   "tcin": "54191097",
   "health": [
     {
-      "base": "https://usenobu.vercel.app",
+      "base": "https://www.usenobu.xyz",
       "status": 200,
       "serpapi_configured": true,
       "provider_ready": true
@@ -19,7 +19,7 @@
   ],
   "canonical": {
     "at": "2026-07-14T22:22:42.297Z",
-    "base": "https://usenobu.vercel.app",
+    "base": "https://www.usenobu.xyz",
     "http_status": 200,
     "status": "PRICE_DROP_DETECTED",
     "observed_target_price": 29.99,

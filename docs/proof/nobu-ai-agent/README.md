@@ -1,7 +1,7 @@
 # Lane 7.5E — Nobu AI agent intake proof
 
-**Date:** 2026-07-13  
-**Production:** https://usenobu.vercel.app  
+**Date:** 2026-07-13
+**Production:** https://www.usenobu.xyz
 **Verdict:** `NOBU_LANE_7_5E_PROD_PROOF_PASS`
 
 ## Browser flow (Playwright against production)
@@ -45,5 +45,5 @@ Production historically ran with **deterministic extractor** (`provider: "determ
 
 ## Next lane
 
-**Lane 8 — OKX ASP registration and live listing**  
-Listing endpoint: **https://usenobu.vercel.app/v1/agent**
+**Lane 8 — OKX ASP registration and live listing**
+Listing endpoint: **https://www.usenobu.xyz/v1/agent**

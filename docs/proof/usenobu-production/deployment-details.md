@@ -5,7 +5,7 @@
 | Team / scope | dtwoflicks-2878s-projects |
 | Project name | usenobu |
 | Project ID | prj_nVrpTW9gmRZxn9AAh5ALrGSAaecZ |
-| Primary production hostname | https://usenobu.vercel.app |
+| Primary production hostname | https://www.usenobu.xyz |
 | Example deployment host | https://usenobu-1dq65e3ha-dtwoflicks-2878s-projects.vercel.app |
 | Framework | Next.js 15 |
 | Node | 24.x |

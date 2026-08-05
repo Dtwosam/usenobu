@@ -16,14 +16,14 @@
     },
     "decoded_challenge_shape_for_illustration": {
       "x402Version": 1,
-      "resource": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "resource": "https://www.usenobu.xyz/v1/agent/start-monitoring",
       "accepts": [
         {
           "scheme": "exact",
           "network": "eip155:196",
           "asset": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
           "amount": "990000",
-          "resource": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+          "resource": "https://www.usenobu.xyz/v1/agent/start-monitoring",
           "payTo": null,
           "extra": { "quote_id": "quote_REDACTED000000000000000000000000" }
         }

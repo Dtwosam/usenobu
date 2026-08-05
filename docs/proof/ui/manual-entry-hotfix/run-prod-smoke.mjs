@@ -6,7 +6,7 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 
-const base = process.env.NOBU_PROOF_BASE || "https://usenobu.vercel.app";
+const base = process.env.NOBU_PROOF_BASE || "https://www.usenobu.xyz";
 const dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
 // On Windows, file URL pathname may be /C:/... — normalize
 const proofDir = path.resolve("docs/proof/ui/manual-entry-hotfix");

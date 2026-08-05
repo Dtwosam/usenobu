@@ -28,8 +28,8 @@
     "0.99"
   ],
   "endpoints": [
-    "https://usenobu.vercel.app/v1/agent",
-    "https://usenobu.vercel.app/v1/agent/monitoring-pass"
+    "https://www.usenobu.xyz/v1/agent",
+    "https://www.usenobu.xyz/v1/agent/monitoring-pass"
   ],
   "description_non_empty_lines": [
     3,

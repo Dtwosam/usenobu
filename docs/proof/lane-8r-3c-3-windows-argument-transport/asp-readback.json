@@ -20,7 +20,7 @@
       "serviceName": "Nobu Purchase Setup",
       "serviceType": "A2MCP",
       "fee": "0",
-      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "endpoint": "https://www.usenobu.xyz/v1/agent",
       "description": "Original registered description unchanged",
       "changed": false
     },
@@ -29,7 +29,7 @@
       "serviceName": "Nobu Monitoring Activation",
       "serviceType": "A2MCP",
       "fee": "0.99",
-      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "endpoint": "https://www.usenobu.xyz/v1/agent/start-monitoring",
       "description": "Original registered description unchanged",
       "changed": false
     }

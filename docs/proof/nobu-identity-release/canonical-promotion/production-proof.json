@@ -1,7 +1,7 @@
 {
   "at": "2026-07-19T21:05:46.940Z",
-  "base": "https://usenobu.vercel.app",
-  "note": "Unique Vercel deployment (not aliased to usenobu.vercel.app in this lane).",
+  "base": "https://www.usenobu.xyz",
+  "note": "Unique Vercel deployment (not aliased to www.usenobu.xyz in this lane).",
   "checks": {
     "health": {
       "status": 200,
@@ -36,7 +36,7 @@
   "flow_a_identity_only": {
     "purchase_id": "pur_93c93cea7575",
     "review": {
-      "url": "https://usenobu.vercel.app/purchases/pur_93c93cea7575/review?title=&source=LIVE",
+      "url": "https://www.usenobu.xyz/purchases/pur_93c93cea7575/review?title=&source=LIVE",
       "match_decision": "EXACT_MATCH_CANDIDATE",
       "match_reasons": "Reasons: user_provided_purchase_identity, single_strong_target_candidate, exact_target_url",
       "observed_price_line": "Observed price: —",
@@ -58,7 +58,7 @@
     },
     "live_check": {
       "elapsed_ms": 555,
-      "final_url": "https://usenobu.vercel.app/purchases/pur_93c93cea7575?checked=1&outcome=provider_unavailable&data_source=LIVE",
+      "final_url": "https://www.usenobu.xyz/purchases/pur_93c93cea7575?checked=1&outcome=provider_unavailable&data_source=LIVE",
       "outcome": "provider_unavailable",
       "on_alert": false,
       "provider_outcome": "",
@@ -73,7 +73,7 @@
     "enrollment_confirmable": true,
     "live_check": {
       "elapsed_ms": 493,
-      "final_url": "https://usenobu.vercel.app/purchases/pur_eb0a845a460e?checked=1&outcome=no_match&data_source=LIVE",
+      "final_url": "https://www.usenobu.xyz/purchases/pur_eb0a845a460e?checked=1&outcome=no_match&data_source=LIVE",
       "outcome": "no_match",
       "on_alert": false,
       "provider_outcome": "",

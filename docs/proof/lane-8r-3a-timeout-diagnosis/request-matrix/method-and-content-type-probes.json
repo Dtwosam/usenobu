@@ -1,10 +1,10 @@
-﻿{
+{
     "captured_at":  "2026-07-26 01:31:42Z",
     "probes":  [
                    {
                        "label":  "method-GET",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  405,
                        "response_content_type":  "",
                        "duration_s":  0.592049,
@@ -17,7 +17,7 @@
                    {
                        "label":  "method-OPTIONS",
                        "method":  "OPTIONS",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  204,
                        "response_content_type":  "",
                        "duration_s":  1.41413,
@@ -30,7 +30,7 @@
                    {
                        "label":  "method-PUT",
                        "method":  "PUT",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  405,
                        "response_content_type":  "",
                        "duration_s":  0.561745,
@@ -43,7 +43,7 @@
                    {
                        "label":  "method-POST-form",
                        "method":  "POST",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  400,
                        "response_content_type":  "application/json",
                        "duration_s":  0.544018,
@@ -56,7 +56,7 @@
                    {
                        "label":  "method-POST-textplain",
                        "method":  "POST",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  200,
                        "response_content_type":  "application/json",
                        "duration_s":  1.754094,
@@ -77,7 +77,7 @@
                    {
                        "label":  "method-POST-no-content-type",
                        "method":  "POST",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  200,
                        "response_content_type":  "application/json",
                        "duration_s":  1.656891,
@@ -98,7 +98,7 @@
                    {
                        "label":  "method-GET",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "url":  "https://www.usenobu.xyz/v1/agent/start-monitoring",
                        "http_status":  405,
                        "response_content_type":  "",
                        "duration_s":  0.886679,
@@ -111,7 +111,7 @@
                    {
                        "label":  "method-OPTIONS",
                        "method":  "OPTIONS",
-                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "url":  "https://www.usenobu.xyz/v1/agent/start-monitoring",
                        "http_status":  204,
                        "response_content_type":  "",
                        "duration_s":  0.572528,
@@ -124,7 +124,7 @@
                    {
                        "label":  "method-PUT",
                        "method":  "PUT",
-                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "url":  "https://www.usenobu.xyz/v1/agent/start-monitoring",
                        "http_status":  405,
                        "response_content_type":  "",
                        "duration_s":  0.533722,
@@ -137,7 +137,7 @@
                    {
                        "label":  "method-POST-form",
                        "method":  "POST",
-                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "url":  "https://www.usenobu.xyz/v1/agent/start-monitoring",
                        "http_status":  400,
                        "response_content_type":  "application/json",
                        "duration_s":  0.543715,
@@ -150,7 +150,7 @@
                    {
                        "label":  "method-POST-textplain",
                        "method":  "POST",
-                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "url":  "https://www.usenobu.xyz/v1/agent/start-monitoring",
                        "http_status":  400,
                        "response_content_type":  "application/json",
                        "duration_s":  0.571572,
@@ -168,7 +168,7 @@
                    {
                        "label":  "method-POST-no-content-type",
                        "method":  "POST",
-                       "url":  "https://usenobu.vercel.app/v1/agent/start-monitoring",
+                       "url":  "https://www.usenobu.xyz/v1/agent/start-monitoring",
                        "http_status":  400,
                        "response_content_type":  "application/json",
                        "duration_s":  0.633293,

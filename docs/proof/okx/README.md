@@ -22,7 +22,7 @@
 | Service | Post-checkout price watch |
 | Type | A2MCP |
 | Fee | `0` |
-| Endpoint | `https://usenobu.vercel.app/v1/agent` |
+| Endpoint | `https://www.usenobu.xyz/v1/agent` |
 
 ## Avatar rejection → resubmit (2026-07-17)
 

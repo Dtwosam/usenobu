@@ -1,4 +1,4 @@
-﻿{
+{
     "captured_at":  "2026-07-26 08:32:32Z",
     "header":  "PAYMENT-REQUIRED",
     "encoding":  "standard base64 of the challenge JSON (decodable with atob, per the official buyer flow)",
@@ -7,7 +7,7 @@
     "decoded_challenge":  {
                               "x402Version":  2,
                               "resource":  {
-                                               "url":  "https://usenobu.vercel.app/v1/agent/monitoring-pass",
+                                               "url":  "https://www.usenobu.xyz/v1/agent/monitoring-pass",
                                                "description":  "One Nobu Monitoring Pass ($0.99). Redeemable once to activate price monitoring for one confirmed, eligible Target purchase. Payment does not guarantee a price drop, alert, refund, adjustment or savings.",
                                                "mimeType":  "application/json"
                                            },
@@ -20,7 +20,7 @@
                                                   "payTo":  "0x2746...REDACTED...B70B",
                                                   "maxTimeoutSeconds":  300,
                                                   "extra":  {
-                                                                "name":  "USD₮0",
+                                                                "name":  "USD?0",
                                                                 "version":  "2"
                                                             }
                                               }

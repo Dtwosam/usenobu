@@ -7,13 +7,13 @@
   "origin_master": "767d10c101b8eeb113c31e4802788a3afd9c08b9",
   "deployment_url": "https://usenobu-fw0f3dvx9-dtwoflicks-2878s-projects.vercel.app",
   "aliases": [
-    "https://usenobu.vercel.app",
+    "https://www.usenobu.xyz",
     "https://www.usenobu.xyz"
   ],
   "external_checks": {
-    "https://usenobu.vercel.app/": "200 — retailer sentence + five sections",
-    "https://usenobu.vercel.app/health": 200,
-    "https://usenobu.vercel.app/v1/agent": "200 UNDERSTAND_PURCHASE"
+    "https://www.usenobu.xyz/": "200 — retailer sentence + five sections",
+    "https://www.usenobu.xyz/health": 200,
+    "https://www.usenobu.xyz/v1/agent": "200 UNDERSTAND_PURCHASE"
   },
   "notes": [
     "Only website change: homepage availability sentence",

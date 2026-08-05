@@ -1,8 +1,8 @@
 # Sprint B — Action Center
 
-**Date:** 2026-07-14  
-**Verdict:** `NOBU_REVIEW_SAFE_B_PASS`  
-**Production:** https://usenobu.vercel.app  
+**Date:** 2026-07-14
+**Verdict:** `NOBU_REVIEW_SAFE_B_PASS`
+**Production:** https://www.usenobu.xyz
 **Lane 8:** `NOBU_LANE_8_PENDING_REVIEW` (ASP #5541) — not completed.
 
 ## Goal
@@ -15,10 +15,10 @@ When Nobu finds a valid possible price difference, give a simple, safe next step
 
 Facts (≤4):
 
-1. Purchase price  
-2. Observed price  
-3. Potential difference  
-4. Days remaining  
+1. Purchase price
+2. Observed price
+3. Potential difference
+4. Days remaining
 
 Trust note: *Third-party observed price. Target verifies and decides.*
 
@@ -33,16 +33,16 @@ Actions:
 
 `src/web/target-url.ts`
 
-- HTTPS only  
-- Target domain only  
-- Tied to fingerprint / purchase product URL  
-- Never SerpApi or unknown sellers  
-- Hidden when untrusted  
+- HTTPS only
+- Target domain only
+- Tied to fingerprint / purchase product URL
+- Never SerpApi or unknown sellers
+- Hidden when untrusted
 
 ## Official contact
 
-Reverified 2026-07-14: [Target Contact Us](https://www.target.com/help/contact-us)  
-Phone still documented: 1-800-591-3869 (Guest Services).  
+Reverified 2026-07-14: [Target Contact Us](https://www.target.com/help/contact-us)
+Phone still documented: 1-800-591-3869 (Guest Services).
 Registry: `TARGET-CONTACT` in `docs/external-source-registry.md`.
 
 Does **not** log in, submit claims, or auto-start chat.
@@ -59,8 +59,8 @@ Success: *Details copied.*
 
 Stored observation detection (`resolveStoredDataSource`):
 
-- Fixture query / hash / title → always show *Test data — not a live current retailer price.*  
-- Live SerpApi observations → no fixture banner  
+- Fixture query / hash / title → always show *Test data — not a live current retailer price.*
+- Live SerpApi observations → no fixture banner
 
 ## Implementation files
 

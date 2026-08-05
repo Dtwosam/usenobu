@@ -1,8 +1,8 @@
-﻿{
+{
     "commit":  "9cd9deb285803ccd7d6be61d633f604bf35eeef7",
     "deployment_url":  "https://usenobu-clysmlg2z-dtwoflicks-2878s-projects.vercel.app",
     "alias_www":  "https://www.usenobu.xyz",
-    "alias_agent":  "https://usenobu.vercel.app",
+    "alias_agent":  "https://www.usenobu.xyz",
     "health":  {
                    "ok":  true,
                    "status":  200
@@ -36,5 +36,5 @@
                                    "status":  401,
                                    "body":  "{\"agent_state\":\"MONITORING_ACTIVATION\",\"status\":\"ACTION_NOT_AUTHORIZED\"}"
                                },
-    "agent_host_alias":  "https://usenobu.vercel.app -\u003e usenobu-clysmlg2z-dtwoflicks-2878s-projects.vercel.app"
+    "agent_host_alias":  "https://www.usenobu.xyz -\u003e usenobu-clysmlg2z-dtwoflicks-2878s-projects.vercel.app"
 }

@@ -88,7 +88,7 @@ The quarantined passes `pass_d154602364564dd8b8b76540db54248b` and `pass_1c299f2
 ## Pre-mutation proof
 
 - Tracked worktree and index were clean at exact HEAD `139dad3`.
-- `usenobu.vercel.app` resolved to READY deployment `dpl_G1pxk6qa5YySUradbSXikbjHKPEG` before mutation.
+- `www.usenobu.xyz` resolved to READY deployment `dpl_G1pxk6qa5YySUradbSXikbjHKPEG` before mutation.
 - That deployment was created by the recorded clean local CLI deployment at HEAD `139dad3`; Vercel inspect exposed no separate Git metadata field.
 - The earlier code commit `0c0acf1` and intermediate deployment `dpl_GCzb3QkYkAySjd1koyBQaumiiSpU` are implementation history, not canonical closeout references.
 
@@ -96,7 +96,7 @@ The quarantined passes `pass_d154602364564dd8b8b76540db54248b` and `pass_1c299f2
 
 A new 256-bit random `OWNER_OPS_SECRET` was generated in memory, set as a Sensitive Production value, and cleared from memory after use. It was never printed, committed, written to a file or returned. `CRON_SECRET` and unrelated configuration were untouched.
 
-The exact unchanged application commit `139dad3` was redeployed once as `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd`; `usenobu.vercel.app` was explicitly re-aliased to that deployment.
+The exact unchanged application commit `139dad3` was redeployed once as `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd`; `www.usenobu.xyz` was explicitly re-aliased to that deployment.
 
 Exactly two authenticated calls were made to `POST /v1/owner/pass-settlement-reconcile`:
 

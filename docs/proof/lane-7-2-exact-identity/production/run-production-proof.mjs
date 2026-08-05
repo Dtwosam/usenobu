@@ -1,6 +1,6 @@
 /**
  * Lane 7.2 unique production deployment proof.
- * Targets the unique (non-aliased) Vercel deployment, not usenobu.vercel.app.
+ * Targets the unique (non-aliased) Vercel deployment, not www.usenobu.xyz.
  */
 import { chromium } from "playwright";
 import fs from "node:fs";
@@ -17,7 +17,7 @@ fs.mkdirSync(proofDir, { recursive: true });
 const out = {
   at: new Date().toISOString(),
   base,
-  note: "Unique Vercel deployment (not aliased to usenobu.vercel.app in this lane).",
+  note: "Unique Vercel deployment (not aliased to www.usenobu.xyz in this lane).",
   checks: {},
   flow_a_identity_only: {},
   flow_b_real_product_live_check: {},

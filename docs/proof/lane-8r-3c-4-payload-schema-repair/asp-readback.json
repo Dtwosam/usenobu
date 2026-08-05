@@ -22,7 +22,7 @@
       "serviceDescription": "Free agent setup for Target post-purchase monitoring: discover and confirm products, verify email, capture consent, check eligibility, prepare quotes, list/status, alert prefs, stop, and revoke. Does not activate paid monitoring.\nUser provides: 1. purchase details 2. exact product confirmation 3. verified email 4. monitoring and email-alert consent.",
       "serviceType": "A2MCP",
       "fee": "0",
-      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "endpoint": "https://www.usenobu.xyz/v1/agent",
       "changed": false
     },
     {
@@ -31,7 +31,7 @@
       "serviceDescription": "Activates scheduled monitoring for one confirmed eligible purchase after verified $0.99 OKX payment. Payment does not guarantee a lower price, alert, refund, adjustment, or savings.\nUser provides: 1. verified connection 2. valid enrollment quote 3. completed OKX payment for activation.",
       "serviceType": "A2MCP",
       "fee": "0.99",
-      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "endpoint": "https://www.usenobu.xyz/v1/agent/start-monitoring",
       "changed": false
     }
   ],

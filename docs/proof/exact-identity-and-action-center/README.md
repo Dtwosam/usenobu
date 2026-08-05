@@ -1,8 +1,8 @@
 # Exact identity + Action Center proof
 
-**Date:** 2026-07-15  
-**Public alias:** https://usenobu.vercel.app  
-**Deployment:** `usenobu-nmepx5b6q`  
+**Date:** 2026-07-15
+**Public alias:** https://www.usenobu.xyz
+**Deployment:** `usenobu-nmepx5b6q`
 **Verdict:** `NOBU_IDENTITY_AND_ACTION_CENTER_PASS`
 
 ## Official Target route
@@ -16,12 +16,12 @@ Live Target help HTML returned a temporary capacity page during re-fetch; regist
 
 ## Production checks (`prod-proof.json`)
 
-1. Missing model **and** UPC → Find my product disabled + error  
-2. TCIN + model → submit enabled  
-3. TCIN + UPC → submit enabled  
-4. AirTag full identity → `EXACT_MATCH_CANDIDATE` (LIVE)  
-5–7. Action Center (fixture e2e): heading, Request the difference from Target → contact-us, Copy request details, View evidence  
-8. No guarantee / claim-submission language  
+1. Missing model **and** UPC → Find my product disabled + error
+2. TCIN + model → submit enabled
+3. TCIN + UPC → submit enabled
+4. AirTag full identity → `EXACT_MATCH_CANDIDATE` (LIVE)
+5–7. Action Center (fixture e2e): heading, Request the difference from Target → contact-us, Copy request details, View evidence
+8. No guarantee / claim-submission language
 
 ## Request-summary example (fixture)
 

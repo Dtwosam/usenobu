@@ -8,7 +8,7 @@
 Error: ENOENT: no such file or directory, scandir '…/migrations'
 ```
 
-**Failing path:** `src/db/migrator.ts` → `listMigrations()` / `fs.readdirSync(MIGRATIONS_DIR)`  
+**Failing path:** `src/db/migrator.ts` → `listMigrations()` / `fs.readdirSync(MIGRATIONS_DIR)`
 **Call chain:** `submitPurchaseAction` → `createPurchaseFlow` → `getWebDatabase()` → `migrateUp()` → scandir migrations
 
 On Vercel the SQL migration directory was not available next to the compiled module, so the first write to SQLite crashed the server action and Next.js showed a blank *Application error* page (digest `2288372432`).
@@ -32,7 +32,7 @@ Prior lanes verified static routes (`/`, `/health`, notices) and local E2E with 
 
 ## Production browser proof (2026-07-13)
 
-URL: **https://usenobu.vercel.app**
+URL: **https://www.usenobu.xyz**
 
 | Step | Result |
 |---|---|

@@ -51,7 +51,7 @@ Production deployment:
 - Deployment id: `dpl_7P6rUDeGfASGkKiS4jN1qby51hX3`
 - Deployment URL: `https://usenobu-ngtiamvqr-dtwoflicks-2878s-projects.vercel.app`
 - Vercel inspector: `https://vercel.com/dtwoflicks-2878s-projects/usenobu/7P6rUDeGfASGkKiS4jN1qby51hX3`
-- Primary `usenobu.vercel.app` alias was not moved because the live enrollment proof did not pass.
+- Primary `www.usenobu.xyz` alias was not moved because the live enrollment proof did not pass.
 
 Health and regression proof:
 
@@ -138,7 +138,7 @@ Production-target deployment attempted:
 - Deployment id: `dpl_2oZ9MRN4qGTuREC89wn82Vrz91at`.
 - Deployment URL: `https://usenobu-bev5dnb2q-dtwoflicks-2878s-projects.vercel.app`.
 - Vercel inspector: `https://vercel.com/dtwoflicks-2878s-projects/usenobu/2oZ9MRN4qGTuREC89wn82Vrz91at`.
-- CLI production deployment created the project-scoped Vercel alias, but the canonical `usenobu.vercel.app` alias was not intentionally moved after the proof failed.
+- CLI production deployment created the project-scoped Vercel alias, but the canonical `www.usenobu.xyz` alias was not intentionally moved after the proof failed.
 
 Bounded live result:
 
@@ -173,7 +173,7 @@ Post-repair local verification:
 Production checks after the failed proof:
 
 - Direct deployment `/health`: `status: ok`, `provider_ready: true`, `policy_review_state: CURRENT`, `policy_ops_store_kind: postgres`.
-- `https://usenobu.vercel.app/health`: `status: ok`, `provider_ready: true`, `policy_review_state: CURRENT`, `policy_ops_store_kind: postgres`.
+- `https://www.usenobu.xyz/health`: `status: ok`, `provider_ready: true`, `policy_review_state: CURRENT`, `policy_ops_store_kind: postgres`.
 - `POST /v1/agent` missing monitoring-status purchase remains 404 `not_found`.
 
 R2C.2 verdict: `NOBU_LANE_8_R2C_BLOCKED_PROVIDER_CAPABILITY`.

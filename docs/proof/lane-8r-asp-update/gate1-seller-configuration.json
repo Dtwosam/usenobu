@@ -1,4 +1,4 @@
-﻿{
+{
   "gate": 1,
   "method": "deployed_runtime_readiness",
   "no_local_vercel_env_run_for_sensitive_okx": true,
@@ -15,7 +15,7 @@
       "target": "production",
       "status": "Ready"
     },
-    "usenobu.vercel.app": {
+    "www.usenobu.xyz": {
       "deployment": "usenobu-f9a2nf6xp-dtwoflicks-2878s-projects.vercel.app",
       "target": "production",
       "status": "Ready",

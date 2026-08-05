@@ -1,13 +1,13 @@
 # Successful production flow after repair (deployment usenobu-fj59pwux3)
 
 TIME         HOST                LEVEL   STATUS  MESSAGE
-21:18:54.92  usenobu.vercel.app  info    GET /                    200
-21:18:57.13  usenobu.vercel.app  info    GET /purchases/new       200
-21:18:58.22  usenobu.vercel.app  info    POST /purchases/new      303   (redirect to review — success)
-21:18:58.86  usenobu.vercel.app  info    GET /purchases/…/review  200
+21:18:54.92  www.usenobu.xyz  info    GET /                    200
+21:18:57.13  www.usenobu.xyz  info    GET /purchases/new       200
+21:18:58.22  www.usenobu.xyz  info    POST /purchases/new      303   (redirect to review — success)
+21:18:58.86  www.usenobu.xyz  info    GET /purchases/…/review  200
 
 # Pre-repair failure (for root-cause record)
 
-21:07:26.53  usenobu.vercel.app  error   POST /purchases/new      500
+21:07:26.53  www.usenobu.xyz  error   POST /purchases/new      500
   Error: ENOENT: no such file or directory, scandir …/migrations
   Digest (user-facing): 2288372432

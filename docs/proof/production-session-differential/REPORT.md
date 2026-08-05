@@ -1,7 +1,7 @@
 # Nobu Production Deployment and Stale-Session Differential Audit
 
-**Date:** 2026-07-15  
-**Public alias:** `https://usenobu.vercel.app`  
+**Date:** 2026-07-15
+**Public alias:** `https://www.usenobu.xyz`
 **Verdict:** `NOBU_PRODUCTION_SESSION_DIFFERENTIAL_PASS`
 
 ## Primary root-cause verdict
@@ -21,7 +21,7 @@ Secondary factors (not primary):
 | Pre-repair URL | `usenobu-csmixy8hi-dtwoflicks-2878s-projects.vercel.app` |
 | Post-repair public deployment ID | `dpl_J7qjuJNdFU8asHJ1BTugNNkHLkMW` |
 | Post-repair URL | `usenobu-r1li51clj-dtwoflicks-2878s-projects.vercel.app` |
-| Aliases after repair | `usenobu.vercel.app`; retired legacy alias also reached the same deployment at the time of that historical audit |
+| Aliases after repair | `www.usenobu.xyz`; retired legacy alias also reached the same deployment at the time of that historical audit |
 | Repo HEAD at audit start | `40e9e89` |
 | Old sentence still in source at start | Yes — `app/purchases/[id]/review/page.tsx` cannot-confirm hard-code |
 | Bundle static search for old/new | Server-rendered; not present in static HTML chunks (expected) |
@@ -32,7 +32,7 @@ Secondary factors (not primary):
 
 | Field | Result |
 |-------|--------|
-| URL | `https://usenobu.vercel.app/purchases/pur_952082b4823f/review?title=Apple+AirTag&source=LIVE` |
+| URL | `https://www.usenobu.xyz/purchases/pur_952082b4823f/review?title=Apple+AirTag&source=LIVE` |
 | Identifiers | TCIN `54191097`, AirTag URL/title — survived |
 | Decision | `EXACT_MATCH_CANDIDATE` |
 | Candidates | 1 |
@@ -79,7 +79,7 @@ No SerpApi keys, full cookies, or free-text purchase dumps.
 3. **Live `createPurchaseFlow`** — scrub demo defaults; reject pure demo drafts with `outdated_demo_draft` (fixture gate unchanged).
 4. **Cookie hydrate** — drop unconfirmed demo drafts only; never erase confirmed fingerprints.
 5. **Error copy** for outdated draft + safer review error next-action.
-6. Deployed working tree to production and assigned **`usenobu.vercel.app`**.
+6. Deployed working tree to production and assigned **`www.usenobu.xyz`**.
 
 ## Production proof summary
 

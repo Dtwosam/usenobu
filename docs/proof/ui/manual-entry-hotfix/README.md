@@ -1,8 +1,8 @@
 # Nobu UI Hotfix 1 — Manual purchase entry disclosure
 
-**Date:** 2026-07-14  
-**Verdict:** `NOBU_UI_HOTFIX_1_PASS`  
-**Production:** https://usenobu.vercel.app/purchases/new
+**Date:** 2026-07-14
+**Verdict:** `NOBU_UI_HOTFIX_1_PASS`
+**Production:** https://www.usenobu.xyz/purchases/new
 
 ## Root cause
 

@@ -1,7 +1,7 @@
 {
   "at": "2026-07-19T20:40:24.984Z",
   "base": "https://usenobu-hfviza4u4-dtwoflicks-2878s-projects.vercel.app",
-  "note": "Unique Vercel deployment (not aliased to usenobu.vercel.app in this lane).",
+  "note": "Unique Vercel deployment (not aliased to www.usenobu.xyz in this lane).",
   "checks": {
     "health": {
       "status": 200,

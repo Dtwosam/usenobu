@@ -1,8 +1,8 @@
 # Lane 8R.1 — Public website and interface alignment
 
-**Verdict:** `NOBU_LANE_8R_1_PASS`  
-**Date:** 2026-07-20  
-**Base commit:** `c95e266f76563e4572a64a5f3b01f140a4bb61ff`  
+**Verdict:** `NOBU_LANE_8R_1_PASS`
+**Date:** 2026-07-20
+**Base commit:** `c95e266f76563e4572a64a5f3b01f140a4bb61ff`
 **Sequence:** `8R.0 → 8R.1 → 8R.2 → 8R → 7.4G`
 
 ## Scope
@@ -74,14 +74,14 @@ Scanned: homepage, okx, notices, intake, header/footer, action center, status-co
 
 Patterns: hackathon, judge, competition, submission, recover your money, nobu gets your money, make money with nobu, guaranteed savings, automatic refund, claim secured.
 
-**Result:** No customer-facing hits.  
+**Result:** No customer-facing hits.
 Note: `src/web/action-center.ts` retains `/automatic refund/i` inside `COPY_FORBIDDEN_PATTERNS` (reject list only).
 
 ### Sensitive output
 
 Scanned for payment signatures, private keys, SerpApi keys, settlement refs.
 
-**Result:** No secrets exposed in UI.  
+**Result:** No secrets exposed in UI.
 Note: naive substring match on `X-PAYMENT` can false-positive on `okx-payment` test ids; those are not payment headers.
 
 ## Screenshots
@@ -125,7 +125,7 @@ Note: naive substring match on `X-PAYMENT` can false-positive on `okx-payment` t
 | Proof HEAD | see `deployment.json` (includes deployment evidence commits) |
 | Deploy URL | `https://usenobu-kgwmhx0dw-dtwoflicks-2878s-projects.vercel.app` |
 | Deploy ID | `dpl_3EHNRYBmztioAGxwJRtT8FJWDUQ2` |
-| Aliases | `usenobu.vercel.app`, `www.usenobu.xyz`, `usenobu.xyz` |
+| Aliases | `www.usenobu.xyz`, `www.usenobu.xyz`, `usenobu.xyz` |
 
 External verify (all HTTP 200 unless noted):
 

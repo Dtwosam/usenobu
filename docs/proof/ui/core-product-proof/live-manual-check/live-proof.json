@@ -1,6 +1,6 @@
 {
   "at": "2026-07-14T12:46:24.309Z",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "sprint": "A.1",
   "real_provider_calls_intended": 1,
   "note": "Create/confirm may still use demo match fixtures; manual check path must be LIVE.",
@@ -27,7 +27,7 @@
       "ok": true
     },
     "dashboard_before_check": {
-      "url": "https://usenobu.vercel.app/purchases/pur_7aebd3a6e682",
+      "url": "https://www.usenobu.xyz/purchases/pur_7aebd3a6e682",
       "fixture_banner_visible": false,
       "status": "MONITORING_ACTIVE",
       "check_visible": true
@@ -40,7 +40,7 @@
   "live_check": {
     "query_timestamp": "2026-07-14T12:46:36.067Z",
     "elapsed_ms": 20635,
-    "final_url": "https://usenobu.vercel.app/purchases/pur_7aebd3a6e682?checked=1&outcome=provider_unavailable&data_source=LIVE",
+    "final_url": "https://www.usenobu.xyz/purchases/pur_7aebd3a6e682?checked=1&outcome=provider_unavailable&data_source=LIVE",
     "outcome": "provider_unavailable",
     "data_source": "LIVE",
     "error": null,

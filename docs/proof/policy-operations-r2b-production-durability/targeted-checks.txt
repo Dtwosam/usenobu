@@ -22,7 +22,7 @@ npx vitest run tests/policy/durable-store.test.ts
 npx tsc --noEmit
   → exit 0
 
-GET https://usenobu.vercel.app/health
+GET https://www.usenobu.xyz/health
   → status=degraded, policy_ops_store=unavailable
 
 SerpApi searches: 0

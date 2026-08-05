@@ -1,7 +1,7 @@
 # START-HERE — Nobu
 
-**Product:** Nobu  
-**Production:** https://usenobu.vercel.app  
+**Product:** Nobu
+**Production:** https://www.usenobu.xyz
 **Date alignment:** 2026-07-20 (Lane 8R.2)
 
 ## What Nobu is
@@ -46,27 +46,27 @@ Historical-only (not active product positioning):
 
 ## Source precedence
 
-1. Current official external rules, policies, terms, and API documentation  
-2. `docs/nobu-clean-master-spec.md`  
-3. `docs/nobu-current-state.md`  
-4. Governance and policy contracts  
-5. OpenAPI contracts  
-6. Active build order  
-7. Tests and proof plan  
-8. README, prompts, and comments  
+1. Current official external rules, policies, terms, and API documentation
+2. `docs/nobu-clean-master-spec.md`
+3. `docs/nobu-current-state.md`
+4. Governance and policy contracts
+5. OpenAPI contracts
+6. Active build order
+7. Tests and proof plan
+8. README, prompts, and comments
 
 Dynamic external facts must be rechecked against the official URL before repository changes.
 
 ## Current architecture (summary)
 
-- **Website** + **OKX.AI** dual access  
-- Free `POST /v1/agent` (discovery, confirmation, email verification, preflight, monitor management)  
-- Paid `POST /v1/agent/start-monitoring` — `$0.99` x402 v2 on X Layer USD₮0; official OKX verify/settle/status; durable activation saga  
-- Separate free and paid A2MCP services under one ASP identity (**#5541** free listing live; paid service registration is **Lane 8R**)  
-- Durable agent connection, email verification, consent, enrollment quotes  
-- Exact-product confirmation and fail-closed matching  
-- Durable scheduler bridge + consented email alerts  
-- Shared web/agent monitoring pipeline  
+- **Website** + **OKX.AI** dual access
+- Free `POST /v1/agent` (discovery, confirmation, email verification, preflight, monitor management)
+- Paid `POST /v1/agent/start-monitoring` — `$0.99` x402 v2 on X Layer USD₮0; official OKX verify/settle/status; durable activation saga
+- Separate free and paid A2MCP services under one ASP identity (**#5541** free listing live; paid service registration is **Lane 8R**)
+- Durable agent connection, email verification, consent, enrollment quotes
+- Exact-product confirmation and fail-closed matching
+- Durable scheduler bridge + consented email alerts
+- Shared web/agent monitoring pipeline
 
 ## Active lane
 
@@ -76,26 +76,26 @@ Do not skip lanes. Do not edit or resubmit ASP `#5541` until Lane 8R.
 
 ## Proof expectations
 
-- Lane-specific proof under `docs/proof/`  
-- No secrets, payment signatures, raw emails, or settlement references in public proof  
-- No fake live data, refunds, or approvals  
-- Deploy only when the lane requires it  
+- Lane-specific proof under `docs/proof/`
+- No secrets, payment signatures, raw emails, or settlement references in public proof
+- No fake live data, refunds, or approvals
+- Deploy only when the lane requires it
 
 ## Implementation workflow
 
-1. Confirm HEAD and active lane.  
-2. Read the mandatory source stack.  
-3. Short checklist; stop on first failure.  
-4. Implement only that lane.  
-5. Focused tests, then typecheck/build as required.  
-6. Write proof; commit when asked; push/deploy only as the lane requires.  
+1. Confirm HEAD and active lane.
+2. Read the mandatory source stack.
+3. Short checklist; stop on first failure.
+4. Implement only that lane.
+5. Focused tests, then typecheck/build as required.
+6. Write proof; commit when asked; push/deploy only as the lane requires.
 
 Primary implementation agent: **Grok Build** (`prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`).
 
 ## Important product caveats
 
-- Target makes the final price-adjustment decision.  
-- Exact-product confirmation is required before monitoring.  
-- Matching fails closed on ambiguity.  
-- `$0.99` activates monitoring for one confirmed eligible purchase — it does not guarantee a lower price, alert, or adjustment.  
-- Never collect Target passwords or retailer login.  
+- Target makes the final price-adjustment decision.
+- Exact-product confirmation is required before monitoring.
+- Matching fails closed on ambiguity.
+- `$0.99` activates monitoring for one confirmed eligible purchase — it does not guarantee a lower price, alert, or adjustment.
+- Never collect Target passwords or retailer login.

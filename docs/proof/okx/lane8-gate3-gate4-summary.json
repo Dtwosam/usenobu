@@ -10,7 +10,7 @@
       "serviceName": "Post-checkout price watch",
       "serviceType": "A2MCP",
       "fee": "0",
-      "endpoint": "https://usenobu.vercel.app/v1/agent"
+      "endpoint": "https://www.usenobu.xyz/v1/agent"
     },
     "validate_listing_pass": true,
     "avatar_uploaded": true

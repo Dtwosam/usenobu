@@ -1,32 +1,36 @@
 # Nobu Active Build Order
 
-**Status:** ACTIVE BUILD ORDER  
+**Status:** ACTIVE BUILD ORDER
 **Date:** 2026-07-13
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Paid-to-active transaction LIVE READY / BLOCKED
+## Active closeout — Paid-to-free machine continuation PASS
 
-**State:** BLOCKED — final code repair complete; authenticated readiness booleans not confirmed in this shell.
+**State:** PASS — generic buyer agent can complete Monitoring Pass → free Purchase Setup using only Nobu response fields.
 
-Final transactional repair (2026-08-05) baseline `ca83267` → code `5341168`, deploy `dpl_9XND8k78yfbDfpQq5NSsStEviAhM`:
+Repair (2026-08-05) baseline `6e56e07`:
 
-- Persist opaque `provider_payment_id` / `provider_authorization_id` from verify/settle/status.
-- Failed settlement requires payment-specific binding (A stored tx / B provider payment id / C provider auth id).
-- Shared `processNotificationOutboxOpportunity` for every summary (initial + retry worker).
-- Rolling 24h `durable_summary_send_state` remains sole summary rate authority.
-- Focused tests + typecheck + build. No genuine payment, ASP update.
-
-**Blocker:** `OWNER_OPS_SECRET` not available in operator shell; Vercel Sensitive env redaction prevents CLI pull. Operator must confirm all six readiness booleans true once (never commit the secret).
+- Sole Production domain `https://www.usenobu.xyz` for free `/v1/agent` and paid `/v1/agent/monitoring-pass`.
+- Authoritative `protocol_continuation` (mirrored as `machine_continuation`) on paid issuance and every journey stage.
+- Machine-owned values never in user-required fields; secrets only in structured continuation body.
+- `ACTIVATION_PENDING` continuation includes `connection_token`; missing state → `INTERNAL_CONTINUATION_STATE_MISSING`.
+- Generic A-to-Z deterministic proof + focused marketplace/payment gates.
 
 Exact next lane:
 
-1. Operator runs authenticated `GET /v1/owner/config-readiness` and records six booleans → if all true, verdict becomes `NOBU_PAID_TO_ACTIVE_TRANSACTION_LIVE_READY`.
-2. Optional User-role chat against agent `5541` (at most one payment) only after readiness PASS.
+1. Optional operator recovery for pre-repair live pass (no second payment; no user-facing tokens).
+2. Optional User-role chat against agent `5541` (at most one **new** payment) only when readiness allows.
 3. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
 
-**Closeout proof:** `docs/proof/paid-to-active-transaction-live-ready/README.md`.
-**Current verdict:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_CLOSEOUT_BLOCKED`.
+**Closeout proof:** `docs/proof/paid-to-free-machine-continuation/README.md`.
+**Current verdict:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_PASS`.
+
+## Prior closeout — Paid-to-active transaction LIVE READY / BLOCKED
+
+**State:** superseded as active closeout by paid-to-free machine continuation. Provider-id + summary path remain.
+
+Evidence: `docs/proof/paid-to-active-transaction-live-ready/README.md`.
 
 ## Prior closeout — Paid-to-active transaction audit repair FINAL PASS
 
@@ -212,7 +216,7 @@ Evidence: `docs/proof/complete-production-hardening/`.
 - Durable Postgres AuthStore (accounts, tokens, sessions, claims, account purchase blobs).
 - Auth not stored in browser cookie snapshot; cookies are opaque only.
 - GET `/auth/verify` peeks only; POST “Continue signing in” consumes once (email previews safe).
-- Magic-link origin: `https://www.usenobu.xyz`; A2MCP stays on `usenobu.vercel.app`.
+- Magic-link origin: `https://www.usenobu.xyz`; A2MCP stays on `www.usenobu.xyz`.
 
 **Proof:** focused auth unit tests, purchase-privacy regressions, Playwright 1R flow, typecheck, build.
 
@@ -385,7 +389,7 @@ Evidence: `docs/proof/complete-production-hardening/`.
 
 ## Lane 8R.3B — A2MCP and Monitoring Pass repair CODE-COMPLETE (awaiting operator alignment)
 
-Repair commit `1dac265`; production `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB` with `usenobu.vercel.app` explicitly re-aliased.
+Repair commit `1dac265`; production `dpl_HLZD27xLrSsRA6aFaaXBhFkd5wgB` with `www.usenobu.xyz` explicitly re-aliased.
 
 - **Free `33561`** (endpoint unchanged): bodyless `POST`, `{}`, and any unrecognised envelope (`message`/`query`/`prompt`) return `200` with a `status: READY` descriptor — supported actions + required fields, recommended first action, one working example, paid-service pointer, clear `next_action`. `GET` returns the same. Pure: no Groq, SerpApi, email or Postgres; 1–3 ms server time. Malformed JSON → guided `400`; recognised action with invalid fields → existing `400` unchanged.
 - **Paid `35958` → new endpoint `/v1/agent/monitoring-pass`**: one `$0.99` Nobu Monitoring Pass. Every initial call (GET or POST, body or none) returns `402` + base64 x402 v2 `PAYMENT-REQUIRED` **before any business execution**, with no quote/connection/purchase/consent required. Challenge: `x402Version: 2`, `resource{url,description,mimeType}`, `exact`, `eip155:196`, USD₮0, server-controlled `990000` + `payTo`, `maxTimeoutSeconds`, `extra.name`/`version` read from the on-chain token.
@@ -521,7 +525,7 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 - Requests containing a supported action bypass this response and preserve the existing dispatcher behavior; valid `UNDERSTAND_PURCHASE` remains successful.
 - The free service remains free: no `402`, payment challenge, or payment requirement was added.
 - No paid-route file changed; the Monitoring Pass remains x402 v2 `402` and official-checker `valid: true` with and without `{}`.
-- Deployed code commit `7a4ef1e` as Vercel deployment `B4DsuLSbWcR3S2b23XQv3nknXiPQ`; explicitly re-aliased `usenobu.vercel.app` and repeated all required checks in Production.
+- Deployed code commit `7a4ef1e` as Vercel deployment `B4DsuLSbWcR3S2b23XQv3nknXiPQ`; explicitly re-aliased `www.usenobu.xyz` and repeated all required checks in Production.
 - No ASP update, activation, resubmission, payment, User registration, A2A change, or production-data mutation occurred.
 
 **Proof:** focused validation 5/5; focused Monitoring Pass 20/20; full suite 56 files / 458 tests passed / 1 skipped; typecheck; production build; local and Production direct probes; official Onchain OS 4.4.0 `x402-check` (`inputRequired: true` on the free endpoint, `valid: true` on the paid endpoint). Verdict: `NOBU_LANE_8R_3C_6_PASS`. Evidence: `docs/proof/lane-8r-3c-6-free-input-validation/`.
@@ -553,7 +557,7 @@ Operator-controlled and state-changing. Exact ordered steps and placeholders: `d
 
 ### Live Monitoring Pass recovery COMPLETE
 
-- Deployed clean `fc81bc0` to Production; canonical `usenobu.vercel.app` explicitly aliased to redeploy `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu`.
+- Deployed clean `fc81bc0` to Production; canonical `www.usenobu.xyz` explicitly aliased to redeploy `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu`.
 - Pre-recovery: one durable `verifying` payment with settlement ref; zero passes.
 - First reconcile: `ok: true`, `scanned: 1`, `issued: 1`, pass `pass_8dd13c79ce1842aa89f91609527764f4`.
 - Second reconcile: `scanned: 0`, `issued: 0` — no duplicate pass or charge.
@@ -618,11 +622,11 @@ Then **Lane 9 — Product / release closeout** (defined later in this document) 
 
 - Remove every residual prior-brand string, path, and proof archive from the working tree.
 - Vercel project name: `usenobu`.
-- Primary production URL: `https://usenobu.vercel.app` (public, no SSO).
+- Primary production URL: `https://www.usenobu.xyz` (public, no SSO).
 - Product name remains Nobu; deployment identity is UseNobu.
 - No OKX registration in this lane.
 
-**Proof:** case-insensitive prior-brand repository scan empty; production health and A2MCP checks on usenobu.vercel.app; proof under `docs/proof/usenobu-production/`.
+**Proof:** case-insensitive prior-brand repository scan empty; production health and A2MCP checks on www.usenobu.xyz; proof under `docs/proof/usenobu-production/`.
 
 ## Lane 7.5D — Universal product positioning
 
@@ -645,7 +649,7 @@ Then **Lane 9 — Product / release closeout** (defined later in this document) 
 - `POST /v1/agent` actions: UNDERSTAND_PURCHASE, CHECK_CONFIRMED_PURCHASE, CHECK_MONITORING_STATUS.
 - AI extraction never starts matching/monitoring.
 - Existing `/v1/target-price-check` unchanged.
-- Listing path for Lane 8: `https://usenobu.vercel.app/v1/agent`.
+- Listing path for Lane 8: `https://www.usenobu.xyz/v1/agent`.
 
 **Proof:** AI unit tests, e2e intake, production browser NL flow, agent API checks under `docs/proof/nobu-ai-agent/`.
 
@@ -668,7 +672,7 @@ Then **Lane 9 — Product / release closeout** (defined later in this document) 
 
 **Lane 7.4C.1 roadmap note:** this lane's free-listing review runs independently of 7.4 development — 7.4D.0 through 7.4F proceed without waiting for it to resolve and without editing/resubmitting `#5541`. The next `#5541` edit is **Lane 8R** (after 7.4F, before 7.4G), which accurately reflects whatever is genuinely built by then; it is not this lane reopened.
 
-- Register free A2MCP ASP using **`https://usenobu.vercel.app/v1/agent`**.
+- Register free A2MCP ASP using **`https://www.usenobu.xyz/v1/agent`**.
 - Accurate listing: AI agent + Target-only live integration.
 - Install/use Onchain OS according to current official instructions.
 - Register A2MCP ASP with price `0`.

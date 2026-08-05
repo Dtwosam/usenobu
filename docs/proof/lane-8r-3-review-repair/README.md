@@ -15,14 +15,14 @@ Services (both preserved throughout this lane, never edited):
 
 | Service | ID | Fee | Endpoint |
 |---|---|---|---|
-| Nobu Purchase Setup | `33561` | `0` | `https://usenobu.vercel.app/v1/agent` |
-| Nobu Monitoring Activation | `35958` | `0.99` | `https://usenobu.vercel.app/v1/agent/start-monitoring` |
+| Nobu Purchase Setup | `33561` | `0` | `https://www.usenobu.xyz/v1/agent` |
+| Nobu Monitoring Activation | `35958` | `0.99` | `https://www.usenobu.xyz/v1/agent/start-monitoring` |
 
 Full agent + service records: `asp-5541/before-rejection.json`.
 
 ## 2. Production logs
 
-`vercel logs usenobu.vercel.app --since 7d --environment production` returned only 8 entries, all `www.usenobu.xyz` page/asset requests from the last hour — no `/v1/agent` traffic in the retained window (this Vercel plan's log retention is far shorter than 7 days). No OKX-reviewer request could be located directly; root cause was established by reproduction instead (§3).
+`vercel logs www.usenobu.xyz --since 7d --environment production` returned only 8 entries, all `www.usenobu.xyz` page/asset requests from the last hour — no `/v1/agent` traffic in the retained window (this Vercel plan's log retention is far shorter than 7 days). No OKX-reviewer request could be located directly; root cause was established by reproduction instead (§3).
 
 ## 3. Reproduction against production (before fix)
 
@@ -53,7 +53,7 @@ This is not an auth/gate weakness — the endpoint correctly refuses unprepared 
 
 Endpoint-usability fix only — no gate, no listing-copy change:
 
-- `app/v1/agent/start-monitoring/route.ts`: the schema-violation (400) and `ACTION_NOT_AUTHORIZED`/`CONNECTION_EXPIRED` (401/404) response bodies now additionally carry `message`, `required_fields` (400 only), `next_action`, and `documentation` (`https://usenobu.vercel.app/okx`).
+- `app/v1/agent/start-monitoring/route.ts`: the schema-violation (400) and `ACTION_NOT_AUTHORIZED`/`CONNECTION_EXPIRED` (401/404) response bodies now additionally carry `message`, `required_fields` (400 only), `next_action`, and `documentation` (`https://www.usenobu.xyz/okx`).
 - The `next_action`/`message` text is **identical** for `ACTION_NOT_AUTHORIZED` and `CONNECTION_EXPIRED` — deliberately reason-agnostic, so the response still never reveals which specific check failed (unknown quote vs. wrong token vs. expired vs. price-altered stay indistinguishable, exactly as documented pre-existing behavior required).
 - New `src/payments/start-monitoring-response.ts` holds this presentation logic (extracted out of `route.ts`, which cannot have extra named exports under Next.js's route-file typing).
 - `openapi/nobu-agent-native-paid-monitoring-proposed.openapi.yaml` updated to document the new additive fields on the 400/401/404 responses.
@@ -73,7 +73,7 @@ Endpoint-usability fix only — no gate, no listing-copy change:
 ### Production redeploy
 
 - `vercel deploy --prod --yes` → `dpl_AUMLVaTCynKxqPL5HMMBT5ERsq6b` (Ready), auto-aliased `www.usenobu.xyz`.
-- `usenobu.vercel.app` is a manually-pinned alias (does not auto-follow `--prod` deploys on this project — see prior-lane note) — repointed explicitly with `vercel alias set https://usenobu-9bt7yc5t2-dtwoflicks-2878s-projects.vercel.app usenobu.vercel.app`.
+- `www.usenobu.xyz` is a manually-pinned alias (does not auto-follow `--prod` deploys on this project — see prior-lane note) — repointed explicitly with `vercel alias set https://usenobu-9bt7yc5t2-dtwoflicks-2878s-projects.vercel.app www.usenobu.xyz`.
 - `GET /health` → `200` after repoint.
 
 ### Reproduction against production (after fix)

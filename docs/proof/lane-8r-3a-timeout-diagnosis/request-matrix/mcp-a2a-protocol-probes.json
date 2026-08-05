@@ -1,11 +1,11 @@
-﻿{
+{
     "captured_at":  "2026-07-26 01:31:52Z",
     "purpose":  "Establish how the registered A2MCP endpoint answers a standards-shaped MCP client and an A2A client.",
     "probes":  [
                    {
                        "label":  "mcp-initialize",
                        "method":  "POST",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  400,
                        "response_content_type":  "application/json",
                        "duration_s":  0.729182,
@@ -20,7 +20,7 @@
                    {
                        "label":  "mcp-tools-list",
                        "method":  "POST",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  400,
                        "response_content_type":  "application/json",
                        "duration_s":  0.573591,
@@ -35,7 +35,7 @@
                    {
                        "label":  "mcp-sse-stream-open",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  405,
                        "response_content_type":  "",
                        "duration_s":  0.646846,
@@ -48,7 +48,7 @@
                    {
                        "label":  "a2a-message-send",
                        "method":  "POST",
-                       "url":  "https://usenobu.vercel.app/v1/agent",
+                       "url":  "https://www.usenobu.xyz/v1/agent",
                        "http_status":  400,
                        "response_content_type":  "application/json",
                        "duration_s":  0.583658,
@@ -63,7 +63,7 @@
                    {
                        "label":  "discovery/.well-known/agent-card.json",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/.well-known/agent-card.json",
+                       "url":  "https://www.usenobu.xyz/.well-known/agent-card.json",
                        "http_status":  404,
                        "response_content_type":  "text/html; charset=utf-8",
                        "duration_s":  0.703454,
@@ -76,7 +76,7 @@
                    {
                        "label":  "discovery/.well-known/agent.json",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/.well-known/agent.json",
+                       "url":  "https://www.usenobu.xyz/.well-known/agent.json",
                        "http_status":  404,
                        "response_content_type":  "text/html; charset=utf-8",
                        "duration_s":  0.640161,
@@ -89,7 +89,7 @@
                    {
                        "label":  "discovery/.well-known/ai-plugin.json",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/.well-known/ai-plugin.json",
+                       "url":  "https://www.usenobu.xyz/.well-known/ai-plugin.json",
                        "http_status":  404,
                        "response_content_type":  "text/html; charset=utf-8",
                        "duration_s":  0.61225,
@@ -102,7 +102,7 @@
                    {
                        "label":  "discovery/.well-known/oauth-protected-resource",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/.well-known/oauth-protected-resource",
+                       "url":  "https://www.usenobu.xyz/.well-known/oauth-protected-resource",
                        "http_status":  404,
                        "response_content_type":  "text/html; charset=utf-8",
                        "duration_s":  0.63244,
@@ -115,7 +115,7 @@
                    {
                        "label":  "discovery/.well-known/oauth-protected-resource/v1/agent",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/.well-known/oauth-protected-resource/v1/agent",
+                       "url":  "https://www.usenobu.xyz/.well-known/oauth-protected-resource/v1/agent",
                        "http_status":  404,
                        "response_content_type":  "text/html; charset=utf-8",
                        "duration_s":  0.543564,
@@ -128,7 +128,7 @@
                    {
                        "label":  "discovery/.well-known/mcp.json",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/.well-known/mcp.json",
+                       "url":  "https://www.usenobu.xyz/.well-known/mcp.json",
                        "http_status":  404,
                        "response_content_type":  "text/html; charset=utf-8",
                        "duration_s":  0.547092,
@@ -141,7 +141,7 @@
                    {
                        "label":  "discovery/health",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/health",
+                       "url":  "https://www.usenobu.xyz/health",
                        "http_status":  200,
                        "response_content_type":  "application/json",
                        "duration_s":  0.622669,
@@ -170,7 +170,7 @@
                    {
                        "label":  "discovery/v1/agent/health",
                        "method":  "GET",
-                       "url":  "https://usenobu.vercel.app/v1/agent/health",
+                       "url":  "https://www.usenobu.xyz/v1/agent/health",
                        "http_status":  404,
                        "response_content_type":  "text/html; charset=utf-8",
                        "duration_s":  0.547451,

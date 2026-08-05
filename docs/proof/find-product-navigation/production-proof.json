@@ -1,6 +1,6 @@
 {
   "at": "2026-07-15T09:25:28.117Z",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "steps": {
     "health": {
       "status": 200,
@@ -23,9 +23,9 @@
       "body": "{\"error\":\"not_found\",\"message\":\"No purchase found for that id.\"}",
       "frozen": true
     },
-    "before_url": "https://usenobu.vercel.app/purchases/new",
+    "before_url": "https://www.usenobu.xyz/purchases/new",
     "after_find": {
-      "url": "https://usenobu.vercel.app/purchases/pur_a132ea83617f/review?title=Apple+AirTag&source=LIVE",
+      "url": "https://www.usenobu.xyz/purchases/pur_a132ea83617f/review?title=Apple+AirTag&source=LIVE",
       "is_404": false,
       "purchase_id": "pur_a132ea83617f",
       "on_review": true,
@@ -42,11 +42,11 @@
       "set_cookie_signals": []
     },
     "monitoring": {
-      "url": "https://usenobu.vercel.app/purchases/pur_a132ea83617f",
+      "url": "https://www.usenobu.xyz/purchases/pur_a132ea83617f",
       "monitoring_visible": true
     },
     "refresh": {
-      "url": "https://usenobu.vercel.app/purchases/pur_a132ea83617f",
+      "url": "https://www.usenobu.xyz/purchases/pur_a132ea83617f",
       "monitoring_visible": true,
       "no_404": true,
       "no_fixture": true

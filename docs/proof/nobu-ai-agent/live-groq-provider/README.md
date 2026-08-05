@@ -1,7 +1,7 @@
 # Lane 7.5E.2 — Live Groq provider proof
 
-**Production:** https://usenobu.vercel.app  
-**Verdict:** `NOBU_LANE_7_5E_2_PASS`  
+**Production:** https://www.usenobu.xyz
+**Verdict:** `NOBU_LANE_7_5E_2_PASS`
 **Artifact:** `live-proof.json`
 
 ## Configuration (no secrets)

@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const dir = "docs/proof/nobu-ai-agent";
-const base = process.env.NOBU_PROOF_BASE || "https://usenobu.vercel.app";
+const base = process.env.NOBU_PROOF_BASE || "https://www.usenobu.xyz";
 fs.mkdirSync(dir, { recursive: true });
 
 const notes = [];

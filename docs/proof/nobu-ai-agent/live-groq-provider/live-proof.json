@@ -1,6 +1,6 @@
 {
   "at": "2026-07-13T22:44:04.902Z",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "deployment_note": "GROQ_API_KEY and NOBU_AI_MODEL present on Vercel Production (encrypted; values never logged).",
   "checks": {
     "health": {

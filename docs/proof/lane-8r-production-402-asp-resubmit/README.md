@@ -1,7 +1,7 @@
 # Lane 8R — Production 402 proof, accurate ASP #5541 update and resubmission
 
-**Date:** 2026-07-21  
-**Base commit:** `92ef11bd4e37bb8abefc5ed0ab5f5a89d34c5a57`  
+**Date:** 2026-07-21
+**Base commit:** `92ef11bd4e37bb8abefc5ed0ab5f5a89d34c5a57`
 **Verdict:** `NOBU_LANE_8R_BLOCKED_GATE_1` — stopped on first failed gate
 
 ## Checklist
@@ -62,7 +62,7 @@ See `gate1-seller-config.json`.
 
 | Check | Result |
 |---|---|
-| `GET https://usenobu.vercel.app/health` | `200` |
+| `GET https://www.usenobu.xyz/health` | `200` |
 | `POST /v1/agent/start-monitoring` with dummy quote/connection | `401` `ACTION_NOT_AUTHORIZED` (expected without valid connection) |
 
 Paid route is reachable and fail-closed for unauthorized callers. That does **not** prove a valid quote-bound `402`/`PAYMENT-REQUIRED` challenge with configured `payTo`, because seller credentials are not present and Gate 2 was not attempted.

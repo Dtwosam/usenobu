@@ -1,8 +1,8 @@
 # Sprint A.1 — Live Manual Check Repair
 
-**Date:** 2026-07-14  
-**Verdict:** `NOBU_REVIEW_SAFE_A_1_PASS`  
-**Production:** https://usenobu.vercel.app  
+**Date:** 2026-07-14
+**Verdict:** `NOBU_REVIEW_SAFE_A_1_PASS`
+**Production:** https://www.usenobu.xyz
 **Lane 8:** still `NOBU_LANE_8_PENDING_REVIEW` (ASP #5541) — not completed.
 
 ## Problem (before)
@@ -21,10 +21,10 @@ No second connector, matcher, or policy path.
 
 ## Fixture boundary
 
-- `src/web/manual-check-mode.ts` — gate + label  
-- Fixture UI label only when gate open: *Test data — not a live current retailer price.*  
-- Production dashboard does **not** show fixture banner  
-- Live results expose `data_source=LIVE` in URL and View details  
+- `src/web/manual-check-mode.ts` — gate + label
+- Fixture UI label only when gate open: *Test data — not a live current retailer price.*
+- Production dashboard does **not** show fixture banner
+- Live results expose `data_source=LIVE` in URL and View details
 
 ## Live proof (one bounded check)
 
@@ -48,12 +48,12 @@ Screenshot: `after-live-check.png`
 
 ## Tests
 
-- `tests/web/manual-check-mode.test.ts` — gate  
-- `tests/web/live-manual-check.test.ts` — live path with injected client  
-- `npm test` — 198 passed  
-- `npm run typecheck` / `build` — pass  
-- consumer e2e (fixture mode) — pass  
-- secret scan — pass  
+- `tests/web/manual-check-mode.test.ts` — gate
+- `tests/web/live-manual-check.test.ts` — live path with injected client
+- `npm test` — 198 passed
+- `npm run typecheck` / `build` — pass
+- consumer e2e (fixture mode) — pass
+- secret scan — pass
 
 ## Hard locks
 

@@ -175,4 +175,4 @@ Never the API key.
 
 Preferred free A2MCP listing path:
 
-`https://usenobu.vercel.app/v1/agent`
+`https://www.usenobu.xyz/v1/agent`

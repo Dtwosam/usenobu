@@ -28,9 +28,9 @@
   "env_local_same_names_present": false,
   "no_secret_values_recorded": true,
   "production_smoke": {
-    "health_url": "https://usenobu.vercel.app/health",
+    "health_url": "https://www.usenobu.xyz/health",
     "health_status": 200,
-    "paid_route": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+    "paid_route": "https://www.usenobu.xyz/v1/agent/start-monitoring",
     "paid_dummy_auth_status": 401,
     "paid_dummy_body": {
       "agent_state": "MONITORING_ACTIVATION",

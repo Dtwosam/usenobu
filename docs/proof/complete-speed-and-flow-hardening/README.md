@@ -1,15 +1,15 @@
 # Nobu Complete Speed and Flow Hardening — Proof
 
-**Date:** 2026-07-28  
-**Starting HEAD:** `6ac1bf01d6f6e06a31c3af69ef75e742e033c262`  
-**Ending HEAD / commit:** `0541a6efaf9f437a6e87dca67df0f727b857675e`  
-**Production deploy:** `dpl_E6xegDEY2eTCsBFCHtEsacDcdo9b` (`usenobu-jsd3udipq`)  
-**Alias:** `https://usenobu.vercel.app` explicitly re-aliased  
-**ASP:** `#5541` unchanged; services `33561` / `35958` unchanged; price `0.99` unchanged  
+**Date:** 2026-07-28
+**Starting HEAD:** `6ac1bf01d6f6e06a31c3af69ef75e742e033c262`
+**Ending HEAD / commit:** `0541a6efaf9f437a6e87dca67df0f727b857675e`
+**Production deploy:** `dpl_E6xegDEY2eTCsBFCHtEsacDcdo9b` (`usenobu-jsd3udipq`)
+**Alias:** `https://www.usenobu.xyz` explicitly re-aliased
+**ASP:** `#5541` unchanged; services `33561` / `35958` unchanged; price `0.99` unchanged
 
 ## Verdict
 
-**Code + deploy + non-paid payment-confirmation rehearsal: PASS**  
+**Code + deploy + non-paid payment-confirmation rehearsal: PASS**
 **Complete real OKX.AI A→Z journey: NOT CLOSED**
 
 Final lane verdict:
@@ -67,10 +67,10 @@ See `01-audit.md`. Primary latest failure (4m54s, 3 quotes, `balance_unavailable
 
 ## Repairs shipped
 
-1. **402 one-quote machine policy** — `one_quote_only`, `quote_policy`, `do_not_re_quote_on`, `wallet_preflight_blocker`, short guidance.  
-2. **Free first contact full contract** — `payment_status`, `second_payment_required`, `retry_safe` + shorter dual-service intro.  
-3. **Marketplace stage split** — extract → durable `purchase_snapshot_json` → `product_discovery` resume via `journey_id` (no silent extract+SerpApi stack).  
-4. **Conversation contract** stage `product_discovery`.  
+1. **402 one-quote machine policy** — `one_quote_only`, `quote_policy`, `do_not_re_quote_on`, `wallet_preflight_blocker`, short guidance.
+2. **Free first contact full contract** — `payment_status`, `second_payment_required`, `retry_safe` + shorter dual-service intro.
+3. **Marketplace stage split** — extract → durable `purchase_snapshot_json` → `product_discovery` resume via `journey_id` (no silent extract+SerpApi stack).
+4. **Conversation contract** stage `product_discovery`.
 5. **A2A daemon** started for proof readiness.
 
 ---
@@ -131,17 +131,17 @@ See `01-audit.md`. Primary latest failure (4m54s, 3 quotes, `balance_unavailable
 
 ## Remaining platform limitations
 
-1. OKX User agents can still re-invoke `payment quote` despite merchant `one_quote_only` — Nobu cannot delete client-side thrash.  
-2. ASP/provider A2A wake can add tens of seconds before first merchant call.  
-3. Multi-turn OKX reasoning time is outside Nobu process budget.  
+1. OKX User agents can still re-invoke `payment quote` despite merchant `one_quote_only` — Nobu cannot delete client-side thrash.
+2. ASP/provider A2A wake can add tens of seconds before first merchant call.
+3. Multi-turn OKX reasoning time is outside Nobu process budget.
 4. Vercel Hobby cron interval remains daily; hot-path poll + RESOLVE remain primary settlement convergence.
 
 ---
 
 ## Exact next step for PASS
 
-1. Keep A2A daemon running (`okx-a2a daemon start` if needed).  
-2. Record one OKX.AI User journey on agent `5541`.  
-3. One deliberate Monitoring Pass request → **one** quote → confirm wallet (`hasBalance`) → **one** `payment pay` only.  
-4. Prove auto pass, free setup stages (including discovery resume), email, consents, activate, status, stop.  
+1. Keep A2A daemon running (`okx-a2a daemon start` if needed).
+2. Record one OKX.AI User journey on agent `5541`.
+3. One deliberate Monitoring Pass request → **one** quote → confirm wallet (`hasBalance`) → **one** `payment pay` only.
+4. Prove auto pass, free setup stages (including discovery resume), email, consents, activate, status, stop.
 5. Flip verdict only if all A→Z bullets pass without owner DB edit or second payment.

@@ -1,7 +1,7 @@
 # Monitoring Pass handoff and sequential journey
 
-**Date:** 2026-07-26  
-**Verdict:** `NOBU_PASS_HANDOFF_AND_SEQUENTIAL_JOURNEY_PASS`  
+**Date:** 2026-07-26
+**Verdict:** `NOBU_PASS_HANDOFF_AND_SEQUENTIAL_JOURNEY_PASS`
 **Baseline:** clean descendant of `fc81bc0` / `c3b141e` → code commit `8195541`
 
 ## Audit findings (before code)
@@ -18,8 +18,8 @@
 
 ## Root cause
 
-1. Marketplace saved a terminal pending deliverable with **no continuation handle**.  
-2. Recovery issued the pass server-side, but the OKX.ai User-role path only saw the stale pending body.  
+1. Marketplace saved a terminal pending deliverable with **no continuation handle**.
+2. Recovery issued the pass server-side, but the OKX.ai User-role path only saw the stale pending body.
 3. Nobu journey fields used nested `required_user_input`; official tooling demonstrably consumes top-level **`fields` / `requiredArgs`**.
 
 ## Handoff mechanism selected
@@ -56,7 +56,7 @@ Exactly one continuation row was created for the historical payment.
 |---|---|
 | Deploy | `dpl_GgroyZbmnevwrTngsG3qjfFLKmHL` |
 | URL | `usenobu-j88uthvd1-dtwoflicks-2878s-projects.vercel.app` |
-| Alias | `https://usenobu.vercel.app` explicitly pointed |
+| Alias | `https://www.usenobu.xyz` explicitly pointed |
 | Health | 200 ok |
 | Free GET | 400 `input_required` |
 | Paid GET | 402 `PAYMENT_PENDING` |
@@ -64,13 +64,13 @@ Exactly one continuation row was created for the historical payment.
 
 ## Exact User-role test start
 
-1. `I would like to use the services of agent ID 5541`  
-2. If paid deliverable is stale: free `RESOLVE_MONITORING_PASS` with  
-   `monitoring_pass_id: pass_8dd13c79ce1842aa89f91609527764f4`  
-   (or the `pass_continuation_id` above).  
-3. Confirm user wants to use the pass.  
-4. `UNDERSTAND_PURCHASE` with purchase description only.  
-5. Continue sequential: discover → confirm → email → code → both consents + preflight → redeem same pass id.  
+1. `I would like to use the services of agent ID 5541`
+2. If paid deliverable is stale: free `RESOLVE_MONITORING_PASS` with
+   `monitoring_pass_id: pass_8dd13c79ce1842aa89f91609527764f4`
+   (or the `pass_continuation_id` above).
+3. Confirm user wants to use the pass.
+4. `UNDERSTAND_PURCHASE` with purchase description only.
+5. Continue sequential: discover → confirm → email → code → both consents + preflight → redeem same pass id.
 6. Never pay again.
 
 ## ASP metadata

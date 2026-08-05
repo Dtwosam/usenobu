@@ -10,7 +10,7 @@
       "serviceDescription": "Free A2MCP service for setting up and managing Target post-purchase monitoring. Send a JSON action with its required fields; an empty call returns supported actions and examples. Supports purchase setup, product confirmation, email verification, consent, eligibility, Monitoring Pass redemption, status, alert preferences, stopping and revocation. It does not charge or activate monitoring without a valid pass.",
       "serviceType": "A2MCP",
       "fee": "0",
-      "endpoint": "https://usenobu.vercel.app/v1/agent"
+      "endpoint": "https://www.usenobu.xyz/v1/agent"
     },
     {
       "operation": "update",
@@ -19,7 +19,7 @@
       "serviceDescription": "Paid $0.99 A2MCP service that issues one Nobu Monitoring Pass after verified OKX x402 payment. First call returns 402 Payment Required; payment replay returns the pass. The pass can activate monitoring for one confirmed eligible Target purchase after free setup. An ineligible purchase does not consume it. Payment does not guarantee a price drop, alert, refund, adjustment or savings.",
       "serviceType": "A2MCP",
       "fee": "0.99",
-      "endpoint": "https://usenobu.vercel.app/v1/agent/monitoring-pass"
+      "endpoint": "https://www.usenobu.xyz/v1/agent/monitoring-pass"
     }
   ],
   "diff_from_current_live_registration": {
@@ -59,7 +59,7 @@
         "serviceDescription": "Sets up and manages Target post-purchase monitoring through product confirmation, email verification, consent, eligibility, Monitoring Pass redemption, status, alerts, stopping and revocation.\nUser provides purchase details, exact product confirmation, a verified email, and monitoring and email-alert consent.\nReturns supported actions and next steps; paid monitoring activation requires a valid Monitoring Pass.",
         "serviceType": "A2MCP",
         "fee": "0",
-        "endpoint": "https://usenobu.vercel.app/v1/agent"
+        "endpoint": "https://www.usenobu.xyz/v1/agent"
       },
       {
         "operation": "update",
@@ -68,7 +68,7 @@
         "serviceDescription": "Issues one Nobu Monitoring Pass after a verified $0.99 OKX x402 payment for later activation of one eligible Target purchase.\nUser provides the payment replay; free setup separately confirms the exact product, eligibility, verified email and consent before redemption.\nReturns one redeemable pass; Target verifies any lower price and makes the final adjustment decision.",
         "serviceType": "A2MCP",
         "fee": "0.99",
-        "endpoint": "https://usenobu.vercel.app/v1/agent/monitoring-pass"
+        "endpoint": "https://www.usenobu.xyz/v1/agent/monitoring-pass"
       }
     ]
   }

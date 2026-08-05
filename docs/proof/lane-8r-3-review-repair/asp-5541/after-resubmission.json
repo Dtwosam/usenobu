@@ -13,14 +13,14 @@
       "id": 33561,
       "serviceName": "Nobu Purchase Setup",
       "fee": "0",
-      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "endpoint": "https://www.usenobu.xyz/v1/agent",
       "unchanged_from_before": true
     },
     {
       "id": 35958,
       "serviceName": "Nobu Monitoring Activation",
       "fee": "0.99",
-      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "endpoint": "https://www.usenobu.xyz/v1/agent/start-monitoring",
       "unchanged_from_before": true
     }
   ],

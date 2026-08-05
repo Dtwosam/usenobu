@@ -1,7 +1,7 @@
 # Nobu on OKX.AI — customer guide
 
-**Status:** ACTIVE  
-**Aligned:** Lane 8R.2  
+**Status:** ACTIVE
+**Aligned:** Lane 8R.2
 **Public page:** `/okx` on UseNobu
 
 This guide matches the public customer experience. It is not technical API documentation.
@@ -14,16 +14,16 @@ Set up a purchase, confirm the exact product, activate monitoring, and manage al
 
 Use current official OKX / Onchain OS information only. Do not invent marketplace menu names.
 
-1. **Use a supported AI-agent environment**  
+1. **Use a supported AI-agent environment**
    Open an environment that can work with Onchain OS and OKX.AI.
 
-2. **Install Onchain OS**  
+2. **Install Onchain OS**
    Install the official Onchain OS tooling so your environment can reach OKX agent services.
 
-3. **Sign in to Agentic Wallet**  
+3. **Sign in to Agentic Wallet**
    Sign in so identity and any monitoring activation payment can be handled securely.
 
-4. **Access OKX.AI**  
+4. **Access OKX.AI**
    Open OKX.AI from your supported environment to browse available agent services.
 
 5. **Select Nobu (Agent 5541)**
@@ -36,7 +36,7 @@ Use current official OKX / Onchain OS information only. Do not invent marketplac
 7. **If you bought a pass, continue free Purchase Setup**
    Describe the purchase, confirm the exact product, verify your alert email, complete free preflight, then redeem the pass to activate scheduled monitoring for one confirmed and eligible purchase. If the purchase turns out not to be eligible, the pass is **not** used up.
 
-8. **Manage the monitor**  
+8. **Manage the monitor**
    Check status, list active monitors, enable or disable email alerts, or stop monitoring.
 
 ### Example request
@@ -59,7 +59,7 @@ Payment uses the official OKX agent payment flow (x402). Settlement verification
 
 | Service | ID | Price | Endpoint (registered) |
 |---|---|---|---|
-| Nobu Purchase Setup | 33561 | free | `https://usenobu.vercel.app/v1/agent` |
+| Nobu Purchase Setup | 33561 | free | `https://www.usenobu.xyz/v1/agent` |
 | Nobu Monitoring Pass | 35958 | 0.99 USDT | `https://www.usenobu.xyz/v1/agent/monitoring-pass` |
 
 **Free (33561):** purchase setup, pass handoff continuation, discovery, exact confirmation, email verification, preflight/eligibility, **redeeming a Monitoring Pass**, status, list monitors, enable/disable email alerts, stop monitoring, revoke connection. Does not sell a Monitoring Pass.
@@ -68,18 +68,18 @@ Payment uses the official OKX agent payment flow (x402). Settlement verification
 
 ## Monitor-management actions
 
-- Check monitoring status  
-- List active monitors  
-- Enable email alerts  
-- Disable email alerts  
-- Stop monitoring  
+- Check monitoring status
+- List active monitors
+- Enable email alerts
+- Disable email alerts
+- Stop monitoring
 
 ## Truth boundary
 
-- Nobu does **not** contact Target.  
-- You contact Target using the official contact path.  
-- Target verifies eligibility and decides.  
-- Observed prices are third-party SerpApi observations, not an official Target API.  
+- Nobu does **not** contact Target.
+- You contact Target using the official contact path.
+- Target verifies eligibility and decides.
+- Observed prices are third-party SerpApi observations, not an official Target API.
 - Target is the only retailer currently supported.
 
 ## Official OKX resources
@@ -95,4 +95,4 @@ Open links in a new tab. Do not paste large excerpts of OKX documentation here.
 
 ## Website alternative
 
-Prefer a visual flow? Use the UseNobu website: [https://usenobu.vercel.app](https://usenobu.vercel.app) — start at **Monitor a purchase**.
+Prefer a visual flow? Use the UseNobu website: [https://www.usenobu.xyz](https://www.usenobu.xyz) — start at **Monitor a purchase**.

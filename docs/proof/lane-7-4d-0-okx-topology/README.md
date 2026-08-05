@@ -43,7 +43,7 @@ unchanged from Lane 7.4A/7.4A.1.
 **Selected: separate free and paid A2MCP services, co-located under the
 existing Agent `#5541` identity** (not a second ASP/Agent registration).
 
-- The existing free A2MCP service (`https://usenobu.vercel.app/v1/agent`,
+- The existing free A2MCP service (`https://www.usenobu.xyz/v1/agent`,
   fee `0`) stays exactly as-is.
 - A new, independently priced/endpointed paid A2MCP service is added later
   (Lane 8R, after Lane 7.4D–7.4F are built and proven) via one

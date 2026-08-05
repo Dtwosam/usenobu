@@ -1,7 +1,7 @@
 # Nobu
 
-**Production:** [https://usenobu.vercel.app](https://usenobu.vercel.app)  
-**Agent API:** `POST /v1/agent` (free) · `POST /v1/agent/start-monitoring` (paid activation)  
+**Production:** [https://www.usenobu.xyz](https://www.usenobu.xyz)
+**Agent API:** `POST /v1/agent` (free) · `POST /v1/agent/start-monitoring` (paid activation)
 **Active lane:** see `docs/nobu-current-state.md`
 
 ## Product description
@@ -36,11 +36,11 @@ The **customer** contacts the retailer. The **retailer** verifies and decides.
 
 ## Start here
 
-1. `START-HERE.md` — product entry, source stack, workflow  
-2. `AGENTS.md` — hard locks and execution rules  
-3. `docs/nobu-product-overview.md` — full product story  
-4. `docs/nobu-faq.md` — short FAQ  
-5. `docs/nobu-okx-user-guide.md` — OKX.AI customer guide  
+1. `START-HERE.md` — product entry, source stack, workflow
+2. `AGENTS.md` — hard locks and execution rules
+3. `docs/nobu-product-overview.md` — full product story
+4. `docs/nobu-faq.md` — short FAQ
+5. `docs/nobu-okx-user-guide.md` — OKX.AI customer guide
 6. Active lane only: `docs/nobu-current-state.md` + `docs/nobu-build-order.md`
 
 Implementation agents: follow `AGENTS.md` and `prompts/GROK_BUILD_LANE_PROMPT_TEMPLATE.md`.
@@ -72,7 +72,7 @@ npm run typecheck
 npm run dev
 ```
 
-Production health: `GET https://usenobu.vercel.app/health`
+Production health: `GET https://www.usenobu.xyz/health`
 
 ## Active lane
 

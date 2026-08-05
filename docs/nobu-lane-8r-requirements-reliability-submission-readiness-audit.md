@@ -52,7 +52,7 @@ Source read: `docs/nobu-hackathon-compliance-matrix.md`, `docs/nobu-submission-r
 | Requirement | Nobu status | Evidence | Verdict |
 |---|---|---|---|
 | Clear real-world use case | Post-checkout Target price monitoring | `docs/nobu-clean-master-spec.md` | PASS (design) |
-| Functional ASP, free A2MCP endpoint | `/v1/agent`, `/v1/target-price-check`, `/health` deployed at `https://usenobu.vercel.app` | `app/v1/agent/route.ts`, `app/v1/target-price-check/route.ts`, `app/health/route.ts`, `docs/proof/okx/preflight.json` | PASS (endpoint exists) but see policy-freshness defect below |
+| Functional ASP, free A2MCP endpoint | `/v1/agent`, `/v1/target-price-check`, `/health` deployed at `https://www.usenobu.xyz` | `app/v1/agent/route.ts`, `app/v1/target-price-check/route.ts`, `app/health/route.ts`, `docs/proof/okx/preflight.json` | PASS (endpoint exists) but see policy-freshness defect below |
 | Approved and live listing | Agent `5541` rejected once (avatar), avatar-only resubmitted 2026-07-17, `approvalStatus: 2` (under review), no public listing URL | `docs/proof/okx/README.md`, `docs/proof/okx/lane8-avatar-resubmit-summary.json`, `docs/proof/okx/gate5-resubmit-activate-redacted.json` | **BLOCKED** |
 | X post with `#OKXAI` | Not yet produced (Lane 9 activity) | No proof artifact under `docs/proof/` | **NOT_PROVEN** |
 | Demo ≤ 90 seconds | Not yet recorded | `docs/nobu-submission-runbook.md` describes required story only | **NOT_PROVEN** |
@@ -76,7 +76,7 @@ Source: `docs/nobu-clean-master-spec.md` §10.
 | System rejects ambiguous/non-Target/mismatched results | PASS | `src/matching/rules.ts`, `src/matching/evaluate.ts`, `src/monitoring/detect.ts` — all fail closed; unit tests in `tests/matching/`, `tests/monitoring/` |
 | Lower observed Target price produces correct recovery + deadline | **NOT_PROVEN end-to-end on canonical route** | The only historical acceptance (`$29.99` AirTag) ran through a now-deleted `/v1/capability-audit` diagnostic route with a synthetic fingerprint, not the canonical `/v1/target-price-check`/`/v1/agent` path. The canonical route's own live probe returned `MATCH_REVIEW_REQUIRED`. See `docs/proof/live-price-reproducibility/README.md`. |
 | A2MCP endpoint returns documented HTTP 200 | PASS | `docs/proof/usenobu-production/prod-target-price-check.json`, `docs/proof/okx/preflight.json` |
-| Service deployed over HTTPS | PASS | `https://usenobu.vercel.app` |
+| Service deployed over HTTPS | PASS | `https://www.usenobu.xyz` |
 | ASP approved and live on OKX.AI | **BLOCKED** | Under review, not public (§3) |
 | X demo ≤ 90 seconds | NOT_PROVEN | Not yet produced |
 | Official submission form completed before deadline | NOT_PROVEN / deadline itself unresolved | §3, §10 |
@@ -194,7 +194,7 @@ No findings under this section.
 | Proof required | Present | Location | Note |
 |---|---|---|---|
 | Exact source commit | Yes (baseline recorded) | §2 | |
-| Deployment URL | Yes | `https://usenobu.vercel.app` | |
+| Deployment URL | Yes | `https://www.usenobu.xyz` | |
 | API curl/HTTP proof | Yes | `docs/proof/usenobu-production/prod-health.json`, `prod-target-price-check.json`, `docs/proof/okx/preflight.json` | Dated 2026-07-13/14 — pre-dates current policy staleness; **not evidence the endpoint currently returns a positive result** |
 | Official source verification dates | Partially | `docs/external-source-registry.md` | All rows dated 2026-07-13/15; none rechecked since — see §10, §13 |
 | Live SerpApi capability audit (redacted) | Yes | `docs/proof/live-product-validation/conair-gs14/`, `docs/proof/live-price-reproducibility/` | Documents the canonical route currently returns `MATCH_REVIEW_REQUIRED`, not an accepted price drop |

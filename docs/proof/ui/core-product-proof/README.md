@@ -1,8 +1,8 @@
 # Review-Safe Sprint A — Core Product Proof
 
-**Date:** 2026-07-14  
-**Verdict:** `NOBU_REVIEW_SAFE_A_PASS`  
-**Production:** https://usenobu.vercel.app  
+**Date:** 2026-07-14
+**Verdict:** `NOBU_REVIEW_SAFE_A_PASS`
+**Production:** https://www.usenobu.xyz
 **Lane 8:** remains `NOBU_LANE_8_PENDING_REVIEW` (ASP #5541) — not completed by this sprint.
 
 ## Goal
@@ -68,7 +68,7 @@ Examples: *No lower price found.* · *Possible price difference found.* · *Nobu
 
 ### Fixture labels
 
-All consumer demo checks are **FIXTURE** / demo-banner labelled.  
+All consumer demo checks are **FIXTURE** / demo-banner labelled.
 `real_provider_calls_consumed: 0` for the bounded dashboard check path.
 
 ## Production smoke
@@ -88,10 +88,10 @@ Vercel cookie snapshot re-hydrates every request (clear + import), keeps FK-safe
 
 ## Hard locks (unchanged)
 
-- `POST /v1/agent` schema/actions frozen  
-- Agent ID **5541** / ASP not resubmitted  
-- Target-only, SerpApi provenance, matching/policy rules, fingerprint contract  
-- No email, x402, OCR, demo route, second retailer  
+- `POST /v1/agent` schema/actions frozen
+- Agent ID **5541** / ASP not resubmitted
+- Target-only, SerpApi provenance, matching/policy rules, fingerprint contract
+- No email, x402, OCR, demo route, second retailer
 
 ## Lane 8
 
@@ -99,22 +99,22 @@ Vercel cookie snapshot re-hydrates every request (clear + import), keeps FK-safe
 
 ## Sprint A.1 follow-up
 
-**Live manual check repair** — production Check price now uses SerpApi (not fixtures).  
+**Live manual check repair** — production Check price now uses SerpApi (not fixtures).
 Evidence: `docs/proof/ui/core-product-proof/live-manual-check/` — `NOBU_REVIEW_SAFE_A_1_PASS`.
 
 ## Sprint B
 
-**Action Center** — safe next steps for accepted price differences.  
+**Action Center** — safe next steps for accepted price differences.
 Evidence: `docs/proof/ui/action-center/` — `NOBU_REVIEW_SAFE_B_PASS`.
 
 ## Sprint A.2
 
-**Live product matching evidence** — Conair GS14; monitoring URL hierarchy + query repair.  
+**Live product matching evidence** — Conair GS14; monitoring URL hierarchy + query repair.
 Evidence: `docs/proof/live-product-validation/conair-gs14/` — `NOBU_REVIEW_SAFE_A_2_PASS`.
 
 ## Sprint A.3
 
-**Policy freshness + live closeout** — verified 2026-07-14; Conair LIVE production check.  
+**Policy freshness + live closeout** — verified 2026-07-14; Conair LIVE production check.
 Evidence: `docs/proof/live-product-validation/conair-gs14/live-closeout/` — `NOBU_REVIEW_SAFE_A_3_PASS`.
 
 ## Next sprint

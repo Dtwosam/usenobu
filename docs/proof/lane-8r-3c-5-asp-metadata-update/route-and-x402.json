@@ -6,17 +6,17 @@
     "providerName": "Nobu",
     "onlineStatus": 1,
     "route": "x402",
-    "primaryEndpoint": "https://usenobu.vercel.app/v1/agent",
+    "primaryEndpoint": "https://www.usenobu.xyz/v1/agent",
     "services": [
       {
         "serviceName": "Nobu Purchase Setup",
         "feeAmount": "0",
-        "endpoint": "https://usenobu.vercel.app/v1/agent"
+        "endpoint": "https://www.usenobu.xyz/v1/agent"
       },
       {
         "serviceName": "Nobu Monitoring Pass",
         "feeAmount": "0.99",
-        "endpoint": "https://usenobu.vercel.app/v1/agent/monitoring-pass"
+        "endpoint": "https://www.usenobu.xyz/v1/agent/monitoring-pass"
       }
     ]
   },

@@ -1,6 +1,6 @@
 {
   "at": "2026-07-14T22:30:57.919Z",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "steps": {
     "health": {
       "status": 200,
@@ -24,7 +24,7 @@
       "frozen": true
     },
     "review": {
-      "url": "https://usenobu.vercel.app/purchases/pur_590c91d00a42/review?title=Apple+AirTag&source=LIVE",
+      "url": "https://www.usenobu.xyz/purchases/pur_590c91d00a42/review?title=Apple+AirTag&source=LIVE",
       "fixture_banner_visible": false,
       "discovery_data_source": "LIVE",
       "match_decision": "EXACT_MATCH_CANDIDATE",
@@ -36,7 +36,7 @@
     },
     "check": {
       "elapsed_ms": 924,
-      "final_url": "https://usenobu.vercel.app/purchases/pur_590c91d00a42/alerts/alert_478ba4b7ffce4b29?outcome=price_drop&data_source=LIVE",
+      "final_url": "https://www.usenobu.xyz/purchases/pur_590c91d00a42/alerts/alert_478ba4b7ffce4b29?outcome=price_drop&data_source=LIVE",
       "outcome": "price_drop",
       "data_source": "LIVE",
       "error": null,

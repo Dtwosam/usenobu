@@ -15,7 +15,7 @@
     "git rev-parse HEAD",
     "npx vercel env ls production (names only)",
     "npx vercel --prod --yes",
-    "npx vercel alias set <deployment> usenobu.vercel.app",
+    "npx vercel alias set <deployment> www.usenobu.xyz",
     "authenticated durability probes (secrets from temp file, never logged)",
     "npx vitest run tests/policy/durable-store.test.ts",
     "npx tsc --noEmit"

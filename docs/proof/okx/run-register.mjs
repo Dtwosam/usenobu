@@ -117,7 +117,7 @@ const service = [
     serviceDescription,
     serviceType: "A2MCP",
     fee: "0",
-    endpoint: "https://usenobu.vercel.app/v1/agent",
+    endpoint: "https://www.usenobu.xyz/v1/agent",
   },
 ];
 
@@ -313,7 +313,7 @@ writeJson("gate3-register-summary.json", {
     serviceName,
     serviceType: "A2MCP",
     fee: "0",
-    endpoint: "https://usenobu.vercel.app/v1/agent",
+    endpoint: "https://www.usenobu.xyz/v1/agent",
   },
   agentId: String(agentId),
   reviewStatus,

@@ -21,7 +21,7 @@
       "serviceName": "Nobu Purchase Setup",
       "serviceType": "A2MCP",
       "fee": "0",
-      "endpoint": "https://usenobu.vercel.app/v1/agent",
+      "endpoint": "https://www.usenobu.xyz/v1/agent",
       "serviceDescription": "Free agent setup for Target post-purchase monitoring: discover and confirm products, verify email, capture consent, check eligibility, prepare quotes, list/status, alert prefs, stop, and revoke. Does not activate paid monitoring.\nUser provides: 1. purchase details 2. exact product confirmation 3. verified email 4. monitoring and email-alert consent.",
       "matches_current_state_doc": true
     },
@@ -30,7 +30,7 @@
       "serviceName": "Nobu Monitoring Activation",
       "serviceType": "A2MCP",
       "fee": "0.99",
-      "endpoint": "https://usenobu.vercel.app/v1/agent/start-monitoring",
+      "endpoint": "https://www.usenobu.xyz/v1/agent/start-monitoring",
       "serviceDescription": "Activates scheduled monitoring for one confirmed eligible purchase after verified $0.99 OKX payment. Payment does not guarantee a lower price, alert, refund, adjustment, or savings.\nUser provides: 1. verified connection 2. valid enrollment quote 3. completed OKX payment for activation.",
       "matches_current_state_doc": true,
       "status_note": "Still points at the stale /v1/agent/start-monitoring endpoint -- unchanged since Lane 8R.3B. This is exactly the field the proposed update (proposed-service-update.json) would repoint."

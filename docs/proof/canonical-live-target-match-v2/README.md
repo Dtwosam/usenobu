@@ -1,6 +1,6 @@
 # Nobu Canonical Live Match Repair v2 Proof
 
-**Date:** 2026-07-14  
+**Date:** 2026-07-14
 **Verdict:** `NOBU_CANONICAL_LIVE_MATCH_PASS`
 
 ## Repair (already implemented before this closeout)
@@ -24,7 +24,7 @@ One bounded request, response written to disk (no PowerShell body pipeline).
 
 | Field | Value |
 |---|---|
-| Base | `https://usenobu.vercel.app` |
+| Base | `https://www.usenobu.xyz` |
 | HTTP | **200** |
 | Status | **`PRICE_DROP_DETECTED`** |
 | Observed price | **$29.99** |
@@ -59,7 +59,7 @@ Files:
 ## Production
 
 - Deployment noted: `dpl_3wh1eiWcTg3YLw8HEFbdpvuCQPbX`
-- Primary alias: `https://usenobu.vercel.app`
+- Primary alias: `https://www.usenobu.xyz`
 - `GET /v1/capability-audit`: 404 (expected after removal from public surface)
 - `POST /v1/agent`: frozen (404 `not_found`)
 

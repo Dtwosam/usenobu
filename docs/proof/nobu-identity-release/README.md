@@ -36,7 +36,7 @@ clean `e927b07` working tree instead of reusing the older one:
 | Target | `production` |
 | Status | `READY` |
 | Created | `2026-07-19T20:59:12Z` (per `vercel inspect`, "12 GMT+0100") |
-| Aliases at creation | none (project-scoped auto aliases only; `--skip-domain` prevented `usenobu.vercel.app` promotion) |
+| Aliases at creation | none (project-scoped auto aliases only; `--skip-domain` prevented `www.usenobu.xyz` promotion) |
 
 **Deployed commit SHA caveat:** this project deploys via the Vercel CLI
 (`vercel deploy`), not a GitHub-linked auto-deploy integration, so
@@ -66,18 +66,18 @@ screenshots. All required checks passed against
 
 ## Canonical promotion
 
-`vercel promote` reported project-level success but `usenobu.vercel.app`
+`vercel promote` reported project-level success but `www.usenobu.xyz`
 (a manually-pinned alias, not the domain-follows-production default) did not
 move — confirmed via `vercel promote status usenobu` (pointed at the new
-deployment) vs `vercel inspect https://usenobu.vercel.app` (still showing the
+deployment) vs `vercel inspect https://www.usenobu.xyz` (still showing the
 prior deployment `dpl_6PZZLMzzyJriQjJQH1hbpbpjr9i1`). Repointed explicitly
-with `vercel alias set https://usenobu-e9qrs4dfi-… usenobu.vercel.app`, then
-verified `vercel inspect https://usenobu.vercel.app` resolves to
+with `vercel alias set https://usenobu-e9qrs4dfi-… www.usenobu.xyz`, then
+verified `vercel inspect https://www.usenobu.xyz` resolves to
 `dpl_DQ9ULj9uukY1Kdtujxqkf8sppeUw` — the exact verified deployment.
 
 ## Canonical production proof
 
-Re-ran the full bounded proof through `https://usenobu.vercel.app` itself
+Re-ran the full bounded proof through `https://www.usenobu.xyz` itself
 (see `canonical-promotion/production-proof.json` and screenshots) — identical
 pass results to the pre-promotion run (identity-only candidate, confirmation,
 locked fingerprint `fp_400beee6d2220f6217825ba1`, monitoring gate, fail-closed
@@ -100,7 +100,7 @@ create/update/resubmit call was made.
 | Approval status | `2` — "Listing under review" |
 | Reviewer feedback | Same avatar-dimensions/rounded-corners text from the original rejection cycle; no new remark posted since the 2026-07-17 avatar-only resubmission (expected while a decision is pending) |
 | Service | "Post-checkout price watch", A2MCP, fee `0` (free, unchanged) |
-| Endpoint | `https://usenobu.vercel.app/v1/agent` — already the canonical URL, no legacy-alias dependency |
+| Endpoint | `https://www.usenobu.xyz/v1/agent` — already the canonical URL, no legacy-alias dependency |
 
 No edit was necessary or performed.
 
@@ -109,7 +109,7 @@ No edit was necessary or performed.
 Before removal, `afterbuy.vercel.app` was found to **already** resolve to the
 newly-promoted deployment (`usenobu-e9qrs4dfi-…`) — it appears to be a
 domain that auto-follows the project's current production deployment (unlike
-`usenobu.vercel.app`, which required the explicit `alias set` above). This is
+`www.usenobu.xyz`, which required the explicit `alias set` above). This is
 distinct from `nobu-app.vercel.app`, `get-nobu.vercel.app`,
 `nobu-watch.vercel.app`, `nobu-price.vercel.app`, and `nobu-mvp.vercel.app`,
 which remained pinned to the old `afterbuy-hvj2pbrmg-…` deployment throughout
@@ -118,8 +118,8 @@ and were **not** touched.
 Removed with `vercel alias remove afterbuy.vercel.app --yes`. Verified after:
 
 - `afterbuy.vercel.app` no longer appears in `vercel alias ls` and now returns HTTP 404.
-- `usenobu.vercel.app/health` → 200, correct body.
-- `usenobu.vercel.app/v1/agent` (POST, unknown id) → 404 (correct bounded behavior, endpoint functional).
+- `www.usenobu.xyz/health` → 200, correct body.
+- `www.usenobu.xyz/v1/agent` (POST, unknown id) → 404 (correct bounded behavior, endpoint functional).
 - ASP #5541 unchanged (no edit performed as part of this step).
 - `vercel project ls` shows exactly one `usenobu` project — no duplicate.
 - `nobu-app.vercel.app`, `get-nobu.vercel.app`, `nobu-watch.vercel.app`, `nobu-price.vercel.app`, `nobu-mvp.vercel.app` all still present, unchanged.

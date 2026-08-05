@@ -1,4 +1,4 @@
-﻿{
+{
     "captured_at":  "2026-07-26 01:30:49Z",
     "search_nobu_results":  10,
     "search_nobu_contains_5541":  false,
@@ -6,7 +6,7 @@
     "search_capability_contains_5541":  false,
     "designated_route_resolves":  true,
     "designated_route_declared_route":  "x402",
-    "designated_route_default_endpoint":  "https://usenobu.vercel.app/v1/agent",
+    "designated_route_default_endpoint":  "https://www.usenobu.xyz/v1/agent",
     "designated_route_service_count":  2,
     "interpretation":  "Rejected/not-listed agents are absent from public marketplace search; explicit designated routing by agent id still resolves both services."
 }

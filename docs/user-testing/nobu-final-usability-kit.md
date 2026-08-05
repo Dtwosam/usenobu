@@ -1,19 +1,19 @@
 # Nobu final usability kit (Sprint C)
 
-**Purpose:** Five-minute sessions with real people to check whether Nobu’s product story, money-back benefit, and current Target-only availability are clear.  
+**Purpose:** Five-minute sessions with real people to check whether Nobu’s product story, money-back benefit, and current Target-only availability are clear.
 **Status:** Ready for real testers — do not invent results.
 
 ## Consent note (read aloud or show)
 
 > You will try a short product walkthrough. We may note your feedback. We will not ask for payment details, full receipt images, or private account passwords. You can stop at any time. Optional: we may quote anonymous feedback if you allow it below.
 
-**Tester code:** ________  
-**Quote permission:** ☐ yes  ☐ no  
+**Tester code:** ________
+**Quote permission:** ☐ yes  ☐ no
 **Date:** ________
 
 ## Five-minute script
 
-1. Open the live homepage (`https://usenobu.vercel.app` or local).
+1. Open the live homepage (`https://www.usenobu.xyz` or local).
 2. Do **not** explain Nobu in advance.
 3. Ask the five tasks in order (below).
 4. Observe without leading or correcting.
@@ -22,10 +22,10 @@
 
 **Do not:**
 
-* Record card numbers, banking data, or full home addresses  
-* Push the tester toward positive answers  
-* Present fixture demos as live retail prices  
-* Claim Target will approve a refund  
+* Record card numbers, banking data, or full home addresses
+* Push the tester toward positive answers
+* Present fixture demos as live retail prices
+* Claim Target will approve a refund
 
 ## Five core tasks
 
@@ -39,24 +39,24 @@
 
 ## Seven neutral questions
 
-1. In one sentence, what does Nobu do?  
-2. How might Nobu help you get money back after a purchase?  
-3. Does the page say you will definitely get a refund, or something more careful?  
-4. Is Nobu only for one store forever, or is it a broader idea with limited support today?  
-5. Which purchases work today?  
-6. Was anything confusing or overwhelming?  
+1. In one sentence, what does Nobu do?
+2. How might Nobu help you get money back after a purchase?
+3. Does the page say you will definitely get a refund, or something more careful?
+4. Is Nobu only for one store forever, or is it a broader idea with limited support today?
+5. Which purchases work today?
+6. Was anything confusing or overwhelming?
 7. After a meaningful purchase, would you use Nobu? (yes / no / maybe) Why?
 
 ## Observation checklist
 
-- [ ] Understood post-purchase monitoring without prompting  
-- [ ] Understood possible money-back / request the difference  
-- [ ] Did **not** treat refund as guaranteed  
-- [ ] Saw Target as current support, not the whole product identity  
-- [ ] Found primary “Add a purchase” path  
-- [ ] Completed confirm + monitoring status (if time allowed)  
-- [ ] Homepage felt calm / not overloaded  
-- [ ] Confused by: ________________  
+- [ ] Understood post-purchase monitoring without prompting
+- [ ] Understood possible money-back / request the difference
+- [ ] Did **not** treat refund as guaranteed
+- [ ] Saw Target as current support, not the whole product identity
+- [ ] Found primary “Add a purchase” path
+- [ ] Completed confirm + monitoring status (if time allowed)
+- [ ] Homepage felt calm / not overloaded
+- [ ] Confused by: ________________
 
 ## Result-recording template
 
@@ -82,9 +82,9 @@ Optional anonymous quote:
 
 Do **not** store:
 
-* Full payment or card details  
-* Account passwords or 2FA  
-* Unredacted receipts with home address  
-* Live API keys  
+* Full payment or card details
+* Account passwords or 2FA
+* Unredacted receipts with home address
+* Live API keys
 
 Fixture-labelled demos are fine when the UI shows the test-data label.

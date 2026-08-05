@@ -1,7 +1,7 @@
 {
   "at": "2026-07-14T16:15:28.730Z",
   "audit": "live-target-price-capability-prod-probe",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "health": {
     "status": 200,
     "serpapi_configured": true,

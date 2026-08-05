@@ -15,9 +15,9 @@ npx vitest run tests/policy/durable-store.test.ts tests/policy/policy-operations
 npx tsc --noEmit
 ```
 
-- Memory + SQLite store contract tests: **PASS**  
-- Optional Postgres (`POLICY_OPS_TEST_DATABASE_URL` → local Docker `127.0.0.1:54322`): **PASS**  
-- Migrations 0001–0005: **PASS**  
+- Memory + SQLite store contract tests: **PASS**
+- Optional Postgres (`POLICY_OPS_TEST_DATABASE_URL` → local Docker `127.0.0.1:54322`): **PASS**
+- Migrations 0001–0005: **PASS**
 - No production silent fallback to memory/`/tmp`
 
 ## Production configuration (names only)
@@ -32,7 +32,7 @@ npx tsc --noEmit
 
 | Check | Result |
 |---|---|
-| Deploy | `usenobu-nm0767bne-…` aliased to `usenobu.vercel.app` |
+| Deploy | `usenobu-nm0767bne-…` aliased to `www.usenobu.xyz` |
 | Health | `status: degraded`, `policy_ops_store: unavailable`, warning set, **not** fake CURRENT — see `prod-health-redacted.json` |
 | Owner status bad bearer | **401** `unauthorized` (secrets present) |
 | Scheduler bad bearer | **401** `unauthorized` |
@@ -46,14 +46,14 @@ Secrets `OWNER_OPS_SECRET` and `CRON_SECRET` were configured on Vercel Productio
 
 ## Redeploy durability checklist (when Postgres available)
 
-1. Apply schema via app `ensureSchema`  
-2. Confirm init seed  
-3. Auth scheduler → CHECK_DUE  
-4. Health + owner status agree  
-5. Owner UNCHANGED → CURRENT, alerts cleared  
-6. Redeploy; confirm state survives  
-7. Direct deployment URL and `usenobu.vercel.app` agree  
-8. No SerpApi spend  
+1. Apply schema via app `ensureSchema`
+2. Confirm init seed
+3. Auth scheduler → CHECK_DUE
+4. Health + owner status agree
+5. Owner UNCHANGED → CURRENT, alerts cleared
+6. Redeploy; confirm state survives
+7. Direct deployment URL and `www.usenobu.xyz` agree
+8. No SerpApi spend
 
 ## Agent listing
 

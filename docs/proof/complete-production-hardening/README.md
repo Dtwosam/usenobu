@@ -1,10 +1,10 @@
 # Nobu Complete Production Hardening — Proof
 
-**Date:** 2026-07-28  
-**Starting HEAD:** `f9f1b2575d2a865a3bb67962452a72bc6afb610d`  
-**Ending HEAD / closeout commit:** `ef2eabc678d575bb4b4251c55aeb5da6e3fb17c0`  
-**Production deploy:** `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y` (`usenobu-i58dclmaf…`)  
-**Alias:** `https://usenobu.vercel.app` explicitly re-aliased  
+**Date:** 2026-07-28
+**Starting HEAD:** `f9f1b2575d2a865a3bb67962452a72bc6afb610d`
+**Ending HEAD / closeout commit:** `ef2eabc678d575bb4b4251c55aeb5da6e3fb17c0`
+**Production deploy:** `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y` (`usenobu-i58dclmaf…`)
+**Alias:** `https://www.usenobu.xyz` explicitly re-aliased
 **Verdict:** `NOBU_COMPLETE_PRODUCTION_HARDENING_BLOCKED_REAL_OKX_USER_JOURNEY_INCOMPLETE`
 
 ## Why not PASS
@@ -104,8 +104,8 @@ All simple paths remain under multi-second budgets when warm; discovery/Groq not
 
 ## Remaining blockers for PASS
 
-1. **Complete real OKX.AI User-role A→Z conversation** (discover → pay once → automatic pass → setup → email → consent → activate → check → alert → status → stop).  
-2. Optionally raise Vercel plan if sub-daily settlement cron is required (Hobby allows **daily** only; hot-path poll + RESOLVE cover normal convergence).  
+1. **Complete real OKX.AI User-role A→Z conversation** (discover → pay once → automatic pass → setup → email → consent → activate → check → alert → status → stop).
+2. Optionally raise Vercel plan if sub-daily settlement cron is required (Hobby allows **daily** only; hot-path poll + RESOLVE cover normal convergence).
 3. Optional A2A autostart (admin PowerShell) — not blocking while daemon is running.
 
 ## Exact next step

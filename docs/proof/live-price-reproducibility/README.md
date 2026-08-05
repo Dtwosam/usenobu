@@ -1,8 +1,8 @@
 # Live Price Reproducibility Audit
 
-**Date:** 2026-07-14  
-**Verdict:** `NOBU_LIVE_PRICE_REPRO_BLOCKED`  
-**Canonical route:** `POST https://usenobu.vercel.app/v1/target-price-check`
+**Date:** 2026-07-14
+**Verdict:** `NOBU_LIVE_PRICE_REPRO_BLOCKED`
+**Canonical route:** `POST https://www.usenobu.xyz/v1/target-price-check`
 
 ## Findings
 

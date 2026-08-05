@@ -9,7 +9,7 @@
 
 **Agent surfaces**
 
-- Free `POST /v1/agent` (service **33561**, registered `https://usenobu.vercel.app/v1/agent`) — generic Agent-only first contact returns `SERVICE_SELECTION_REQUIRED` with both services (`src/a2mcp/service-catalogue.ts`); machine actions `DESCRIBE_SERVICES` / `SELECT_SERVICE`; marketplace journey (pass handoff → purchase setup → redeem) plus legacy action enum. Free service never returns 402 and never sells a pass.
+- Free `POST /v1/agent` (service **33561**, registered `https://www.usenobu.xyz/v1/agent`) — generic Agent-only first contact returns `SERVICE_SELECTION_REQUIRED` with both services (`src/a2mcp/service-catalogue.ts`); machine actions `DESCRIBE_SERVICES` / `SELECT_SERVICE`; marketplace journey (pass handoff → purchase setup → redeem) plus legacy action enum. Free service never returns 402 and never sells a pass.
 - Paid `POST /v1/agent/monitoring-pass` (service **35958**, registered `https://www.usenobu.xyz/v1/agent/monitoring-pass`, distinct host) — `$0.99` x402 v2 exact on X Layer (`eip155:196`) USD₮0 amount `990000`; unpaid body has empty required fields and structured deliverable; official OKX seller **verify → settle → settle/status**; exactly one Monitoring Pass per settlement. Payment does not activate monitoring.
 - Legacy private `POST /v1/agent/start-monitoring` retained internally.
 - Topology: **separate free and paid A2MCP services under one ASP identity** (`#5541`); no second ASP.
@@ -17,13 +17,13 @@
 
 **Shared pipeline**
 
-- Durable agent connection + email verification  
-- Discovery session + exact-product confirmation + locked fingerprint  
-- Monitoring + email consent before quote  
-- Durable enrollment quotes and payment/activation ledger  
-- Durable scheduler bridge (hydrate → tick → persist)  
-- Consented email-notification pipeline  
-- Shared web/agent matching and monitoring system  
+- Durable agent connection + email verification
+- Discovery session + exact-product confirmation + locked fingerprint
+- Monitoring + email consent before quote
+- Durable enrollment quotes and payment/activation ledger
+- Durable scheduler bridge (hydrate → tick → persist)
+- Consented email-notification pipeline
+- Shared web/agent matching and monitoring system
 
 **Supersedes:** earlier statements that production seller verification is unavailable, the paid route is undeployed, payment/monitor/scheduler work is only proposed, or Nobu is free-only. Historical lane notes elsewhere may still describe the state *at that time*; this section is current.
 

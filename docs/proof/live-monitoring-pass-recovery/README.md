@@ -1,7 +1,7 @@
 # Live Monitoring Pass settlement recovery
 
-**Date:** 2026-07-26  
-**Verdict:** `NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS`  
+**Date:** 2026-07-26
+**Verdict:** `NOBU_LIVE_MONITORING_PASS_RECOVERY_PASS`
 **Code baseline:** `fc81bc0` (clean `master`)
 
 ## Scope
@@ -15,7 +15,7 @@ Deploy the settlement-reconciliation repair and recover the existing paid settle
 | Source commit | `fc81bc00e82d570b8845467ee3fbdcd85b1144e7` |
 | First production deploy | `dpl_28NTvGuonUjHZqYCXSzgzzv2zdKv` (`usenobu-g3zimsbzm…`) |
 | Redeploy after env access setup | `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu` (`usenobu-aqr2chw83…`) |
-| Canonical alias | `https://usenobu.vercel.app` **explicitly** pointed at `usenobu-aqr2chw83…` / `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu` |
+| Canonical alias | `https://www.usenobu.xyz` **explicitly** pointed at `usenobu-aqr2chw83…` / `dpl_biFwq6Un5bW9hKQfKQRsmB77YVFu` |
 | Health | `GET /health` → `200` `status: ok` |
 
 ## Pre-recovery durable state (read-only)
@@ -30,7 +30,7 @@ Deploy the settlement-reconciliation repair and recover the existing paid settle
 
 ## First reconciliation
 
-`POST https://usenobu.vercel.app/v1/owner/pass-settlement-reconcile`  
+`POST https://www.usenobu.xyz/v1/owner/pass-settlement-reconcile`
 Authorization: Bearer production owner/cron secret (value never printed or archived)
 
 | Field | Result |

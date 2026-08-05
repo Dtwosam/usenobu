@@ -1,8 +1,8 @@
 # OKX User-role marketplace journey repair
 
-**Date:** 2026-08-05  
-**Baseline HEAD:** `3d9c8652a565c6713135767e602e3e238e70d67d`  
-**Final HEAD:** `c35468f5fb83bf56cd2f3d98a76e9fe1c7ae205d`  
+**Date:** 2026-08-05
+**Baseline HEAD:** `3d9c8652a565c6713135767e602e3e238e70d67d`
+**Final HEAD:** `c35468f5fb83bf56cd2f3d98a76e9fe1c7ae205d`
 **Verdict:** `NOBU_USER_ROLE_JOURNEY_REPAIR_PASS`
 
 ## Root cause
@@ -31,7 +31,7 @@ Single catalogue: `src/a2mcp/service-catalogue.ts`
 
 | ID | Name | Price | Registered endpoint |
 |---|---|---|---|
-| 33561 | Nobu Purchase Setup | free | `https://usenobu.vercel.app/v1/agent` |
+| 33561 | Nobu Purchase Setup | free | `https://www.usenobu.xyz/v1/agent` |
 | 35958 | Nobu Monitoring Pass | 0.99 USDT | `https://www.usenobu.xyz/v1/agent/monitoring-pass` |
 
 - Generic Agent contact → `SERVICE_SELECTION_REQUIRED` (both services; payment not required).
@@ -64,12 +64,12 @@ Result: **61/61 passed**. Typecheck clean. Production build clean. `git diff --c
 | Commit | `c35468f5fb83bf56cd2f3d98a76e9fe1c7ae205d` |
 | Deploy ID | `dpl_BcEVaj8A1zGW6FL41FANa6z1z6tc` |
 | Deployment URL | `https://usenobu-nz4f6jmib-dtwoflicks-2878s-projects.vercel.app` |
-| Free alias | `https://usenobu.vercel.app` (explicitly re-aliased) |
+| Free alias | `https://www.usenobu.xyz` (explicitly re-aliased) |
 | Paid / consumer alias | `https://www.usenobu.xyz` |
 
 ## Direct Production probes (unpaid)
 
-### Free `https://usenobu.vercel.app/v1/agent`
+### Free `https://www.usenobu.xyz/v1/agent`
 
 | Probe | HTTP | Result |
 |---|---|---|
@@ -120,8 +120,8 @@ These are the machine responses a User-role agent receives for the three prompts
 
 ## Platform-controlled boundary
 
-Nobu owns API introduction, service catalogue, paid 402 body/header, journey stage contracts, and post-payment handoff fields.  
-OKX/Onchain OS owns job wrappers, wallet balance UI, and whether the buyer agent obeys machine guidance.  
+Nobu owns API introduction, service catalogue, paid 402 body/header, journey stage contracts, and post-payment handoff fields.
+OKX/Onchain OS owns job wrappers, wallet balance UI, and whether the buyer agent obeys machine guidance.
 If a future interactive OKX.AI chat still assumes a service despite `SERVICE_SELECTION_REQUIRED`, that is a platform consumption issue — do not mutate ASP `#5541` metadata.
 
 ## Confirmation

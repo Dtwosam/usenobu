@@ -1,16 +1,16 @@
 # Complete Production Hardening — Baseline
 
-**Date:** 2026-07-28  
-**Lane:** Nobu Complete Production Audit, Redesign and Hardening  
-**Starting HEAD:** `f9f1b2575d2a865a3bb67962452a72bc6afb610d`  
-**Branch:** `master` (tracks `origin/master`)  
+**Date:** 2026-07-28
+**Lane:** Nobu Complete Production Audit, Redesign and Hardening
+**Starting HEAD:** `f9f1b2575d2a865a3bb67962452a72bc6afb610d`
+**Branch:** `master` (tracks `origin/master`)
 **Worktree:** `C:\Users\dtwof\Desktop\AfterBuy` (clean at start)
 
 ## Live production
 
 | Item | Value |
 |---|---|
-| Canonical alias | `https://usenobu.vercel.app` |
+| Canonical alias | `https://www.usenobu.xyz` |
 | Deployment | `dpl_BE7Ki6KGMEhdpSsxo4pUSYewJBAd` |
 | Deployment host | `usenobu-cf3hbavti-dtwoflicks-2878s-projects.vercel.app` |
 | Age at audit | ~2 days (created 2026-07-27) |
@@ -28,8 +28,8 @@
 | Online | `onlineStatus: 1` |
 | Marketplace | **Listed — eligible for task recommendations** (`approvalDisplayStatus: 4`) |
 | Sales count | 3 |
-| Free service | `33561` — Nobu Purchase Setup — fee `0` — `https://usenobu.vercel.app/v1/agent` |
-| Paid service | `35958` — Nobu Monitoring Pass — fee `0.99` — `https://usenobu.vercel.app/v1/agent/monitoring-pass` |
+| Free service | `33561` — Nobu Purchase Setup — fee `0` — `https://www.usenobu.xyz/v1/agent` |
+| Paid service | `35958` — Nobu Monitoring Pass — fee `0.99` — `https://www.usenobu.xyz/v1/agent/monitoring-pass` |
 
 **Supersedes** prior “rejected / not listed” claims in older current-state notes. ASP identity, wallet, service IDs, endpoints and price are **locked** for this lane (no create/update).
 

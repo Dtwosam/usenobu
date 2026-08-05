@@ -61,7 +61,7 @@ No full suite or separate local production build was run. Vercel performed the r
 
 - Deployment: `dpl_WJjvs2hQTfUzVSZqfXAKTrnUahvU`
 - URL: `https://usenobu-4dqzxqa7s-dtwoflicks-2878s-projects.vercel.app`
-- Canonical alias: `https://usenobu.vercel.app` explicitly updated
+- Canonical alias: `https://www.usenobu.xyz` explicitly updated
 - State: `READY`
 - Free probe (exactly one HTTP request): `GET /v1/agent` → `400 input_required`, introduction first, free/no-x402 message, inactive/incomplete journey, next action includes `UNDERSTAND_PURCHASE`.
 - Unpaid paid probe (exactly one HTTP request): `GET /v1/agent/monitoring-pass` → x402 v2 `402`, `exact`, `eip155:196`, `990000`; body says pass only / monitoring not started and stays inactive/incomplete.

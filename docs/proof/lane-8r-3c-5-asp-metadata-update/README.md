@@ -35,10 +35,10 @@ Immediate readback proved the expected metadata was written completely:
 - exactly two services remain;
 - service ids remain `33561` and `35958`;
 - service `33561` remains `Nobu Purchase Setup`, fee `0`, endpoint
-  `https://usenobu.vercel.app/v1/agent`;
+  `https://www.usenobu.xyz/v1/agent`;
 - service `33561` has the exact Lane 8R.3C.4 multiline description;
 - service `35958` is now `Nobu Monitoring Pass`, fee `0.99`, endpoint
-  `https://usenobu.vercel.app/v1/agent/monitoring-pass`;
+  `https://www.usenobu.xyz/v1/agent/monitoring-pass`;
 - service `35958` has the exact Lane 8R.3C.4 multiline description;
 - no agent or service id was created, deleted, or replaced.
 

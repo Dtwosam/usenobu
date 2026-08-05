@@ -1,8 +1,8 @@
 # A.3 — Policy freshness + live match closeout (Conair GS14)
 
-**Date:** 2026-07-14  
-**Verdict:** `NOBU_REVIEW_SAFE_A_3_PASS`  
-**Production:** https://usenobu.vercel.app  
+**Date:** 2026-07-14
+**Verdict:** `NOBU_REVIEW_SAFE_A_3_PASS`
+**Production:** https://www.usenobu.xyz
 
 ## Official policy re-verification
 
@@ -15,13 +15,13 @@
 
 Confirmed still:
 
-- 14-day window after purchase  
-- Identical item / brand / size / weight / color / quantity / model  
-- Target verifies listed price; may decline if not verified  
-- AK/HI exclusions for Target.com / app price match  
-- Target Plus separate rules (MVP excludes Target Plus)  
-- Guest Services **1-800-591-3869**; online chat for Target.com orders  
-- Screenshots not accepted as final proof  
+- 14-day window after purchase
+- Identical item / brand / size / weight / color / quantity / model
+- Target verifies listed price; may decline if not verified
+- AK/HI exclusions for Target.com / app price match
+- Target Plus separate rules (MVP excludes Target Plus)
+- Guest Services **1-800-591-3869**; online chat for Target.com orders
+- Screenshots not accepted as final proof
 
 Registry updated: `TARGET-POLICY`, `TARGET-SUMMARY` last checked **2026-07-14**.
 
@@ -44,15 +44,15 @@ Registry updated: `TARGET-POLICY`, `TARGET-SUMMARY` last checked **2026-07-14**.
 
 Acceptable under A.3: specific non-positive live result after reaching SerpApi/matcher. Price drop not required.
 
-Screenshot: `after-live-check.png`  
+Screenshot: `after-live-check.png`
 Machine record: `live-closeout.json`
 
 ## Tests
 
-- `tests/policy/freshness.test.ts`  
-- Full `npm test` (222)  
-- typecheck / build  
-- Secret scan  
+- `tests/policy/freshness.test.ts`
+- Full `npm test` (222)
+- typecheck / build
+- Secret scan
 
 ## Lane 8
 

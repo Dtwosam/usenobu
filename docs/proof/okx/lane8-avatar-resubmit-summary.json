@@ -1,4 +1,4 @@
-﻿{
+{
     "change":  "avatar_only",
     "avatarUploadUrl":  "https://static.okx.com/cdn/web3/wallet/marketplace/headimages/agent/avatar/60657556-8076-4fa6-b5bc-4789c9983f64.png",
     "agentId":  "5541",
@@ -6,7 +6,7 @@
     "name":  "Nobu",
     "preserved":  {
                       "fee":  0,
-                      "endpoint":  "https://usenobu.vercel.app/v1/agent",
+                      "endpoint":  "https://www.usenobu.xyz/v1/agent",
                       "name":  "Nobu",
                       "agentId":  "5541",
                       "serviceType":  "A2MCP"

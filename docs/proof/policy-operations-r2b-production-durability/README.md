@@ -23,7 +23,7 @@
 |---|---|
 | Pre-redeploy proof | `usenobu-7gslesdzu-dtwoflicks-2878s-projects.vercel.app` |
 | Post-redeploy survival | `usenobu-am8myke5z-dtwoflicks-2878s-projects.vercel.app` |
-| Canonical alias | `https://usenobu.vercel.app` → post-redeploy deployment |
+| Canonical alias | `https://www.usenobu.xyz` → post-redeploy deployment |
 
 ## Proof sequence (all redacted JSON in this directory)
 

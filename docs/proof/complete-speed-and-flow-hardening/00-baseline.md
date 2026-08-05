@@ -1,8 +1,8 @@
 # Complete Speed and Flow Hardening — Baseline
 
-**Date:** 2026-07-28  
-**Starting HEAD:** `6ac1bf01d6f6e06a31c3af69ef75e742e033c262`  
-**Prior lane:** Complete production hardening (`docs/proof/complete-production-hardening/`) — settlement→pass and conversation contract code deployed; real A→Z not closed.  
+**Date:** 2026-07-28
+**Starting HEAD:** `6ac1bf01d6f6e06a31c3af69ef75e742e033c262`
+**Prior lane:** Complete production hardening (`docs/proof/complete-production-hardening/`) — settlement→pass and conversation contract code deployed; real A→Z not closed.
 **This lane:** Final coordinated speed + conversation flow hardening for a fresh OKX.AI demo recording.
 
 ## Live platform truth at start
@@ -11,7 +11,7 @@
 |---|---|
 | ASP | `#5541` Nobu — listed (`approvalDisplayStatus: 4`) |
 | Services | `33561` free Purchase Setup; `35958` Monitoring Pass `0.99` |
-| Production | `https://usenobu.vercel.app` → `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y` |
+| Production | `https://www.usenobu.xyz` → `dpl_EeL4uL1GmtfYeR6VFYW67gWHVr7y` |
 | A2A doctor | daemon **not running** at audit start (`okx-a2a doctor` 1 fail) |
 | Onchain OS | `4.4.0` |
 

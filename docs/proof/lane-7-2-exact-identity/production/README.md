@@ -14,7 +14,7 @@ Vercel project: `usenobu` (`prj_nVrpTW9gmRZxn9AAh5ALrGSAaecZ`)
 
 Both deployments were created with `vercel deploy --prod --skip-domain --yes`, which
 builds a `target: production` deployment and disables automatic domain aliasing.
-`vercel alias ls` was checked before and after each deploy: `usenobu.vercel.app`
+`vercel alias ls` was checked before and after each deploy: `www.usenobu.xyz`
 stayed pointed at its existing (6-day-old) deployment throughout. The canonical
 alias was never promoted, and no other Vercel project, GitHub repo, or OKX ASP
 was touched.
@@ -49,7 +49,7 @@ had been dropping.
 
 Raw artifacts: `production-proof.json`, `flow-a-*.png`, `flow-b-after-live-check.png`,
 `run-production-proof.mjs` (the script used, targeting the unique deployment URL
-via `NOBU_PROOF_BASE`, not `usenobu.vercel.app`).
+via `NOBU_PROOF_BASE`, not `www.usenobu.xyz`).
 
 ### 1–2. Identity-only candidate with no current price
 

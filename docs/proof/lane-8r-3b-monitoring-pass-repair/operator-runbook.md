@@ -4,7 +4,7 @@ Every step below is **state-changing** and was deliberately **not executed** in 
 
 **Never** paste a private key, recovery phrase, payment header, `PAYMENT-SIGNATURE` value, `connection_token`, or `monitoring_pass_token` into a chat, a file, or a commit. Placeholders below are written as `<LIKE_THIS>`.
 
-**Prerequisite state as of 2026-07-26:** ASP `#5541` is `approvalDisplayStatus: 5` ("Listing rejected"). Service `33561` points at `https://usenobu.vercel.app/v1/agent` (correct). Service `35958` points at `https://usenobu.vercel.app/v1/agent/start-monitoring` — **stale**, and OKX's own validator reports `valid: false` for it. The repaired endpoints are live and validated.
+**Prerequisite state as of 2026-07-26:** ASP `#5541` is `approvalDisplayStatus: 5` ("Listing rejected"). Service `33561` points at `https://www.usenobu.xyz/v1/agent` (correct). Service `35958` points at `https://www.usenobu.xyz/v1/agent/start-monitoring` — **stale**, and OKX's own validator reports `valid: false` for it. The repaired endpoints are live and validated.
 
 ---
 
@@ -33,7 +33,7 @@ Free A2MCP service for setting up and managing Target post-purchase monitoring. 
 |---|---|
 | name | `Nobu Monitoring Pass` |
 | fee | `0.99` |
-| endpoint | `https://usenobu.vercel.app/v1/agent/monitoring-pass` |
+| endpoint | `https://www.usenobu.xyz/v1/agent/monitoring-pass` |
 
 description, exactly:
 
@@ -58,7 +58,7 @@ Confirm, and record:
 
 - agent id is still `5541` and `newAgentId` is null (no second ASP was created);
 - service ids are still `33561` and `35958`;
-- `35958.endpoint` is now `https://usenobu.vercel.app/v1/agent/monitoring-pass`;
+- `35958.endpoint` is now `https://www.usenobu.xyz/v1/agent/monitoring-pass`;
 - `35958.name` is `Nobu Monitoring Pass` and `35958.fee` is `0.99`;
 - both descriptions match the text above byte for byte.
 
@@ -76,8 +76,8 @@ Record `approvalDisplayStatus`, `approvalLabel`, and any `approvalRemark` return
 
 ```
 onchainos agent designated-route --provider 5541
-onchainos agent x402-check --endpoint https://usenobu.vercel.app/v1/agent/monitoring-pass --agent-id 5541
-onchainos agent x402-check --endpoint https://usenobu.vercel.app/v1/agent/monitoring-pass --agent-id 5541 --body '{}'
+onchainos agent x402-check --endpoint https://www.usenobu.xyz/v1/agent/monitoring-pass --agent-id 5541
+onchainos agent x402-check --endpoint https://www.usenobu.xyz/v1/agent/monitoring-pass --agent-id 5541 --body '{}'
 ```
 
 Expect `valid: true` from both `x402-check` calls, and the new endpoint in the routing output. (Both already pass against the live endpoint today; this re-confirms them against the updated listing.)
@@ -91,7 +91,7 @@ Requires an eligible adult operator using their own funded OKX wallet, holding U
 **5a. Get a fresh challenge** and keep the header value verbatim:
 
 ```
-curl -sS -D - -o /dev/null -X POST https://usenobu.vercel.app/v1/agent/monitoring-pass
+curl -sS -D - -o /dev/null -X POST https://www.usenobu.xyz/v1/agent/monitoring-pass
 ```
 
 Copy the `PAYMENT-REQUIRED:` value as `<RAW_402>`. It is valid for `maxTimeoutSeconds: 300` — if you take longer, fetch a fresh one rather than reusing a stale challenge.
@@ -115,7 +115,7 @@ It returns `{authorization_header, header_name, scheme, wallet}`. `header_name` 
 ```
 curl -sS -D - -X POST \
   -H "PAYMENT-SIGNATURE: <AUTHORIZATION_HEADER>" \
-  https://usenobu.vercel.app/v1/agent/monitoring-pass
+  https://www.usenobu.xyz/v1/agent/monitoring-pass
 ```
 
 Expect `HTTP 200` with `status: MONITORING_PASS_ISSUED`, a `monitoring_pass_id`, and a one-time `monitoring_pass_token`.
@@ -129,7 +129,7 @@ If you instead get `status: PAYMENT_SETTLEMENT_PENDING`, settlement is still con
 ```
 curl -sS -X POST -H "Content-Type: application/json" \
   -d '{"action":"REDEEM_MONITORING_PASS","monitoring_pass_id":"<PASS_ID>","monitoring_pass_token":"<PASS_TOKEN>","quote_id":"<QUOTE_ID>","connection_id":"<CONNECTION_ID>","connection_token":"<CONNECTION_TOKEN>"}' \
-  https://usenobu.vercel.app/v1/agent
+  https://www.usenobu.xyz/v1/agent
 ```
 
 A failed redemption does **not** consume the pass.

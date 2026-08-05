@@ -2,8 +2,8 @@
 
 **Verdict:** `NOBU_LANE_7_3A_1_PASS`
 
-**Runtime implementation commit:** `b2d99b2d8036dcc813bb4d861a31484663c60fbe`  
-**Closeout commit (residual copy + tests + proof):** `bf803453de39a6c112c8c71c688378761e36caec`  
+**Runtime implementation commit:** `b2d99b2d8036dcc813bb4d861a31484663c60fbe`
+**Closeout commit (residual copy + tests + proof):** `bf803453de39a6c112c8c71c688378761e36caec`
 **Final repository HEAD after this docs refresh:** recorded at push time (docs-only if separate)
 
 ## Corrected user journey
@@ -65,7 +65,7 @@ Live provider ambiguity was **not** fabricated. Multi-candidate selection UI is 
 | Status | Ready |
 | Created | 2026-07-20T09:51:51Z (local) |
 | Deployed source | final closeout HEAD including residual error-copy + adaptive runtime |
-| Canonical | https://usenobu.vercel.app → **this** deployment (re-aliased after `--prod` auto-bound `afterbuy.vercel.app`) |
+| Canonical | https://www.usenobu.xyz → **this** deployment (re-aliased after `--prod` auto-bound `afterbuy.vercel.app`) |
 | `afterbuy.vercel.app` | **removed** after deploy; HTTP **404** |
 
 ### Prior Grok production (historical)
@@ -84,7 +84,7 @@ Live provider ambiguity was **not** fabricated. Multi-candidate selection UI is 
 | Field | Value |
 |---|---|
 | Name | Nobu |
-| Endpoint | `https://usenobu.vercel.app/v1/agent` |
+| Endpoint | `https://www.usenobu.xyz/v1/agent` |
 | Fee | `0` |
 | Approval | Listing under review (`approvalStatus` / display **2**) |
 | Mutation | **None** — no edit, resubmit, or new ASP |
@@ -98,5 +98,5 @@ Live provider ambiguity was **not** fabricated. Multi-candidate selection UI is 
 
 ## Next
 
-**Lane 8 — reviewer-status monitoring.**  
+**Lane 8 — reviewer-status monitoring.**
 Lane 7.3B consented email notifications remains queued separately.

@@ -1,6 +1,6 @@
 {
   "at": "2026-07-14T12:28:47.368Z",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "label": "FIXTURE_DEMO_CONSUMER_FLOW",
   "real_provider_calls_consumed": 0,
   "note": "Demo dashboard check uses fixture offers via runMonitoringPass; not a live SerpApi shopping call.",
@@ -39,7 +39,7 @@
       "last_attempted": "Not checked yet"
     },
     "after_check": {
-      "url": "https://usenobu.vercel.app/purchases/pur_9e1dfaec1531/alerts/alert_635f17b5df904ace?outcome=price_drop",
+      "url": "https://www.usenobu.xyz/purchases/pur_9e1dfaec1531/alerts/alert_635f17b5df904ace?outcome=price_drop",
       "on_alert_page": true,
       "alert_summary_visible": true
     },
@@ -47,7 +47,7 @@
       "visible_after_check": true,
       "note": "Button still shown; server enforces 30s cooldown if clicked"
     },
-    "second_click_url": "https://usenobu.vercel.app/purchases/pur_9e1dfaec1531?checked=1&outcome=no_lower",
+    "second_click_url": "https://www.usenobu.xyz/purchases/pur_9e1dfaec1531?checked=1&outcome=no_lower",
     "mobile_390": {
       "sw": 390,
       "cw": 390,

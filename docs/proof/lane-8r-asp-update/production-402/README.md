@@ -13,7 +13,7 @@ Redacted: email, code, `connection_token`, quote/connection/purchase ids.
 
 ## Unpaid paid-route call
 
-`POST https://usenobu.vercel.app/v1/agent/start-monitoring` without `PAYMENT-SIGNATURE`
+`POST https://www.usenobu.xyz/v1/agent/start-monitoring` without `PAYMENT-SIGNATURE`
 
 | Check | Result |
 |---|---|
@@ -21,7 +21,7 @@ Redacted: email, code, `connection_token`, quote/connection/purchase ids.
 | Body status | `PAYMENT_PENDING` |
 | `Payment-Required` header | present non-empty |
 | x402Version | `2` |
-| resource | `https://usenobu.vercel.app/v1/agent/start-monitoring` |
+| resource | `https://www.usenobu.xyz/v1/agent/start-monitoring` |
 | accepts count | `1` |
 | scheme | `exact` |
 | network | `eip155:196` |

@@ -2,7 +2,7 @@
  * Lane 7.5E production proof script (no secrets).
  * Usage: node docs/proof/nobu-ai-agent/run-prod-proof.mjs
  */
-const base = process.env.NOBU_PROOF_BASE || "https://usenobu.vercel.app";
+const base = process.env.NOBU_PROOF_BASE || "https://www.usenobu.xyz";
 
 async function main() {
   const out = { base, at: new Date().toISOString(), checks: {} };

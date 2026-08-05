@@ -5,7 +5,7 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 
-const base = process.env.NOBU_PROOF_BASE || "https://usenobu.vercel.app";
+const base = process.env.NOBU_PROOF_BASE || "https://www.usenobu.xyz";
 const proofDir = path.resolve("docs/proof/live-discovery-deduplication");
 const TEXT =
   "For testing, I bought an Apple AirTag from Target.com today for $35. The TCIN is 54191097, and the product link is https://www.target.com/p/apple-airtag/-/A-54191097.";

@@ -1,8 +1,8 @@
 # UseNobu public verification
 
-**URL:** https://usenobu.vercel.app  
-**Project:** usenobu  
-**Date:** 2026-07-13  
+**URL:** https://www.usenobu.xyz
+**Project:** usenobu
+**Date:** 2026-07-13
 
 ## Accessibility
 

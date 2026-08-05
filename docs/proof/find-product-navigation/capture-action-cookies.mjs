@@ -5,7 +5,7 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 
-const base = "https://usenobu.vercel.app";
+const base = "https://www.usenobu.xyz";
 const proofDir = path.resolve("docs/proof/find-product-navigation");
 const responses = [];
 

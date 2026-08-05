@@ -1,6 +1,6 @@
 {
   "at": "2026-07-13T23:28:06.840Z",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "checks": {
     "health": {
       "http_status": 200,

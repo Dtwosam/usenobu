@@ -1,10 +1,10 @@
 # User-role journey follow-up repair
 
-**Baseline:** `b0c28de03cc24b7668de1898718f8f237296d500`  
-**Deployed code commit:** `13113f1ed729fd67ff35919cbddf7b5f72e7b7ae`  
-**Deploy ID:** `dpl_BZPj3UKLyPbY1U1iFMSyGks33zYR` (`usenobu-o6k9mv5cb-…`)  
-**Substantive proof commit:** `3407d8f1859fc4a783012bbfe64a764b26cae342`  
-**Repository closeout tip before this correction:** `ad58774f9a9236b9ada3c1639d5b17590c1b1e1e`  
+**Baseline:** `b0c28de03cc24b7668de1898718f8f237296d500`
+**Deployed code commit:** `13113f1ed729fd67ff35919cbddf7b5f72e7b7ae`
+**Deploy ID:** `dpl_BZPj3UKLyPbY1U1iFMSyGks33zYR` (`usenobu-o6k9mv5cb-…`)
+**Substantive proof commit:** `3407d8f1859fc4a783012bbfe64a764b26cae342`
+**Repository closeout tip before this correction:** `ad58774f9a9236b9ada3c1639d5b17590c1b1e1e`
 **Verdict:** `NOBU_USER_ROLE_JOURNEY_FOLLOWUP_REPAIR_PASS`
 
 ## Findings repaired
@@ -36,12 +36,12 @@ No-candidate discovery and activation_pending resume proven in focused unit/inte
 
 ## Hard locks observed
 
-- No payment  
-- No ASP update / activate / resubmit  
-- No new Agent or service  
-- No price, network, token, payTo, matching, policy, or consent rule changes  
+- No payment
+- No ASP update / activate / resubmit
+- No new Agent or service
+- No price, network, token, payTo, matching, policy, or consent rule changes
 
 ## Aliases
 
-- Free: `https://usenobu.vercel.app` re-aliased to this deploy  
-- Paid/consumer: `https://www.usenobu.xyz`  
+- Free: `https://www.usenobu.xyz` re-aliased to this deploy
+- Paid/consumer: `https://www.usenobu.xyz`

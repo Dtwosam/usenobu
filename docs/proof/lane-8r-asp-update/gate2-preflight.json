@@ -1,6 +1,6 @@
-﻿{
+{
   "gate": 2,
-  "health": { "url": "https://usenobu.vercel.app/health", "status": 200 },
+  "health": { "url": "https://www.usenobu.xyz/health", "status": 200 },
   "free_agent": {
     "action": "UNDERSTAND_PURCHASE",
     "status": 200,

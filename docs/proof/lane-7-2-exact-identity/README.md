@@ -92,4 +92,4 @@ Existing tests continue to reject:
 
 See `production/README.md` and `production/production-proof.json`. The unique
 deployment (`https://usenobu-hfviza4u4-dtwoflicks-2878s-projects.vercel.app`)
-was never aliased to `usenobu.vercel.app`, and no legacy alias was touched.
+was never aliased to `www.usenobu.xyz`, and no legacy alias was touched.

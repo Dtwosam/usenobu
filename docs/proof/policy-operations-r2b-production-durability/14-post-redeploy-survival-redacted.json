@@ -1,7 +1,7 @@
-﻿{
+{
     "probe":  "post_redeploy_survival",
     "new_deployment":  "https://usenobu-am8myke5z-dtwoflicks-2878s-projects.vercel.app",
-    "alias":  "https://usenobu.vercel.app",
+    "alias":  "https://www.usenobu.xyz",
     "alias_health":  {
                          "status":  "ok",
                          "policy_ops_store":  "ok",

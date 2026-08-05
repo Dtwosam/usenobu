@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const base = process.env.NOBU_BASE || "https://usenobu.vercel.app";
+const base = process.env.NOBU_BASE || "https://www.usenobu.xyz";
 const proofDir = path.resolve("docs/proof/live-target-price-capability");
 fs.mkdirSync(proofDir, { recursive: true });
 

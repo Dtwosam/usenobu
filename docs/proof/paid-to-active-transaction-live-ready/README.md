@@ -1,10 +1,10 @@
 # Paid-to-active transaction live-ready closeout (final repair)
 
-**Date:** 2026-08-05  
-**Baseline:** `ca83267ed6bbf0aac676c150e4cd4ea262f3dbdd`  
-**Code commit:** `53411685a6259e1ad915e9b3e7f650bd921df1cd`  
-**Deployment:** `dpl_9XND8k78yfbDfpQq5NSsStEviAhM`  
-**Aliases:** `https://www.usenobu.xyz`, `https://usenobu.vercel.app`
+**Date:** 2026-08-05
+**Baseline:** `ca83267ed6bbf0aac676c150e4cd4ea262f3dbdd`
+**Code commit:** `53411685a6259e1ad915e9b3e7f650bd921df1cd`
+**Deployment:** `dpl_9XND8k78yfbDfpQq5NSsStEviAhM`
+**Aliases:** `https://www.usenobu.xyz`, `https://www.usenobu.xyz`
 
 ## Verdict
 
@@ -48,25 +48,25 @@ Requires all of:
   - **B** — stored `provider_payment_id` equals facilitator payment id; or
   - **C** — stored `provider_authorization_id` equals facilitator authorization id.
 
-Otherwise: `inconclusive_failure_evidence` + keep `settlement_review_required`.  
+Otherwise: `inconclusive_failure_evidence` + keep `settlement_review_required`.
 Atomic claim still binds the canonical settlement_ref so it cannot unlock another payment.
 
 ## Shared outbox delivery design
 
 `processNotificationOutboxOpportunity` is the single delivery function for one durable opportunity:
 
-1. load outbox → reject terminal/sent  
-2. atomic lease  
-3. reload account, ownership, verified email, consent  
-4. parse durable evidence  
-5. summary: atomic `tryReserveRollingSummarySend` (rolling 24h only)  
-6. provider send with opportunity key as idempotency key  
-7. `markRollingSummarySent` / mark outbox `sent` only after success  
-8. on failure: release reserve + `failed_retryable`  
-9. consent revoked → `suppressed`  
+1. load outbox → reject terminal/sent
+2. atomic lease
+3. reload account, ownership, verified email, consent
+4. parse durable evidence
+5. summary: atomic `tryReserveRollingSummarySend` (rolling 24h only)
+6. provider send with opportunity key as idempotency key
+7. `markRollingSummarySent` / mark outbox `sent` only after success
+8. on failure: release reserve + `failed_retryable`
+9. consent revoked → `suppressed`
 10. config/evidence terminal → `failed_terminal`
 
-`processDueNotificationOutbox` only lists due rows and delegates.  
+`processDueNotificationOutbox` only lists due rows and delegates.
 Initial summary path in `src/notifications/process.ts` creates durable outbox evidence then calls `processNotificationOutboxOpportunity` (no direct `sendSummaryEmail`).
 
 ## Changed files (code)

@@ -5,7 +5,7 @@
 | Product name | Nobu |
 | Deployment identity | UseNobu |
 | Vercel project | `usenobu` |
-| Production URL | **https://usenobu.vercel.app** |
+| Production URL | **https://www.usenobu.xyz** |
 | Health service | `nobu-a2mcp` |
 
 ## Artifacts
@@ -24,4 +24,4 @@
 - `/health` → 200, `nobu-a2mcp`, SerpApi configured (boolean only)
 - `/purchases/new`, `/dashboard`, `/notices` → 200
 - `POST /v1/target-price-check` → 200 structured JSON
-- No Vercel login / SSO required on usenobu.vercel.app
+- No Vercel login / SSO required on www.usenobu.xyz

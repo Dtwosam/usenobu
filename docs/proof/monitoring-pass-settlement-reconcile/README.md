@@ -1,7 +1,7 @@
 # Monitoring Pass settlement reconciliation repair
 
-**Date:** 2026-07-26  
-**Verdict:** `NOBU_MONITORING_PASS_SETTLEMENT_RECONCILE_PASS`  
+**Date:** 2026-07-26
+**Verdict:** `NOBU_MONITORING_PASS_SETTLEMENT_RECONCILE_PASS`
 **Baseline:** clean `91c048639ca4792dd1cb5a7d04557c821ccbbcc2`
 
 ## Live blocker (read-only context)
@@ -50,12 +50,12 @@ No full suite. No live payment or signed replay.
 ## Exact safe operator recovery (after deploy)
 
 ```http
-POST https://usenobu.vercel.app/v1/owner/pass-settlement-reconcile
+POST https://www.usenobu.xyz/v1/owner/pass-settlement-reconcile
 Authorization: Bearer <CRON_SECRET or OWNER_OPS_SECRET>
 ```
 
-Expected: `ok: true`, `issued >= 1`, `issued_pass_ids: ["pass_…"]` for confirmed settlements.  
-Do **not** pay again, create another task, or replay a signed payment header.  
+Expected: `ok: true`, `issued >= 1`, `issued_pass_ids: ["pass_…"]` for confirmed settlements.
+Do **not** pay again, create another task, or replay a signed payment header.
 Then continue free service `33561` action `UNDERSTAND_PURCHASE`. Monitoring remains inactive until successful redemption.
 
 ## Changed files

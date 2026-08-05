@@ -1,5 +1,5 @@
 {
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "at": "2026-07-15T11:34:10.154Z",
   "checks": {
     "health": {
@@ -25,7 +25,7 @@
       "pass": true
     },
     "airtag_full": {
-      "url": "https://usenobu.vercel.app/purchases/pur_ffcd7d99583c/review?title=Apple+AirTag&source=LIVE",
+      "url": "https://www.usenobu.xyz/purchases/pur_ffcd7d99583c/review?title=Apple+AirTag&source=LIVE",
       "decision": "EXACT_MATCH_CANDIDATE",
       "old_copy": false,
       "pass": true

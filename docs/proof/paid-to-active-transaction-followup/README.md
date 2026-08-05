@@ -1,10 +1,10 @@
 # Paid-to-active transactional follow-up repair
 
-**Date:** 2026-08-05  
-**Baseline:** `08da02a7087ce3738920c7c0b4c516a71a5a05c1`  
-**Code commit:** `617e78395a7e65174549b4094c34e0c55ca36fef`  
-**Deployment ID:** `dpl_2tCWNPvVnx2DdKDmFYfiucrQFFvz`  
-**Aliases:** `https://www.usenobu.xyz`, `https://usenobu.vercel.app`  
+**Date:** 2026-08-05
+**Baseline:** `08da02a7087ce3738920c7c0b4c516a71a5a05c1`
+**Code commit:** `617e78395a7e65174549b4094c34e0c55ca36fef`
+**Deployment ID:** `dpl_2tCWNPvVnx2DdKDmFYfiucrQFFvz`
+**Aliases:** `https://www.usenobu.xyz`, `https://www.usenobu.xyz`
 **Verdict:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FOLLOWUP_PASS`
 
 ## Audit blockers repaired
@@ -63,7 +63,7 @@
 | Unpaid paid endpoint | 402 + PAYMENT-REQUIRED, exact eip155:196 990000, extra.version 1 |
 | Neutral body | no never_ask prose |
 | Malformed PAYMENT-SIGNATURE | 402 rejected |
-| Free alias re-pointed | usenobu.vercel.app → this deploy |
+| Free alias re-pointed | www.usenobu.xyz → this deploy |
 
 No genuine payment, ASP update, activation, resubmission, wallet funding.
 

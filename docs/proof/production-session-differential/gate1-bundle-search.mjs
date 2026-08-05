@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const base = process.env.NOBU_PROOF_BASE || "https://usenobu.vercel.app";
+const base = process.env.NOBU_PROOF_BASE || "https://www.usenobu.xyz";
 const old =
   "We found more than one possible Target product. Add a model, TCIN or UPC so Nobu can avoid choosing the wrong item.";
 const neu = "Nobu found several different Target products and could not safely choose one.";

@@ -9,7 +9,7 @@ const dir = path.resolve("docs/proof/canonical-live-target-match-v2");
 fs.mkdirSync(dir, { recursive: true });
 
 const bases = [
-  "https://usenobu.vercel.app",
+  "https://www.usenobu.xyz",
   // Retired legacy alias intentionally omitted from current proof runs.
 ];
 

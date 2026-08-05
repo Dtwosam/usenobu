@@ -1,4 +1,4 @@
-ï»¿# Lane 7.3A â€” Purchase intake UX + multi-candidate discovery
+# Lane 7.3A — Purchase intake UX + multi-candidate discovery
 
 **Verdict:** `NOBU_LANE_7_3A_PASS`
 
@@ -8,7 +8,7 @@
 ## Implemented UX
 
 - Exact product mode: Target URL **or** TCIN (not both required)
-- Help me find the product: description + price + date â†’ multi-candidate Target list
+- Help me find the product: description + price + date ? multi-candidate Target list
 - Fill with AI: valid TCIN alone is enough; never demands URL when TCIN present
 - Link-derived provisional titles; provider enrichment may improve; failure keeps fallback
 - Demo options removed from production `/purchases/new`
@@ -18,15 +18,15 @@
 1. `evaluateExactIdentity` required URL+TCIN together
 2. `computeMissingFields` always required `product_url`
 3. Form UI forced required URL and showed Demo options
-4. Discovery store / cookie snapshot kept only 1â€“2 candidates
+4. Discovery store / cookie snapshot kept only 1–2 candidates
 
 ## Local proof
 
-- `npm test` â€” 317 passed, 1 skipped
-- `npm run typecheck` â€” pass
-- `npm run build` â€” pass
-- Playwright `tests/e2e/consumer-flow.spec.ts` â€” 10 passed
-- Fixture multi-candidate: Target-only, Target Plus excluded, duplicates collapsed, 3â€“6 bound, no auto-confirm
+- `npm test` — 317 passed, 1 skipped
+- `npm run typecheck` — pass
+- `npm run build` — pass
+- Playwright `tests/e2e/consumer-flow.spec.ts` — 10 passed
+- Fixture multi-candidate: Target-only, Target Plus excluded, duplicates collapsed, 3–6 bound, no auto-confirm
 - Session snapshot preserves `offer_id` for multi-candidate confirm across instances
 
 ## Deployment
@@ -35,23 +35,23 @@
 |---|---|
 | Unique preview | https://usenobu-jd32is8xq-dtwoflicks-2878s-projects.vercel.app |
 | Unique production | https://usenobu-iu55e3xth-dtwoflicks-2878s-projects.vercel.app |
-| Canonical | https://usenobu.vercel.app |
-| afterbuy.vercel.app | removed again (404) â€” accidental auto-alias on `--prod` was cleaned |
+| Canonical | https://www.usenobu.xyz |
+| afterbuy.vercel.app | removed again (404) — accidental auto-alias on `--prod` was cleaned |
 
 ### Canonical production checks
 
-- GET `/health` â†’ 200, `status: ok`, SerpApi + Groq configured
-- GET `/purchases/new` â†’ 200; Demo options absent; mode controls present in JS bundle; no afterbuy brand
-- Unique production `/health` â†’ 200
+- GET `/health` ? 200, `status: ok`, SerpApi + Groq configured
+- GET `/purchases/new` ? 200; Demo options absent; mode controls present in JS bundle; no afterbuy brand
+- Unique production `/health` ? 200
 
 ## ASP #5541 (read-only)
 
 - Name: Nobu
 - approvalStatus: 2 (Listing under review)
-- Endpoint: `https://usenobu.vercel.app/v1/agent`
+- Endpoint: `https://www.usenobu.xyz/v1/agent`
 - Fee: 0 USDT
 - **No edit, resubmit, or new ASP performed**
 
 ## Next lane
 
-Lane 7.3B â€” consented email price-drop notifications.
+Lane 7.3B — consented email price-drop notifications.

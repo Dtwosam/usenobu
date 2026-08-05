@@ -1,6 +1,6 @@
 # Live Discovery Deduplication / Ambiguity Repair
 
-**Date:** 2026-07-15  
+**Date:** 2026-07-15
 **Verdict:** `NOBU_DISCOVERY_DEDUP_PASS`
 
 ## Proven root cause
@@ -41,23 +41,23 @@
 | Ambiguity copy | Does not ask for TCIN when TCIN already stored |
 | Session cookie | Keeps fingerprint + match FK after confirm (monitoring) |
 
-## Production proof (`https://usenobu.vercel.app`)
+## Production proof (`https://www.usenobu.xyz`)
 
-1. AirTag identifiers → Find my product  
-2. **One** LIVE candidate: Apple AirTag  
-3. Confirm → monitoring  
-4. Check price now → **`price_drop` / `data_source: LIVE`**  
-5. No 404, no fixture, no “add TCIN” copy  
+1. AirTag identifiers → Find my product
+2. **One** LIVE candidate: Apple AirTag
+3. Confirm → monitoring
+4. Check price now → **`price_drop` / `data_source: LIVE`**
+5. No 404, no fixture, no “add TCIN” copy
 
 `production-proof.json`
 
 ## Tests
 
-- Dedup + accessory negatives  
-- Ambiguity-copy  
-- Live discovery + navigation  
-- `npm test` **248** pass  
-- typecheck + build pass  
+- Dedup + accessory negatives
+- Ambiguity-copy
+- Live discovery + navigation
+- `npm test` **248** pass
+- typecheck + build pass
 
 ## Hard locks
 

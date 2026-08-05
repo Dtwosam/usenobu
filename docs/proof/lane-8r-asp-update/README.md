@@ -1,7 +1,7 @@
 # Lane 8R — Production 402 proof + ASP #5541 update and resubmission
 
-**Date:** 2026-07-21  
-**Verdict:** `NOBU_LANE_8R_PASS`  
+**Date:** 2026-07-21
+**Verdict:** `NOBU_LANE_8R_PASS`
 **Base work:** production seller env + redeploy; agent identity fallback for confirmable exact Target URL/TCIN; ASP `#5541` update + activate once
 
 ## Summary fields
@@ -32,7 +32,7 @@
 
 - Production env **names** present: `OKX_API_KEY`, `OKX_SECRET_KEY`, `OKX_PASSPHRASE`, `OKX_PAY_TO` (`vercel env ls production`; booleans only).
 - **Not** used as value evidence: local `vercel env run` (Sensitive values).
-- Canonical hosts `www.usenobu.xyz` and `usenobu.vercel.app` → production Ready deploy after OKX env + identity fix (`usenobu-f9a2nf6xp-…`).
+- Canonical hosts `www.usenobu.xyz` and `www.usenobu.xyz` → production Ready deploy after OKX env + identity fix (`usenobu-f9a2nf6xp-…`).
 - Deployed-runtime proof: production `402` challenge includes non-null `payTo` matching `/^0x[a-fA-F0-9]{40}$/` (seller config is all-or-nothing in `loadOkxSellerConfig`).
 - Server binds amount/asset/network/resource/`payTo`; client cannot override (strict body schema).
 
@@ -53,7 +53,7 @@ Evidence: `gate2-preflight.json`
 Controlled internal free-agent flow (not customer traction): discover → confirm → email verify → preflight → unpaid `start-monitoring`.
 
 - HTTP `402`, body `PAYMENT_PENDING`, `Payment-Required` present
-- Decoded challenge: x402 v2, resource `https://usenobu.vercel.app/v1/agent/start-monitoring`, exact / eip155:196 / USD₮0 / `990000`, `payTo` present+valid, `extra.quote_id` matches
+- Decoded challenge: x402 v2, resource `https://www.usenobu.xyz/v1/agent/start-monitoring`, exact / eip155:196 / USD₮0 / `990000`, `payTo` present+valid, `extra.quote_id` matches
 - Replay still `402`; `LIST_ACTIVE_MONITORS` count `0`; no genuine payment
 
 Evidence: `production-402/contract-checks.json`, `challenge-redacted.json`, `summary.json`
@@ -85,8 +85,8 @@ Truthful interpretation: update accepted; listing remains **under review**; acti
 
 | Service | ID | Fee | Endpoint |
 |---|---|---|---|
-| Nobu Purchase Setup | 33561 | 0 | `https://usenobu.vercel.app/v1/agent` |
-| Nobu Monitoring Activation | 35958 | 0.99 | `https://usenobu.vercel.app/v1/agent/start-monitoring` |
+| Nobu Purchase Setup | 33561 | 0 | `https://www.usenobu.xyz/v1/agent` |
+| Nobu Monitoring Activation | 35958 | 0.99 | `https://www.usenobu.xyz/v1/agent/start-monitoring` |
 
 Evidence: `before-state-redacted.json`, `after-state-redacted.json`, `mutation-payload-redacted.json`, `service-consistency.json`, `no-second-asp.json`, `no-genuine-payment.json`
 

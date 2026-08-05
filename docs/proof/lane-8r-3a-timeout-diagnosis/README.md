@@ -42,7 +42,7 @@ Evidence: `okx-readonly/asp-5541-state-redacted.json`.
 | Check | Result |
 |---|---|
 | Local DNS `web3.okx.com` / `www.okx.com` | `DNS_FAIL` |
-| Local DNS `okx.ai`, `api.groq.com`, `usenobu.vercel.app`, `serpapi.com` | resolved |
+| Local DNS `okx.ai`, `api.groq.com`, `www.usenobu.xyz`, `serpapi.com` | resolved |
 | DNS-over-HTTPS (`dns.google`) for `web3.okx.com` | resolves to Cloudflare edge (2 A records) |
 | `curl --resolve web3.okx.com:443:<edge-ip>` (both A records) | `curl: (7) Failed to connect` — TCP blocked, not a DNS artifact |
 | Control host `https://www.cloudflare.com/robots.txt` | `200` |
@@ -102,7 +102,7 @@ Wallet, owner and communication addresses are masked in the stored evidence.
 | Name | Nobu Purchase Setup | Nobu Monitoring Activation |
 | Type | A2MCP | A2MCP |
 | Fee | `0` USDT | `0.99` USDT |
-| Endpoint | `https://usenobu.vercel.app/v1/agent` | `https://usenobu.vercel.app/v1/agent/start-monitoring` |
+| Endpoint | `https://www.usenobu.xyz/v1/agent` | `https://www.usenobu.xyz/v1/agent/start-monitoring` |
 | Free trial | none | none |
 | Subscriptions | none | none |
 
@@ -134,7 +134,7 @@ Descriptions (verbatim):
 | Bounded error response | yes (JSON `400`/`401`/`429`) | yes (JSON `400`/`401`) |
 | Health | `GET /health` → `200`; `GET /v1/agent/health` → `404` | same host |
 
-Production routing confirmed: `usenobu.vercel.app` → `usenobu-9bt7yc5t2-…` → `dpl_AUMLVaTCynKxqPL5HMMBT5ERsq6b` (Production, Ready, created 2026-07-23), the deployment built from the reviewed commit. `vercel/production-deployment-identity.md`.
+Production routing confirmed: `www.usenobu.xyz` → `usenobu-9bt7yc5t2-…` → `dpl_AUMLVaTCynKxqPL5HMMBT5ERsq6b` (Production, Ready, created 2026-07-23), the deployment built from the reviewed commit. `vercel/production-deployment-identity.md`.
 
 ---
 
@@ -176,7 +176,7 @@ Per-record fields available: `timestamp`, `domain`, `requestPath`, `requestMetho
 
 ### 4.2 One unattributed external probe burst — the most important log evidence
 
-Between **2026-07-26T00:37:37.912Z and 00:37:40.441Z**, `usenobu.vercel.app` received, in one 2.5-second burst:
+Between **2026-07-26T00:37:37.912Z and 00:37:40.441Z**, `www.usenobu.xyz` received, in one 2.5-second burst:
 
 | Method | Path | Status |
 |---|---|---|
@@ -218,7 +218,7 @@ Minimum safe instrumentation to add **in the repair lane** (do not implement her
 
 ## 5. Reviewer-facing request matrix (production, with timing)
 
-All requests to production `https://usenobu.vercel.app`. Every response was `application/json` and parsed cleanly; every response arrived well inside 10 s. `request-matrix/matrix-results.json`.
+All requests to production `https://www.usenobu.xyz`. Every response was `application/json` and parsed cleanly; every response arrived well inside 10 s. `request-matrix/matrix-results.json`.
 
 ### Free service `33561` — `POST /v1/agent`
 
@@ -302,7 +302,7 @@ Case 16 is **not re-run in this lane**: minting a fresh quote requires a verifie
 | Listing-description input clarity | `CONTRIBUTING_CAUSE` | Neither description names a single wire input, action, or example request (§2.3) |
 | Endpoint reachability | `PASS` | Public HTTPS, no protection, `/health` `200`, all probes < 10 s |
 | DNS / TLS / redirects | `PASS` | Resolves, valid TLS with HSTS, zero redirects |
-| Production routing | `PASS` | `usenobu.vercel.app` → `dpl_AUMLVaTCynKxqPL5HMMBT5ERsq6b`, the reviewed build; `X-Matched-Path` correct |
+| Production routing | `PASS` | `www.usenobu.xyz` → `dpl_AUMLVaTCynKxqPL5HMMBT5ERsq6b`, the reviewed build; `X-Matched-Path` correct |
 | Request method / content type | `CONTRIBUTING_CAUSE` | Content type is permissive, but `GET`/`HEAD` return `405` with an empty body — including to the official validator |
 | Request-envelope compatibility | **`PRIMARY_CAUSE`** | Nobu accepts exactly one shape, `{"action":"<ENUM>", …}`. MCP `initialize` → `400`, MCP `tools/list` → `400`, MCP SSE open → `405`, A2A `message/send` → `400`, every natural-language envelope → `400`, every discovery document → `404`. The official OKX validator rejects **both** services (`valid: false`) |
 | Free action schema | `PASS` | All three valid actions returned `200` with correct, parseable, bounded payloads |
@@ -320,9 +320,9 @@ Case 16 is **not re-run in this lane**: minting a fresh quote requires a verifie
 
 ### Required findings
 
-**What OKX attempted.** Platform testing drove the flow a reviewer reaches from "I would like to use the services of agent ID 5541": resolve agent `#5541`, route to its designated services, and make first contact. An unattributed but unmistakable MCP/A2A client handshake against `https://usenobu.vercel.app/v1/agent` is recorded in the Vercel log (§4.2); a task was created on OKX's side and expired.
+**What OKX attempted.** Platform testing drove the flow a reviewer reaches from "I would like to use the services of agent ID 5541": resolve agent `#5541`, route to its designated services, and make first contact. An unattributed but unmistakable MCP/A2A client handshake against `https://www.usenobu.xyz/v1/agent` is recorded in the Vercel log (§4.2); a task was created on OKX's side and expired.
 
-**Which service was called.** The free service `33561` at `https://usenobu.vercel.app/v1/agent` — it is the endpoint `designated-route` returns as the provider default and the one the observed handshake targeted. The paid service `35958` is reachable but fails the official validator independently.
+**Which service was called.** The free service `33561` at `https://www.usenobu.xyz/v1/agent` — it is the endpoint `designated-route` returns as the provider default and the one the observed handshake targeted. The paid service `35958` is reachable but fails the official validator independently.
 
 **Whether the request reached Nobu.** **Yes.** Requests reach the correct Production deployment and are answered in under a second. Reachability, DNS, TLS, routing and the deployment binding are all clean.
 
@@ -381,4 +381,4 @@ Then, and only then, rewrite both service descriptions to name their exact input
 | `request-matrix/method-and-content-type-probes.json` | Method and content-type behaviour on both endpoints |
 | `request-matrix/mcp-a2a-protocol-probes.json` | MCP and A2A protocol-shape probes and discovery-document probes |
 | `vercel/request-log-correlation.json` | 49 correlated records, retention finding, unattributed probe burst |
-| `vercel/production-deployment-identity.md` | Deployment and alias binding for `usenobu.vercel.app` |
+| `vercel/production-deployment-identity.md` | Deployment and alias binding for `www.usenobu.xyz` |

@@ -7,7 +7,7 @@
 
 ## Outcome
 
-The registered free endpoint `https://usenobu.vercel.app/v1/agent` now answers an empty validation request with HTTP `400`, `status: "input_required"`, `fields: ["action"]`, and `requiredArgs: ["action"]`. The body retains the full supported-action list and each action's required fields.
+The registered free endpoint `https://www.usenobu.xyz/v1/agent` now answers an empty validation request with HTTP `400`, `status: "input_required"`, `fields: ["action"]`, and `requiredArgs: ["action"]`. The body retains the full supported-action list and each action's required fields.
 
 Official Onchain OS `4.4.0` reports `inputRequired: true` and `fields: ["action"]` for both its normal GET probe and its `--body '{}'` POST probe. Its `valid: false` value is expected for a free endpoint: `valid` means “x402-paid service,” while `inputRequired: true` is the successful service-input classification required by this lane.
 
@@ -46,7 +46,7 @@ The initial focused test was intentionally run before implementation and failed 
 
 - Vercel deployment ID: `B4DsuLSbWcR3S2b23XQv3nknXiPQ`
 - Unique URL: `https://usenobu-95yc8u3kt-dtwoflicks-2878s-projects.vercel.app`
-- Registered production alias: `https://usenobu.vercel.app` (explicitly re-aliased)
+- Registered production alias: `https://www.usenobu.xyz` (explicitly re-aliased)
 - Vercel also updated: `https://www.usenobu.xyz`
 
 ## Remaining blocker and exact next lane

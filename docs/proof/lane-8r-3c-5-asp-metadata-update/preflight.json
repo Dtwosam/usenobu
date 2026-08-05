@@ -47,13 +47,13 @@
   },
   "production": {
     "free_endpoint": {
-      "url": "https://usenobu.vercel.app/v1/agent",
+      "url": "https://www.usenobu.xyz/v1/agent",
       "method": "POST",
       "http_status": 200,
       "body_status": "READY"
     },
     "monitoring_pass_endpoint": {
-      "url": "https://usenobu.vercel.app/v1/agent/monitoring-pass",
+      "url": "https://www.usenobu.xyz/v1/agent/monitoring-pass",
       "method": "POST",
       "http_status": 402,
       "body_status": "PAYMENT_PENDING"

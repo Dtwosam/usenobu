@@ -31,14 +31,14 @@ git diff --check
 ## Production proof checklist
 
 1. Deploy via existing authenticated Vercel workflow.
-2. `GET https://usenobu.vercel.app/health` — expect `status: ok`, policy ops fields present, not a hard stale block.
-3. `POST https://usenobu.vercel.app/v1/agent` canonical `CHECK_CONFIRMED_PURCHASE` — must not return empty `POLICY_STALE` solely because 24h elapsed.
+2. `GET https://www.usenobu.xyz/health` — expect `status: ok`, policy ops fields present, not a hard stale block.
+3. `POST https://www.usenobu.xyz/v1/agent` canonical `CHECK_CONFIRMED_PURCHASE` — must not return empty `POLICY_STALE` solely because 24h elapsed.
 4. Response still includes honest Target-policy provenance and optional `policy_warning` / `policy_review_state`.
 5. Do not manufacture a price drop.
 
 ## Production result (2026-07-19)
 
-- Deployed project `usenobu`; aliased `usenobu.vercel.app` to deployment `usenobu-e9x1qi35w-…`.
+- Deployed project `usenobu`; aliased `www.usenobu.xyz` to deployment `usenobu-e9x1qi35w-…`.
 - Health: `status: ok`, `policy_review_state: CURRENT`, `policy_warning: null` — see `prod-health-redacted.json`.
 - Canonical agent probe: `PRICE_DROP_DETECTED` (not `POLICY_STALE`), with `policy_version`, `policy_verified_at`, `policy_review_state: CURRENT`, Target final-decision provenance — see `prod-agent-probe-redacted.json`.
 - Observed AirTag price drop was live SerpApi data, not manufactured.

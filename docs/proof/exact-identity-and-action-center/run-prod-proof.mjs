@@ -1,12 +1,12 @@
 /**
  * Public production proof: exact identity gates + Action Center copy.
- * Base: https://usenobu.vercel.app
+ * Base: https://www.usenobu.xyz
  */
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 
-const base = process.env.NOBU_PROOF_BASE || "https://usenobu.vercel.app";
+const base = process.env.NOBU_PROOF_BASE || "https://www.usenobu.xyz";
 const outDir = path.resolve("docs/proof/exact-identity-and-action-center");
 fs.mkdirSync(outDir, { recursive: true });
 

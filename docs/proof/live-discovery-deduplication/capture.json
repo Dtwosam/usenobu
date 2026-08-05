@@ -1,6 +1,6 @@
 {
   "at": "2026-07-15T09:55:57.044Z",
-  "base": "https://usenobu.vercel.app",
+  "base": "https://www.usenobu.xyz",
   "gate1": {
     "form": {
       "tcin": "54191097",
@@ -12,7 +12,7 @@
       "url_has_tcin": true
     },
     "discovery": {
-      "after_url": "https://usenobu.vercel.app/purchases/pur_ff96c78aaaf4/review?title=Apple+AirTag&source=LIVE",
+      "after_url": "https://www.usenobu.xyz/purchases/pur_ff96c78aaaf4/review?title=Apple+AirTag&source=LIVE",
       "data_source": "LIVE",
       "match_decision": "EXACT_MATCH_CANDIDATE",
       "match_reasons": "Reasons: single_strong_target_candidate, exact_model, variants_compatible",

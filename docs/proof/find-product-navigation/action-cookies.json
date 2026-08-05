@@ -1,24 +1,24 @@
 {
-  "final_url": "https://usenobu.vercel.app/purchases/pur_821a79f403c8/review?title=Apple+AirTag&source=LIVE",
+  "final_url": "https://www.usenobu.xyz/purchases/pur_821a79f403c8/review?title=Apple+AirTag&source=LIVE",
   "cookie_count": 0,
   "cookies": [],
   "responses": [
     {
-      "url": "https://usenobu.vercel.app/purchases/new",
+      "url": "https://www.usenobu.xyz/purchases/new",
       "status": 200,
       "method": "GET",
       "set_cookie": null,
       "content_type": "text/html; charset=utf-8"
     },
     {
-      "url": "https://usenobu.vercel.app/_next/static/chunks/app/purchases/new/page-582b98b239c3542c.js",
+      "url": "https://www.usenobu.xyz/_next/static/chunks/app/purchases/new/page-582b98b239c3542c.js",
       "status": 200,
       "method": "GET",
       "set_cookie": null,
       "content_type": "application/javascript; charset=utf-8"
     },
     {
-      "url": "https://usenobu.vercel.app/purchases/new",
+      "url": "https://www.usenobu.xyz/purchases/new",
       "status": 303,
       "method": "POST",
       "set_cookie": null,
