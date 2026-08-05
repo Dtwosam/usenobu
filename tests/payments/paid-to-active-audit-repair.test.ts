@@ -823,12 +823,15 @@ describe("5. evidence-based settlement review", () => {
       paymentId: "pay_wrong_1",
       transactionHash: tx,
       env,
+      mode: "settled",
       statusOverride: {
         success: true,
         status: "success",
         transaction: tx,
         network: "eip155:1",
         amount: MONITORING_PRICE_ATOMIC_UNITS,
+        asset: DEFAULT_SETTLEMENT_ASSET,
+        payTo: "0x2222222222222222222222222222222222222222",
       },
     });
     expect(wrongNet.ok).toBe(false);
@@ -838,12 +841,15 @@ describe("5. evidence-based settlement review", () => {
       paymentId: "pay_wrong_1",
       transactionHash: tx,
       env,
+      mode: "settled",
       statusOverride: {
         success: true,
         status: "success",
         transaction: tx,
         network: DEFAULT_SETTLEMENT_NETWORK,
         amount: "100",
+        asset: DEFAULT_SETTLEMENT_ASSET,
+        payTo: "0x2222222222222222222222222222222222222222",
       },
     });
     expect(wrongAmt.ok).toBe(false);
@@ -853,6 +859,7 @@ describe("5. evidence-based settlement review", () => {
       paymentId: "pay_wrong_1",
       transactionHash: tx,
       env,
+      mode: "settled",
       statusOverride: {
         success: true,
         status: "success",
@@ -860,6 +867,7 @@ describe("5. evidence-based settlement review", () => {
         network: DEFAULT_SETTLEMENT_NETWORK,
         amount: MONITORING_PRICE_ATOMIC_UNITS,
         asset: "0x0000000000000000000000000000000000000001",
+        payTo: "0x2222222222222222222222222222222222222222",
       },
     });
     expect(wrongAsset.ok).toBe(false);

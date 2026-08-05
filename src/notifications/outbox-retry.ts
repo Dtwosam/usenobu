@@ -22,6 +22,8 @@ type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
 const MAX_ATTEMPTS = 8;
 const LEASE_MS = 60_000;
 const BACKOFF_BASE_MS = 30_000;
+/** Rolling summary cooldown: last successful send + 24 hours. */
+export const SUMMARY_ROLLING_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export type OutboxEvidence = {
   product_title: string;
@@ -126,29 +128,27 @@ export async function processDueNotificationOutbox(args: {
         ? resolveSummaryContent(evidence)
         : null;
 
-    // Summary: durable 24h account bucket shared across instances.
-    let summaryRateKey: string | null = null;
+    // Summary: durable rolling 24h limit (not calendar-day bucket).
+    let summaryReserved = false;
     if (row.kind === "summary") {
-      const windowStart = summaryWindowStart(args.nowIso);
-      summaryRateKey = `summary_24h:${row.account_id}:${windowStart}`;
-      const rate = await store.tryReserveNotificationRate({
-        rateKey: summaryRateKey,
+      const rate = await store.tryReserveRollingSummarySend({
         accountId: row.account_id,
-        kind: "summary",
-        windowStart,
-        limitCount: 1,
+        holderId,
         nowIso: args.nowIso,
+        windowMs: SUMMARY_ROLLING_WINDOW_MS,
+        reserveTtlMs: LEASE_MS,
       });
       if (!rate.reserved) {
         await store.markNotificationOutboxStatus({
           id: row.id,
           status: "suppressed",
-          reason: "summary_cooldown",
+          reason: rate.reason === "summary_cooldown" ? "summary_cooldown" : "summary_reserve_held",
           nowIso: args.nowIso,
         });
         suppressed += 1;
         continue;
       }
+      summaryReserved = true;
     }
 
     const sendResult = args.sendFn
@@ -170,6 +170,13 @@ export async function processDueNotificationOutbox(args: {
         });
 
     if (sendResult.ok) {
+      if (summaryReserved) {
+        await store.markRollingSummarySent({
+          accountId: row.account_id,
+          holderId,
+          nowIso: args.nowIso,
+        });
+      }
       await store.markNotificationOutboxStatus({
         id: row.id,
         status: "sent",
@@ -179,9 +186,10 @@ export async function processDueNotificationOutbox(args: {
       });
       sent += 1;
     } else {
-      if (summaryRateKey) {
-        await store.releaseNotificationRate({
-          rateKey: summaryRateKey,
+      if (summaryReserved) {
+        await store.releaseRollingSummaryReserve({
+          accountId: row.account_id,
+          holderId,
           nowIso: args.nowIso,
         });
       }
@@ -239,7 +247,10 @@ async function revalidateOutboxConsent(
   return { ok: true, emailNormalized: account.email_normalized };
 }
 
-/** UTC calendar-day window start for durable 24h summary bucket. */
+/**
+ * @deprecated Calendar-day bucket — prefer rolling SUMMARY_ROLLING_WINDOW_MS.
+ * Kept for stable opportunity_key shaping only (not the rate authority).
+ */
 export function summaryWindowStart(nowIso: string): string {
   const d = new Date(nowIso);
   if (Number.isNaN(d.getTime())) {

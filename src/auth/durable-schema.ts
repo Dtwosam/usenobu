@@ -375,13 +375,22 @@ CREATE TABLE IF NOT EXISTS settlement_ref_claims (
 CREATE INDEX IF NOT EXISTS idx_settlement_ref_claims_payment
   ON settlement_ref_claims (payment_id);
 
--- Durable account-level notification rate (summary 24h window, etc.).
+-- Durable account-level notification rate (legacy calendar-bucket counter).
 CREATE TABLE IF NOT EXISTS durable_account_notification_rate (
   rate_key TEXT PRIMARY KEY NOT NULL,
   account_id TEXT NOT NULL,
   kind TEXT NOT NULL,
   window_start TEXT NOT NULL,
   used_count INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
+
+-- Rolling 24h summary send state (authoritative across Vercel workers).
+CREATE TABLE IF NOT EXISTS durable_summary_send_state (
+  account_id TEXT PRIMARY KEY NOT NULL,
+  last_sent_at TEXT,
+  reserve_holder TEXT,
+  reserve_expires_at TEXT,
   updated_at TEXT NOT NULL
 );
 `;
@@ -409,5 +418,8 @@ export const AUTH_DURABLE_SCHEMA_PATCHES = [
   `ALTER TABLE monitoring_pass_continuations ADD COLUMN claim_credential_hash TEXT`,
   `ALTER TABLE monitoring_pass_continuations ADD COLUMN claim_credential_consumed_at TEXT`,
   `ALTER TABLE durable_notification_outbox ADD COLUMN evidence_json TEXT`,
+  // Canonical settlement_ref uniqueness (case-insensitive); safe no-ops if present.
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_settlement_ref_claims_ref
+    ON settlement_ref_claims (settlement_ref)`,
 ];
 

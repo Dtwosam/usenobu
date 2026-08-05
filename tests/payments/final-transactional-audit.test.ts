@@ -395,6 +395,7 @@ describe("2. settlement evidence bound to one payment", () => {
       paymentId: "pay_a",
       transactionHash: tx,
       env,
+      mode: "settled",
       expectedPayer: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       statusOverride: {
         success: true,
@@ -412,6 +413,7 @@ describe("2. settlement evidence bound to one payment", () => {
       paymentId: "pay_a",
       transactionHash: tx,
       env,
+      mode: "settled",
       statusOverride: {
         success: true,
         status: "success",
@@ -428,6 +430,7 @@ describe("2. settlement evidence bound to one payment", () => {
       paymentId: "pay_a",
       transactionHash: tx,
       env,
+      mode: "settled",
       statusOverride: {
         success: true,
         status: "success",
@@ -444,6 +447,7 @@ describe("2. settlement evidence bound to one payment", () => {
       paymentId: "pay_a",
       transactionHash: tx,
       env,
+      mode: "settled",
       expectedPayer: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       statusOverride: successStatus(tx, {
         payer: "0xcccccccccccccccccccccccccccccccccccccccc",
@@ -745,7 +749,7 @@ describe("3. outbox consent revalidation and summary", () => {
     });
     expect(sumSubject).toContain("possible price drops");
 
-    // Second summary same 24h window suppressed
+    // Second summary within rolling 24h suppressed
     await store.insertNotificationOutbox({
       id: "out_sum2",
       opportunityKey: `summary_${account.id}_${day}_dup`,
@@ -772,7 +776,7 @@ describe("3. outbox consent revalidation and summary", () => {
       `summary_${account.id}_${day}_dup`,
     );
     expect(sum2?.status).toBe("suppressed");
-    expect(sum2?.reason).toBe("summary_cooldown");
+    expect(sum2?.reason).toMatch(/summary_cooldown|summary_reserve/);
   });
 });
 

@@ -840,6 +840,27 @@ export interface AuthStore {
     rateKey: string;
     nowIso: string;
   }): Promise<void>;
+  /**
+   * Rolling 24h summary: reserve send right if last_sent_at is null or
+   * older than windowMs. Concurrent workers: one reserve winner.
+   */
+  tryReserveRollingSummarySend(args: {
+    accountId: string;
+    holderId: string;
+    nowIso: string;
+    windowMs?: number;
+    reserveTtlMs?: number;
+  }): Promise<{ reserved: boolean; reason?: string; last_sent_at?: string | null }>;
+  markRollingSummarySent(args: {
+    accountId: string;
+    holderId: string;
+    nowIso: string;
+  }): Promise<boolean>;
+  releaseRollingSummaryReserve(args: {
+    accountId: string;
+    holderId: string;
+    nowIso: string;
+  }): Promise<void>;
 }
 
 export function mintAccountId(): string {
@@ -1606,6 +1627,10 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
       ))!;
     },
     async updateMonitoringPassPayment(args) {
+      const settlementRef =
+        args.settlementRef == null
+          ? null
+          : String(args.settlementRef).trim().toLowerCase() || null;
       const r = db
         .prepare(
           `UPDATE monitoring_pass_payments
@@ -1621,7 +1646,7 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         )
         .run(
           args.status,
-          args.settlementRef,
+          settlementRef,
           args.nowIso,
           args.payerAddress ?? null,
           args.sanitizedVerifyReason ?? null,
@@ -1667,10 +1692,13 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         .all() as MonitoringPassPaymentRow[];
     },
     async getMonitoringPassBySettlementRef(settlementRef) {
+      const ref = String(settlementRef || "").trim().toLowerCase();
       return (
         (db
-          .prepare(`SELECT * FROM monitoring_passes WHERE settlement_ref = ?`)
-          .get(settlementRef) as MonitoringPassRow | undefined) ?? null
+          .prepare(
+            `SELECT * FROM monitoring_passes WHERE lower(settlement_ref) = ?`,
+          )
+          .get(ref) as MonitoringPassRow | undefined) ?? null
       );
     },
     async getMonitoringPassById(passId) {
@@ -1681,6 +1709,9 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
       );
     },
     async issueMonitoringPass(args) {
+      const settlementRef = String(args.settlementRef || "")
+        .trim()
+        .toLowerCase();
       db.prepare(
         `INSERT INTO monitoring_passes
          (id, pass_token_hash, settlement_ref, payment_id, price_amount,
@@ -1691,7 +1722,7 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
       ).run(
         args.id,
         args.passTokenHash,
-        args.settlementRef,
+        settlementRef,
         args.paymentId,
         args.priceAmount,
         args.priceCurrency,
@@ -1700,7 +1731,7 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         args.nowIso,
       );
       const pass = (await this.getMonitoringPassBySettlementRef(
-        args.settlementRef,
+        settlementRef,
       ))!;
       return {
         outcome: pass.id === args.id ? ("issued" as const) : ("already_existed" as const),
@@ -2450,30 +2481,36 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
       );
     },
     async getSettlementRefClaim(settlementRef) {
+      const ref = String(settlementRef || "").trim().toLowerCase();
       return (
         (db
           .prepare(
             `SELECT settlement_ref, payment_id, decision FROM settlement_ref_claims
              WHERE settlement_ref = ?`,
           )
-          .get(settlementRef) as
+          .get(ref) as
           | { settlement_ref: string; payment_id: string; decision: string }
           | undefined) ?? null
       );
     },
     async getMonitoringPassPaymentBySettlementRef(settlementRef) {
+      const ref = String(settlementRef || "").trim().toLowerCase();
       return (
         (db
           .prepare(
             `SELECT * FROM monitoring_pass_payments
-             WHERE settlement_ref = ? COLLATE NOCASE
+             WHERE lower(settlement_ref) = ?
              LIMIT 1`,
           )
-          .get(settlementRef) as MonitoringPassPaymentRow | undefined) ?? null
+          .get(ref) as MonitoringPassPaymentRow | undefined) ?? null
       );
     },
     async claimSettlementReviewDecision(args) {
-      const ref = String(args.settlementRef || "").trim();
+      // Always store/compare lowercase canonical refs.
+      const ref = String(args.settlementRef || "").trim().toLowerCase();
+      if (!/^0x[a-f0-9]{16,}$/.test(ref)) {
+        return { ok: false as const, reason: "conflict" as const };
+      }
       db.exec("BEGIN IMMEDIATE");
       try {
         const payment = db
@@ -2488,11 +2525,10 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           return { ok: false as const, reason: "payment_not_reviewable" as const };
         }
 
-        // Reject if another payment already holds this settlement_ref.
         const otherPay = db
           .prepare(
             `SELECT id FROM monitoring_pass_payments
-             WHERE settlement_ref = ? COLLATE NOCASE AND id != ? LIMIT 1`,
+             WHERE lower(settlement_ref) = ? AND id != ? LIMIT 1`,
           )
           .get(ref, args.paymentId) as { id: string } | undefined;
         if (otherPay) {
@@ -2500,11 +2536,10 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           return { ok: false as const, reason: "ref_already_claimed" as const };
         }
 
-        // Reject if another Monitoring Pass already uses this settlement_ref.
         const otherPass = db
           .prepare(
             `SELECT id FROM monitoring_passes
-             WHERE settlement_ref = ? COLLATE NOCASE AND payment_id != ? LIMIT 1`,
+             WHERE lower(settlement_ref) = ? AND payment_id != ? LIMIT 1`,
           )
           .get(ref, args.paymentId) as { id: string } | undefined;
         if (otherPass) {
@@ -2512,7 +2547,6 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           return { ok: false as const, reason: "ref_already_claimed" as const };
         }
 
-        // Reject if audit already used this evidence for a different payment.
         const otherAudit = db
           .prepare(
             `SELECT payment_id FROM settlement_review_audit
@@ -2550,8 +2584,9 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
 
         const paymentStatus =
           args.decision === "settled" ? "settled" : "failed";
-        const settlementVal =
-          args.decision === "settled" ? ref : null;
+        // Failed path still records the bound settlement_ref (canonical) so
+        // the same tx cannot unlock another payment.
+        const settlementVal = ref;
         db.prepare(
           `UPDATE monitoring_pass_payments
            SET status = ?,
@@ -2696,6 +2731,96 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
              updated_at = ?
          WHERE rate_key = ?`,
       ).run(args.nowIso, args.rateKey);
+    },
+    async tryReserveRollingSummarySend(args) {
+      const windowMs = args.windowMs ?? 24 * 60 * 60 * 1000;
+      const reserveTtlMs = args.reserveTtlMs ?? 60_000;
+      const nowMs = Date.parse(args.nowIso);
+      const reserveExpires = new Date(nowMs + reserveTtlMs).toISOString();
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        db.prepare(
+          `INSERT INTO durable_summary_send_state
+           (account_id, last_sent_at, reserve_holder, reserve_expires_at, updated_at)
+           VALUES (?,NULL,NULL,NULL,?)
+           ON CONFLICT(account_id) DO NOTHING`,
+        ).run(args.accountId, args.nowIso);
+        const row = db
+          .prepare(
+            `SELECT last_sent_at, reserve_holder, reserve_expires_at
+             FROM durable_summary_send_state WHERE account_id = ?`,
+          )
+          .get(args.accountId) as
+          | {
+              last_sent_at: string | null;
+              reserve_holder: string | null;
+              reserve_expires_at: string | null;
+            }
+          | undefined;
+        if (!row) {
+          db.exec("ROLLBACK");
+          return { reserved: false, reason: "missing_state" };
+        }
+        if (row.last_sent_at) {
+          const lastMs = Date.parse(row.last_sent_at);
+          if (!Number.isNaN(lastMs) && nowMs - lastMs < windowMs) {
+            db.exec("COMMIT");
+            return {
+              reserved: false,
+              reason: "summary_cooldown",
+              last_sent_at: row.last_sent_at,
+            };
+          }
+        }
+        const reserveActive =
+          row.reserve_holder &&
+          row.reserve_expires_at &&
+          Date.parse(row.reserve_expires_at) > nowMs;
+        if (
+          reserveActive &&
+          row.reserve_holder !== args.holderId
+        ) {
+          db.exec("COMMIT");
+          return { reserved: false, reason: "reserve_held" };
+        }
+        db.prepare(
+          `UPDATE durable_summary_send_state
+           SET reserve_holder = ?, reserve_expires_at = ?, updated_at = ?
+           WHERE account_id = ?`,
+        ).run(args.holderId, reserveExpires, args.nowIso, args.accountId);
+        db.exec("COMMIT");
+        return { reserved: true, last_sent_at: row.last_sent_at };
+      } catch {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        return { reserved: false, reason: "conflict" };
+      }
+    },
+    async markRollingSummarySent(args) {
+      const r = db
+        .prepare(
+          `UPDATE durable_summary_send_state
+           SET last_sent_at = ?,
+               reserve_holder = NULL,
+               reserve_expires_at = NULL,
+               updated_at = ?
+           WHERE account_id = ?
+             AND (reserve_holder = ? OR reserve_holder IS NULL)`,
+        )
+        .run(args.nowIso, args.nowIso, args.accountId, args.holderId);
+      return Number(r.changes ?? 0) === 1;
+    },
+    async releaseRollingSummaryReserve(args) {
+      db.prepare(
+        `UPDATE durable_summary_send_state
+         SET reserve_holder = NULL,
+             reserve_expires_at = NULL,
+             updated_at = ?
+         WHERE account_id = ? AND reserve_holder = ?`,
+      ).run(args.nowIso, args.accountId, args.holderId);
     },
   };
 }
@@ -3477,6 +3602,10 @@ export function createPostgresAuthStore(
       ))!;
     },
     async updateMonitoringPassPayment(args) {
+      const settlementRef =
+        args.settlementRef == null
+          ? null
+          : String(args.settlementRef).trim().toLowerCase() || null;
       const r = await q(
         `UPDATE monitoring_pass_payments
          SET status = $1,
@@ -3490,7 +3619,7 @@ export function createPostgresAuthStore(
          WHERE id = $9`,
         [
           args.status,
-          args.settlementRef,
+          settlementRef,
           args.nowIso,
           args.payerAddress ?? null,
           args.sanitizedVerifyReason ?? null,
@@ -3534,9 +3663,10 @@ export function createPostgresAuthStore(
       return r.rows;
     },
     async getMonitoringPassBySettlementRef(settlementRef) {
+      const ref = String(settlementRef || "").trim().toLowerCase();
       const r = await q<MonitoringPassRow>(
-        `SELECT * FROM monitoring_passes WHERE settlement_ref = $1`,
-        [settlementRef],
+        `SELECT * FROM monitoring_passes WHERE lower(settlement_ref) = $1`,
+        [ref],
       );
       return r.rows[0] ?? null;
     },
@@ -3548,6 +3678,9 @@ export function createPostgresAuthStore(
       return r.rows[0] ?? null;
     },
     async issueMonitoringPass(args) {
+      const settlementRef = String(args.settlementRef || "")
+        .trim()
+        .toLowerCase();
       await q(
         `INSERT INTO monitoring_passes
          (id, pass_token_hash, settlement_ref, payment_id, price_amount,
@@ -3558,7 +3691,7 @@ export function createPostgresAuthStore(
         [
           args.id,
           args.passTokenHash,
-          args.settlementRef,
+          settlementRef,
           args.paymentId,
           args.priceAmount,
           args.priceCurrency,
@@ -3567,7 +3700,7 @@ export function createPostgresAuthStore(
         ],
       );
       const pass = (await this.getMonitoringPassBySettlementRef(
-        args.settlementRef,
+        settlementRef,
       ))!;
       return {
         outcome:
@@ -4262,6 +4395,7 @@ export function createPostgresAuthStore(
       );
     },
     async getSettlementRefClaim(settlementRef) {
+      const ref = String(settlementRef || "").trim().toLowerCase();
       const r = await q<{
         settlement_ref: string;
         payment_id: string;
@@ -4269,21 +4403,25 @@ export function createPostgresAuthStore(
       }>(
         `SELECT settlement_ref, payment_id, decision FROM settlement_ref_claims
          WHERE settlement_ref = $1`,
-        [settlementRef],
+        [ref],
       );
       return r.rows[0] ?? null;
     },
     async getMonitoringPassPaymentBySettlementRef(settlementRef) {
+      const ref = String(settlementRef || "").trim().toLowerCase();
       const r = await q<MonitoringPassPaymentRow>(
         `SELECT * FROM monitoring_pass_payments
-         WHERE lower(settlement_ref) = lower($1)
+         WHERE lower(settlement_ref) = $1
          LIMIT 1`,
-        [settlementRef],
+        [ref],
       );
       return r.rows[0] ?? null;
     },
     async claimSettlementReviewDecision(args) {
-      const ref = String(args.settlementRef || "").trim();
+      const ref = String(args.settlementRef || "").trim().toLowerCase();
+      if (!/^0x[a-f0-9]{16,}$/.test(ref)) {
+        return { ok: false as const, reason: "conflict" as const };
+      }
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -4305,7 +4443,7 @@ export function createPostgresAuthStore(
         }
         const otherPay = await client.query(
           `SELECT id FROM monitoring_pass_payments
-           WHERE lower(settlement_ref) = lower($1) AND id != $2 LIMIT 1`,
+           WHERE lower(settlement_ref) = $1 AND id != $2 LIMIT 1`,
           [ref, args.paymentId],
         );
         if (otherPay.rows[0]) {
@@ -4314,7 +4452,7 @@ export function createPostgresAuthStore(
         }
         const otherPass = await client.query(
           `SELECT id FROM monitoring_passes
-           WHERE lower(settlement_ref) = lower($1) AND payment_id != $2 LIMIT 1`,
+           WHERE lower(settlement_ref) = $1 AND payment_id != $2 LIMIT 1`,
           [ref, args.paymentId],
         );
         if (otherPass.rows[0]) {
@@ -4359,7 +4497,9 @@ export function createPostgresAuthStore(
         }
         const paymentStatus =
           args.decision === "settled" ? "settled" : "failed";
-        const settlementVal = args.decision === "settled" ? ref : null;
+        // Always bind settlement_ref (canonical lowercase) so the same tx
+        // cannot unlock another payment after a failed decision either.
+        const settlementVal = ref;
         await client.query(
           `UPDATE monitoring_pass_payments
            SET status = $1,
@@ -4499,6 +4639,98 @@ export function createPostgresAuthStore(
              updated_at = $1
          WHERE rate_key = $2`,
         [args.nowIso, args.rateKey],
+      );
+    },
+    async tryReserveRollingSummarySend(args) {
+      const windowMs = args.windowMs ?? 24 * 60 * 60 * 1000;
+      const reserveTtlMs = args.reserveTtlMs ?? 60_000;
+      const nowMs = Date.parse(args.nowIso);
+      const reserveExpires = new Date(nowMs + reserveTtlMs).toISOString();
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query(
+          `INSERT INTO durable_summary_send_state
+           (account_id, last_sent_at, reserve_holder, reserve_expires_at, updated_at)
+           VALUES ($1,NULL,NULL,NULL,$2)
+           ON CONFLICT (account_id) DO NOTHING`,
+          [args.accountId, args.nowIso],
+        );
+        const cur = await client.query(
+          `SELECT last_sent_at, reserve_holder, reserve_expires_at
+           FROM durable_summary_send_state WHERE account_id = $1 FOR UPDATE`,
+          [args.accountId],
+        );
+        const row = cur.rows[0] as
+          | {
+              last_sent_at: string | null;
+              reserve_holder: string | null;
+              reserve_expires_at: string | null;
+            }
+          | undefined;
+        if (!row) {
+          await client.query("ROLLBACK");
+          return { reserved: false, reason: "missing_state" };
+        }
+        if (row.last_sent_at) {
+          const lastMs = Date.parse(row.last_sent_at);
+          if (!Number.isNaN(lastMs) && nowMs - lastMs < windowMs) {
+            await client.query("COMMIT");
+            return {
+              reserved: false,
+              reason: "summary_cooldown",
+              last_sent_at: row.last_sent_at,
+            };
+          }
+        }
+        const reserveActive =
+          row.reserve_holder &&
+          row.reserve_expires_at &&
+          Date.parse(row.reserve_expires_at) > nowMs;
+        if (reserveActive && row.reserve_holder !== args.holderId) {
+          await client.query("COMMIT");
+          return { reserved: false, reason: "reserve_held" };
+        }
+        await client.query(
+          `UPDATE durable_summary_send_state
+           SET reserve_holder = $1, reserve_expires_at = $2, updated_at = $3
+           WHERE account_id = $4`,
+          [args.holderId, reserveExpires, args.nowIso, args.accountId],
+        );
+        await client.query("COMMIT");
+        return { reserved: true, last_sent_at: row.last_sent_at };
+      } catch {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        return { reserved: false, reason: "conflict" };
+      } finally {
+        client.release();
+      }
+    },
+    async markRollingSummarySent(args) {
+      const r = await q(
+        `UPDATE durable_summary_send_state
+         SET last_sent_at = $1,
+             reserve_holder = NULL,
+             reserve_expires_at = NULL,
+             updated_at = $1
+         WHERE account_id = $2
+           AND (reserve_holder = $3 OR reserve_holder IS NULL)`,
+        [args.nowIso, args.accountId, args.holderId],
+      );
+      return (r.rowCount ?? 0) === 1;
+    },
+    async releaseRollingSummaryReserve(args) {
+      await q(
+        `UPDATE durable_summary_send_state
+         SET reserve_holder = NULL,
+             reserve_expires_at = NULL,
+             updated_at = $1
+         WHERE account_id = $2 AND reserve_holder = $3`,
+        [args.nowIso, args.accountId, args.holderId],
       );
     },
   };
