@@ -1,11 +1,13 @@
 # Nobu Current State
 
 **Date:** 2026-08-05
-**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FINAL_PASS` — independent source-audit repair of remaining paid-to-active blockers (read-only resolve + atomic claim+journey, concurrency-safe continuation, durable schedule SoT, real outbox worker, evidence-based owner settlement review).
+**Status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_CLOSEOUT_PASS` — final transactional audit closeout: bootstrap insert-if-missing, settlement ref bound to one payment, outbox consent revalidation + durable 24h summary bucket, owner config-readiness booleans.
 
-**Paid-to-active transaction audit repair (2026-08-05):** **PASS.** Baseline `1c91472` → this repair. `resolveMonitoringPassForAgent` never consumes claims; only `claimPassAndCreateJourney` validates/consumes atomically; public IDs alone cannot start a journey; concurrent `ensureContinuation` shares one credential; missing `NOBU_PASS_CLAIM_SECRET` fails closed; `durable_monitor_schedule` is the scheduler work source with purchase_id keyset; Production outbox worker leases + evidence_json + provider send; owner-only evidence-based settlement review + audit table. Focused 51/51; typecheck; build. No genuine payment, ASP update. Evidence: `docs/proof/paid-to-active-transaction-audit-repair/`.
+**Paid-to-active transaction closeout (2026-08-05):** **PASS.** Baseline `50c0d54`. Bootstrap never overwrites terminal schedules; settlement requires full commercial fields + exclusive settlement_ref claim; outbox revalidates durable consent before every send; summary preserves subject/body; config-readiness probe booleans only. Focused closeout suites green; typecheck; build. No genuine payment, ASP update. Evidence: `docs/proof/paid-to-active-transaction-closeout/`.
 
-**Prior audit state:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FOLLOWUP_AUDIT_BLOCKED` (cleared by this repair).
+**Prior final audit status:** `NOBU_PAID_TO_ACTIVE_TRANSACTION_FINAL_AUDIT_BLOCKED` (cleared by closeout).
+
+**Paid-to-active transaction audit repair (2026-08-05):** **SUPERSEDED as current status** by closeout. Baseline `1c91472` → code `d9ff024`. Evidence: `docs/proof/paid-to-active-transaction-audit-repair/`.
 
 **Paid-to-active transactional follow-up (2026-08-05):** **SUPERSEDED as current status** by audit repair above. Baseline `08da02a` → code `617e783` / docs `1c91472`. Deploy `dpl_2tCWNPvVnx2DdKDmFYfiucrQFFvz`. Evidence: `docs/proof/paid-to-active-transaction-followup/`.
 
