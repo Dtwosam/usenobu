@@ -1,14 +1,14 @@
 /**
  * Durable notification outbox worker (Production-capable).
  *
- * Lists due pending/failed_retryable/expired-sending rows, leases, revalidates
- * consent, reconstructs evidence, calls the real email provider, marks sent
- * only after success.
+ * All deliveries (including the first-attempt summary path) go through
+ * processNotificationOutboxOpportunity so rolling 24h summary reservation
+ * and outbox state stay consistent across workers.
  */
 import { randomUUID } from "node:crypto";
 import type { AuthStore, DurableNotificationOutboxRow } from "../auth/auth-store.js";
 import { getAuthStore } from "../auth/auth-store.js";
-import { getAppBaseUrl, isAuthTestMode } from "../auth/config.js";
+import { getAppBaseUrl } from "../auth/config.js";
 import type { NobuDatabase } from "../db/migrator.js";
 import {
   sendPriceDropEmail,
@@ -44,6 +44,232 @@ export type OutboxEvidence = {
   summary_text?: string;
 };
 
+export type OutboxSendFn = (args: {
+  opportunityKey: string;
+  kind: string;
+  accountId: string;
+  evidence: OutboxEvidence | null;
+  emailNormalized: string;
+  subject?: string;
+  text?: string;
+}) => Promise<{ ok: boolean; error?: string }>;
+
+export type ProcessOutboxOpportunityResult = {
+  outcome:
+    | "sent"
+    | "failed_retryable"
+    | "failed_terminal"
+    | "suppressed"
+    | "skipped"
+    | "lease_miss";
+  reason?: string;
+  opportunityKey: string;
+};
+
+/**
+ * Process exactly one durable outbox opportunity.
+ * Order: load → reject terminal → lease → revalidate account/consent →
+ * parse evidence → (summary) reserve rolling 24h → provider send → mark sent
+ * / release reserve on failure.
+ */
+export async function processNotificationOutboxOpportunity(args: {
+  store: AuthStore;
+  opportunityKey: string;
+  nowIso: string;
+  env?: EnvRecord;
+  /** Inject send for tests; Production uses real provider. */
+  sendFn?: OutboxSendFn;
+  /** Optional fixed lease holder for concurrent-test determinism. */
+  holderId?: string;
+}): Promise<ProcessOutboxOpportunityResult> {
+  const env = args.env ?? process.env;
+  const nowMs = Date.parse(args.nowIso);
+  const opportunityKey = String(args.opportunityKey || "").trim();
+  if (!opportunityKey) {
+    return { outcome: "skipped", reason: "missing_opportunity_key", opportunityKey };
+  }
+
+  const existing = await args.store.getNotificationOutboxByOpportunity(
+    opportunityKey,
+  );
+  if (!existing) {
+    return { outcome: "skipped", reason: "outbox_not_found", opportunityKey };
+  }
+  if (existing.status === "sent") {
+    return { outcome: "skipped", reason: "already_sent", opportunityKey };
+  }
+  if (
+    existing.status === "failed_terminal" ||
+    existing.status === "suppressed"
+  ) {
+    return {
+      outcome: "skipped",
+      reason: existing.reason ?? existing.status,
+      opportunityKey,
+    };
+  }
+  if (Number(existing.attempt_count ?? 0) >= MAX_ATTEMPTS) {
+    await args.store.markNotificationOutboxStatus({
+      id: existing.id,
+      status: "failed_terminal",
+      reason: "max_attempts",
+      nowIso: args.nowIso,
+    });
+    return {
+      outcome: "failed_terminal",
+      reason: "max_attempts",
+      opportunityKey,
+    };
+  }
+
+  const holderId = args.holderId ?? `outbox_${randomUUID().slice(0, 10)}`;
+  const leaseExpires = new Date(nowMs + LEASE_MS).toISOString();
+  const leased = await args.store.tryLeaseNotificationOutbox({
+    opportunityKey,
+    holderId,
+    leaseExpiresAt: leaseExpires,
+    nowIso: args.nowIso,
+  });
+  if (!leased) {
+    return { outcome: "lease_miss", reason: "lease_not_acquired", opportunityKey };
+  }
+
+  // Reload account, purchase ownership, consent.
+  const consent = await revalidateOutboxConsent(args.store, leased);
+  if (!consent.ok) {
+    await args.store.markNotificationOutboxStatus({
+      id: leased.id,
+      status: consent.terminal ? "failed_terminal" : "suppressed",
+      reason: consent.reason,
+      nowIso: args.nowIso,
+    });
+    return {
+      outcome: consent.terminal ? "failed_terminal" : "suppressed",
+      reason: consent.reason,
+      opportunityKey,
+    };
+  }
+
+  let evidence: OutboxEvidence | null = null;
+  if (leased.evidence_json) {
+    try {
+      evidence = JSON.parse(leased.evidence_json) as OutboxEvidence;
+    } catch {
+      evidence = null;
+    }
+  }
+  if (!evidence) {
+    await args.store.markNotificationOutboxStatus({
+      id: leased.id,
+      status: "failed_terminal",
+      reason: "missing_outbox_evidence",
+      nowIso: args.nowIso,
+    });
+    return {
+      outcome: "failed_terminal",
+      reason: "missing_outbox_evidence",
+      opportunityKey,
+    };
+  }
+
+  const summaryBuilt =
+    leased.kind === "summary" ? resolveSummaryContent(evidence) : null;
+
+  // Summary: durable rolling 24h is the only rate authority.
+  let summaryReserved = false;
+  if (leased.kind === "summary") {
+    const rate = await args.store.tryReserveRollingSummarySend({
+      accountId: leased.account_id,
+      holderId,
+      nowIso: args.nowIso,
+      windowMs: SUMMARY_ROLLING_WINDOW_MS,
+      reserveTtlMs: LEASE_MS,
+    });
+    if (!rate.reserved) {
+      await args.store.markNotificationOutboxStatus({
+        id: leased.id,
+        status: "suppressed",
+        reason:
+          rate.reason === "summary_cooldown"
+            ? "summary_cooldown"
+            : "summary_reserve_held",
+        nowIso: args.nowIso,
+      });
+      return {
+        outcome: "suppressed",
+        reason:
+          rate.reason === "summary_cooldown"
+            ? "summary_cooldown"
+            : "summary_reserve_held",
+        opportunityKey,
+      };
+    }
+    summaryReserved = true;
+  }
+
+  const sendResult = args.sendFn
+    ? await args.sendFn({
+        opportunityKey,
+        kind: leased.kind,
+        accountId: leased.account_id,
+        evidence,
+        emailNormalized: consent.emailNormalized,
+        subject: summaryBuilt?.subject,
+        text: summaryBuilt?.text,
+      })
+    : await productionSend({
+        row: leased,
+        evidence,
+        emailNormalized: consent.emailNormalized,
+        env,
+        summaryBuilt,
+      });
+
+  if (sendResult.ok) {
+    if (summaryReserved) {
+      await args.store.markRollingSummarySent({
+        accountId: leased.account_id,
+        holderId,
+        nowIso: args.nowIso,
+      });
+    }
+    await args.store.markNotificationOutboxStatus({
+      id: leased.id,
+      status: "sent",
+      reason: "sent_outbox_worker",
+      nowIso: args.nowIso,
+      sentAt: args.nowIso,
+    });
+    return { outcome: "sent", reason: "sent", opportunityKey };
+  }
+
+  if (summaryReserved) {
+    await args.store.releaseRollingSummaryReserve({
+      accountId: leased.account_id,
+      holderId,
+      nowIso: args.nowIso,
+    });
+  }
+  const nextAttempt = new Date(
+    nowMs +
+      BACKOFF_BASE_MS *
+        Math.pow(2, Math.min(Number(leased.attempt_count ?? 0), 5)),
+  ).toISOString();
+  const terminal = sendResult.error === "not_configured";
+  await args.store.markNotificationOutboxStatus({
+    id: leased.id,
+    status: terminal ? "failed_terminal" : "failed_retryable",
+    reason: sendResult.error ?? "provider_send_failed",
+    nowIso: args.nowIso,
+    nextAttemptAt: terminal ? null : nextAttempt,
+  });
+  return {
+    outcome: terminal ? "failed_terminal" : "failed_retryable",
+    reason: sendResult.error ?? "provider_send_failed",
+    opportunityKey,
+  };
+}
+
 export async function processDueNotificationOutbox(args: {
   store?: AuthStore;
   nowIso: string;
@@ -51,20 +277,13 @@ export async function processDueNotificationOutbox(args: {
   limit?: number;
   db?: NobuDatabase;
   /** Inject send for tests; Production uses real provider. */
-  sendFn?: (args: {
-    opportunityKey: string;
-    kind: string;
-    accountId: string;
-    evidence: OutboxEvidence | null;
-    emailNormalized: string;
-    subject?: string;
-    text?: string;
-  }) => Promise<{ ok: boolean; error?: string }>;
+  sendFn?: OutboxSendFn;
 }): Promise<{ processed: number; sent: number; failed: number; suppressed: number }> {
   const env = args.env ?? process.env;
   const store = args.store ?? (await getAuthStore({ env }));
   const limit = args.limit ?? 20;
-  const nowMs = Date.parse(args.nowIso);
+  void args.db;
+
   let processed = 0;
   let sent = 0;
   let failed = 0;
@@ -75,139 +294,25 @@ export async function processDueNotificationOutbox(args: {
     limit,
   });
 
-  const holderId = `outbox_${randomUUID().slice(0, 10)}`;
-  const leaseExpires = new Date(nowMs + LEASE_MS).toISOString();
-
   for (const row of due) {
-    if (Number(row.attempt_count ?? 0) >= MAX_ATTEMPTS) {
-      await store.markNotificationOutboxStatus({
-        id: row.id,
-        status: "failed_terminal",
-        reason: "max_attempts",
-        nowIso: args.nowIso,
-      });
-      failed += 1;
-      processed += 1;
-      continue;
-    }
-
-    const leased = await store.tryLeaseNotificationOutbox({
+    const result = await processNotificationOutboxOpportunity({
+      store,
       opportunityKey: row.opportunity_key,
-      holderId,
-      leaseExpiresAt: leaseExpires,
       nowIso: args.nowIso,
+      env,
+      sendFn: args.sendFn,
     });
-    if (!leased) continue;
-    processed += 1;
-
-    // Revalidate consent + identity from durable store before every send.
-    const consent = await revalidateOutboxConsent(store, leased);
-    if (!consent.ok) {
-      await store.markNotificationOutboxStatus({
-        id: row.id,
-        status: consent.terminal ? "failed_terminal" : "suppressed",
-        reason: consent.reason,
-        nowIso: args.nowIso,
-      });
-      if (consent.reason === "consent_revoked") suppressed += 1;
-      else failed += 1;
+    if (result.outcome === "lease_miss" || result.outcome === "skipped") {
+      if (result.reason === "max_attempts") {
+        failed += 1;
+        processed += 1;
+      }
       continue;
     }
-
-    let evidence: OutboxEvidence | null = null;
-    if (leased.evidence_json) {
-      try {
-        evidence = JSON.parse(leased.evidence_json) as OutboxEvidence;
-      } catch {
-        evidence = null;
-      }
-    }
-
-    const summaryBuilt =
-      row.kind === "summary" && evidence
-        ? resolveSummaryContent(evidence)
-        : null;
-
-    // Summary: durable rolling 24h limit (not calendar-day bucket).
-    let summaryReserved = false;
-    if (row.kind === "summary") {
-      const rate = await store.tryReserveRollingSummarySend({
-        accountId: row.account_id,
-        holderId,
-        nowIso: args.nowIso,
-        windowMs: SUMMARY_ROLLING_WINDOW_MS,
-        reserveTtlMs: LEASE_MS,
-      });
-      if (!rate.reserved) {
-        await store.markNotificationOutboxStatus({
-          id: row.id,
-          status: "suppressed",
-          reason: rate.reason === "summary_cooldown" ? "summary_cooldown" : "summary_reserve_held",
-          nowIso: args.nowIso,
-        });
-        suppressed += 1;
-        continue;
-      }
-      summaryReserved = true;
-    }
-
-    const sendResult = args.sendFn
-      ? await args.sendFn({
-          opportunityKey: row.opportunity_key,
-          kind: row.kind,
-          accountId: row.account_id,
-          evidence,
-          emailNormalized: consent.emailNormalized,
-          subject: summaryBuilt?.subject,
-          text: summaryBuilt?.text,
-        })
-      : await productionSend({
-          row: leased,
-          evidence,
-          emailNormalized: consent.emailNormalized,
-          env,
-          summaryBuilt,
-        });
-
-    if (sendResult.ok) {
-      if (summaryReserved) {
-        await store.markRollingSummarySent({
-          accountId: row.account_id,
-          holderId,
-          nowIso: args.nowIso,
-        });
-      }
-      await store.markNotificationOutboxStatus({
-        id: row.id,
-        status: "sent",
-        reason: "sent_outbox_worker",
-        nowIso: args.nowIso,
-        sentAt: args.nowIso,
-      });
-      sent += 1;
-    } else {
-      if (summaryReserved) {
-        await store.releaseRollingSummaryReserve({
-          accountId: row.account_id,
-          holderId,
-          nowIso: args.nowIso,
-        });
-      }
-      const nextAttempt = new Date(
-        nowMs +
-          BACKOFF_BASE_MS *
-            Math.pow(2, Math.min(Number(row.attempt_count ?? 0), 5)),
-      ).toISOString();
-      const terminal = sendResult.error === "not_configured";
-      await store.markNotificationOutboxStatus({
-        id: row.id,
-        status: terminal ? "failed_terminal" : "failed_retryable",
-        reason: sendResult.error ?? "provider_send_failed",
-        nowIso: args.nowIso,
-        nextAttemptAt: terminal ? null : nextAttempt,
-      });
-      failed += 1;
-    }
+    processed += 1;
+    if (result.outcome === "sent") sent += 1;
+    else if (result.outcome === "suppressed") suppressed += 1;
+    else failed += 1;
   }
 
   return { processed, sent, failed, suppressed };

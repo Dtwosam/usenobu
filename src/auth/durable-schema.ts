@@ -214,6 +214,9 @@ CREATE TABLE IF NOT EXISTS monitoring_pass_payments (
   sanitized_settle_reason TEXT,
   last_provider_operation TEXT,
   attempt_count INTEGER NOT NULL DEFAULT 0,
+  -- Opaque facilitator identifiers for payment-specific binding (never signatures).
+  provider_payment_id TEXT,
+  provider_authorization_id TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -414,6 +417,8 @@ export const AUTH_DURABLE_SCHEMA_PATCHES = [
   `ALTER TABLE monitoring_pass_payments ADD COLUMN sanitized_settle_reason TEXT`,
   `ALTER TABLE monitoring_pass_payments ADD COLUMN last_provider_operation TEXT`,
   `ALTER TABLE monitoring_pass_payments ADD COLUMN attempt_count INTEGER DEFAULT 0`,
+  `ALTER TABLE monitoring_pass_payments ADD COLUMN provider_payment_id TEXT`,
+  `ALTER TABLE monitoring_pass_payments ADD COLUMN provider_authorization_id TEXT`,
   `ALTER TABLE monitoring_passes ADD COLUMN payer_address TEXT`,
   `ALTER TABLE monitoring_pass_continuations ADD COLUMN claim_credential_hash TEXT`,
   `ALTER TABLE monitoring_pass_continuations ADD COLUMN claim_credential_consumed_at TEXT`,

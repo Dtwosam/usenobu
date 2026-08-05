@@ -23,10 +23,11 @@ import {
   MAX_IMMEDIATE_PER_ACCOUNT_24H,
   MAX_SUMMARY_PER_ACCOUNT_24H,
 } from "./ledger.js";
-import { sendPriceDropEmail, buildSummaryEmailText } from "./email-send.js";
+import { sendPriceDropEmail } from "./email-send.js";
 import {
   buildOutboxEvidenceJson,
   buildSummaryOutboxEvidenceJson,
+  processNotificationOutboxOpportunity,
   summaryWindowStart,
 } from "./outbox-retry.js";
 import { hashEmailForLog } from "./mask-email.js";
@@ -314,8 +315,9 @@ export async function processPriceDropEmailForNewAlert(args: {
       };
     }
 
-    // Summary uses durable outbox (not direct local-only send).
-    // Opportunity key is stable per account + UTC day (durable 24h window).
+    // Summary: create durable outbox + process through the shared path only.
+    // Rolling 24h (durable_summary_send_state) is the sole rate authority;
+    // the calendar-day key is descriptive grouping, not delivery authorization.
     const dayWindow = summaryWindowStart(nowIso);
     const summaryKey = `summary_${ownerRef}_${dayWindow}`;
     const existingSummary = findNotificationByOpportunity(args.db, summaryKey);
@@ -361,9 +363,16 @@ export async function processPriceDropEmailForNewAlert(args: {
       evidenceJson: summaryEvidenceJson,
       nowIso,
     });
-    const existingDurableSummary =
-      await authStoreSummary.getNotificationOutboxByOpportunity(summaryKey);
-    if (existingDurableSummary?.status === "sent") {
+
+    // Provider call only inside shared durable outbox delivery.
+    const delivered = await processNotificationOutboxOpportunity({
+      store: authStoreSummary,
+      opportunityKey: summaryKey,
+      nowIso,
+      env,
+    });
+
+    if (delivered.outcome === "sent") {
       insertNotification({
         db: args.db,
         purchase_id: args.purchaseId,
@@ -372,12 +381,12 @@ export async function processPriceDropEmailForNewAlert(args: {
         opportunity_key: summaryKey,
         kind: "summary",
         status: "sent",
-        reason: "duplicate_summary",
+        reason: "sent_summary",
         recipient_email_hash: hashEmailForLog(account.email_normalized),
         created_at: nowIso,
       });
       return {
-        attempted: false,
+        attempted: true,
         status: "combined",
         reason: "combined_into_summary",
         notification_id: reserved.id,
@@ -385,54 +394,10 @@ export async function processPriceDropEmailForNewAlert(args: {
       };
     }
 
-    const holderId = `send_${summaryKey.slice(0, 24)}`;
-    const leaseExpires = new Date(Date.parse(nowIso) + 60_000).toISOString();
-    const leased = await authStoreSummary.tryLeaseNotificationOutbox({
-      opportunityKey: summaryKey,
-      holderId,
-      leaseExpiresAt: leaseExpires,
-      nowIso,
-    });
-    if (!leased) {
-      return {
-        attempted: false,
-        status: "combined",
-        reason: "combined_into_summary",
-        notification_id: reserved.id,
-        kind: "summary",
-      };
-    }
-
-    const summaryBody = buildSummaryEmailText({
-      items: [
-        {
-          product_title: evidence.product_title,
-          potential_recovery: evidence.potential_recovery,
-          reviewUrl,
-        },
-      ],
-    });
-
-    // Provider call authorized only by durable lease (idempotency key = opportunity).
-    const summarySend = await sendSummaryEmail({
-      emailNormalized: account.email_normalized,
-      subject: summaryBody.subject,
-      text: summaryBody.text,
-      env,
-      idempotencyKey: summaryKey,
-    });
-
-    if (!summarySend.ok) {
-      await authStoreSummary.markNotificationOutboxStatus({
-        id: leased.id,
-        status: "failed_retryable",
-        reason:
-          summarySend.error === "not_configured"
-            ? "not_configured"
-            : "provider_send_failed",
-        nowIso,
-        nextAttemptAt: new Date(Date.parse(nowIso) + 30_000).toISOString(),
-      });
+    if (
+      delivered.outcome === "failed_retryable" ||
+      delivered.outcome === "failed_terminal"
+    ) {
       insertNotification({
         db: args.db,
         purchase_id: args.purchaseId,
@@ -441,49 +406,24 @@ export async function processPriceDropEmailForNewAlert(args: {
         opportunity_key: summaryKey,
         kind: "summary",
         status: "failed",
-        reason:
-          summarySend.error === "not_configured"
-            ? "not_configured"
-            : "provider_send_failed",
+        reason: delivered.reason ?? "provider_send_failed",
         recipient_email_hash: hashEmailForLog(account.email_normalized),
         created_at: nowIso,
       });
       return {
         attempted: true,
         status: "failed",
-        reason:
-          summarySend.error === "not_configured"
-            ? "not_configured"
-            : "provider_send_failed",
+        reason: delivered.reason ?? "provider_send_failed",
         notification_id: reserved.id,
         kind: "summary",
       };
     }
 
-    await authStoreSummary.markNotificationOutboxStatus({
-      id: leased.id,
-      status: "sent",
-      reason: "sent_summary",
-      nowIso,
-      sentAt: nowIso,
-    });
-    insertNotification({
-      db: args.db,
-      purchase_id: args.purchaseId,
-      account_id: ownerRef,
-      alert_id: args.alertId,
-      opportunity_key: summaryKey,
-      kind: "summary",
-      status: "sent",
-      reason: "sent_summary",
-      recipient_email_hash: hashEmailForLog(account.email_normalized),
-      created_at: nowIso,
-    });
-
+    // suppressed / lease_miss / skipped — mirror combined; worker may retry.
     return {
-      attempted: true,
+      attempted: false,
       status: "combined",
-      reason: "combined_into_summary",
+      reason: delivered.reason ?? "combined_into_summary",
       notification_id: reserved.id,
       kind: "summary",
     };
@@ -642,85 +582,6 @@ export async function processPriceDropEmailForNewAlert(args: {
     notification_id: sentLocal.id,
     kind: "immediate",
   };
-}
-
-async function sendSummaryEmail(args: {
-  emailNormalized: string;
-  subject: string;
-  text: string;
-  env: NodeJS.ProcessEnv | Record<string, string | undefined>;
-  /** Deterministic provider key derived from opportunity_key when supported. */
-  idempotencyKey?: string;
-}): Promise<{ ok: true } | { ok: false; error: "not_configured" | "provider_error" }> {
-  const { isAuthTestMode } = await import("../auth/config.js");
-  if (isAuthTestMode(args.env)) {
-    const { getCapturedPriceDropEmails } = await import("./email-send.js");
-    // piggyback test capture via a synthetic price-drop send path
-    const mod = await import("./email-send.js");
-    mod.getCapturedPriceDropEmails;
-    // push via sendPriceDropEmail with dummy evidence is awkward — direct capture
-    const captures = mod as unknown as {
-      // use internal by calling sendPriceDropEmail-like test path
-    };
-    void captures;
-    // Call public test helper path:
-    await mod.sendPriceDropEmail({
-      emailNormalized: args.emailNormalized,
-      evidence: {
-        purchase_id: "summary",
-        product_title: "Multiple purchases",
-        purchase_price: 1,
-        observed_price: 0.5,
-        potential_recovery: 0.5,
-        currency: "USD",
-        monitoring_deadline: null,
-        observed_at: new Date().toISOString(),
-        alert_id: "summary",
-        opportunity_key: "summary",
-        review_path: "/dashboard",
-      },
-      reviewUrl: "/dashboard",
-      disableAlertsUrl: "/dashboard",
-      env: args.env,
-    });
-    return { ok: true };
-  }
-
-  const apiKey = String(
-    args.env.RESEND_API_KEY || args.env.EMAIL_PROVIDER_API_KEY || "",
-  ).trim();
-  const from = String(
-    args.env.EMAIL_FROM_ADDRESS || args.env.AUTH_EMAIL_FROM || "",
-  ).trim();
-  if (!apiKey || !from) {
-    if (args.env.NODE_ENV !== "production" && args.env.VERCEL !== "1") {
-      return { ok: true };
-    }
-    return { ok: false, error: "not_configured" };
-  }
-  try {
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    };
-    if (args.idempotencyKey) {
-      headers["Idempotency-Key"] = args.idempotencyKey.slice(0, 256);
-    }
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        from,
-        to: [args.emailNormalized],
-        subject: args.subject,
-        text: args.text,
-      }),
-    });
-    if (!res.ok) return { ok: false, error: "provider_error" };
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "provider_error" };
-  }
 }
 
 /**

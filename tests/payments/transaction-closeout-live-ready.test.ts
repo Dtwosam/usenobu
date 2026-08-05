@@ -226,7 +226,7 @@ describe("failed settlement binding", () => {
     if (!wrongAmt.ok) expect(wrongAmt.reason).toBe("amount_mismatch");
   });
 
-  it("missing binding fields remain review-required; bound failure succeeds once", async () => {
+  it("missing binding fields remain review-required; payment-specific bind fails once", async () => {
     const store = await seed("pay_bound");
     const missingNet = await applySettlementReview({
       paymentId: "pay_bound",
@@ -249,13 +249,32 @@ describe("failed settlement binding", () => {
       expect(missingNet.status).toBe("settlement_review_required");
     }
 
-    const ok = await applySettlementReview({
+    // Commercial fields alone are insufficient without payment-specific binding.
+    const commercialOnly = await applySettlementReview({
       paymentId: "pay_bound",
       decision: "failed",
       transactionHash: TX,
       env,
       store,
       statusOverride: failedBody(TX),
+    });
+    expect(commercialOnly.ok).toBe(false);
+
+    // Provider payment id binding enables conclusive failure.
+    await store.updateMonitoringPassPayment({
+      id: "pay_bound",
+      status: "settlement_review_required",
+      settlementRef: null,
+      nowIso: new Date().toISOString(),
+      providerPaymentId: "fac_bound_1",
+    });
+    const ok = await applySettlementReview({
+      paymentId: "pay_bound",
+      decision: "failed",
+      transactionHash: TX,
+      env,
+      store,
+      statusOverride: failedBody(TX, { paymentId: "fac_bound_1" }),
     });
     expect(ok.ok).toBe(true);
     const p = await store.getMonitoringPassPaymentById("pay_bound");
@@ -264,13 +283,22 @@ describe("failed settlement binding", () => {
 
     // Second payment cannot use same failed tx
     await seed("pay_other");
+    await store.updateMonitoringPassPayment({
+      id: "pay_other",
+      status: "settlement_review_required",
+      settlementRef: null,
+      nowIso: new Date().toISOString(),
+      providerPaymentId: "fac_bound_2",
+    });
     const again = await applySettlementReview({
       paymentId: "pay_other",
       decision: "failed",
       transactionHash: TX.toLowerCase(),
       env,
       store,
-      statusOverride: failedBody(TX.toLowerCase()),
+      statusOverride: failedBody(TX.toLowerCase(), {
+        paymentId: "fac_bound_2",
+      }),
     });
     expect(again.ok).toBe(false);
   });

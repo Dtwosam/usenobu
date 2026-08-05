@@ -166,6 +166,10 @@ export type MonitoringPassPaymentRow = {
   sanitized_settle_reason?: string | null;
   last_provider_operation?: string | null;
   attempt_count?: number | null;
+  /** Opaque facilitator payment id (not Nobu payment.id). */
+  provider_payment_id?: string | null;
+  /** Opaque facilitator authorization id (not authorization_digest). */
+  provider_authorization_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -506,6 +510,10 @@ export interface AuthStore {
     sanitizedSettleReason?: string | null;
     lastProviderOperation?: string | null;
     incrementAttempt?: boolean;
+    /** Opaque facilitator payment id — sanitized, max ~200 chars. */
+    providerPaymentId?: string | null;
+    /** Opaque facilitator authorization id — sanitized, max ~200 chars. */
+    providerAuthorizationId?: string | null;
   }): Promise<boolean>;
   /**
    * Payments still awaiting official settle/status confirmation. Each row
@@ -1641,7 +1649,9 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
                sanitized_verify_reason = COALESCE(?, sanitized_verify_reason),
                sanitized_settle_reason = COALESCE(?, sanitized_settle_reason),
                last_provider_operation = COALESCE(?, last_provider_operation),
-               attempt_count = CASE WHEN ? THEN COALESCE(attempt_count, 0) + 1 ELSE COALESCE(attempt_count, 0) END
+               attempt_count = CASE WHEN ? THEN COALESCE(attempt_count, 0) + 1 ELSE COALESCE(attempt_count, 0) END,
+               provider_payment_id = COALESCE(?, provider_payment_id),
+               provider_authorization_id = COALESCE(?, provider_authorization_id)
            WHERE id = ?`,
         )
         .run(
@@ -1653,6 +1663,8 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
           args.sanitizedSettleReason ?? null,
           args.lastProviderOperation ?? null,
           args.incrementAttempt ? 1 : 0,
+          args.providerPaymentId ?? null,
+          args.providerAuthorizationId ?? null,
           args.id,
         );
       return Number(r.changes ?? 0) === 1;
@@ -3615,8 +3627,10 @@ export function createPostgresAuthStore(
              sanitized_verify_reason = COALESCE($5, sanitized_verify_reason),
              sanitized_settle_reason = COALESCE($6, sanitized_settle_reason),
              last_provider_operation = COALESCE($7, last_provider_operation),
-             attempt_count = CASE WHEN $8 THEN COALESCE(attempt_count, 0) + 1 ELSE COALESCE(attempt_count, 0) END
-         WHERE id = $9`,
+             attempt_count = CASE WHEN $8 THEN COALESCE(attempt_count, 0) + 1 ELSE COALESCE(attempt_count, 0) END,
+             provider_payment_id = COALESCE($9, provider_payment_id),
+             provider_authorization_id = COALESCE($10, provider_authorization_id)
+         WHERE id = $11`,
         [
           args.status,
           settlementRef,
@@ -3626,6 +3640,8 @@ export function createPostgresAuthStore(
           args.sanitizedSettleReason ?? null,
           args.lastProviderOperation ?? null,
           args.incrementAttempt === true,
+          args.providerPaymentId ?? null,
+          args.providerAuthorizationId ?? null,
           args.id,
         ],
       );

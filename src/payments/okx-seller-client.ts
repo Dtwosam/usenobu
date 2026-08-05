@@ -50,6 +50,12 @@ export type OkxVerifyResponse = {
   invalidReason?: string;
   invalidMessage?: string;
   payer?: string;
+  /** Opaque facilitator payment id when returned (not Nobu payment.id). */
+  paymentId?: string;
+  payment_id?: string;
+  /** Opaque facilitator authorization id when returned (not authorization_digest). */
+  authorizationId?: string;
+  authorization_id?: string;
 };
 
 export type OkxSettleResponse = {
@@ -61,6 +67,12 @@ export type OkxSettleResponse = {
   transaction: string;
   network?: string;
   amount?: string;
+  /** Opaque facilitator payment id when returned. */
+  paymentId?: string;
+  payment_id?: string;
+  /** Opaque facilitator authorization id when returned. */
+  authorizationId?: string;
+  authorization_id?: string;
 };
 
 export type OkxSettleStatusResponse = {
@@ -71,6 +83,16 @@ export type OkxSettleStatusResponse = {
   payer?: string;
   transaction?: string;
   network?: string;
+  asset?: string;
+  amount?: string;
+  payTo?: string;
+  recipient?: string;
+  /** Opaque facilitator payment id when returned. */
+  paymentId?: string;
+  payment_id?: string;
+  /** Opaque facilitator authorization id when returned. */
+  authorizationId?: string;
+  authorization_id?: string;
 };
 
 export type OkxSupportedKind = {

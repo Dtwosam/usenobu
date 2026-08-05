@@ -334,6 +334,7 @@ describe("Paid-to-active transaction repair", () => {
   });
 
   it("settlement_unknown does not create a second challenge", async () => {
+    // Resume path must not hit the real facilitator network.
     const failFetch: OkxHttpFetch = async (url) => {
       if (/supported/.test(url)) {
         return new Response(JSON.stringify({ code: "0", data: { kinds: [] } }), {
@@ -343,6 +344,16 @@ describe("Paid-to-active transaction repair", () => {
       if (/verify/.test(url)) {
         return new Response(
           JSON.stringify({ code: "0", data: { isValid: true } }),
+          { status: 200 },
+        );
+      }
+      // settle/status still unknown
+      if (/settle\/status/.test(url)) {
+        return new Response(
+          JSON.stringify({
+            code: "0",
+            data: { success: false, status: "pending" },
+          }),
           { status: 200 },
         );
       }
@@ -365,6 +376,7 @@ describe("Paid-to-active transaction repair", () => {
       sqliteDb: db,
       env: testEnv,
       testVerifier: unknownVerifier,
+      fetchImpl: failFetch,
     });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
@@ -378,6 +390,7 @@ describe("Paid-to-active transaction repair", () => {
       sqliteDb: db,
       env: testEnv,
       testVerifier: unknownVerifier,
+      fetchImpl: failFetch,
     });
     expect(second.ok).toBe(true);
     if (!second.ok) return;

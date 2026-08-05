@@ -43,6 +43,7 @@ import {
   type OkxHttpFetch,
   type OkxSettleStatusResponse,
 } from "./okx-seller-client.js";
+import { extractProviderIds } from "./provider-ids.js";
 import {
   FREE_SERVICE_ID,
   MONITORING_PASS_RESOURCE_DESCRIPTION as CATALOGUE_PASS_DESCRIPTION,
@@ -131,6 +132,8 @@ export interface MonitoringPassArgs {
   sqliteDb?: NobuDatabase;
   env?: EnvRecord;
   testVerifier?: X402Verifier;
+  /** Injected OKX HTTP client (tests); Production uses real fetch. */
+  fetchImpl?: OkxHttpFetch;
 }
 
 export type MonitoringPassResult =
@@ -459,6 +462,7 @@ export async function monitoringPassForAgent(
       resource: args.resource,
       env: args.env,
       nowIso,
+      fetchImpl: args.fetchImpl,
     });
   }
 
@@ -501,6 +505,8 @@ export async function monitoringPassForAgent(
   let payer: string | undefined;
   let isUnknown = false;
   let isReviewRequired = false;
+  let providerPaymentId: string | null = null;
+  let providerAuthorizationId: string | null = null;
   let canonicalRequirements: CanonicalPaymentRequirements | undefined;
 
   // One canonical requirements object for challenge-equivalent verify/settle.
@@ -588,6 +594,8 @@ export async function monitoringPassForAgent(
         authorizationHeader: args.paymentAuthorizationHeader,
         requirements: canonicalRequirements,
       });
+    providerPaymentId = detailed.providerPaymentId ?? null;
+    providerAuthorizationId = detailed.providerAuthorizationId ?? null;
     if (detailed.ok) {
       settlementRef = detailed.settlementRef;
       payer = detailed.payer;
@@ -611,6 +619,8 @@ export async function monitoringPassForAgent(
         payerAddress: payer ?? null,
         sanitizedSettleReason: detailed.sanitizedSettleReason,
         lastProviderOperation: detailed.lastProviderOperation ?? "settle",
+        providerPaymentId,
+        providerAuthorizationId,
       });
     } else if (detailed.reason === "settlement_unknown") {
       isUnknown = true;
@@ -624,6 +634,8 @@ export async function monitoringPassForAgent(
         payerAddress: payer ?? null,
         sanitizedSettleReason: detailed.sanitizedSettleReason,
         lastProviderOperation: detailed.lastProviderOperation ?? "settle",
+        providerPaymentId,
+        providerAuthorizationId,
       });
     } else {
       const status: MonitoringPassPaymentStatus =
@@ -642,6 +654,8 @@ export async function monitoringPassForAgent(
         sanitizedVerifyReason: detailed.sanitizedVerifyReason,
         sanitizedSettleReason: detailed.sanitizedSettleReason,
         lastProviderOperation: detailed.lastProviderOperation,
+        providerPaymentId,
+        providerAuthorizationId,
       });
       return challengeResult({
         resource: args.resource,
@@ -717,6 +731,8 @@ export async function monitoringPassForAgent(
       nowIso,
       payerAddress: payer ?? null,
       lastProviderOperation: "settle",
+      providerPaymentId,
+      providerAuthorizationId,
     });
     const polled = await pollPendingSettlementToPass({
       store,
@@ -761,6 +777,8 @@ export async function monitoringPassForAgent(
     nowIso,
     payerAddress: payer ?? null,
     lastProviderOperation: "settle",
+    providerPaymentId,
+    providerAuthorizationId,
   });
 
   return issuePassForSettlement({
@@ -1111,6 +1129,10 @@ async function confirmPendingPassPayment(args: {
       note: "Settlement still pending confirmation.",
     };
   }
+  const reconIds = extractProviderIds(
+    status as unknown as Record<string, unknown>,
+  );
+
   if (status.status === "failed" || status.success === false) {
     await args.store.updateMonitoringPassPayment({
       id: args.payment.id,
@@ -1119,6 +1141,8 @@ async function confirmPendingPassPayment(args: {
       nowIso: args.nowIso,
       sanitizedSettleReason: status.errorReason || status.errorMessage,
       lastProviderOperation: "settle_status",
+      providerPaymentId: reconIds.providerPaymentId,
+      providerAuthorizationId: reconIds.providerAuthorizationId,
     });
     return { kind: "failed" };
   }
@@ -1131,6 +1155,8 @@ async function confirmPendingPassPayment(args: {
     nowIso: args.nowIso,
     payerAddress: status.payer ?? null,
     lastProviderOperation: "settle_status",
+    providerPaymentId: reconIds.providerPaymentId,
+    providerAuthorizationId: reconIds.providerAuthorizationId,
   });
   const issued = await issuePassForSettlement({
     store: args.store,

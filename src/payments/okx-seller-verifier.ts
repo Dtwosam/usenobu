@@ -31,6 +31,7 @@ import {
   type PaymentPayload,
   type PaymentRequirements,
 } from "./okx-seller-client.js";
+import { extractProviderIds } from "./provider-ids.js";
 
 export type OkxSellerVerifyOutcome =
   | {
@@ -41,6 +42,8 @@ export type OkxSellerVerifyOutcome =
       network?: string;
       amount?: string;
       requirements: CanonicalPaymentRequirements;
+      providerPaymentId?: string | null;
+      providerAuthorizationId?: string | null;
     }
   | {
       ok: false;
@@ -61,6 +64,8 @@ export type OkxSellerVerifyOutcome =
       sanitizedSettleReason?: string;
       lastProviderOperation?: string;
       requirements?: CanonicalPaymentRequirements;
+      providerPaymentId?: string | null;
+      providerAuthorizationId?: string | null;
     };
 
 export function parsePaymentPayloadFromHeader(
@@ -282,6 +287,9 @@ export function createOkxSellerVerifier(args: {
         requirements,
       };
     }
+    const verifyIds = extractProviderIds(
+      verifyRes as unknown as Record<string, unknown>,
+    );
     if (!verifyRes.isValid) {
       return {
         ok: false,
@@ -292,6 +300,8 @@ export function createOkxSellerVerifier(args: {
         ),
         lastProviderOperation: "verify",
         requirements,
+        providerPaymentId: verifyIds.providerPaymentId,
+        providerAuthorizationId: verifyIds.providerAuthorizationId,
       };
     }
 
@@ -307,6 +317,8 @@ export function createOkxSellerVerifier(args: {
           sanitizedSettleReason: sanitizeReason(err.msg ?? err.code),
           payer: verifyRes.payer,
           requirements,
+          providerPaymentId: verifyIds.providerPaymentId,
+          providerAuthorizationId: verifyIds.providerAuthorizationId,
         };
       }
       if (err instanceof OkxSellerHttpError) {
@@ -318,6 +330,8 @@ export function createOkxSellerVerifier(args: {
             sanitizedSettleReason: sanitizeReason(err.message),
             payer: verifyRes.payer,
             requirements,
+            providerPaymentId: verifyIds.providerPaymentId,
+            providerAuthorizationId: verifyIds.providerAuthorizationId,
           };
         }
         // Ambiguous transport with no tx → review required, not auto-reconcile claim.
@@ -328,6 +342,8 @@ export function createOkxSellerVerifier(args: {
           sanitizedSettleReason: sanitizeReason(err.message),
           payer: verifyRes.payer,
           requirements,
+          providerPaymentId: verifyIds.providerPaymentId,
+          providerAuthorizationId: verifyIds.providerAuthorizationId,
         };
       }
       return {
@@ -338,9 +354,15 @@ export function createOkxSellerVerifier(args: {
           err instanceof Error ? sanitizeReason(err.message) : undefined,
         payer: verifyRes.payer,
         requirements,
+        providerPaymentId: verifyIds.providerPaymentId,
+        providerAuthorizationId: verifyIds.providerAuthorizationId,
       };
     }
 
+    const settleIds = extractProviderIds(
+      verifyRes as unknown as Record<string, unknown>,
+      settleRes as unknown as Record<string, unknown>,
+    );
     const payer = settleRes.payer || verifyRes.payer;
 
     if (settleRes.status === "pending") {
@@ -353,12 +375,19 @@ export function createOkxSellerVerifier(args: {
           sanitizedSettleReason: "pending_without_tx",
           payer,
           requirements,
+          providerPaymentId: settleIds.providerPaymentId,
+          providerAuthorizationId: settleIds.providerAuthorizationId,
         };
       }
       for (const delay of SETTLE_POLL_DELAYS_MS) {
         await sleep(delay);
         try {
           const status = await client.getSettleStatus(tx);
+          const statusIds = extractProviderIds(
+            verifyRes as unknown as Record<string, unknown>,
+            settleRes as unknown as Record<string, unknown>,
+            status as unknown as Record<string, unknown>,
+          );
           if (
             status.status === "success" ||
             (status.success &&
@@ -374,6 +403,8 @@ export function createOkxSellerVerifier(args: {
                 payer: status.payer || payer,
                 network: status.network,
                 requirements,
+                providerPaymentId: statusIds.providerPaymentId,
+                providerAuthorizationId: statusIds.providerAuthorizationId,
               };
             }
           }
@@ -388,6 +419,8 @@ export function createOkxSellerVerifier(args: {
               payer: status.payer || payer,
               pendingTxHash: tx,
               requirements,
+              providerPaymentId: statusIds.providerPaymentId,
+              providerAuthorizationId: statusIds.providerAuthorizationId,
             };
           }
         } catch {
@@ -401,6 +434,8 @@ export function createOkxSellerVerifier(args: {
         payer,
         lastProviderOperation: "settle",
         requirements,
+        providerPaymentId: settleIds.providerPaymentId,
+        providerAuthorizationId: settleIds.providerAuthorizationId,
       };
     }
 
@@ -409,6 +444,11 @@ export function createOkxSellerVerifier(args: {
       if (tx) {
         try {
           const status = await client.getSettleStatus(tx);
+          const statusIds = extractProviderIds(
+            verifyRes as unknown as Record<string, unknown>,
+            settleRes as unknown as Record<string, unknown>,
+            status as unknown as Record<string, unknown>,
+          );
           if (
             status.status === "success" ||
             (status.success && status.status !== "failed")
@@ -420,6 +460,8 @@ export function createOkxSellerVerifier(args: {
               payer: status.payer || payer,
               network: status.network,
               requirements,
+              providerPaymentId: statusIds.providerPaymentId,
+              providerAuthorizationId: statusIds.providerAuthorizationId,
             };
           }
           if (status.status === "pending") {
@@ -430,6 +472,8 @@ export function createOkxSellerVerifier(args: {
               payer,
               lastProviderOperation: "settle_status",
               requirements,
+              providerPaymentId: statusIds.providerPaymentId,
+              providerAuthorizationId: statusIds.providerAuthorizationId,
             };
           }
         } catch {
@@ -440,6 +484,8 @@ export function createOkxSellerVerifier(args: {
             payer,
             lastProviderOperation: "settle_status",
             requirements,
+            providerPaymentId: settleIds.providerPaymentId,
+            providerAuthorizationId: settleIds.providerAuthorizationId,
           };
         }
       }
@@ -451,6 +497,8 @@ export function createOkxSellerVerifier(args: {
         lastProviderOperation: "settle",
         sanitizedSettleReason: "timeout",
         requirements,
+        providerPaymentId: settleIds.providerPaymentId,
+        providerAuthorizationId: settleIds.providerAuthorizationId,
       };
     }
 
@@ -464,6 +512,8 @@ export function createOkxSellerVerifier(args: {
         ),
         payer,
         requirements,
+        providerPaymentId: settleIds.providerPaymentId,
+        providerAuthorizationId: settleIds.providerAuthorizationId,
       };
     }
 
@@ -475,6 +525,8 @@ export function createOkxSellerVerifier(args: {
       network: settleRes.network,
       amount: settleRes.amount,
       requirements,
+      providerPaymentId: settleIds.providerPaymentId,
+      providerAuthorizationId: settleIds.providerAuthorizationId,
     };
   }
 

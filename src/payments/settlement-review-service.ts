@@ -62,6 +62,10 @@ export type SettlementStatusBody = {
 /**
  * Independently verify a transaction via official settle/status and locked
  * commercial terms. Missing binding fields keep review (not success).
+ *
+ * Failed decisions additionally require at least one payment-specific binding
+ * (A: stored settlement_ref, B: provider_payment_id, C: provider_authorization_id).
+ * Commercial fields alone are never enough to mark a payment failed.
  */
 export async function verifySettlementEvidence(args: {
   paymentId: string;
@@ -69,11 +73,15 @@ export async function verifySettlementEvidence(args: {
   env?: EnvRecord;
   fetchImpl?: OkxHttpFetch;
   expectedPayer?: string | null;
-  /** authorization_digest when available for binding. */
-  expectedAuthorizationDigest?: string | null;
+  /** Stored facilitator provider_payment_id for Binding B. */
+  storedProviderPaymentId?: string | null;
+  /** Stored facilitator provider_authorization_id for Binding C. */
+  storedProviderAuthorizationId?: string | null;
+  /** Existing settlement_ref on this payment for Binding A. */
+  storedSettlementRef?: string | null;
   /**
    * "settled" — require success + full commercial fields.
-   * "failed" — require conclusive failure + binding commercial fields.
+   * "failed" — require conclusive failure + commercial + payment-specific binding.
    */
   mode: "settled" | "failed";
   statusOverride?: SettlementStatusBody;
@@ -96,8 +104,9 @@ export async function verifySettlementEvidence(args: {
       expectedTx: canonicalTx,
       env: args.env,
       expectedPayer: args.expectedPayer,
-      expectedPaymentId: args.paymentId,
-      expectedAuthorizationDigest: args.expectedAuthorizationDigest,
+      storedProviderPaymentId: args.storedProviderPaymentId,
+      storedProviderAuthorizationId: args.storedProviderAuthorizationId,
+      storedSettlementRef: args.storedSettlementRef,
       mode: args.mode,
     });
   }
@@ -117,8 +126,9 @@ export async function verifySettlementEvidence(args: {
       expectedTx: canonicalTx,
       env: args.env,
       expectedPayer: args.expectedPayer,
-      expectedPaymentId: args.paymentId,
-      expectedAuthorizationDigest: args.expectedAuthorizationDigest,
+      storedProviderPaymentId: args.storedProviderPaymentId,
+      storedProviderAuthorizationId: args.storedProviderAuthorizationId,
+      storedSettlementRef: args.storedSettlementRef,
       mode: args.mode,
     });
   } catch {
@@ -130,13 +140,13 @@ export async function verifySettlementEvidence(args: {
   }
 }
 
-function evaluateBindingFields(
+/** Commercial fields: network, asset, payTo, amount when returned, payer when known. */
+function evaluateCommercialFields(
   status: SettlementStatusBody,
   opts: {
     env?: EnvRecord;
     expectedPayer?: string | null;
-    expectedPaymentId: string;
-    expectedAuthorizationDigest?: string | null;
+    requireAmount: boolean;
   },
 ): { ok: true } | { ok: false; reason: string } {
   const network = String(status.network || "").trim();
@@ -147,11 +157,12 @@ function evaluateBindingFields(
     return { ok: false, reason: "network_mismatch" };
   }
 
-  // Amount: when facilitator exposes it, must match locked terms.
   if (status.amount != null && String(status.amount).trim() !== "") {
     if (String(status.amount) !== MONITORING_PRICE_ATOMIC_UNITS) {
       return { ok: false, reason: "amount_mismatch" };
     }
+  } else if (opts.requireAmount) {
+    return { ok: false, reason: "amount_missing" };
   }
 
   if (status.asset == null || String(status.asset).trim() === "") {
@@ -186,22 +197,61 @@ function evaluateBindingFields(
     }
   }
 
-  // Facilitator payment / authorization id when present must match durable ids.
-  const facPaymentId = String(
-    status.paymentId || status.payment_id || "",
-  ).trim();
-  if (facPaymentId && facPaymentId !== opts.expectedPaymentId) {
-    return { ok: false, reason: "payment_id_mismatch" };
-  }
-  const facAuth = String(
-    status.authorizationId || status.authorization_id || "",
-  ).trim();
-  const expectedDigest = String(opts.expectedAuthorizationDigest || "").trim();
-  if (facAuth && expectedDigest && facAuth !== expectedDigest) {
-    return { ok: false, reason: "authorization_mismatch" };
+  return { ok: true };
+}
+
+/**
+ * Payment-specific bindings for failed decisions (at least one required):
+ * A — canonical tx already on this payment row
+ * B — stored provider_payment_id matches facilitator status
+ * C — stored provider_authorization_id matches facilitator status
+ *
+ * Provider IDs are never compared to Nobu payment.id or authorization_digest.
+ */
+export function evaluatePaymentSpecificBinding(args: {
+  expectedTx: string;
+  storedSettlementRef?: string | null;
+  storedProviderPaymentId?: string | null;
+  storedProviderAuthorizationId?: string | null;
+  status: SettlementStatusBody;
+}): { ok: true; binding: "A" | "B" | "C" } | { ok: false; reason: string } {
+  // Binding A — transaction already associated with this exact payment row.
+  const storedRef = canonicalizeSettlementRef(args.storedSettlementRef ?? "");
+  if (storedRef && storedRef === args.expectedTx) {
+    return { ok: true, binding: "A" };
   }
 
-  return { ok: true };
+  // Binding B — exact provider payment id match (opaque; not Nobu payment.id).
+  const facPayId = String(
+    args.status.paymentId || args.status.payment_id || "",
+  ).trim();
+  const storedPayId = String(args.storedProviderPaymentId || "").trim();
+  if (storedPayId && facPayId) {
+    if (storedPayId === facPayId) {
+      return { ok: true, binding: "B" };
+    }
+  }
+
+  // Binding C — exact provider authorization id match (not authorization_digest).
+  const facAuthId = String(
+    args.status.authorizationId || args.status.authorization_id || "",
+  ).trim();
+  const storedAuthId = String(args.storedProviderAuthorizationId || "").trim();
+  if (storedAuthId && facAuthId) {
+    if (storedAuthId === facAuthId) {
+      return { ok: true, binding: "C" };
+    }
+  }
+
+  // Prefer specific mismatch reasons when a pair was present and unequal.
+  if (storedPayId && facPayId && storedPayId !== facPayId) {
+    return { ok: false, reason: "provider_payment_id_mismatch" };
+  }
+  if (storedAuthId && facAuthId && storedAuthId !== facAuthId) {
+    return { ok: false, reason: "provider_authorization_id_mismatch" };
+  }
+
+  return { ok: false, reason: "inconclusive_failure_evidence" };
 }
 
 function evaluateStatusBody(
@@ -210,8 +260,9 @@ function evaluateStatusBody(
     expectedTx: string;
     env?: EnvRecord;
     expectedPayer?: string | null;
-    expectedPaymentId: string;
-    expectedAuthorizationDigest?: string | null;
+    storedProviderPaymentId?: string | null;
+    storedProviderAuthorizationId?: string | null;
+    storedSettlementRef?: string | null;
     mode: "settled" | "failed";
   },
 ):
@@ -257,24 +308,30 @@ function evaluateStatusBody(
       };
     }
 
-    // Conclusive failure must still bind to this payment's commercial terms.
-    const bound = evaluateBindingFields(status, opts);
-    if (!bound.ok) {
-      return { ok: false, reason: bound.reason, keep_review: true };
+    // Commercial fields (network, asset, payTo; amount when returned; payer when known).
+    const commercial = evaluateCommercialFields(status, {
+      env: opts.env,
+      expectedPayer: opts.expectedPayer,
+      requireAmount: false,
+    });
+    if (!commercial.ok) {
+      return { ok: false, reason: commercial.reason, keep_review: true };
     }
-    // Amount must be present for settle success; for failure, require when
-    // we cannot otherwise uniquely bind — require amount for strong binding.
-    if (status.amount == null || String(status.amount).trim() === "") {
-      // Allow failure without amount only if payer + network + asset + payTo bind.
-      // User requires amount when exposed; when not exposed keep review for safety
-      // unless payer was matched or payment_id matched.
-      const hasStrongId =
-        Boolean(String(status.paymentId || status.payment_id || "").trim()) ||
-        (Boolean(opts.expectedPayer) &&
-          Boolean(String(status.payer || "").trim()));
-      if (!hasStrongId) {
-        return { ok: false, reason: "amount_missing", keep_review: true };
-      }
+
+    // Payment-specific binding is mandatory for conclusive failure.
+    const specific = evaluatePaymentSpecificBinding({
+      expectedTx: opts.expectedTx,
+      storedSettlementRef: opts.storedSettlementRef,
+      storedProviderPaymentId: opts.storedProviderPaymentId,
+      storedProviderAuthorizationId: opts.storedProviderAuthorizationId,
+      status,
+    });
+    if (!specific.ok) {
+      return {
+        ok: false,
+        reason: specific.reason,
+        keep_review: true,
+      };
     }
 
     return {
@@ -306,11 +363,11 @@ function evaluateStatusBody(
     return { ok: false, reason: "transaction_unconfirmed", keep_review: true };
   }
 
-  // Settled: amount required.
-  if (status.amount == null || String(status.amount).trim() === "") {
-    return { ok: false, reason: "amount_missing", keep_review: true };
-  }
-  const bound = evaluateBindingFields(status, opts);
+  const bound = evaluateCommercialFields(status, {
+    env: opts.env,
+    expectedPayer: opts.expectedPayer,
+    requireAmount: true,
+  });
   if (!bound.ok) {
     return { ok: false, reason: bound.reason, keep_review: true };
   }
@@ -429,7 +486,9 @@ export async function applySettlementReview(args: {
       env: args.env,
       fetchImpl: args.fetchImpl,
       expectedPayer: payment.payer_address,
-      expectedAuthorizationDigest: payment.authorization_digest,
+      storedProviderPaymentId: payment.provider_payment_id,
+      storedProviderAuthorizationId: payment.provider_authorization_id,
+      storedSettlementRef: payment.settlement_ref,
       mode: "failed",
       statusOverride: args.statusOverride,
     });
@@ -484,7 +543,9 @@ export async function applySettlementReview(args: {
     env: args.env,
     fetchImpl: args.fetchImpl,
     expectedPayer: payment.payer_address,
-    expectedAuthorizationDigest: payment.authorization_digest,
+    storedProviderPaymentId: payment.provider_payment_id,
+    storedProviderAuthorizationId: payment.provider_authorization_id,
+    storedSettlementRef: payment.settlement_ref,
     mode: "settled",
     statusOverride: args.statusOverride,
   });
