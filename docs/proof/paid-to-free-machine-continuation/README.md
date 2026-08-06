@@ -4,6 +4,8 @@
 **Baseline:** `6e56e07` → fallback repair from `ebe24bd`  
 **Verdict:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_FINAL_PASS`
 
+**Superseded (2026-08-06):** buyer-agent interoperability repair removes claim secrets from **new** paid responses and changes marketplace journey valid stages to HTTP 200. See `docs/proof/buyer-agent-interoperability-repair/`. Historical claim recovery and machine-owned sanitizers from this lane remain.
+
 ## Defects repaired
 
 1. **Incomplete continuation contract** — after a genuine Monitoring Pass payment, Nobu exposed internal values (`connection_token`, `connection_id`, `discovery_session_id`) without a complete machine-resumable contract, so buyer agents asked the user for tokens/IDs.

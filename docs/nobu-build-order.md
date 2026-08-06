@@ -5,26 +5,33 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Paid-to-free machine continuation FINAL PASS
+## Active closeout — Buyer-agent interoperability SAFE PASS
 
-**State:** FINAL PASS — generic buyer agent completes paid→free setup; fallback paths never solicit machine-owned fields; consent retries preserve `connection_token`.
+**State:** SAFE PASS — new paid responses never expose claim secrets; journey ensured at settlement; neutral continuation metadata; marketplace valid stages HTTP 200 with proven buyer-client compatibility.
 
-Repair (2026-08-05) baseline `6e56e07` → fallback `ebe24bd`:
+Repair (2026-08-06) baseline `1775ff1`:
 
-- Sole Production domain `https://www.usenobu.xyz` for free `/v1/agent` and paid `/v1/agent/monitoring-pass`.
-- Authoritative `protocol_continuation` on paid issuance and every journey stage.
-- Machine-owned values never in user-required fields (including failed pass-resolution); hard sanitizer on contracts.
-- Shared consents response always carries token; tokenless consent → `INTERNAL_CONTINUATION_STATE_MISSING`.
-- Generic A-to-Z + fallback repair focused tests green.
+- Compatibility audit (Onchain OS 4.4.0 + installed OKX skills) before HTTP status change.
+- Paid settlement: pass + `ensureMarketplacePurchaseJourney` → handoff at `confirm_use_pass` with public `journey_id` only.
+- No `pass_claim_credential` / `claim_credential` on newly issued paid bodies; historical claim-hash recovery kept.
+- Neutral `protocol_continuation` (`user_input_fields` / `machine_fields` / `sensitive_fields`) + `interaction`; no `do_not_ask_user` / `do_not_display` / imperative guidance on paid/marketplace.
+- Marketplace journey valid input-required + automatic stages → HTTP 200 only (legacy free action enum unchanged).
+- `connection_token` boundary unchanged.
 
 Exact next lane:
 
-1. Optional operator recovery for pre-repair live pass (no second payment; no user-facing tokens).
-2. Optional User-role chat against agent `5541` (at most one **new** payment) only when readiness allows.
+1. Optional operator recovery for pre-repair live passes (no second payment; no user-facing tokens).
+2. Optional User-role chat against agent `5541` only when readiness allows (at most one **new** payment).
 3. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
 
-**Closeout proof:** `docs/proof/paid-to-free-machine-continuation/README.md`.
-**Current verdict:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_FINAL_PASS`.
+**Closeout proof:** `docs/proof/buyer-agent-interoperability-repair/README.md`.
+**Current verdict:** `NOBU_BUYER_AGENT_INTEROPERABILITY_SAFE_PASS`.
+
+## Prior closeout — Paid-to-free machine continuation FINAL PASS
+
+**State:** superseded as active closeout by buyer-agent interoperability repair.
+
+Evidence: `docs/proof/paid-to-free-machine-continuation/README.md`.
 
 ## Prior closeout — Paid-to-active transaction LIVE READY / BLOCKED
 

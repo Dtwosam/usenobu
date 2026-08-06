@@ -1,9 +1,11 @@
 # Nobu Current State
 
-**Date:** 2026-08-05
-**Status:** `NOBU_PAID_TO_FREE_MACHINE_CONTINUATION_FINAL_PASS` — paid→free machine continuation + fallback sanitization; sole Production domain `https://www.usenobu.xyz`; generic A-to-Z and consent-token retry proofs green.
+**Date:** 2026-08-06
+**Status:** `NOBU_BUYER_AGENT_INTEROPERABILITY_SAFE_PASS` — paid claim secret removed from new responses; journey ensured at settlement; neutral protocol continuation; marketplace journey valid stages HTTP 200 (compatibility-proven).
 
-**Paid-to-free machine continuation final (2026-08-05):** **PASS.** Baseline `ebe24bd` (prior `6e56e07`). Fallback repair: pass-resolution never lists machine-owned fields; `sanitizeUserInputContractFields` hard-filters contracts; shared consents helper preserves `connection_token` on verification, incomplete consents, preflight/redeem retries; tokenless consent stage → `INTERNAL_CONTINUATION_STATE_MISSING`. Focused gates + typecheck + build clean. No genuine payment, no ASP edit. Evidence: `docs/proof/paid-to-free-machine-continuation/`.
+**Buyer-agent interoperability repair (2026-08-06):** **PASS.** Baseline `1775ff1`. Compatibility audit of Onchain OS 4.4.0 + OKX skills proved HTTP 200 + `fields`/`requiredArgs`/`input_required` continues collection (post-pay `replayBody` path); live 400 human stages were misread as transport errors. New paid handoff: ensure journey at settlement; return `confirm_use_pass` with `journey_id` only — no `pass_claim_credential`. Neutral `protocol_continuation` + `interaction` (no `do_not_*` / imperative guidance). Historical claim-hash recovery preserved. Live monitor `pass_ec936ecc…` not mutated. Evidence: `docs/proof/buyer-agent-interoperability-repair/`.
+
+**Paid-to-free machine continuation final (2026-08-05):** **SUPERSEDED as current status** by interoperability repair (continuation contract remains). Baseline `ebe24bd` (prior `6e56e07`). Evidence: `docs/proof/paid-to-free-machine-continuation/`.
 
 **Paid-to-active final transactional repair (2026-08-05):** **SUPERSEDED as current status** by machine-continuation lane above (provider-id + summary path remain). Baseline `ca83267` → code `5341168`. Deploy `dpl_9XND8k78yfbDfpQq5NSsStEviAhM` on sole Production domain `https://www.usenobu.xyz`. Evidence: `docs/proof/paid-to-active-transaction-live-ready/`.
 
