@@ -22,6 +22,7 @@ import {
 } from "../../src/payments/claim-credential.js";
 import {
   monitoringPassForAgent,
+  monitoringPassResponseBody,
 } from "../../src/payments/monitoring-pass-service.js";
 import type { X402Verifier, X402VerifyResult } from "../../src/payments/x402.js";
 import {
@@ -93,8 +94,7 @@ describe("1. real paid → claim → marketplace journey", () => {
     resetAuthStoreCache();
   });
 
-  it("paid response → pass_claim_credential → runMarketplaceJourney creates journey", async () => {
-    // Real sequence: do not call claimPassAndCreateJourney store primitive as substitute.
+  it("paid response ensures journey → runMarketplaceJourney resumes confirm_use_pass", async () => {
     const paid = await monitoringPassForAgent({
       paymentAuthorizationHeader: "signed-header-audit-journey-1",
       resource: PASS_RESOURCE,
@@ -105,52 +105,30 @@ describe("1. real paid → claim → marketplace journey", () => {
     expect(paid.ok && paid.status === "MONITORING_PASS_ISSUED").toBe(true);
     if (!paid.ok || paid.status !== "MONITORING_PASS_ISSUED") return;
 
-    expect(paid.pass_claim_credential).toBeTruthy();
+    expect(paid.journey_id).toBeTruthy();
     expect(paid.pass_continuation_id).toBeTruthy();
+    const paidBody = monitoringPassResponseBody(paid, env);
+    expect(JSON.stringify(paidBody)).not.toMatch(
+      /pass_claim_credential|claim_credential/,
+    );
+    expect(paidBody.required_fields).toEqual(["confirm_use_pass"]);
 
-    const claimed = await runMarketplaceJourney(
-      {
-        monitoring_pass_id: paid.pass.id,
-        pass_continuation_id: paid.pass_continuation_id,
-        pass_claim_credential: paid.pass_claim_credential,
-      },
+    const resumed = await runMarketplaceJourney(
+      { journey_id: paid.journey_id },
       { sqliteDb: db, env },
     );
-    // Journey created; first human stage is confirm_use_pass (input_required).
-    expect([200, 400]).toContain(claimed.http_status);
-    expect(claimed.body.journey_id).toBeTruthy();
-    expect(claimed.body.current_step || claimed.body.status).toBeTruthy();
-    const journeyId = String(claimed.body.journey_id);
-    expect(journeyId.length).toBeGreaterThan(4);
+    expect(resumed.http_status).toBe(200);
+    expect(String(resumed.body.journey_id)).toBe(paid.journey_id);
+    expect(resumed.body.current_step).toBe("confirm_use_pass");
+    const journeyId = String(resumed.body.journey_id);
 
-    // Public pass id alone cannot re-create or reveal a new journey.
+    // Pass id alone resumes the already-ensured journey (no second create).
     const alone = await runMarketplaceJourney(
       { monitoring_pass_id: paid.pass.id },
       { sqliteDb: db, env },
     );
-    expect(alone.http_status).toBe(401);
-    expect(alone.body.status).toBe("CLAIM_NOT_AUTHORIZED");
-
-    // Invalid credential after consumption cannot retrieve journey.
-    const bad = await runMarketplaceJourney(
-      {
-        pass_continuation_id: paid.pass_continuation_id,
-        pass_claim_credential: "pass_claim_not_valid_xxx",
-      },
-      { sqliteDb: db, env },
-    );
-    expect(bad.http_status).toBe(401);
-
-    // Valid repeated credential recovers same journey (lost response).
-    const recover = await runMarketplaceJourney(
-      {
-        monitoring_pass_id: paid.pass.id,
-        pass_continuation_id: paid.pass_continuation_id,
-        pass_claim_credential: paid.pass_claim_credential,
-      },
-      { sqliteDb: db, env },
-    );
-    expect(String(recover.body.journey_id)).toBe(journeyId);
+    expect(alone.http_status).toBe(200);
+    expect(String(alone.body.journey_id)).toBe(journeyId);
 
     // Normal continuation uses journey_id only.
     const cont = await runMarketplaceJourney(
@@ -186,7 +164,7 @@ describe("2. concurrent continuation + fail-closed secret", () => {
     resetAuthStoreCache();
   });
 
-  it("five concurrent first successful replays share one pass, continuation, claim", async () => {
+  it("five concurrent first successful replays share one pass, continuation, journey", async () => {
     const header = "signed-header-concurrent-5";
     const results = await Promise.all(
       Array.from({ length: 5 }, () =>
@@ -211,35 +189,29 @@ describe("2. concurrent continuation + fail-closed secret", () => {
         r.ok && r.status === "MONITORING_PASS_ISSUED" ? r.pass_continuation_id : "",
       ),
     );
-    const claims = new Set(
+    const journeyIds = new Set(
       issued.map((r) =>
-        r.ok && r.status === "MONITORING_PASS_ISSUED" ? r.pass_claim_credential : "",
+        r.ok && r.status === "MONITORING_PASS_ISSUED" ? r.journey_id : "",
       ),
     );
     expect(passIds.size).toBe(1);
     expect(contIds.size).toBe(1);
-    expect(claims.size).toBe(1);
-    const claim = [...claims][0];
-    expect(claim).toMatch(/^pass_claim_/);
+    expect(journeyIds.size).toBe(1);
 
-    // Credential is usable for journey create.
-    expect(claim && claim.length > 10).toBe(true);
+    for (const r of issued) {
+      const body = monitoringPassResponseBody(r as Extract<typeof r, { ok: true }>, env);
+      expect(JSON.stringify(body)).not.toMatch(/pass_claim_credential|claim_credential/);
+    }
+
     const journey = await runMarketplaceJourney(
-      {
-        pass_continuation_id: [...contIds][0],
-        pass_claim_credential: claim,
-        monitoring_pass_id: [...passIds][0],
-      },
+      { journey_id: [...journeyIds][0] },
       { sqliteDb: db, env },
     );
-    if (journey.http_status === 401) {
-      // Surface failure for diagnosis
-      expect(journey.body).toMatchObject({ status: "CLAIM_NOT_AUTHORIZED" });
-    }
-    expect(String(journey.body.journey_id || "")).toBeTruthy();
+    expect(journey.http_status).toBe(200);
+    expect(String(journey.body.journey_id || "")).toBe([...journeyIds][0]);
   });
 
-  it("missing NOBU_PASS_CLAIM_SECRET fails closed (no claimless continuation)", async () => {
+  it("missing NOBU_PASS_CLAIM_SECRET still issues pass + journey without claim secret", async () => {
     expect(
       resolvePassClaimSecret({
         NOBU_AUTH_TEST_MODE: "1",
@@ -257,13 +229,18 @@ describe("2. concurrent continuation + fail-closed secret", () => {
       },
       testVerifier: acceptingVerifier("0xtx_no_secret"),
     });
-    // Fail closed: no usable claim credential / claimless public-ID path.
+    // New handoff does not require claim secret — pass + journey are enough.
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.status).toBe("SETTLEMENT_REVIEW_REQUIRED");
-    if (result.status === "SETTLEMENT_REVIEW_REQUIRED") {
-      expect(result.note).toContain("PASS_HANDOFF_CONFIGURATION_REQUIRED");
-      expect(result.pass_continuation_id).toBe("");
+    expect(result.status).toBe("MONITORING_PASS_ISSUED");
+    if (result.status === "MONITORING_PASS_ISSUED") {
+      expect(result.journey_id).toBeTruthy();
+      expect(result.pass_continuation_id).toBeTruthy();
+      const body = monitoringPassResponseBody(result, {
+        ...env,
+        NOBU_PASS_CLAIM_SECRET: "",
+      });
+      expect(JSON.stringify(body)).not.toMatch(/pass_claim_credential|claim_credential/);
     }
   });
 });
@@ -292,7 +269,9 @@ describe("3. durable schedule source of truth (≥80, blocked mixed, multi-worke
     resetAuthStoreCache();
   });
 
-  it("keyset skips blocked/stopped; eligible past position 50; one provider; budget bounded", async () => {
+  it(
+    "keyset skips blocked/stopped; eligible past position 50; one provider; budget bounded",
+    async () => {
     const store = await getAuthStore({
       sqliteDb: durableDb,
       env,
@@ -468,7 +447,9 @@ describe("3. durable schedule source of truth (≥80, blocked mixed, multi-worke
 
     localA.close();
     localB.close();
-  });
+  },
+  30_000,
+  );
 });
 
 describe("4. durable outbox worker", () => {

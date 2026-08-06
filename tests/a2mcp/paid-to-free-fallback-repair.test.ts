@@ -436,13 +436,13 @@ describe("consent token preservation and retry", () => {
     const cont = r.body.protocol_continuation as {
       endpoint: string;
       body: Record<string, unknown>;
-      merge_user_fields?: string[];
+      user_input_fields?: string[];
       sensitive_fields?: string[];
     };
     expect(cont.endpoint).toBe(CANONICAL_FREE);
     expect(cont.body.connection_token).toBe(connectionToken);
     expect(cont.body.journey_id).toBe(journeyId);
-    expect(cont.merge_user_fields).toEqual([
+    expect(cont.user_input_fields).toEqual([
       "monitoring_consent",
       "email_alert_consent",
     ]);

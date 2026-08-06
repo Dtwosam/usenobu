@@ -406,26 +406,34 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(body.next_service_id).toBe(33561);
     expect(body.second_payment_required).toBe(false);
     expect(body.payment_status).toBe("recognized");
-    expect(body.automatic_continue).toBe(true);
-    expect(body.input_required).toBe(false);
-    expect(body.required_fields).toEqual([]);
+    expect(body.automatic_continue).toBe(false);
+    expect(body.input_required).toBe(true);
+    expect(body.required_fields).toEqual(["confirm_use_pass"]);
+    expect(body.current_step).toBe("confirm_use_pass");
     expect(body.pass_claim_credential).toBeUndefined();
+    expect(JSON.stringify(body)).not.toMatch(/pass_claim_credential|claim_credential/);
     const cont = body.protocol_continuation as {
       endpoint: string;
       body: Record<string, unknown>;
+      user_input_fields?: string[];
+      machine_fields?: string[];
       sensitive_fields?: string[];
-      do_not_ask_user: true;
-      do_not_display: true;
     };
     expect(cont).toBeTruthy();
     expect(cont.endpoint).toBe("https://www.usenobu.xyz/v1/agent");
-    expect(cont.body.pass_continuation_id).toBe(issued.pass_continuation_id);
-    expect(cont.body.pass_claim_credential).toBeTruthy();
-    expect(cont.sensitive_fields).toContain("pass_claim_credential");
-    expect(cont.do_not_ask_user).toBe(true);
-    expect(cont.do_not_display).toBe(true);
+    expect(cont.body.journey_id).toBeTruthy();
+    expect(cont.body.pass_claim_credential).toBeUndefined();
+    expect(cont.user_input_fields).toEqual(["confirm_use_pass"]);
+    expect(cont.machine_fields).toContain("journey_id");
+    expect(cont.sensitive_fields).toEqual([]);
     expect(body.machine_continuation).toEqual(body.protocol_continuation);
+    expect(body.interaction).toEqual({
+      mode: "user_input",
+      fields: ["confirm_use_pass"],
+      confirmation_required: true,
+    });
     expect(issued.payment_response_header).toBeTruthy();
+    expect(issued.journey_id).toBeTruthy();
   });
 
   it("duplicate replay of the same payment returns the same pass", async () => {
@@ -853,6 +861,8 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
       status: "MONITORING_PASS_ISSUED",
       http_status: 200,
       pass_continuation_id: "pass_cont_test_only_not_secret",
+      journey_id: "journey_test_only_not_secret",
+      journey_stage: "confirm_use_pass",
       pass: {
         id: pass.id,
         pass_token_hash: "internal",
@@ -874,6 +884,8 @@ describe("Lane 8R.3B A2MCP first contact + Monitoring Pass", () => {
     expect(body.monitoring_active).toBe(false);
     expect(body.next_service_id).toBe(33561);
     expect(body.monitoring_pass_token).toBeUndefined();
+    expect(body.input_required).toBe(true);
+    expect(JSON.stringify(body)).not.toMatch(/pass_claim_credential|claim_credential/);
     const bodyJson = JSON.stringify(body);
     expect(bodyJson).not.toContain(pendingTx);
     expect(bodyJson).not.toContain(confirmedTx);

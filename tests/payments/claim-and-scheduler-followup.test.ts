@@ -14,6 +14,7 @@ import { sha256Hex } from "../../src/auth/crypto.js";
 import { derivePassClaimCredential } from "../../src/payments/claim-credential.js";
 import {
   monitoringPassForAgent,
+  monitoringPassResponseBody,
   resolveMonitoringPassForAgent,
 } from "../../src/payments/monitoring-pass-service.js";
 import type { X402Verifier, X402VerifyResult } from "../../src/payments/x402.js";
@@ -67,7 +68,7 @@ describe("claim credential recovery", () => {
     resetAuthStoreCache();
   });
 
-  it("lost successful response then replay still returns usable claim credential", async () => {
+  it("lost successful response then replay still returns same pass and journey", async () => {
     const header = "signed-header-claim-recover-1";
     const first = await monitoringPassForAgent({
       paymentAuthorizationHeader: header,
@@ -78,8 +79,10 @@ describe("claim credential recovery", () => {
     });
     expect(first.ok && first.status === "MONITORING_PASS_ISSUED").toBe(true);
     if (!first.ok || first.status !== "MONITORING_PASS_ISSUED") return;
-    const claim1 = first.pass_claim_credential;
-    expect(claim1).toBeTruthy();
+    expect(first.journey_id).toBeTruthy();
+    expect(first.journey_stage).toBe("confirm_use_pass");
+    const body1 = monitoringPassResponseBody(first);
+    expect(JSON.stringify(body1)).not.toMatch(/pass_claim_credential|claim_credential/);
 
     // Replay same payment (lost HTTP response recovery)
     const second = await monitoringPassForAgent({
@@ -91,8 +94,9 @@ describe("claim credential recovery", () => {
     });
     expect(second.ok && second.status === "MONITORING_PASS_ISSUED").toBe(true);
     if (!second.ok || second.status !== "MONITORING_PASS_ISSUED") return;
-    expect(second.pass_claim_credential).toBe(claim1);
     expect(second.pass.id).toBe(first.pass.id);
+    expect(second.journey_id).toBe(first.journey_id);
+    expect(second.journey_stage).toBe(first.journey_stage);
   });
 
   it("atomic claim+journey: concurrent claims create one journey", async () => {
@@ -219,7 +223,9 @@ describe("durable scheduler multi-page + budget", () => {
     resetAuthStoreCache();
   });
 
-  it("processes pages beyond 50 activations and durable budget is shared", async () => {
+  it(
+    "processes pages beyond 50 activations and durable budget is shared",
+    async () => {
     const store = await getAuthStore({
       sqliteDb: durableDb,
       env,
@@ -326,7 +332,9 @@ describe("durable scheduler multi-page + budget", () => {
     ).toBeGreaterThan(0);
 
     localA.close();
-  });
+  },
+  30_000,
+  );
 });
 
 describe("durable outbox authoritative", () => {

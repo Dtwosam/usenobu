@@ -1,9 +1,13 @@
 /**
  * Authoritative machine-resumable continuation contract.
  *
- * Buyer agents must follow `protocol_continuation` only: POST `body` (plus any
- * `merge_user_fields` collected from the user) to `endpoint`. Never ask the
- * user for machine-owned values; never display `sensitive_fields`.
+ * Buyer agents POST `body` (plus any collected `user_input_fields`) to
+ * `endpoint`. Machine-owned values live only in `body` / `machine_fields`.
+ * Secrets are listed under `sensitive_fields` and must never be displayed or
+ * requested as user input.
+ *
+ * Neutral typed metadata only — no imperative agent-control prose such as
+ * do_not_ask_user / do_not_display / guidance hide/post silently instructions.
  */
 
 import {
@@ -37,17 +41,21 @@ export const SENSITIVE_CONTINUATION_FIELDS = [
   "PAYMENT-SIGNATURE",
 ] as const;
 
+/**
+ * Neutral protocol continuation for paid handoff and marketplace journey.
+ * service_id is always free Purchase Setup (33561).
+ */
 export type ProtocolContinuation = {
   method: "POST";
   endpoint: string;
   service_id: typeof FREE_SERVICE_ID;
   body: Record<string, unknown>;
   /** User fields the buyer agent must collect and merge into body before POST. */
-  merge_user_fields?: string[];
-  /** Values that must never be shown or logged. */
-  sensitive_fields?: string[];
-  do_not_ask_user: true;
-  do_not_display: true;
+  user_input_fields: string[];
+  /** Machine-owned keys already present in body (never ask the user). */
+  machine_fields: string[];
+  /** Secrets in body that must never be shown or logged. */
+  sensitive_fields: string[];
 };
 
 /**
@@ -56,33 +64,75 @@ export type ProtocolContinuation = {
  */
 export type MachineContinuation = ProtocolContinuation;
 
+/** How the buyer should interact for this stage. */
+export type InteractionMetadata = {
+  mode: "user_input" | "automatic";
+  fields: string[];
+  confirmation_required: boolean;
+};
+
+export function buildUserInputInteraction(fields: string[]): InteractionMetadata {
+  return {
+    mode: "user_input",
+    fields: [...fields],
+    confirmation_required: fields.length > 0,
+  };
+}
+
+export function buildAutomaticInteraction(): InteractionMetadata {
+  return {
+    mode: "automatic",
+    fields: [],
+    confirmation_required: false,
+  };
+}
+
+function machineFieldsFromBody(body: Record<string, unknown>): string[] {
+  return Object.keys(body).filter((k) => isMachineOwnedField(k));
+}
+
 export function buildProtocolContinuation(args: {
   body: Record<string, unknown>;
-  merge_user_fields?: string[];
+  user_input_fields?: string[];
   sensitive_fields?: string[];
   env?: EnvRecord;
 }): ProtocolContinuation {
-  const sensitive = args.sensitive_fields?.length
-    ? [...args.sensitive_fields]
-    : undefined;
-  const merge = args.merge_user_fields?.length
-    ? [...args.merge_user_fields]
-    : undefined;
-  const cont: ProtocolContinuation = {
+  const body = { ...args.body };
+  const user_input_fields = userVisibleFieldsOnly(args.user_input_fields ?? []);
+  const sensitive = [...(args.sensitive_fields ?? [])];
+  const machine_fields = machineFieldsFromBody(body);
+  return {
     method: "POST",
     endpoint: resolveFreeServiceEndpoint(args.env),
     service_id: FREE_SERVICE_ID,
-    body: { ...args.body },
-    do_not_ask_user: true,
-    do_not_display: true,
+    body,
+    user_input_fields,
+    machine_fields,
+    sensitive_fields: sensitive,
   };
-  if (merge) cont.merge_user_fields = merge;
-  if (sensitive) cont.sensitive_fields = sensitive;
-  return cont;
 }
 
-/** Paid-issuance continuation: claim + open journey (no redeem / no confirm). */
-export function buildPaidPassContinuation(args: {
+/**
+ * New paid handoff: journey already ensured at settlement; only ask confirm_use_pass.
+ * No secret-bearing automatic POST. Public journey_id is a non-secret workflow handle.
+ */
+export function buildPaidJourneyHandoffContinuation(args: {
+  journeyId: string;
+  env?: EnvRecord;
+}): ProtocolContinuation {
+  return buildProtocolContinuation({
+    body: { journey_id: args.journeyId },
+    user_input_fields: ["confirm_use_pass"],
+    sensitive_fields: [],
+    env: args.env,
+  });
+}
+
+/**
+ * Historical recovery only: claim credential path for pre-repair continuations
+ * that still carry a credential hash. Never used for newly issued paid responses.
+ */
+export function buildHistoricalClaimContinuation(args: {
   passContinuationId: string;
   passClaimCredential: string;
   env?: EnvRecord;
@@ -92,6 +142,7 @@ export function buildPaidPassContinuation(args: {
       pass_continuation_id: args.passContinuationId,
       pass_claim_credential: args.passClaimCredential,
     },
+    user_input_fields: [],
     sensitive_fields: ["pass_claim_credential"],
     env: args.env,
   });
@@ -101,13 +152,13 @@ export function buildPaidPassContinuation(args: {
 export function buildJourneyContinuation(args: {
   journeyId: string;
   bodyExtras?: Record<string, unknown>;
-  merge_user_fields?: string[];
+  user_input_fields?: string[];
   sensitive_fields?: string[];
   env?: EnvRecord;
 }): ProtocolContinuation {
   return buildProtocolContinuation({
     body: { journey_id: args.journeyId, ...(args.bodyExtras ?? {}) },
-    merge_user_fields: args.merge_user_fields,
+    user_input_fields: args.user_input_fields,
     sensitive_fields: args.sensitive_fields,
     env: args.env,
   });
@@ -118,13 +169,15 @@ export function buildJourneyContinuation(args: {
  * Continuation body secrets become redaction markers.
  */
 export function redactSecrets<T>(value: T): T {
-  return redactDeep(value, new Set(SENSITIVE_CONTINUATION_FIELDS.map((s) => s.toLowerCase()))) as T;
+  return redactDeep(
+    value,
+    new Set(SENSITIVE_CONTINUATION_FIELDS.map((s) => s.toLowerCase())),
+  ) as T;
 }
 
 function redactDeep(value: unknown, sensitiveKeys: Set<string>): unknown {
   if (value == null) return value;
   if (typeof value === "string") {
-    // Never emit long secret-looking tokens in free text when redacting.
     return value;
   }
   if (Array.isArray(value)) {
@@ -141,7 +194,6 @@ function redactDeep(value: unknown, sensitiveKeys: Set<string>): unknown {
         typeof v === "object" &&
         !Array.isArray(v)
       ) {
-        // Nested continuation body
         out[k] = redactDeep(v, sensitiveKeys);
       } else {
         out[k] = redactDeep(v, sensitiveKeys);
@@ -186,10 +238,9 @@ export function internalContinuationStateMissing(args: {
     automatic_continue: false,
     protocol_continuation: null,
     machine_continuation: null,
+    interaction: buildAutomaticInteraction(),
     message:
       "Internal continuation state is unavailable. Do not pay again. Do not ask the user for tokens or credentials.",
-    guidance:
-      "Do not request payment or internal credentials from the user. Keep any public support reference if already known. Never open a second payment.",
     ...(args.journeyId ? { journey_id: args.journeyId } : {}),
     ...(args.monitoringPassId
       ? { monitoring_pass_id: args.monitoringPassId }
@@ -207,8 +258,6 @@ export function claimNotAuthorizedBody(message?: string): Record<string, unknown
     message:
       message ??
       "This request is not authorized to start Purchase Setup. Public identifiers alone cannot continue.",
-    guidance:
-      "Do not ask the user for internal credentials. Do not invent a payment. If a Monitoring Pass was just purchased, retry only with the machine continuation from the paid response.",
     monitoring_active: false,
     second_payment_required: false,
     journey_complete: false,
@@ -220,6 +269,7 @@ export function claimNotAuthorizedBody(message?: string): Record<string, unknown
     automatic_continue: false,
     protocol_continuation: null,
     machine_continuation: null,
+    interaction: buildAutomaticInteraction(),
     retry_safe: false,
     next_action: "CONTACT_SUPPORT_WITH_JOURNEY_ID",
   };
@@ -244,5 +294,58 @@ export function sanitizeUserInputContractFields<T extends Record<string, unknown
     }
     out.required_user_input = rui;
   }
+  // Strip imperative agent-control continuation flags if any nested copy leaked.
+  if (
+    out.protocol_continuation &&
+    typeof out.protocol_continuation === "object" &&
+    !Array.isArray(out.protocol_continuation)
+  ) {
+    out.protocol_continuation = sanitizeContinuationObject(
+      out.protocol_continuation as Record<string, unknown>,
+    );
+  }
+  if (
+    out.machine_continuation &&
+    typeof out.machine_continuation === "object" &&
+    !Array.isArray(out.machine_continuation)
+  ) {
+    out.machine_continuation = sanitizeContinuationObject(
+      out.machine_continuation as Record<string, unknown>,
+    );
+  }
+  // Neutral marketplace/paid surface: never leave these imperative keys.
+  delete out.do_not_ask_user;
+  delete out.do_not_display;
   return out as T;
+}
+
+function sanitizeContinuationObject(
+  cont: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...cont };
+  delete next.do_not_ask_user;
+  delete next.do_not_display;
+  delete next.guidance;
+  // Prefer user_input_fields; drop legacy merge_user_fields if both present.
+  if (
+    Array.isArray(next.merge_user_fields) &&
+    !Array.isArray(next.user_input_fields)
+  ) {
+    next.user_input_fields = userVisibleFieldsOnly(
+      next.merge_user_fields as string[],
+    );
+  }
+  delete next.merge_user_fields;
+  if (!Array.isArray(next.user_input_fields)) next.user_input_fields = [];
+  if (!Array.isArray(next.machine_fields)) {
+    next.machine_fields =
+      next.body && typeof next.body === "object" && !Array.isArray(next.body)
+        ? machineFieldsFromBody(next.body as Record<string, unknown>)
+        : [];
+  }
+  if (!Array.isArray(next.sensitive_fields)) next.sensitive_fields = [];
+  next.user_input_fields = userVisibleFieldsOnly(
+    next.user_input_fields as string[],
+  );
+  return next;
 }

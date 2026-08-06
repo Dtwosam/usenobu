@@ -114,7 +114,7 @@ describe("bare service_id selection (findings 1)", () => {
 });
 
 describe("human stages carry protocol_continuation without machine-owned required fields", () => {
-  it("human stages expose merge_user_fields and never require journey_id", () => {
+  it("human stages expose user_input_fields and never require journey_id", () => {
     for (const stage of [
       "confirm_use_pass",
       "purchase_description",
@@ -132,13 +132,14 @@ describe("human stages carry protocol_continuation without machine-owned require
       expect(body.protocol_continuation?.body.journey_id).toBe(
         "journey_human_cont",
       );
-      expect(body.protocol_continuation?.merge_user_fields).toEqual(
+      expect(body.protocol_continuation?.user_input_fields).toEqual(
         body.required_fields,
       );
       expect(body.machine_continuation).toEqual(body.protocol_continuation);
       expect(body.journey_id).toBe("journey_human_cont");
       expect(body.fields).not.toContain("journey_id");
       expect(body.fields).not.toContain("connection_token");
+      expect(body.guidance).toBeUndefined();
     }
   });
 });
@@ -237,7 +238,7 @@ describe("no-result discovery and activation_pending", () => {
     expect(extracted.body.current_step).toBe("product_discovery");
 
     const discovered = await runMarketplaceJourney({ journey_id: journeyId }, deps);
-    expect(discovered.http_status).toBe(400);
+    expect(discovered.http_status).toBe(200);
     expect(discovered.body.status).toBe("MORE_INFORMATION_REQUIRED");
     expect(discovered.body.current_step).toBe("purchase_description");
     expect(discovered.body.input_required).toBe(true);
@@ -245,7 +246,7 @@ describe("no-result discovery and activation_pending", () => {
     expect(discovered.body.protocol_continuation).toEqual(
       expect.objectContaining({
         body: expect.objectContaining({ journey_id: journeyId }),
-        merge_user_fields: ["purchase_description"],
+        user_input_fields: ["purchase_description"],
       }),
     );
     expect(discovered.body.fields).toEqual(["purchase_description"]);
@@ -345,9 +346,7 @@ describe("no-result discovery and activation_pending", () => {
           connection_token: connectionToken,
         }),
         sensitive_fields: ["connection_token"],
-        do_not_ask_user: true,
-        do_not_display: true,
-      }),
+        }),
     );
     expect(pending.body.machine_continuation).toEqual(
       pending.body.protocol_continuation,

@@ -52,9 +52,19 @@ import {
   resolveFreeServiceEndpoint,
   buildPaidPrePaymentMachineFields,
 } from "../a2mcp/service-catalogue.js";
-import { buildPaidPassContinuation } from "../a2mcp/protocol-continuation.js";
+import {
+  buildAutomaticInteraction,
+  buildPaidJourneyHandoffContinuation,
+  buildUserInputInteraction,
+} from "../a2mcp/protocol-continuation.js";
+import {
+  marketplaceIncompleteContract,
+  marketplaceMonitoringActiveContract,
+  type MarketplaceStage,
+} from "../a2mcp/conversation-contract.js";
 import { derivePassClaimCredential } from "./claim-credential.js";
 import type { CanonicalPaymentRequirements } from "./canonical-requirements.js";
+import type { MarketplacePurchaseJourneyRow } from "../auth/auth-store.js";
 
 type EnvRecord = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -144,11 +154,23 @@ export type MonitoringPassResult =
       http_status: 200;
       pass: MonitoringPassRow;
       pass_continuation_id: string;
-      /** Single-use claim secret — only on first successful issue response. */
-      pass_claim_credential?: string;
+      /** Durable journey ensured at settlement (or recovered). */
+      journey_id: string;
+      journey_stage: string;
       settlementRef: string;
       payer?: string;
       payment_response_header: string;
+    }
+  | {
+      ok: true;
+      status: "MONITORING_PASS_DELIVERY_PENDING";
+      http_status: 200;
+      pass: MonitoringPassRow;
+      pass_continuation_id: string;
+      settlementRef: string;
+      payer?: string;
+      payment_response_header: string;
+      note: string;
     }
   | {
       ok: true;
@@ -179,27 +201,28 @@ export type MonitoringPassResult =
       sanitized_reason?: string;
     };
 
-export type EnsureContinuationResult =
-  | {
-      ok: true;
-      id: string;
-      claimCredentialRaw?: string;
-    }
-  | {
-      ok: false;
-      reason: "PASS_HANDOFF_CONFIGURATION_REQUIRED";
-    };
+export type EnsureContinuationResult = {
+  ok: true;
+  id: string;
+  /**
+   * Historical only: raw claim credential when a hash is stored and unconsumed.
+   * Never serialized into new paid public responses.
+   */
+  claimCredentialRaw?: string;
+};
+
+function newJourneyId(): string {
+  return `journey_${randomUUID().replace(/-/g, "")}`;
+}
 
 /**
- * Concurrency-safe continuation + claim credential:
+ * Concurrency-safe continuation row:
  * 1) insert/resolve unique continuation first;
- * 2) read winning row id;
- * 3) derive credential from winning payment_id + continuation_id;
- * 4) store hash when absent;
- * 5) reread and verify stored hash;
- * 6) return credential derived from the actual stored row.
+ * 2) when NOBU_PASS_CLAIM_SECRET is configured, store historical claim hash
+ *    for pre-repair recovery (never required for new paid handoff);
+ * 3) return continuation id (raw claim only for internal historical recovery).
  *
- * Fails closed when NOBU_PASS_CLAIM_SECRET is not configured.
+ * New paid responses never expose pass_claim_credential.
  */
 async function ensureContinuation(
   store: AuthStore,
@@ -208,7 +231,6 @@ async function ensureContinuation(
   monitoringPassId?: string | null,
   env?: EnvRecord,
 ): Promise<EnsureContinuationResult> {
-  // Step 1–2: insert or resolve unique continuation without inventing a claim yet.
   const provisionalId = newContinuationId();
   let row = await store.ensureMonitoringPassContinuation({
     id: provisionalId,
@@ -219,67 +241,90 @@ async function ensureContinuation(
     nowIso,
   });
 
-  // Winning id may differ under concurrency (ON CONFLICT payment_id).
   const winningId = row.id;
 
-  // Step 3: derive from the actual winning row identity.
+  // Optional historical claim hash — only when secret is configured.
+  // New handoff does not depend on this; missing secret is not a delivery failure.
   const derived = derivePassClaimCredential({
     paymentId,
     continuationId: winningId,
     env,
   });
-  if (!derived) {
-    return { ok: false, reason: "PASS_HANDOFF_CONFIGURATION_REQUIRED" };
+  if (derived) {
+    await store.ensureMonitoringPassContinuation({
+      id: winningId,
+      paymentId,
+      monitoringPassId: monitoringPassId ?? null,
+      status:
+        monitoringPassId
+          ? "issued"
+          : row.status === "claimed"
+            ? "claimed"
+            : "issued",
+      claimCredentialHash: derived.hash,
+      nowIso,
+    });
+  } else if (monitoringPassId) {
+    await store.ensureMonitoringPassContinuation({
+      id: winningId,
+      paymentId,
+      monitoringPassId,
+      status: "issued",
+      claimCredentialHash: null,
+      nowIso,
+    });
   }
 
-  // Step 4: atomically store hash when still absent (first writer wins).
-  await store.ensureMonitoringPassContinuation({
-    id: winningId,
-    paymentId,
-    monitoringPassId: monitoringPassId ?? null,
-    status: monitoringPassId ? "issued" : row.status === "claimed" ? "claimed" : "issued",
-    claimCredentialHash: derived.hash,
-    nowIso,
-  });
-
-  // Step 5: reread and verify stored hash matches our derivation of winning id.
   row = (await store.getMonitoringPassContinuationByPaymentId(paymentId))!;
-  if (!row.claim_credential_hash) {
-    return { ok: false, reason: "PASS_HANDOFF_CONFIGURATION_REQUIRED" };
-  }
-  // Re-derive from stored winning id — must match hash.
-  const verified = derivePassClaimCredential({
-    paymentId,
-    continuationId: row.id,
-    env,
-  });
-  if (!verified || verified.hash !== row.claim_credential_hash) {
-    // Another writer's hash won — re-derive for their id (same payment, same row).
-    const forStored = derivePassClaimCredential({
+
+  let claimCredentialRaw: string | undefined;
+  if (row.claim_credential_hash && !row.claim_credential_consumed_at) {
+    const verified = derivePassClaimCredential({
       paymentId,
       continuationId: row.id,
       env,
     });
-    if (!forStored || forStored.hash !== row.claim_credential_hash) {
-      return { ok: false, reason: "PASS_HANDOFF_CONFIGURATION_REQUIRED" };
+    if (verified && verified.hash === row.claim_credential_hash) {
+      claimCredentialRaw = verified.raw;
     }
-    return {
-      ok: true,
-      id: row.id,
-      claimCredentialRaw: row.claim_credential_consumed_at
-        ? undefined
-        : forStored.raw,
-    };
   }
 
-  // Step 6: return credential only while unconsumed.
   return {
     ok: true,
     id: row.id,
-    claimCredentialRaw: row.claim_credential_consumed_at
-      ? undefined
-      : verified.raw,
+    claimCredentialRaw,
   };
+}
+
+/**
+ * Exactly one journey per monitoring_pass_id (idempotent ensure).
+ * Never resets an advanced journey.
+ */
+async function ensureIssuedPassJourney(
+  store: AuthStore,
+  args: {
+    monitoringPassId: string;
+    passContinuationId: string;
+    nowIso: string;
+  },
+): Promise<MarketplacePurchaseJourneyRow | null> {
+  try {
+    return await store.ensureMarketplacePurchaseJourney({
+      id: newJourneyId(),
+      monitoringPassId: args.monitoringPassId,
+      passContinuationId: args.passContinuationId,
+      nowIso: args.nowIso,
+    });
+  } catch {
+    // Recover readable journey if a concurrent insert won or transient failure.
+    try {
+      return await store.getMarketplacePurchaseJourneyByPassId(
+        args.monitoringPassId,
+      );
+    } catch {
+      return null;
+    }
+  }
 }
 
 async function challengeResult(args: {
@@ -327,16 +372,62 @@ function safeReceipt(args: {
   });
 }
 
-function handoffConfigFail(
-  paymentId: string,
-): Extract<MonitoringPassResult, { ok: true }> {
+async function finalizeIssuedPassResult(args: {
+  store: AuthStore;
+  pass: MonitoringPassRow;
+  paymentId: string;
+  settlementRef: string;
+  nowIso: string;
+  payer?: string | null;
+  env?: EnvRecord;
+}): Promise<
+  Extract<
+    MonitoringPassResult,
+    { status: "MONITORING_PASS_ISSUED" | "MONITORING_PASS_DELIVERY_PENDING" }
+  >
+> {
+  const cont = await ensureContinuation(
+    args.store,
+    args.paymentId,
+    args.nowIso,
+    args.pass.id,
+    args.env,
+  );
+  const receipt = safeReceipt({
+    success: true,
+    transaction: args.settlementRef,
+    payer: args.payer ?? undefined,
+    status: "success",
+  });
+  const journey = await ensureIssuedPassJourney(args.store, {
+    monitoringPassId: args.pass.id,
+    passContinuationId: cont.id,
+    nowIso: args.nowIso,
+  });
+  if (!journey) {
+    return {
+      ok: true,
+      status: "MONITORING_PASS_DELIVERY_PENDING",
+      http_status: 200,
+      pass: args.pass,
+      pass_continuation_id: cont.id,
+      settlementRef: args.settlementRef,
+      payer: args.payer ?? args.pass.payer_address ?? undefined,
+      payment_response_header: receipt,
+      note: "Payment recognized and Monitoring Pass issued. Purchase Setup delivery is completing. Do not pay again.",
+    };
+  }
   return {
     ok: true,
-    status: "SETTLEMENT_REVIEW_REQUIRED",
+    status: "MONITORING_PASS_ISSUED",
     http_status: 200,
-    pass_continuation_id: "",
-    operator_reference: paymentId,
-    note: "PASS_HANDOFF_CONFIGURATION_REQUIRED: NOBU_PASS_CLAIM_SECRET is not configured. Pass issuance cannot complete a secure handoff. Do not pay again.",
+    pass: args.pass,
+    pass_continuation_id: cont.id,
+    journey_id: journey.id,
+    journey_stage: journey.stage,
+    settlementRef: args.settlementRef,
+    payer: args.payer ?? args.pass.payer_address ?? undefined,
+    payment_response_header: receipt,
   };
 }
 
@@ -352,30 +443,15 @@ async function issuePassForSettlement(args: {
     args.settlementRef,
   );
   if (existing) {
-    const cont = await ensureContinuation(
-      args.store,
-      args.paymentId,
-      args.nowIso,
-      existing.id,
-      args.env,
-    );
-    if (!cont.ok) return handoffConfigFail(args.paymentId);
-    return {
-      ok: true,
-      status: "MONITORING_PASS_ISSUED",
-      http_status: 200,
+    return finalizeIssuedPassResult({
+      store: args.store,
       pass: existing,
-      pass_continuation_id: cont.id,
-      pass_claim_credential: cont.claimCredentialRaw,
+      paymentId: args.paymentId,
       settlementRef: args.settlementRef,
-      payer: args.payer ?? existing.payer_address ?? undefined,
-      payment_response_header: safeReceipt({
-        success: true,
-        transaction: args.settlementRef,
-        payer: args.payer ?? undefined,
-        status: "success",
-      }),
-    };
+      nowIso: args.nowIso,
+      payer: args.payer ?? existing.payer_address,
+      env: args.env,
+    });
   }
 
   const hash = mintInternalPassSecretHash();
@@ -390,31 +466,15 @@ async function issuePassForSettlement(args: {
     payerAddress: args.payer ?? null,
   });
 
-  const cont = await ensureContinuation(
-    args.store,
-    args.paymentId,
-    args.nowIso,
-    issued.pass.id,
-    args.env,
-  );
-  if (!cont.ok) return handoffConfigFail(args.paymentId);
-
-  return {
-    ok: true,
-    status: "MONITORING_PASS_ISSUED",
-    http_status: 200,
+  return finalizeIssuedPassResult({
+    store: args.store,
     pass: issued.pass,
-    pass_continuation_id: cont.id,
-    pass_claim_credential: cont.claimCredentialRaw,
+    paymentId: args.paymentId,
     settlementRef: args.settlementRef,
-    payer: args.payer ?? undefined,
-    payment_response_header: safeReceipt({
-      success: true,
-      transaction: args.settlementRef,
-      payer: args.payer ?? undefined,
-      status: "success",
-    }),
-  };
+    nowIso: args.nowIso,
+    payer: args.payer,
+    env: args.env,
+  });
 }
 
 /**
@@ -685,7 +745,6 @@ export async function monitoringPassForAgent(
       null,
       args.env,
     );
-    if (!cont.ok) return handoffConfigFail(payment.id);
     return {
       ok: true,
       status: "SETTLEMENT_REVIEW_REQUIRED",
@@ -704,7 +763,6 @@ export async function monitoringPassForAgent(
       null,
       args.env,
     );
-    if (!cont.ok) return handoffConfigFail(payment.id);
     return {
       ok: true,
       status: "PAYMENT_SETTLEMENT_UNKNOWN",
@@ -751,7 +809,6 @@ export async function monitoringPassForAgent(
       null,
       args.env,
     );
-    if (!cont.ok) return handoffConfigFail(payment.id);
     return {
       ok: true,
       status: "PAYMENT_SETTLEMENT_PENDING",
@@ -809,7 +866,6 @@ async function resumePendingPassSettlement(args: {
         args.payment.id,
         args.nowIso,
       );
-      if (!cont.ok) return handoffConfigFail(args.payment.id);
       return {
         ok: true,
         status: "SETTLEMENT_REVIEW_REQUIRED",
@@ -828,27 +884,15 @@ async function resumePendingPassSettlement(args: {
       fetchImpl: args.fetchImpl,
     });
     if (outcomeUnknown.kind === "issued") {
-      const cont = await ensureContinuation(
-        args.store,
-        args.payment.id,
-        args.nowIso,
-        outcomeUnknown.pass.id,
-      );
-      if (!cont.ok) return handoffConfigFail(args.payment.id);
-      return {
-        ok: true,
-        status: "MONITORING_PASS_ISSUED",
-        http_status: 200,
+      return finalizeIssuedPassResult({
+        store: args.store,
         pass: outcomeUnknown.pass,
-        pass_continuation_id: cont.id,
-        pass_claim_credential: cont.claimCredentialRaw,
+        paymentId: args.payment.id,
         settlementRef: outcomeUnknown.pass.settlement_ref,
-        payment_response_header: safeReceipt({
-          success: true,
-          transaction: outcomeUnknown.pass.settlement_ref,
-          status: "success",
-        }),
-      };
+        nowIso: args.nowIso,
+        payer: outcomeUnknown.pass.payer_address,
+        env: args.env,
+      });
     }
     if (outcomeUnknown.kind === "failed") {
       return challengeResult({
@@ -862,7 +906,6 @@ async function resumePendingPassSettlement(args: {
       args.payment.id,
       args.nowIso,
     );
-    if (!cont.ok) return handoffConfigFail(args.payment.id);
     return {
       ok: true,
       status: "PAYMENT_SETTLEMENT_UNKNOWN",
@@ -888,28 +931,15 @@ async function resumePendingPassSettlement(args: {
   });
 
   if (outcome.kind === "issued") {
-    const cont = await ensureContinuation(
-      args.store,
-      args.payment.id,
-      args.nowIso,
-      outcome.pass.id,
-    );
-    if (!cont.ok) return handoffConfigFail(args.payment.id);
-    return {
-      ok: true,
-      status: "MONITORING_PASS_ISSUED",
-      http_status: 200,
+    return finalizeIssuedPassResult({
+      store: args.store,
       pass: outcome.pass,
-      pass_continuation_id: cont.id,
-      pass_claim_credential: cont.claimCredentialRaw,
+      paymentId: args.payment.id,
       settlementRef: outcome.pass.settlement_ref,
-      payer: outcome.pass.payer_address ?? undefined,
-      payment_response_header: safeReceipt({
-        success: true,
-        transaction: outcome.pass.settlement_ref,
-        status: "success",
-      }),
-    };
+      nowIso: args.nowIso,
+      payer: outcome.pass.payer_address,
+      env: args.env,
+    });
   }
   if (outcome.kind === "failed") {
     // Conclusive on-chain failure may re-challenge.
@@ -928,7 +958,6 @@ async function resumePendingPassSettlement(args: {
   const isUnknown =
     args.payment.status === "settlement_unknown" ||
     outcome.note?.includes("unknown");
-  if (!cont.ok) return handoffConfigFail(args.payment.id);
   return {
     ok: true,
     status: isUnknown
@@ -973,29 +1002,15 @@ async function pollPendingSettlementToPass(args: {
       fetchImpl: args.fetchImpl,
     });
     if (outcome.kind === "issued") {
-      const cont = await ensureContinuation(
-        args.store,
-        args.paymentId,
-        args.nowIso,
-        outcome.pass.id,
-      );
-      if (!cont.ok) return handoffConfigFail(args.paymentId);
-      return {
-        ok: true,
-        status: "MONITORING_PASS_ISSUED",
-        http_status: 200,
+      return finalizeIssuedPassResult({
+        store: args.store,
         pass: outcome.pass,
-        pass_continuation_id: cont.id,
-        pass_claim_credential: cont.claimCredentialRaw,
+        paymentId: args.paymentId,
         settlementRef: outcome.pass.settlement_ref,
+        nowIso: args.nowIso,
         payer: args.payer,
-        payment_response_header: safeReceipt({
-          success: true,
-          transaction: outcome.pass.settlement_ref,
-          payer: args.payer,
-          status: "success",
-        }),
-      };
+        env: args.env,
+      });
     }
     if (outcome.kind === "failed") return null;
   }
@@ -1182,6 +1197,7 @@ export type PassSettlementReconciliationResult = {
   failed: number;
   issued_pass_ids: string[];
   continuations_backfilled: number;
+  journeys_backfilled: number;
 };
 
 export async function reconcilePendingPassSettlements(args: {
@@ -1259,18 +1275,54 @@ export async function reconcilePendingPassSettlements(args: {
   }
 
   let continuationsBackfilled = 0;
+  let journeysBackfilled = 0;
   const missing = await store.listSettledPassPaymentsMissingContinuation();
   for (const payment of missing) {
     const pass = await store.getMonitoringPassByPaymentId(payment.id);
     if (!pass) continue;
-    {
-
-      const _c = await ensureContinuation(store, payment.id, nowIso, pass.id);
-
-      void _c;
-
-    }
+    const cont = await ensureContinuation(store, payment.id, nowIso, pass.id);
+    const journey = await ensureIssuedPassJourney(store, {
+      monitoringPassId: pass.id,
+      passContinuationId: cont.id,
+      nowIso,
+    });
+    if (journey) journeysBackfilled += 1;
     continuationsBackfilled += 1;
+  }
+
+  // Settled passes with continuation but missing journey (delivery-pending recovery).
+  for (const payment of limited) {
+    const pass = await store.getMonitoringPassByPaymentId(payment.id);
+    if (!pass) continue;
+    const existingJourney = await store.getMarketplacePurchaseJourneyByPassId(
+      pass.id,
+    );
+    if (existingJourney) continue;
+    const contRow =
+      (await store.getMonitoringPassContinuationByPassId(pass.id)) ??
+      (await store.getMonitoringPassContinuationByPaymentId(payment.id));
+    if (!contRow) continue;
+    const journey = await ensureIssuedPassJourney(store, {
+      monitoringPassId: pass.id,
+      passContinuationId: contRow.id,
+      nowIso,
+    });
+    if (journey) journeysBackfilled += 1;
+  }
+
+  // Also ensure journey for every pass issued in this reconcile batch.
+  for (const passId of issuedPassIds) {
+    const existingJourney =
+      await store.getMarketplacePurchaseJourneyByPassId(passId);
+    if (existingJourney) continue;
+    const contRow = await store.getMonitoringPassContinuationByPassId(passId);
+    if (!contRow) continue;
+    const journey = await ensureIssuedPassJourney(store, {
+      monitoringPassId: passId,
+      passContinuationId: contRow.id,
+      nowIso,
+    });
+    if (journey) journeysBackfilled += 1;
   }
 
   return {
@@ -1280,30 +1332,147 @@ export async function reconcilePendingPassSettlements(args: {
     failed,
     issued_pass_ids: issuedPassIds,
     continuations_backfilled: continuationsBackfilled,
+    journeys_backfilled: journeysBackfilled,
+  };
+}
+
+const MARKETPLACE_STAGES = new Set<string>([
+  "confirm_use_pass",
+  "purchase_description",
+  "product_discovery",
+  "candidate_id",
+  "email",
+  "verification_code",
+  "consents",
+]);
+
+/**
+ * Build public paid success body from an already-ensured journey stage.
+ * Never includes pass_claim_credential / claim_credential.
+ * Replay never resets an advanced journey; complete → MONITORING_ACTIVE.
+ */
+function issuedPassPublicBody(
+  result: Extract<MonitoringPassResult, { status: "MONITORING_PASS_ISSUED" }>,
+  env?: EnvRecord,
+): Record<string, unknown> {
+  const freeEndpoint = resolveFreeServiceEndpoint(env);
+  const baseMeta = {
+    service_id: PAID_SERVICE_ID,
+    service_name: PAID_SERVICE_NAME,
+    deliverable: { type: "monitoring_pass", quantity: 1 },
+    monitoring_pass_id: result.pass.id,
+    pass_continuation_id: result.pass_continuation_id,
+    journey_id: result.journey_id,
+    price_amount: result.pass.price_amount,
+    price_currency: result.pass.price_currency,
+    redeemable_for: monitoringPassRedeemableFor(env),
+    payment_status: "recognized" as const,
+    second_payment_required: false,
+    next_service_id: FREE_SERVICE_ID,
+    next_service_endpoint: freeEndpoint,
+    free_service_endpoint: freeEndpoint,
+    protocol_replay: null,
+    transaction_receipt: {
+      network: DEFAULT_SETTLEMENT_NETWORK,
+      settlement_confirmed: true,
+    },
+  };
+
+  if (result.journey_stage === "complete") {
+    const active = marketplaceMonitoringActiveContract({
+      journeyId: result.journey_id,
+      monitoringPassId: result.pass.id,
+      passContinuationId: result.pass_continuation_id,
+    });
+    return {
+      ...active,
+      ...baseMeta,
+      status: "MONITORING_ACTIVE",
+      current_step: "complete",
+      monitoring_active: true,
+      journey_complete: true,
+      input_required: false,
+      automatic_continue: false,
+      required_fields: [],
+      fields: [],
+      requiredArgs: [],
+      required_user_input: null,
+      protocol_continuation: null,
+      machine_continuation: null,
+      interaction: buildAutomaticInteraction(),
+    };
+  }
+
+  const stage = (
+    MARKETPLACE_STAGES.has(result.journey_stage)
+      ? result.journey_stage
+      : "confirm_use_pass"
+  ) as MarketplaceStage;
+
+  // For advanced human stages, return the durable stage contract without secrets.
+  // Paid first handoff and confirm_use_pass share the same confirm-only shape.
+  const stageContract = marketplaceIncompleteContract({
+    stage,
+    journeyId: result.journey_id,
+    monitoringPassId: result.pass.id,
+    passContinuationId: result.pass_continuation_id,
+    env,
+  });
+
+  // Prefer paid-spec handoff for confirm_use_pass (explicit confirm field).
+  if (stage === "confirm_use_pass") {
+    const protocol_continuation = buildPaidJourneyHandoffContinuation({
+      journeyId: result.journey_id,
+      env,
+    });
+    return {
+      status: "MONITORING_PASS_ISSUED",
+      current_step: "confirm_use_pass",
+      completed_step: "MONITORING_PASS_ISSUED",
+      next_action: "CONFIRM_USE_PASS",
+      message: stageContract.message,
+      ...baseMeta,
+      monitoring_active: false,
+      journey_complete: false,
+      automatic_continue: false,
+      input_required: true,
+      required_fields: ["confirm_use_pass"],
+      fields: ["confirm_use_pass"],
+      requiredArgs: ["confirm_use_pass"],
+      required_user_input: {
+        required_fields: ["confirm_use_pass"],
+        description: stageContract.message,
+      },
+      protocol_continuation,
+      machine_continuation: protocol_continuation,
+      interaction: buildUserInputInteraction(["confirm_use_pass"]),
+    };
+  }
+
+  return {
+    ...stageContract,
+    ...baseMeta,
+    monitoring_active: false,
+    journey_complete: false,
   };
 }
 
 /**
- * Neutral typed unpaid body — facts only, no imperative agent-control prose.
- * Successful issuance includes authoritative protocol_continuation so a
- * generic buyer agent can continue without asking the user for tokens.
+ * Neutral typed unpaid/paid body — facts only, no imperative agent-control prose.
+ * Successful issuance returns the durable journey stage (no claim secret).
  */
 export function monitoringPassResponseBody(
   result: MonitoringPassResult,
   env?: EnvRecord,
 ): Record<string, unknown> {
   if (result.ok && result.status === "MONITORING_PASS_ISSUED") {
+    return issuedPassPublicBody(result, env);
+  }
+
+  if (result.ok && result.status === "MONITORING_PASS_DELIVERY_PENDING") {
     const freeEndpoint = resolveFreeServiceEndpoint(env);
-    // claim credential lives only inside protocol_continuation.body (never top-level).
-    const protocol_continuation = result.pass_claim_credential
-      ? buildPaidPassContinuation({
-          passContinuationId: result.pass_continuation_id,
-          passClaimCredential: result.pass_claim_credential,
-          env,
-        })
-      : null;
     return {
-      status: "MONITORING_PASS_ISSUED",
+      status: "MONITORING_PASS_DELIVERY_PENDING",
       service_id: PAID_SERVICE_ID,
       service_name: PAID_SERVICE_NAME,
       deliverable: { type: "monitoring_pass", quantity: 1 },
@@ -1316,22 +1485,23 @@ export function monitoringPassResponseBody(
       payment_status: "recognized",
       second_payment_required: false,
       journey_complete: false,
-      automatic_continue: true,
+      automatic_continue: false,
       input_required: false,
       required_fields: [],
       fields: [],
       requiredArgs: [],
       required_user_input: null,
+      protocol_continuation: null,
+      machine_continuation: null,
+      interaction: buildAutomaticInteraction(),
       next_service_id: FREE_SERVICE_ID,
       next_service_endpoint: freeEndpoint,
       free_service_endpoint: freeEndpoint,
-      protocol_continuation,
-      // Legacy mirror — identical to protocol_continuation when present.
-      machine_continuation: protocol_continuation,
+      note: result.note,
+      message: result.note,
       protocol_replay: null,
       transaction_receipt: {
         network: DEFAULT_SETTLEMENT_NETWORK,
-        // Safe public ref only — not a signature
         settlement_confirmed: true,
       },
     };
@@ -1353,9 +1523,9 @@ export function monitoringPassResponseBody(
             : "pending",
       second_payment_required: false,
       next_service_id: FREE_SERVICE_ID,
-      note: result.note,
+      note: "note" in result ? result.note : undefined,
       journey_complete: false,
-      ...(result.operator_reference
+      ...("operator_reference" in result && result.operator_reference
         ? { operator_reference: result.operator_reference }
         : {}),
     };

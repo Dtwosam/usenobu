@@ -1,11 +1,13 @@
 /**
- * Generic buyer-agent A-to-Z proof.
+ * Generic buyer-agent A-to-Z proof (buyer interoperability repair).
  *
  * The agent knows only:
  *   required_fields | input_required | automatic_continue | protocol_continuation
+ *   | interaction
  *
  * It never asks the user for machine-owned IDs/tokens and never invents a
- * second payment. One mocked settlement → MONITORING_ACTIVE.
+ * second payment. One mocked settlement → journey ensured → MONITORING_ACTIVE.
+ * New paid responses never contain pass_claim_credential.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -27,6 +29,8 @@ import {
 import type { X402Verifier } from "../../src/payments/x402.js";
 import type { MatchableOffer } from "../../src/matching/types.js";
 import { DEFAULT_FREE_SERVICE_ENDPOINT } from "../../src/a2mcp/service-catalogue.js";
+import { sha256Hex } from "../../src/auth/crypto.js";
+import { derivePassClaimCredential } from "../../src/payments/claim-credential.js";
 
 const CANONICAL = "www.usenobu.xyz";
 // Reconstruct obsolete generated alias without embedding the literal hostname.
@@ -80,10 +84,9 @@ type ProtocolContinuation = {
   endpoint: string;
   service_id: number;
   body: Record<string, unknown>;
-  merge_user_fields?: string[];
-  sensitive_fields?: string[];
-  do_not_ask_user: true;
-  do_not_display: true;
+  user_input_fields: string[];
+  machine_fields: string[];
+  sensitive_fields: string[];
 };
 
 type AgentView = {
@@ -103,9 +106,15 @@ type AgentView = {
   monitoring_pass_id?: string;
   pass_continuation_id?: string;
   current_step?: string;
+  interaction?: {
+    mode: string;
+    fields: string[];
+    confirmation_required: boolean;
+  };
+  guidance?: string;
 };
 
-/** Generic buyer agent: only follows the four contract surfaces. */
+/** Generic buyer agent: only follows the contract surfaces. */
 async function followContinuation(
   body: AgentView,
   deps: {
@@ -125,10 +134,13 @@ async function followContinuation(
   expect(cont.endpoint).toContain(CANONICAL);
   expect(cont.endpoint).not.toContain(OBSOLETE_HOST);
   expect(cont.service_id).toBe(33561);
-  expect(cont.do_not_ask_user).toBe(true);
-  expect(cont.do_not_display).toBe(true);
+  // Neutral metadata only — no imperative agent-control flags.
+  expect((cont as Record<string, unknown>).do_not_ask_user).toBeUndefined();
+  expect((cont as Record<string, unknown>).do_not_display).toBeUndefined();
+  expect(Array.isArray(cont.user_input_fields)).toBe(true);
+  expect(Array.isArray(cont.machine_fields)).toBe(true);
+  expect(Array.isArray(cont.sensitive_fields)).toBe(true);
 
-  // Secrets must not appear in human message.
   const msg = String(body.message || "");
   for (const s of cont.sensitive_fields || []) {
     const secret = cont.body[s];
@@ -142,6 +154,7 @@ async function followContinuation(
   if (body.automatic_continue && !body.input_required) {
     log.push(`auto:${body.status || "auto"}`);
     const result = await runMarketplaceJourney(postBody, deps);
+    expect(result.http_status).toBe(200);
     return result.body as AgentView;
   }
 
@@ -154,15 +167,15 @@ async function followContinuation(
       }
       postBody[field] = userAnswers[field];
     }
-    // Only merge listed fields — never invent machine tokens from userAnswers.
-    if (cont.merge_user_fields) {
-      for (const field of cont.merge_user_fields) {
+    if (cont.user_input_fields) {
+      for (const field of cont.user_input_fields) {
         expect(MACHINE_OWNED).not.toContain(field);
         if (field in userAnswers) postBody[field] = userAnswers[field];
       }
     }
     log.push(`human:${required.join("+")}`);
     const result = await runMarketplaceJourney(postBody, deps);
+    expect(result.http_status).toBe(200);
     return result.body as AgentView;
   }
 
@@ -175,17 +188,15 @@ function assertNoSecretLeak(body: AgentView, secrets: string[]): void {
     message: body.message,
     required_fields: body.required_fields,
     fields: body.fields,
-    // Intentionally omit protocol_continuation body secrets from "human" surface.
   });
   for (const s of secrets) {
     if (s) expect(serialized).not.toContain(s);
   }
-  // required_fields must never list machine-owned names
   for (const f of body.required_fields || body.fields || []) {
     expect(MACHINE_OWNED).not.toContain(f);
   }
-  // Full response must not contain obsolete hostname
   expect(JSON.stringify(body)).not.toContain(OBSOLETE_HOST);
+  expect(JSON.stringify(body)).not.toMatch(/pass_claim_credential|claim_credential/);
 }
 
 describe("generic buyer agent A-to-Z protocol_continuation", () => {
@@ -236,7 +247,6 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
     const settlementRef = "settle_generic_buyer_a2z_001";
     const paymentHeader = "mock-payment-sig-generic-buyer-a2z";
 
-    // 1. Mock one confirmed paid settlement.
     const paid = await monitoringPassForAgent({
       paymentAuthorizationHeader: paymentHeader,
       resource: "https://www.usenobu.xyz/v1/agent/monitoring-pass",
@@ -255,49 +265,41 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
     }) as AgentView;
 
     expect(paidBody.status).toBe("MONITORING_PASS_ISSUED");
+    expect(paidBody.current_step).toBe("confirm_use_pass");
     expect(paidBody.payment_status).toBe("recognized");
     expect(paidBody.second_payment_required).toBe(false);
     expect(paidBody.monitoring_active).toBe(false);
     expect(paidBody.journey_complete).toBe(false);
-    expect(paidBody.automatic_continue).toBe(true);
-    expect(paidBody.input_required).toBe(false);
-    expect(paidBody.required_fields).toEqual([]);
+    expect(paidBody.automatic_continue).toBe(false);
+    expect(paidBody.input_required).toBe(true);
+    expect(paidBody.required_fields).toEqual(["confirm_use_pass"]);
+    expect(paidBody.guidance).toBeUndefined();
+    expect(paidBody.interaction).toEqual({
+      mode: "user_input",
+      fields: ["confirm_use_pass"],
+      confirmation_required: true,
+    });
     expect(paidBody.protocol_continuation).toBeTruthy();
     expect(paidBody.machine_continuation).toEqual(paidBody.protocol_continuation);
     expect(paidBody.protocol_continuation!.endpoint).toBe(
       DEFAULT_FREE_SERVICE_ENDPOINT,
     );
-    expect(paidBody.protocol_continuation!.body.pass_continuation_id).toBeTruthy();
-    expect(paidBody.protocol_continuation!.body.pass_claim_credential).toBeTruthy();
-    // Credential only inside continuation body — never top-level.
+    expect(paidBody.protocol_continuation!.body.journey_id).toBeTruthy();
+    expect(paidBody.protocol_continuation!.body.pass_claim_credential).toBeUndefined();
+    expect(paidBody.protocol_continuation!.user_input_fields).toEqual([
+      "confirm_use_pass",
+    ]);
+    expect(paidBody.protocol_continuation!.machine_fields).toContain("journey_id");
+    expect(paidBody.protocol_continuation!.sensitive_fields).toEqual([]);
     expect((paidBody as Record<string, unknown>).pass_claim_credential).toBeUndefined();
-
-    const claimSecret = String(
-      paidBody.protocol_continuation!.body.pass_claim_credential,
+    expect(JSON.stringify(paidBody)).not.toMatch(
+      /pass_claim_credential|claim_credential/,
     );
-    const secretsSeen = [claimSecret, paymentHeader];
 
+    const secretsSeen = [paymentHeader];
     assertNoSecretLeak(paidBody, secretsSeen);
-    // Human-facing serialization of status/message must not include claim secret.
-    expect(String(paidBody.message || "")).not.toContain(claimSecret);
 
-    // 2. Post paid continuation → claim + one journey → confirm_use_pass.
-    const log: string[] = [];
-    let body = await followContinuation(paidBody, deps, {}, log);
-
-    // Replay of paid continuation recovers the same journey (idempotent claim).
-    const replay = await followContinuation(paidBody, deps, {}, []);
-    expect(replay.journey_id).toBe(body.journey_id);
-    expect(replay.status).toBe("MONITORING_PASS_ISSUED");
-
-    const journeyId = String(body.journey_id);
-    expect(journeyId).toMatch(/^journey_/);
-    expect(body.required_fields).toEqual(["confirm_use_pass"]);
-    expect(body.input_required).toBe(true);
-    expect(body.automatic_continue).toBe(false);
-    assertNoSecretLeak(body, secretsSeen);
-
-    // One pass, one payment, one journey.
+    // Journey already ensured at settlement — one payment, one pass, one journey.
     expect(
       (db.prepare(`SELECT COUNT(*) AS c FROM monitoring_passes`).get() as { c: number }).c,
     ).toBe(1);
@@ -310,6 +312,29 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
       }).c,
     ).toBe(1);
 
+    // Replay paid settlement returns same pass + journey; does not reset stage.
+    const replayPaid = await monitoringPassForAgent({
+      paymentAuthorizationHeader: paymentHeader,
+      resource: "https://www.usenobu.xyz/v1/agent/monitoring-pass",
+      sqliteDb: db,
+      testVerifier: acceptingVerifier(settlementRef),
+      env: {
+        NOBU_AUTH_TEST_MODE: "1",
+        NOBU_PASS_CLAIM_SECRET: process.env.NOBU_PASS_CLAIM_SECRET,
+      },
+    });
+    expect(replayPaid.ok && replayPaid.status === "MONITORING_PASS_ISSUED").toBe(true);
+    if (replayPaid.ok && replayPaid.status === "MONITORING_PASS_ISSUED") {
+      expect(replayPaid.pass.id).toBe(paid.pass.id);
+      expect(replayPaid.journey_id).toBe(paid.journey_id);
+      expect(replayPaid.journey_stage).toBe("confirm_use_pass");
+    }
+
+    const log: string[] = [];
+    let body = paidBody;
+    const journeyId = String(body.journey_id || body.protocol_continuation!.body.journey_id);
+    expect(journeyId).toMatch(/^journey_/);
+
     const purchaseDescription = [
       "I bought an Example Gadget from Target online",
       `on ${recentPurchaseDate()} for $24.99 in TX,`,
@@ -317,7 +342,6 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
       "https://www.target.com/p/example-gadget/-/A-87654321",
     ].join(" ");
 
-    // Dynamic user answers filled as human stages appear.
     const userAnswers: Record<string, unknown> = {
       confirm_use_pass: true,
       purchase_description: purchaseDescription,
@@ -329,16 +353,16 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
     // confirm_use_pass
     body = await followContinuation(body, deps, userAnswers, log);
     expect(body.required_fields).toEqual(["purchase_description"]);
+    expect(body.guidance).toBeUndefined();
     expect(String(body.message || "")).toMatch(/purchase price|purchase date|Target/i);
-    // Must not solicit a custom alert threshold as user input.
     expect(body.required_fields).not.toContain("alert_threshold");
-    expect(body.required_fields).not.toContain("price_threshold");
 
     // purchase_description → automatic product_discovery
     body = await followContinuation(body, deps, userAnswers, log);
     expect(body.automatic_continue).toBe(true);
     expect(body.current_step as string | undefined).toBe("product_discovery");
     expect(body.required_fields).toEqual([]);
+    expect(body.interaction?.mode).toBe("automatic");
 
     // product_discovery automatic → candidate_id
     body = await followContinuation(body, deps, userAnswers, log);
@@ -373,6 +397,7 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
       body.protocol_continuation?.body.connection_token || "",
     );
     expect(token).toBeTruthy();
+    expect(body.protocol_continuation?.sensitive_fields).toContain("connection_token");
     secretsSeen.push(token);
     assertNoSecretLeak(body, secretsSeen);
     expect((body as Record<string, unknown>).connection_token).toBeUndefined();
@@ -380,7 +405,6 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
     // consents → MONITORING_ACTIVE (or ACTIVATION_PENDING then auto)
     body = await followContinuation(body, deps, userAnswers, log);
 
-    // Bounded ACTIVATION_PENDING auto-continue if projection pending.
     let guard = 0;
     while (
       body.status === "ACTIVATION_PENDING" &&
@@ -400,10 +424,8 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
     expect(body.second_payment_required).toBe(false);
     expect(body.payment_status).toBe("recognized");
     expect(JSON.stringify(body)).not.toContain(OBSOLETE_HOST);
-    expect(JSON.stringify(body)).not.toContain(claimSecret);
-    expect(body.required_fields || []).not.toContain("alert_threshold");
+    expect(JSON.stringify(body)).not.toMatch(/pass_claim_credential|claim_credential/);
 
-    // Human sequence exact.
     expect(log.filter((l) => l.startsWith("human:"))).toEqual([
       "human:confirm_use_pass",
       "human:purchase_description",
@@ -413,7 +435,6 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
       "human:monitoring_consent+email_alert_consent",
     ]);
 
-    // Exactly-once durable outcomes.
     expect(
       (db.prepare(`SELECT COUNT(*) AS c FROM monitoring_passes`).get() as { c: number }).c,
     ).toBe(1);
@@ -438,13 +459,33 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
 
     // Idempotent complete resume.
     const again = await runMarketplaceJourney({ journey_id: journeyId }, deps);
+    expect(again.http_status).toBe(200);
     expect(again.body.status).toBe("MONITORING_ACTIVE");
     expect(
       (db.prepare(`SELECT COUNT(*) AS c FROM monitor_activations`).get() as { c: number }).c,
     ).toBe(1);
+
+    // Paid replay after completion returns MONITORING_ACTIVE, no second payment.
+    const afterComplete = await monitoringPassForAgent({
+      paymentAuthorizationHeader: paymentHeader,
+      resource: "https://www.usenobu.xyz/v1/agent/monitoring-pass",
+      sqliteDb: db,
+      testVerifier: acceptingVerifier(settlementRef),
+      env: {
+        NOBU_AUTH_TEST_MODE: "1",
+        NOBU_PASS_CLAIM_SECRET: process.env.NOBU_PASS_CLAIM_SECRET,
+      },
+    });
+    const afterBody = monitoringPassResponseBody(afterComplete) as AgentView;
+    expect(afterBody.status).toBe("MONITORING_ACTIVE");
+    expect(afterBody.monitoring_active).toBe(true);
+    expect(afterBody.second_payment_required).toBe(false);
+    expect(JSON.stringify(afterBody)).not.toMatch(
+      /pass_claim_credential|claim_credential/,
+    );
   });
 
-  it("public ids alone cannot claim; ACTIVATION_PENDING carries token; concurrent claim is single journey", async () => {
+  it("ensures one journey at settlement; concurrent resume is single journey; historical claim still works", async () => {
     const deps = {
       sqliteDb: db,
       forceDeterministic: true,
@@ -464,51 +505,101 @@ describe("generic buyer agent A-to-Z protocol_continuation", () => {
     expect(paid.ok && paid.status === "MONITORING_PASS_ISSUED").toBe(true);
     if (!paid.ok || paid.status !== "MONITORING_PASS_ISSUED") return;
     const paidBody = monitoringPassResponseBody(paid) as AgentView;
-    const cont = paidBody.protocol_continuation!;
-    const passId = String(paidBody.monitoring_pass_id);
-    const contId = String(cont.body.pass_continuation_id);
-    const claim = String(cont.body.pass_claim_credential);
-
-    // Public IDs alone cannot claim.
-    const publicOnly = await runMarketplaceJourney(
-      { monitoring_pass_id: passId, pass_continuation_id: contId },
-      deps,
+    expect(JSON.stringify(paidBody)).not.toMatch(
+      /pass_claim_credential|claim_credential/,
     );
-    expect(publicOnly.http_status).toBe(401);
-    expect(publicOnly.body.status).toBe("CLAIM_NOT_AUTHORIZED");
-    expect(publicOnly.body.second_payment_required).toBe(false);
+    const journeyId = String(paidBody.protocol_continuation!.body.journey_id);
 
-    // Concurrent followers → one journey.
+    // Concurrent followers with journey_id → same journey, no second row.
     const [a, b] = await Promise.all([
-      runMarketplaceJourney(
-        {
-          pass_continuation_id: contId,
-          pass_claim_credential: claim,
-        },
-        deps,
-      ),
-      runMarketplaceJourney(
-        {
-          pass_continuation_id: contId,
-          pass_claim_credential: claim,
-        },
-        deps,
-      ),
+      runMarketplaceJourney({ journey_id: journeyId }, deps),
+      runMarketplaceJourney({ journey_id: journeyId }, deps),
     ]);
-    const journeyIds = new Set(
-      [a, b]
-        .filter((r) => r.body.journey_id)
-        .map((r) => String(r.body.journey_id)),
-    );
-    expect(journeyIds.size).toBe(1);
+    expect(a.http_status).toBe(200);
+    expect(b.http_status).toBe(200);
+    expect(a.body.journey_id).toBe(journeyId);
+    expect(b.body.journey_id).toBe(journeyId);
+    expect(a.body.required_fields).toEqual(["confirm_use_pass"]);
     expect(
       (db.prepare(`SELECT COUNT(*) AS c FROM marketplace_purchase_journeys`).get() as {
         c: number;
       }).c,
     ).toBe(1);
 
-    // Every endpoint in responses uses canonical domain.
-    for (const r of [paidBody, a.body, b.body]) {
+    // Historical claim path: synthetic pre-repair continuation with hash, no journey.
+    const store = await getAuthStore({ sqliteDb: db });
+    const nowIso = new Date().toISOString();
+    const histPaymentId = `pass_pay_hist_${Date.now().toString(16)}`;
+    const histSettlement = `settle_hist_${Date.now().toString(16)}`;
+    const histPayment = await store.upsertMonitoringPassPayment({
+      id: histPaymentId,
+      authorizationDigest: sha256Hex(`hist-auth-digest-${Date.now()}`),
+      status: "settled",
+      nowIso,
+    });
+    await store.updateMonitoringPassPayment({
+      id: histPayment.id,
+      status: "settled",
+      settlementRef: histSettlement,
+      nowIso,
+    });
+    const histPass = await store.issueMonitoringPass({
+      id: `pass_hist_${Date.now().toString(16)}`,
+      passTokenHash: sha256Hex("hist-pass-token"),
+      settlementRef: histSettlement,
+      paymentId: histPayment.id,
+      priceAmount: 0.99,
+      priceCurrency: "USD",
+      nowIso,
+    });
+    // Remove any auto-journey if present (historical: claim creates journey).
+    const autoJ = await store.getMarketplacePurchaseJourneyByPassId(
+      histPass.pass.id,
+    );
+    if (autoJ) {
+      db.prepare(`DELETE FROM marketplace_purchase_journeys WHERE id = ?`).run(
+        autoJ.id,
+      );
+    }
+    const contId = `pass_cont_hist_${Date.now().toString(16)}`;
+    const derived = derivePassClaimCredential({
+      paymentId: histPayment.id,
+      continuationId: contId,
+      env: { NOBU_PASS_CLAIM_SECRET: process.env.NOBU_PASS_CLAIM_SECRET },
+    })!;
+    await store.ensureMonitoringPassContinuation({
+      id: contId,
+      paymentId: histPayment.id,
+      monitoringPassId: histPass.pass.id,
+      status: "issued",
+      claimCredentialHash: derived.hash,
+      nowIso,
+    });
+
+    // Public ids alone cannot claim when historical credential is required.
+    const publicOnly = await runMarketplaceJourney(
+      {
+        monitoring_pass_id: histPass.pass.id,
+        pass_continuation_id: contId,
+      },
+      deps,
+    );
+    expect(publicOnly.http_status).toBe(401);
+    expect(publicOnly.body.status).toBe("CLAIM_NOT_AUTHORIZED");
+
+    const claimed = await runMarketplaceJourney(
+      {
+        pass_continuation_id: contId,
+        pass_claim_credential: derived.raw,
+      },
+      deps,
+    );
+    expect(claimed.http_status).toBe(200);
+    expect(claimed.body.status).toBe("MONITORING_PASS_ISSUED");
+    expect(claimed.body.required_fields).toEqual(["confirm_use_pass"]);
+    expect(String(claimed.body.journey_id)).toMatch(/^journey_/);
+
+    for (const r of [paidBody, a.body, b.body, claimed.body]) {
       const s = JSON.stringify(r);
       expect(s).not.toContain(OBSOLETE_HOST);
       if ((r as AgentView).protocol_continuation) {

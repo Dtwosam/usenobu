@@ -100,11 +100,13 @@ function incomplete(
     continuationBodyExtras: extras?.continuationBodyExtras,
     sensitiveFields: extras?.sensitiveFields,
   });
-  // Automatic stages use 200 so buyer agents auto-continue without treating
-  // the response as a human field-collection error.
-  const http_status = contract.automatic_continue ? 200 : 400;
+  // Compatibility-proven (Onchain OS 4.4.0 / installed buyer client):
+  // HTTP 200 paid success with fields/requiredArgs/status input_required in
+  // body continues field collection; human marketplace stages therefore use
+  // HTTP 200 (not 400 transport-error) so continuation is preserved.
+  // Malformed/auth/conflict errors remain non-200 at their call sites.
   return {
-    http_status: http_status as 200 | 400,
+    http_status: 200 as const,
     body: sanitizeUserInputContractFields({
       ...contract,
       journey_id: journeyId,
@@ -365,8 +367,8 @@ export async function runMarketplaceJourney(
       raw.pass_claim_credential || raw.claim_credential,
     );
     if (!passId && !continuationId) return marketplaceFirstContact();
-    // Public pass/journey ids alone cannot claim — require single-use claim
-    // credential when the continuation was issued with one.
+    // Resolve pass. New path: journey already ensured at payment time.
+    // Historical path: single-use claim credential still creates/recovers journey.
     const resolution = await resolveMonitoringPassForAgent({
       monitoringPassId: passId || undefined,
       passContinuationId: continuationId || undefined,
@@ -379,24 +381,6 @@ export async function runMarketplaceJourney(
       return {
         http_status: 401,
         body: sanitizeUserInputContractFields(claimNotAuthorizedBody()),
-      };
-    }
-    // Resolve is read-only and never sets claim_authorized. When a claim
-    // credential is required, only claimPassAndCreateJourney may authorize.
-    // Public ids without a credential cannot create a journey.
-    if (
-      resolution.http_status === 200 &&
-      resolution.body.status === "MONITORING_PASS_ISSUED" &&
-      resolution.body.claim_required === true &&
-      !claimCredential
-    ) {
-      return {
-        http_status: 401,
-        body: sanitizeUserInputContractFields(
-          claimNotAuthorizedBody(
-            "This request is not authorized to start Purchase Setup. Public identifiers alone cannot claim a pass.",
-          ),
-        ),
       };
     }
     if (
@@ -415,8 +399,6 @@ export async function runMarketplaceJourney(
             next_action: "WAIT_FOR_SETTLEMENT",
             message:
               "Settlement is still confirming. Do not pay again. Do not ask the user for internal identifiers.",
-            guidance:
-              "Retry only with the machine continuation already held from the paid response. Never open a second payment. Never ask the user for credentials.",
             payment_status: "pending",
             second_payment_required: false,
             monitoring_active: false,
@@ -438,18 +420,26 @@ export async function runMarketplaceJourney(
       // Missing / not found / mismatched / historical — never request machine-owned fields.
       return internalStateResponse(null, passId || null, deps.env);
     }
+
+    const resolvedPassId = resolution.body.monitoring_pass_id;
     const contIdForClaim =
       typeof resolution.body.pass_continuation_id === "string"
         ? resolution.body.pass_continuation_id
         : continuationId;
-    // Atomic claim + journey: never consume claim without creating journey.
-    if (claimCredential && contIdForClaim) {
+
+    // Prefer already-ensured journey (new paid handoff path).
+    const existingJourney =
+      await store.getMarketplacePurchaseJourneyByPassId(resolvedPassId);
+    if (existingJourney) {
+      journey = existingJourney;
+    } else if (claimCredential && contIdForClaim) {
+      // Historical recovery: atomic claim + journey when credential hash exists.
       const { sha256Hex } = await import("../auth/crypto.js");
       const claimed = await store.claimPassAndCreateJourney({
         continuationId: contIdForClaim,
         claimCredentialHash: sha256Hex(claimCredential),
         journeyId: newJourneyId(),
-        monitoringPassId: resolution.body.monitoring_pass_id,
+        monitoringPassId: resolvedPassId,
         nowIso,
       });
       if (claimed.outcome === "claim_invalid") {
@@ -473,16 +463,27 @@ export async function runMarketplaceJourney(
         };
       }
       journey = claimed.journey;
-    } else {
-      // No legacy public-ID journey path — claim credential is always required.
+    } else if (
+      resolution.body.claim_required === true &&
+      !claimCredential
+    ) {
+      // Historical continuation still needs credential to create first journey.
       return {
         http_status: 401,
         body: sanitizeUserInputContractFields(
           claimNotAuthorizedBody(
-            "This request is not authorized to start Purchase Setup. Public identifiers alone cannot create a journey.",
+            "This request is not authorized to start Purchase Setup. Public identifiers alone cannot claim a pass.",
           ),
         ),
       };
+    } else {
+      // Settled pass without journey and without historical claim — ensure journey.
+      journey = await store.ensureMarketplacePurchaseJourney({
+        id: newJourneyId(),
+        monitoringPassId: resolvedPassId,
+        passContinuationId: contIdForClaim || null,
+        nowIso,
+      });
     }
   }
 
@@ -826,7 +827,7 @@ export async function runMarketplaceJourney(
         env: deps.env,
       });
       return {
-        http_status: 400 as const,
+        http_status: 200 as const,
         body: {
           ...moreInfo,
           journey_id: journey.id,

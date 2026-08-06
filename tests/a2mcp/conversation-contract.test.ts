@@ -92,13 +92,19 @@ describe("conversation contract", () => {
       expect.objectContaining({
         method: "POST",
         service_id: 33561,
-        do_not_ask_user: true,
-        do_not_display: true,
         body: { journey_id: "journey_test" },
-        merge_user_fields: ["confirm_use_pass"],
+        user_input_fields: ["confirm_use_pass"],
+        machine_fields: ["journey_id"],
+        sensitive_fields: [],
       }),
     );
     expect(body.machine_continuation).toEqual(body.protocol_continuation);
+    expect(body.guidance).toBeUndefined();
+    expect(body.interaction).toEqual({
+      mode: "user_input",
+      fields: ["confirm_use_pass"],
+      confirmation_required: true,
+    });
     expect(body.fields).not.toContain("journey_id");
   });
 
@@ -117,13 +123,13 @@ describe("conversation contract", () => {
       expect.objectContaining({
         method: "POST",
         service_id: 33561,
-        do_not_ask_user: true,
-        do_not_display: true,
         body: { journey_id: "journey_disc" },
+        user_input_fields: [],
       }),
     );
     expect(body.machine_continuation).toEqual(body.protocol_continuation);
-    expect(String(body.guidance)).toMatch(/Do not ask the user/i);
+    expect(body.guidance).toBeUndefined();
+    expect(body.interaction?.mode).toBe("automatic");
   });
 
   it("marketplace first contact presents both services without assuming payment", () => {

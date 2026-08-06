@@ -468,7 +468,7 @@ describe("Paid-to-active transaction repair", () => {
 
   // ---------- Pass and setup ----------
 
-  it("public ids alone cannot claim a pass; valid credential can once", async () => {
+  it("paid ensure creates journey without claim secret; historical claim path still works", async () => {
     const result = await monitoringPassForAgent({
       paymentAuthorizationHeader: validPayloadHeader(),
       resource: PASS_RESOURCE,
@@ -481,56 +481,59 @@ describe("Paid-to-active transaction repair", () => {
 
     const passId = result.pass.id;
     const contId = result.pass_continuation_id;
-    const claim = result.pass_claim_credential;
-    expect(claim).toBeTruthy();
+    expect(result.journey_id).toBeTruthy();
+    const body = monitoringPassResponseBody(result, testEnv);
+    expect(JSON.stringify(body)).not.toMatch(/pass_claim_credential|claim_credential/);
+    expect(body.required_fields).toEqual(["confirm_use_pass"]);
 
-    // Resolve is read-only: public id status works; never authorizes claim.
+    // Resolve is read-only.
     const status = await resolveMonitoringPassForAgent({
       monitoringPassId: passId,
       sqliteDb: db,
       env: testEnv,
     });
     expect(status.http_status).toBe(200);
-    expect(status.body.claim_required).toBe(true);
     expect(status.body.claim_authorized).toBe(false);
 
-    // Wrong credential on resolve does not consume and does not authorize.
-    const bad = await resolveMonitoringPassForAgent({
-      passContinuationId: contId,
-      passClaimCredential: "pass_claim_wrong",
-      sqliteDb: db,
-      env: testEnv,
-    });
-    expect(bad.http_status).toBe(200);
-    expect(bad.body.claim_authorized).toBe(false);
-    expect(bad.body.claim_required).toBe(true);
+    // Journey already ensured — resume without secrets.
+    const { runMarketplaceJourney } = await import(
+      "../../src/a2mcp/marketplace-journey.js"
+    );
+    const resumed = await runMarketplaceJourney(
+      { journey_id: result.journey_id },
+      { sqliteDb: db, env: testEnv },
+    );
+    expect(resumed.http_status).toBe(200);
+    expect(String(resumed.body.journey_id)).toBe(result.journey_id);
 
-    // Valid credential on resolve also does not consume (claim_authorized false).
-    const good = await resolveMonitoringPassForAgent({
-      passContinuationId: contId,
-      passClaimCredential: claim,
-      sqliteDb: db,
-      env: testEnv,
-    });
-    expect(good.http_status).toBe(200);
-    expect(good.body.claim_authorized).toBe(false);
-    expect(good.body.claim_required).toBe(true);
-
-    // Atomic claim via store still requires matching hash.
+    // Historical claim recovery: remove journey, keep claim hash, claim once.
     const store = await getAuthStore({ sqliteDb: db, env: testEnv });
+    db.prepare(`DELETE FROM marketplace_purchase_journeys WHERE monitoring_pass_id = ?`).run(
+      passId,
+    );
+    const contRow = await store.getMonitoringPassContinuationById(contId);
+    expect(contRow?.claim_credential_hash).toBeTruthy();
+    const { derivePassClaimCredential } = await import(
+      "../../src/payments/claim-credential.js"
+    );
+    const derived = derivePassClaimCredential({
+      paymentId: contRow!.payment_id,
+      continuationId: contId,
+      env: testEnv,
+    })!;
     const { sha256Hex } = await import("../../src/auth/crypto.js");
     const claimed = await store.claimPassAndCreateJourney({
-      continuationId: contId!,
-      claimCredentialHash: sha256Hex(claim!),
+      continuationId: contId,
+      claimCredentialHash: sha256Hex(derived.raw),
       journeyId: "journey_claim_once",
       monitoringPassId: passId,
       nowIso: new Date().toISOString(),
     });
     expect(claimed.outcome).toBe("created");
 
-    // Invalid credential cannot recover journey after consumption.
+    // Invalid credential cannot create a second journey after consumption.
     const invalid = await store.claimPassAndCreateJourney({
-      continuationId: contId!,
+      continuationId: contId,
       claimCredentialHash: sha256Hex("pass_claim_wrong"),
       journeyId: "journey_claim_bad",
       monitoringPassId: passId,
@@ -540,8 +543,8 @@ describe("Paid-to-active transaction repair", () => {
 
     // Matching credential recovers same journey (lost response recovery).
     const recover = await store.claimPassAndCreateJourney({
-      continuationId: contId!,
-      claimCredentialHash: sha256Hex(claim!),
+      continuationId: contId,
+      claimCredentialHash: sha256Hex(derived.raw),
       journeyId: "journey_claim_recover",
       monitoringPassId: passId,
       nowIso: new Date().toISOString(),

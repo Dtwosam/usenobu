@@ -211,12 +211,17 @@ describe("User-role journey contract proof", () => {
         updated_at: new Date().toISOString(),
       },
       pass_continuation_id: "pass_cont_testissued0001",
+      journey_id: "journey_testissued0001",
+      journey_stage: "confirm_use_pass",
       settlementRef: "settle_test",
       payment_response_header: "dGVzdA==",
     });
     expect(body.status).toBe("MONITORING_PASS_ISSUED");
     expect(body.payment_status).toBe("recognized");
     expect(body.second_payment_required).toBe(false);
+    expect(body.input_required).toBe(true);
+    expect(body.required_fields).toEqual(["confirm_use_pass"]);
+    expect(JSON.stringify(body)).not.toMatch(/pass_claim_credential|claim_credential/);
     expect(body.monitoring_active).toBe(false);
     expect(body.journey_complete).toBe(false);
     expect(body.next_service_id).toBe(33561);
@@ -297,9 +302,9 @@ describe("User-role journey contract proof", () => {
     expect(auto.automatic_continue).toBe(true);
     expect(auto.fields).toEqual([]);
     expect(auto.required_user_input).toBeNull();
-    expect(auto.protocol_continuation?.do_not_ask_user).toBe(true);
+    expect(auto.protocol_continuation?.user_input_fields).toEqual([]);
     expect(auto.machine_continuation).toEqual(auto.protocol_continuation);
-    expect(String(auto.guidance)).toMatch(/Do not ask the user/i);
+    expect(auto.guidance).toBeUndefined();
   });
 
   // 12: monitoring active only after successful redemption is covered by

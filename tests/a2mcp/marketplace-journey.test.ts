@@ -59,18 +59,23 @@ function assertHumanStage(
   expect(body.journey_complete).toBe(false);
   expect(body.payment_status).toBe("recognized");
   expect(body.retry_safe).toBe(true);
-  // Human stages carry protocol_continuation with merge_user_fields; never ask for machine ids.
+  // Human stages carry neutral protocol_continuation; never ask for machine ids.
   expect(body.protocol_continuation).toEqual(
     expect.objectContaining({
       method: "POST",
       service_id: 33561,
-      do_not_ask_user: true,
-      do_not_display: true,
       body: expect.objectContaining({ journey_id: body.journey_id }),
-      merge_user_fields: fields,
+      user_input_fields: fields,
     }),
   );
   expect(body.machine_continuation).toEqual(body.protocol_continuation);
+  expect(
+    (body.protocol_continuation as Record<string, unknown>).do_not_ask_user,
+  ).toBeUndefined();
+  expect(
+    (body.protocol_continuation as Record<string, unknown>).do_not_display,
+  ).toBeUndefined();
+  expect(body.guidance).toBeUndefined();
   // Never ask the user to type journey_id.
   expect(fields).not.toContain("journey_id");
   expect(fields).not.toContain("connection_token");
@@ -92,13 +97,12 @@ function assertAutomaticStage(body: Record<string, unknown>): void {
     expect.objectContaining({
       method: "POST",
       service_id: 33561,
-      do_not_ask_user: true,
-      do_not_display: true,
       body: expect.objectContaining({ journey_id: body.journey_id }),
+      user_input_fields: [],
     }),
   );
   expect(body.machine_continuation).toEqual(body.protocol_continuation);
-  expect(String(body.guidance || "")).toMatch(/Do not ask the user/i);
+  expect(body.guidance).toBeUndefined();
 }
 
 /** @deprecated name kept for call-site clarity during migration */
@@ -195,7 +199,7 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       },
       deps,
     );
-    expect(resolved.http_status).toBe(400);
+    expect(resolved.http_status).toBe(200);
     assertHumanStage(resolved.body, "confirm_use_pass", {
       status: "MONITORING_PASS_ISSUED",
       currentStep: "confirm_use_pass",
@@ -318,7 +322,7 @@ describe("Lane 8R marketplace Purchase Setup", () => {
       },
       { sqliteDb: db },
     );
-    expect(early.http_status).toBe(400);
+    expect(early.http_status).toBe(200);
     assertHumanStage(early.body, "confirm_use_pass", {
       status: "MONITORING_PASS_ISSUED",
     });
@@ -335,7 +339,7 @@ describe("Lane 8R marketplace Purchase Setup", () => {
         }),
       }),
     );
-    expect(paidUrlAttempt.status).toBe(400);
+    expect(paidUrlAttempt.status).toBe(200);
     assertHumanStage(
       (await paidUrlAttempt.json()) as Record<string, unknown>,
       "confirm_use_pass",
