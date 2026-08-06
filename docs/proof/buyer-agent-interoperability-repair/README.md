@@ -157,4 +157,14 @@ Legacy free-action guidance (service selection, free validation) left intact.
 
 ## Production probes (unpaid only)
 
-See `production-probes.md` after deploy.
+Deployed `77751c9` / docs through `77ac5ba` as `usenobu-h3ieqdska…` aliased to `https://www.usenobu.xyz`.
+
+| Probe | Result |
+|---|---|
+| health | 200 ok |
+| free `{}` | 400 SERVICE_SELECTION_REQUIRED |
+| unpaid paid | 402 + PAYMENT-REQUIRED; no claim secret |
+| malformed | 400 |
+| live pass `pass_ec936ecc…` | 200 MONITORING_ACTIVE (unchanged) |
+
+Details: `production-probes.md`.
