@@ -1,9 +1,11 @@
 # Nobu Current State
 
 **Date:** 2026-08-06
-**Status:** `NOBU_BUYER_AGENT_INTEROPERABILITY_SAFE_PASS` — paid claim secret removed from new responses; journey ensured at settlement; neutral protocol continuation; marketplace journey valid stages HTTP 200 (compatibility-proven).
+**Status:** `NOBU_BUYER_AGENT_INTEROPERABILITY_RECOVERY_PASS` — delivery-pending missing-journey reconciliation + no claim hash on new continuations.
 
-**Buyer-agent interoperability repair (2026-08-06):** **PASS.** Baseline `1775ff1`. Compatibility audit of Onchain OS 4.4.0 + OKX skills proved HTTP 200 + `fields`/`requiredArgs`/`input_required` continues collection (post-pay `replayBody` path); live 400 human stages were misread as transport errors. New paid handoff: ensure journey at settlement; return `confirm_use_pass` with `journey_id` only — no `pass_claim_credential`. Neutral `protocol_continuation` + `interaction` (no `do_not_*` / imperative guidance). Historical claim-hash recovery preserved. Live monitor `pass_ec936ecc…` not mutated. Evidence: `docs/proof/buyer-agent-interoperability-repair/`.
+**Buyer-agent interoperability recovery (2026-08-06):** **PASS.** Baseline `e7a485a`. Authoritative `listSettledMonitoringPassPaymentsMissingJourney` discovers settled+pass without journey even when continuation exists; reconcile backfills journey independently; new continuations store `claim_credential_hash: null`. Focused delivery-pending tests 4/4. Evidence: `docs/proof/buyer-agent-interoperability-repair/`.
+
+**Buyer-agent interoperability repair (2026-08-06):** **SUPERSEDED as current status** by recovery repair (handoff/HTTP/neutral metadata remain). Baseline `1775ff1`. Evidence path retained.
 
 **Paid-to-free machine continuation final (2026-08-05):** **SUPERSEDED as current status** by interoperability repair (continuation contract remains). Baseline `ebe24bd` (prior `6e56e07`). Evidence: `docs/proof/paid-to-free-machine-continuation/`.
 

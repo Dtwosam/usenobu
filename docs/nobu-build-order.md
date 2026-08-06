@@ -5,18 +5,16 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Buyer-agent interoperability SAFE PASS
+## Active closeout — Buyer-agent interoperability RECOVERY PASS
 
-**State:** SAFE PASS — new paid responses never expose claim secrets; journey ensured at settlement; neutral continuation metadata; marketplace valid stages HTTP 200 with proven buyer-client compatibility.
+**State:** RECOVERY PASS — delivery-pending rows with pass+continuation but no journey are discovered and backfilled without payment replay; new continuations never store claim hashes.
 
-Repair (2026-08-06) baseline `1775ff1`:
+Repair (2026-08-06) baseline `e7a485a` (prior SAFE PASS from `1775ff1`):
 
-- Compatibility audit (Onchain OS 4.4.0 + installed OKX skills) before HTTP status change.
-- Paid settlement: pass + `ensureMarketplacePurchaseJourney` → handoff at `confirm_use_pass` with public `journey_id` only.
-- No `pass_claim_credential` / `claim_credential` on newly issued paid bodies; historical claim-hash recovery kept.
-- Neutral `protocol_continuation` (`user_input_fields` / `machine_fields` / `sensitive_fields`) + `interaction`; no `do_not_ask_user` / `do_not_display` / imperative guidance on paid/marketplace.
-- Marketplace journey valid input-required + automatic stages → HTTP 200 only (legacy free action enum unchanged).
-- `connection_token` boundary unchanged.
+- `listSettledMonitoringPassPaymentsMissingJourney` (SQLite + Postgres).
+- Independent missing-journey reconcile loop; accurate `journeys_backfilled`; never resets advanced journeys.
+- New continuations: `claim_credential_hash: null` (historical claim recovery preserved).
+- Prior SAFE PASS handoff/HTTP/neutral metadata unchanged.
 
 Exact next lane:
 
@@ -24,8 +22,8 @@ Exact next lane:
 2. Optional User-role chat against agent `5541` only when readiness allows (at most one **new** payment).
 3. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
 
-**Closeout proof:** `docs/proof/buyer-agent-interoperability-repair/README.md`.
-**Current verdict:** `NOBU_BUYER_AGENT_INTEROPERABILITY_SAFE_PASS`.
+**Closeout proof:** `docs/proof/buyer-agent-interoperability-repair/README.md` + `tests/payments/delivery-pending-journey-recovery.test.ts`.
+**Current verdict:** `NOBU_BUYER_AGENT_INTEROPERABILITY_RECOVERY_PASS`.
 
 ## Prior closeout — Paid-to-free machine continuation FINAL PASS
 

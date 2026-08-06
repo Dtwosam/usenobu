@@ -1,8 +1,8 @@
 # Buyer-agent interoperability repair
 
 **Date:** 2026-08-06  
-**Baseline:** `1775ff1`  
-**Verdict:** `NOBU_BUYER_AGENT_INTEROPERABILITY_SAFE_PASS`
+**Baseline:** `1775ff1` → recovery repair from `e7a485a`  
+**Verdict:** `NOBU_BUYER_AGENT_INTEROPERABILITY_RECOVERY_PASS`
 
 ## Live defects repaired (without mutating the active monitor)
 
@@ -155,9 +155,21 @@ Legacy free-action guidance (service selection, free validation) left intact.
 - Live active monitor not mutated
 - No noncanonical domain reintroduced
 
+## Delivery-pending recovery repair (follow-up)
+
+**Defect:** `MONITORING_PASS_DELIVERY_PENDING` could leave settled payment + issued pass + continuation with **no journey**. Reconciliation scanned only pending/orphan payments and missing-continuation rows, so a delivery-pending row with an existing continuation could remain stranded.
+
+**Repair:**
+
+1. `AuthStore.listSettledMonitoringPassPaymentsMissingJourney(limit?)` (SQLite + Postgres) — settled payments with issued/redeemed pass and no `marketplace_purchase_journeys` row (continuation not required to be missing).
+2. `reconcilePendingPassSettlements` processes that set **independently** of pending/orphan/missing-continuation batches; ensures continuation only when absent; idempotently ensures one journey at `confirm_use_pass`; never resets advanced journeys; accurate `journeys_backfilled`.
+3. New continuations no longer derive or store `claim_credential_hash` (always null for new rows). Historical claim-hash rows and recovery unchanged.
+
+**Focused proof:** `tests/payments/delivery-pending-journey-recovery.test.ts` (4/4).
+
 ## Production probes (unpaid only)
 
-Deployed `77751c9` / docs through `77ac5ba` as `usenobu-h3ieqdska…` aliased to `https://www.usenobu.xyz`.
+Initial deploy: `77751c9` / docs through `e7a485a` as `usenobu-h3ieqdska…` aliased to `https://www.usenobu.xyz`.
 
 | Probe | Result |
 |---|---|
@@ -167,4 +179,4 @@ Deployed `77751c9` / docs through `77ac5ba` as `usenobu-h3ieqdska…` aliased to
 | malformed | 400 |
 | live pass `pass_ec936ecc…` | 200 MONITORING_ACTIVE (unchanged) |
 
-Details: `production-probes.md`.
+Recovery repair deploy notes: `production-probes.md` (updated after recovery deploy).
