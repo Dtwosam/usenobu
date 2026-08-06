@@ -217,10 +217,10 @@ function newJourneyId(): string {
 
 /**
  * Concurrency-safe continuation row:
- * 1) insert/resolve unique continuation first;
- * 2) when NOBU_PASS_CLAIM_SECRET is configured, store historical claim hash
- *    for pre-repair recovery (never required for new paid handoff);
- * 3) return continuation id (raw claim only for internal historical recovery).
+ * 1) insert/resolve unique continuation first with claim_credential_hash NULL;
+ * 2) never derive or store a claim hash for newly created continuations;
+ * 3) when a historical row already has a claim hash, re-derive the raw secret
+ *    only for internal recovery (never serialized on new paid responses).
  *
  * New paid responses never expose pass_claim_credential.
  */
@@ -232,6 +232,8 @@ async function ensureContinuation(
   env?: EnvRecord,
 ): Promise<EnsureContinuationResult> {
   const provisionalId = newContinuationId();
+  // New continuations: claim_credential_hash and claim_credential_consumed_at stay null.
+  // Do not derive or store claim credentials for new paid handoffs.
   let row = await store.ensureMonitoringPassContinuation({
     id: provisionalId,
     paymentId,
@@ -241,32 +243,9 @@ async function ensureContinuation(
     nowIso,
   });
 
-  const winningId = row.id;
-
-  // Optional historical claim hash — only when secret is configured.
-  // New handoff does not depend on this; missing secret is not a delivery failure.
-  const derived = derivePassClaimCredential({
-    paymentId,
-    continuationId: winningId,
-    env,
-  });
-  if (derived) {
-    await store.ensureMonitoringPassContinuation({
-      id: winningId,
-      paymentId,
-      monitoringPassId: monitoringPassId ?? null,
-      status:
-        monitoringPassId
-          ? "issued"
-          : row.status === "claimed"
-            ? "claimed"
-            : "issued",
-      claimCredentialHash: derived.hash,
-      nowIso,
-    });
-  } else if (monitoringPassId) {
-    await store.ensureMonitoringPassContinuation({
-      id: winningId,
+  if (monitoringPassId) {
+    row = await store.ensureMonitoringPassContinuation({
+      id: row.id,
       paymentId,
       monitoringPassId,
       status: "issued",
@@ -277,6 +256,8 @@ async function ensureContinuation(
 
   row = (await store.getMonitoringPassContinuationByPaymentId(paymentId))!;
 
+  // Historical recovery only: if a pre-repair row already has a hash, re-derive
+  // raw for callers that still use the claim path. Never write a new hash here.
   let claimCredentialRaw: string | undefined;
   if (row.claim_credential_hash && !row.claim_credential_consumed_at) {
     const verified = derivePassClaimCredential({
@@ -306,8 +287,18 @@ async function ensureIssuedPassJourney(
     monitoringPassId: string;
     passContinuationId: string;
     nowIso: string;
+    env?: EnvRecord;
   },
 ): Promise<MarketplacePurchaseJourneyRow | null> {
+  // Test-only: force delivery-pending path after pass + continuation succeed.
+  // Requires NOBU_AUTH_TEST_MODE so Production never honors this.
+  const env = args.env ?? process.env;
+  if (
+    String(env.NOBU_AUTH_TEST_MODE || "") === "1" &&
+    String(env.NOBU_TEST_FORCE_JOURNEY_ENSURE_FAIL || "") === "1"
+  ) {
+    return null;
+  }
   try {
     return await store.ensureMarketplacePurchaseJourney({
       id: newJourneyId(),
@@ -403,6 +394,7 @@ async function finalizeIssuedPassResult(args: {
     monitoringPassId: args.pass.id,
     passContinuationId: cont.id,
     nowIso: args.nowIso,
+    env: args.env,
   });
   if (!journey) {
     return {
@@ -1276,51 +1268,104 @@ export async function reconcilePendingPassSettlements(args: {
 
   let continuationsBackfilled = 0;
   let journeysBackfilled = 0;
-  const missing = await store.listSettledPassPaymentsMissingContinuation();
-  for (const payment of missing) {
+
+  // Historical: settled + pass + no continuation row.
+  const missingContinuations =
+    await store.listSettledPassPaymentsMissingContinuation();
+  for (const payment of missingContinuations) {
     const pass = await store.getMonitoringPassByPaymentId(payment.id);
     if (!pass) continue;
-    const cont = await ensureContinuation(store, payment.id, nowIso, pass.id);
+    const beforeCont = await store.getMonitoringPassContinuationByPaymentId(
+      payment.id,
+    );
+    const cont = await ensureContinuation(
+      store,
+      payment.id,
+      nowIso,
+      pass.id,
+      args.env,
+    );
+    if (!beforeCont) continuationsBackfilled += 1;
+    const beforeJourney = await store.getMarketplacePurchaseJourneyByPassId(
+      pass.id,
+    );
     const journey = await ensureIssuedPassJourney(store, {
       monitoringPassId: pass.id,
       passContinuationId: cont.id,
       nowIso,
+      env: args.env,
     });
-    if (journey) journeysBackfilled += 1;
-    continuationsBackfilled += 1;
+    if (!beforeJourney && journey) journeysBackfilled += 1;
   }
 
-  // Settled passes with continuation but missing journey (delivery-pending recovery).
-  for (const payment of limited) {
+  // Authoritative delivery-pending recovery: settled + pass (issued/redeemed)
+  // + no marketplace journey — independent of pending/orphan/continuation batches.
+  // Continuations may already exist; do not require them to be missing.
+  const missingJourneys =
+    await store.listSettledMonitoringPassPaymentsMissingJourney(args.limit);
+  for (const payment of missingJourneys) {
     const pass = await store.getMonitoringPassByPaymentId(payment.id);
     if (!pass) continue;
-    const existingJourney = await store.getMarketplacePurchaseJourneyByPassId(
+    if (pass.status !== "issued" && pass.status !== "redeemed") continue;
+
+    const beforeJourney = await store.getMarketplacePurchaseJourneyByPassId(
       pass.id,
     );
-    if (existingJourney) continue;
-    const contRow =
+    // Never modify an existing advanced (or any) journey — skip if present.
+    if (beforeJourney) continue;
+
+    // Resolve continuation; create only when genuinely absent.
+    let contRow =
       (await store.getMonitoringPassContinuationByPassId(pass.id)) ??
       (await store.getMonitoringPassContinuationByPaymentId(payment.id));
-    if (!contRow) continue;
+    if (!contRow) {
+      const cont = await ensureContinuation(
+        store,
+        payment.id,
+        nowIso,
+        pass.id,
+        args.env,
+      );
+      continuationsBackfilled += 1;
+      contRow = await store.getMonitoringPassContinuationById(cont.id);
+      if (!contRow) continue;
+    }
+
     const journey = await ensureIssuedPassJourney(store, {
       monitoringPassId: pass.id,
       passContinuationId: contRow.id,
       nowIso,
+      env: args.env,
     });
+    // ensureMarketplacePurchaseJourney is ON CONFLICT DO NOTHING and never
+    // resets stage — only count a newly readable journey after previous miss.
     if (journey) journeysBackfilled += 1;
   }
 
-  // Also ensure journey for every pass issued in this reconcile batch.
+  // Journeys for passes newly issued in this reconcile batch (hot path).
   for (const passId of issuedPassIds) {
     const existingJourney =
       await store.getMarketplacePurchaseJourneyByPassId(passId);
     if (existingJourney) continue;
-    const contRow = await store.getMonitoringPassContinuationByPassId(passId);
-    if (!contRow) continue;
+    let contRow = await store.getMonitoringPassContinuationByPassId(passId);
+    if (!contRow) {
+      const pass = await store.getMonitoringPassById(passId);
+      if (!pass?.payment_id) continue;
+      const cont = await ensureContinuation(
+        store,
+        pass.payment_id,
+        nowIso,
+        passId,
+        args.env,
+      );
+      contRow = await store.getMonitoringPassContinuationById(cont.id);
+      if (!contRow) continue;
+    }
     const journey = await ensureIssuedPassJourney(store, {
       monitoringPassId: passId,
       passContinuationId: contRow.id,
       nowIso,
+      env: args.env,
     });
     if (journey) journeysBackfilled += 1;
   }

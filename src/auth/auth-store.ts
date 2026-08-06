@@ -642,6 +642,14 @@ export interface AuthStore {
     MonitoringPassPaymentRow[]
   >;
   /**
+   * Settled payments that already have an issued/redeemed Monitoring Pass but
+   * no marketplace Purchase Setup journey. Continuations may or may not exist.
+   * Authoritative recovery source for MONITORING_PASS_DELIVERY_PENDING.
+   */
+  listSettledMonitoringPassPaymentsMissingJourney(
+    limit?: number,
+  ): Promise<MonitoringPassPaymentRow[]>;
+  /**
    * Atomically expire all currently-issued quotes for a purchase, then insert
    * a fresh issued quote. Guarantees the partial unique index only ever sees
    * one usable issued row.
@@ -2019,6 +2027,23 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
            ORDER BY p.created_at ASC`,
         )
         .all() as MonitoringPassPaymentRow[];
+    },
+    async listSettledMonitoringPassPaymentsMissingJourney(limit) {
+      const sql = `SELECT p.* FROM monitoring_pass_payments p
+           INNER JOIN monitoring_passes m ON m.payment_id = p.id
+           WHERE p.status = 'settled'
+             AND m.status IN ('issued', 'redeemed')
+             AND NOT EXISTS (
+               SELECT 1 FROM marketplace_purchase_journeys j
+               WHERE j.monitoring_pass_id = m.id
+             )
+           ORDER BY p.created_at ASC`;
+      if (limit != null && Number.isFinite(limit) && limit > 0) {
+        return db
+          .prepare(`${sql} LIMIT ?`)
+          .all(Math.floor(limit)) as MonitoringPassPaymentRow[];
+      }
+      return db.prepare(sql).all() as MonitoringPassPaymentRow[];
     },
     async redeemMonitoringPassAndActivate(args) {
       // Idempotent replay: this pass already redeemed for this exact quote.
@@ -3973,6 +3998,36 @@ export function createPostgresAuthStore(
              WHERE c.payment_id = p.id
            )
          ORDER BY p.created_at ASC`,
+      );
+      return r.rows;
+    },
+    async listSettledMonitoringPassPaymentsMissingJourney(limit) {
+      const bounded =
+        limit != null && Number.isFinite(limit) && limit > 0
+          ? Math.floor(limit)
+          : null;
+      const r = await q<MonitoringPassPaymentRow>(
+        bounded == null
+          ? `SELECT p.* FROM monitoring_pass_payments p
+             INNER JOIN monitoring_passes m ON m.payment_id = p.id
+             WHERE p.status = 'settled'
+               AND m.status IN ('issued', 'redeemed')
+               AND NOT EXISTS (
+                 SELECT 1 FROM marketplace_purchase_journeys j
+                 WHERE j.monitoring_pass_id = m.id
+               )
+             ORDER BY p.created_at ASC`
+          : `SELECT p.* FROM monitoring_pass_payments p
+             INNER JOIN monitoring_passes m ON m.payment_id = p.id
+             WHERE p.status = 'settled'
+               AND m.status IN ('issued', 'redeemed')
+               AND NOT EXISTS (
+                 SELECT 1 FROM marketplace_purchase_journeys j
+                 WHERE j.monitoring_pass_id = m.id
+               )
+             ORDER BY p.created_at ASC
+             LIMIT $1`,
+        bounded == null ? [] : [bounded],
       );
       return r.rows;
     },
