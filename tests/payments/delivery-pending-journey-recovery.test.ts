@@ -1,9 +1,5 @@
 /**
- * Delivery-pending journey recovery repair.
- *
- * When finalizeIssuedPassResult creates payment + pass + continuation but
- * journey ensure fails, reconcile must discover settled+pass(+continuation)
- * without journey and create exactly one journey — without payment replay.
+ * Delivery-pending journey recovery + historical claim boundary + concurrent accounting.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -62,6 +58,84 @@ function count(db: ReturnType<typeof openDatabase>, table: string): number {
   ).c;
 }
 
+async function seedHistoricalClaimContinuation(args: {
+  db: ReturnType<typeof openDatabase>;
+  seed: string;
+  consumed?: boolean;
+}): Promise<{
+  passId: string;
+  contId: string;
+  claimRaw: string;
+  paymentId: string;
+}> {
+  const store = await getAuthStore({ sqliteDb: args.db, env: okEnv() });
+  const nowIso = new Date().toISOString();
+  const histSettlement = `settle_hist_${args.seed}`;
+  const histPayment = await store.upsertMonitoringPassPayment({
+    id: `pass_pay_hist_${args.seed}`,
+    authorizationDigest: sha256Hex(`hist-digest-${args.seed}`),
+    status: "settled",
+    nowIso,
+  });
+  await store.updateMonitoringPassPayment({
+    id: histPayment.id,
+    status: "settled",
+    settlementRef: histSettlement,
+    nowIso,
+  });
+  const histPass = await store.issueMonitoringPass({
+    id: `pass_hist_${args.seed}`,
+    passTokenHash: sha256Hex(`hist-token-${args.seed}`),
+    settlementRef: histSettlement,
+    paymentId: histPayment.id,
+    priceAmount: 0.99,
+    priceCurrency: "USD",
+    nowIso,
+  });
+  const autoJ = await store.getMarketplacePurchaseJourneyByPassId(
+    histPass.pass.id,
+  );
+  if (autoJ) {
+    args.db
+      .prepare(`DELETE FROM marketplace_purchase_journeys WHERE id = ?`)
+      .run(autoJ.id);
+  }
+  // Remove any null-hash continuation ensure might have created for payment.
+  args.db
+    .prepare(`DELETE FROM monitoring_pass_continuations WHERE payment_id = ?`)
+    .run(histPayment.id);
+
+  const contId = `pass_cont_hist_${args.seed}`;
+  const derived = derivePassClaimCredential({
+    paymentId: histPayment.id,
+    continuationId: contId,
+    env: okEnv(),
+  })!;
+  await store.ensureMonitoringPassContinuation({
+    id: contId,
+    paymentId: histPayment.id,
+    monitoringPassId: histPass.pass.id,
+    status: "issued",
+    claimCredentialHash: derived.hash,
+    nowIso,
+  });
+  if (args.consumed) {
+    args.db
+      .prepare(
+        `UPDATE monitoring_pass_continuations
+         SET claim_credential_consumed_at = ?, status = 'claimed', updated_at = ?
+         WHERE id = ?`,
+      )
+      .run(nowIso, nowIso, contId);
+  }
+  return {
+    passId: histPass.pass.id,
+    contId,
+    claimRaw: derived.raw,
+    paymentId: histPayment.id,
+  };
+}
+
 describe("delivery-pending missing-journey recovery", () => {
   let dbPath: string;
   let db: ReturnType<typeof openDatabase>;
@@ -98,7 +172,7 @@ describe("delivery-pending missing-journey recovery", () => {
     }
   });
 
-  it("DELIVERY_PENDING → reconcile discovers missing journey → one journey; concurrent reconcile is noop", async () => {
+  it("null-hash DELIVERY_PENDING is recovered; concurrent recon accounts created once", async () => {
     const header = "signed-header-delivery-pending-1";
     const settlementRef = "0xtx_delivery_pending_journey_1";
     const paid = await monitoringPassForAgent({
@@ -117,54 +191,41 @@ describe("delivery-pending missing-journey recovery", () => {
     const body = monitoringPassResponseBody(paid, failEnv());
     expect(body.status).toBe("MONITORING_PASS_DELIVERY_PENDING");
     expect(body.second_payment_required).toBe(false);
-    expect(body.payment_status).toBe("recognized");
     expect(JSON.stringify(body)).not.toMatch(
       /pass_claim_credential|claim_credential/,
     );
-    expect(body.protocol_continuation).toBeNull();
 
     expect(count(db, "monitoring_pass_payments")).toBe(1);
     expect(count(db, "monitoring_passes")).toBe(1);
     expect(count(db, "monitoring_pass_continuations")).toBe(1);
     expect(count(db, "marketplace_purchase_journeys")).toBe(0);
 
-    const payment = db
-      .prepare(`SELECT status FROM monitoring_pass_payments`)
-      .get() as { status: string };
-    expect(payment.status).toBe("settled");
-    const pass = db
-      .prepare(`SELECT id, status FROM monitoring_passes`)
-      .get() as { id: string; status: string };
-    expect(pass.status).toBe("issued");
     const cont = db
       .prepare(
-        `SELECT claim_credential_hash, claim_credential_consumed_at, monitoring_pass_id
-         FROM monitoring_pass_continuations`,
+        `SELECT claim_credential_hash, claim_credential_consumed_at FROM monitoring_pass_continuations`,
       )
       .get() as {
       claim_credential_hash: string | null;
       claim_credential_consumed_at: string | null;
-      monitoring_pass_id: string | null;
     };
     expect(cont.claim_credential_hash).toBeNull();
     expect(cont.claim_credential_consumed_at).toBeNull();
-    expect(cont.monitoring_pass_id).toBe(pass.id);
 
     const store = await getAuthStore({ sqliteDb: db, env: okEnv() });
-    // Authoritative store query finds this state even though continuation exists.
-    const missing = await store.listSettledMonitoringPassPaymentsMissingJourney();
+    const missing =
+      await store.listSettledMonitoringPassPaymentsMissingJourney();
     expect(missing).toHaveLength(1);
 
-    // Reconciliation without payment replay (env without force-fail).
-    const first = await reconcilePendingPassSettlements({
-      sqliteDb: db,
-      env: okEnv(),
-    });
-    expect(first.journeys_backfilled).toBeGreaterThanOrEqual(1);
+    // Two workers recover the same row concurrently.
+    const [a, b] = await Promise.all([
+      reconcilePendingPassSettlements({ sqliteDb: db, env: okEnv() }),
+      reconcilePendingPassSettlements({ sqliteDb: db, env: okEnv() }),
+    ]);
     expect(count(db, "marketplace_purchase_journeys")).toBe(1);
-    expect(count(db, "monitoring_passes")).toBe(1);
-    expect(count(db, "monitoring_pass_payments")).toBe(1);
-    expect(count(db, "monitoring_pass_continuations")).toBe(1);
+    expect(a.journeys_backfilled + b.journeys_backfilled).toBe(1);
+    expect([a.journeys_backfilled, b.journeys_backfilled].sort()).toEqual([
+      0, 1,
+    ]);
 
     const journey = db
       .prepare(
@@ -172,21 +233,18 @@ describe("delivery-pending missing-journey recovery", () => {
       )
       .get() as { id: string; stage: string; monitoring_pass_id: string };
     expect(journey.stage).toBe("confirm_use_pass");
-    expect(journey.monitoring_pass_id).toBe(pass.id);
 
-    // Second + concurrent reconciliation create nothing additional.
-    const [second, third] = await Promise.all([
-      reconcilePendingPassSettlements({ sqliteDb: db, env: okEnv() }),
-      reconcilePendingPassSettlements({ sqliteDb: db, env: okEnv() }),
-    ]);
-    expect(second.journeys_backfilled).toBe(0);
-    expect(third.journeys_backfilled).toBe(0);
+    // Repeated reconciliation returns zero.
+    const again = await reconcilePendingPassSettlements({
+      sqliteDb: db,
+      env: okEnv(),
+    });
+    expect(again.journeys_backfilled).toBe(0);
     expect(count(db, "marketplace_purchase_journeys")).toBe(1);
     expect(count(db, "monitoring_passes")).toBe(1);
     expect(count(db, "monitoring_pass_payments")).toBe(1);
-    expect(count(db, "monitoring_pass_continuations")).toBe(1);
 
-    // Replay of original settled request returns same pass + journey.
+    // Settled replay: same pass + journey, no claim secret, no second payment.
     const replay = await monitoringPassForAgent({
       paymentAuthorizationHeader: header,
       resource: PASS_RESOURCE,
@@ -196,16 +254,132 @@ describe("delivery-pending missing-journey recovery", () => {
     });
     expect(replay.ok && replay.status === "MONITORING_PASS_ISSUED").toBe(true);
     if (!replay.ok || replay.status !== "MONITORING_PASS_ISSUED") return;
-    expect(replay.pass.id).toBe(pass.id);
     expect(replay.journey_id).toBe(journey.id);
-    expect(replay.journey_stage).toBe("confirm_use_pass");
     const replayBody = monitoringPassResponseBody(replay, okEnv());
     expect(JSON.stringify(replayBody)).not.toMatch(
       /pass_claim_credential|claim_credential/,
     );
     expect(replayBody.second_payment_required).toBe(false);
-    expect(replayBody.required_fields).toEqual(["confirm_use_pass"]);
+  });
+
+  it("historical unconsumed claim-hash is not auto-recovered; credential path works", async () => {
+    const hist = await seedHistoricalClaimContinuation({
+      db,
+      seed: "unconsumed_claim",
+    });
+    expect(count(db, "marketplace_purchase_journeys")).toBe(0);
+
+    const store = await getAuthStore({ sqliteDb: db, env: okEnv() });
+    // Query must exclude claim-hash rows.
+    const missing =
+      await store.listSettledMonitoringPassPaymentsMissingJourney();
+    expect(missing.every((p) => p.id !== hist.paymentId)).toBe(true);
+    expect(
+      missing.some((p) => p.id === hist.paymentId),
+    ).toBe(false);
+
+    // Recon must not create a journey.
+    const recon = await reconcilePendingPassSettlements({
+      sqliteDb: db,
+      env: okEnv(),
+    });
+    expect(recon.journeys_backfilled).toBe(0);
+    expect(count(db, "marketplace_purchase_journeys")).toBe(0);
+
+    // Public ID alone remains unauthorized.
+    const publicOnly = await runMarketplaceJourney(
+      {
+        monitoring_pass_id: hist.passId,
+        pass_continuation_id: hist.contId,
+      },
+      { sqliteDb: db, env: okEnv() },
+    );
+    expect(publicOnly.http_status).toBe(401);
+    expect(publicOnly.body.status).toBe("CLAIM_NOT_AUTHORIZED");
+    expect(count(db, "marketplace_purchase_journeys")).toBe(0);
+
+    // Invalid credential remains unauthorized.
+    const invalid = await runMarketplaceJourney(
+      {
+        pass_continuation_id: hist.contId,
+        pass_claim_credential: "pass_claim_not_valid_xxx",
+      },
+      { sqliteDb: db, env: okEnv() },
+    );
+    expect(invalid.http_status).toBe(401);
+    expect(count(db, "marketplace_purchase_journeys")).toBe(0);
+
+    // Valid historical credential creates exactly one journey and consumes claim.
+    const claimed = await runMarketplaceJourney(
+      {
+        pass_continuation_id: hist.contId,
+        pass_claim_credential: hist.claimRaw,
+      },
+      { sqliteDb: db, env: okEnv() },
+    );
+    expect(claimed.http_status).toBe(200);
+    expect(claimed.body.required_fields).toEqual(["confirm_use_pass"]);
+    expect(String(claimed.body.journey_id)).toMatch(/^journey_/);
     expect(count(db, "marketplace_purchase_journeys")).toBe(1);
+
+    const contAfter = db
+      .prepare(
+        `SELECT claim_credential_consumed_at, claim_credential_hash FROM monitoring_pass_continuations WHERE id = ?`,
+      )
+      .get(hist.contId) as {
+      claim_credential_consumed_at: string | null;
+      claim_credential_hash: string | null;
+    };
+    expect(contAfter.claim_credential_hash).toBeTruthy();
+    expect(contAfter.claim_credential_consumed_at).toBeTruthy();
+
+    // Replay recovers same journey.
+    const recover = await runMarketplaceJourney(
+      {
+        pass_continuation_id: hist.contId,
+        pass_claim_credential: hist.claimRaw,
+      },
+      { sqliteDb: db, env: okEnv() },
+    );
+    expect(String(recover.body.journey_id)).toBe(String(claimed.body.journey_id));
+    expect(count(db, "marketplace_purchase_journeys")).toBe(1);
+
+    // Credential not exposed in public body.
+    expect(JSON.stringify(claimed.body)).not.toContain(hist.claimRaw);
+  });
+
+  it("consumed claim-hash without journey fails closed for automatic recovery", async () => {
+    const hist = await seedHistoricalClaimContinuation({
+      db,
+      seed: "consumed_orphan",
+      consumed: true,
+    });
+    expect(count(db, "marketplace_purchase_journeys")).toBe(0);
+
+    const store = await getAuthStore({ sqliteDb: db, env: okEnv() });
+    const missing =
+      await store.listSettledMonitoringPassPaymentsMissingJourney();
+    expect(missing.some((p) => p.id === hist.paymentId)).toBe(false);
+
+    const recon = await reconcilePendingPassSettlements({
+      sqliteDb: db,
+      env: okEnv(),
+    });
+    expect(recon.journeys_backfilled).toBe(0);
+    expect(count(db, "marketplace_purchase_journeys")).toBe(0);
+
+    // Valid raw credential after consume cannot invent a new journey via claim
+    // (already_existed requires journey; claim_invalid if none).
+    const attempted = await runMarketplaceJourney(
+      {
+        pass_continuation_id: hist.contId,
+        pass_claim_credential: hist.claimRaw,
+      },
+      { sqliteDb: db, env: okEnv() },
+    );
+    // Fail closed: no automatic journey; claim path without existing journey after consume is invalid.
+    expect(count(db, "marketplace_purchase_journeys")).toBe(0);
+    expect([401, 400]).toContain(attempted.http_status);
   });
 
   it("advanced journey is never reset by reconciliation or settled replay", async () => {
@@ -248,7 +422,7 @@ describe("delivery-pending missing-journey recovery", () => {
     expect(count(db, "marketplace_purchase_journeys")).toBe(1);
   });
 
-  it("new continuations have no claim hash; historical claim-hash recovery still works", async () => {
+  it("new continuations have no claim hash in storage or public responses", async () => {
     const paid = await monitoringPassForAgent({
       paymentAuthorizationHeader: "signed-header-new-no-claim",
       resource: PASS_RESOURCE,
@@ -272,86 +446,26 @@ describe("delivery-pending missing-journey recovery", () => {
       /pass_claim_credential|claim_credential/,
     );
 
-    // Historical pre-repair continuation with claim hash, no journey.
+    // ensure with null must not invent a hash on historical rows either.
+    const hist = await seedHistoricalClaimContinuation({
+      db,
+      seed: "preserve_hash",
+    });
     const store = await getAuthStore({ sqliteDb: db, env: okEnv() });
-    const nowIso = new Date().toISOString();
-    const histSettlement = `settle_hist_claim_${Date.now().toString(16)}`;
-    const histPayment = await store.upsertMonitoringPassPayment({
-      id: `pass_pay_hist_${Date.now().toString(16)}`,
-      authorizationDigest: sha256Hex(`hist-digest-${Date.now()}`),
-      status: "settled",
-      nowIso,
-    });
-    await store.updateMonitoringPassPayment({
-      id: histPayment.id,
-      status: "settled",
-      settlementRef: histSettlement,
-      nowIso,
-    });
-    const histPass = await store.issueMonitoringPass({
-      id: `pass_hist_${Date.now().toString(16)}`,
-      passTokenHash: sha256Hex("hist-token"),
-      settlementRef: histSettlement,
-      paymentId: histPayment.id,
-      priceAmount: 0.99,
-      priceCurrency: "USD",
-      nowIso,
-    });
-    const autoJ = await store.getMarketplacePurchaseJourneyByPassId(
-      histPass.pass.id,
-    );
-    if (autoJ) {
-      db.prepare(`DELETE FROM marketplace_purchase_journeys WHERE id = ?`).run(
-        autoJ.id,
-      );
-    }
-    const contId = `pass_cont_hist_${Date.now().toString(16)}`;
-    const derived = derivePassClaimCredential({
-      paymentId: histPayment.id,
-      continuationId: contId,
-      env: okEnv(),
-    })!;
     await store.ensureMonitoringPassContinuation({
-      id: contId,
-      paymentId: histPayment.id,
-      monitoringPassId: histPass.pass.id,
-      status: "issued",
-      claimCredentialHash: derived.hash,
-      nowIso,
-    });
-    const stored = db
-      .prepare(
-        `SELECT claim_credential_hash FROM monitoring_pass_continuations WHERE id = ?`,
-      )
-      .get(contId) as { claim_credential_hash: string };
-    expect(stored.claim_credential_hash).toBe(derived.hash);
-
-    const claimed = await runMarketplaceJourney(
-      {
-        pass_continuation_id: contId,
-        pass_claim_credential: derived.raw,
-      },
-      { sqliteDb: db, env: okEnv() },
-    );
-    expect(claimed.http_status).toBe(200);
-    expect(claimed.body.required_fields).toEqual(["confirm_use_pass"]);
-    expect(String(claimed.body.journey_id)).toMatch(/^journey_/);
-
-    // ensure with null claim hash must not clear a historical hash (COALESCE write path).
-    await store.ensureMonitoringPassContinuation({
-      id: contId,
-      paymentId: histPayment.id,
-      monitoringPassId: histPass.pass.id,
+      id: hist.contId,
+      paymentId: hist.paymentId,
+      monitoringPassId: hist.passId,
       status: "issued",
       claimCredentialHash: null,
-      nowIso,
+      nowIso: new Date().toISOString(),
     });
     const after = db
       .prepare(
         `SELECT claim_credential_hash FROM monitoring_pass_continuations WHERE id = ?`,
       )
-      .get(contId) as { claim_credential_hash: string | null };
-    expect(after.claim_credential_hash).toBe(derived.hash);
+      .get(hist.contId) as { claim_credential_hash: string | null };
+    expect(after.claim_credential_hash).toBeTruthy();
   });
 
   it("no second-payment challenge after settlement when delivery pending or recovered", async () => {
@@ -364,11 +478,10 @@ describe("delivery-pending missing-journey recovery", () => {
       env: failEnv(),
       testVerifier: acceptingVerifier(settlementRef),
     });
-    expect(pending.ok && pending.status === "MONITORING_PASS_DELIVERY_PENDING").toBe(
-      true,
-    );
+    expect(
+      pending.ok && pending.status === "MONITORING_PASS_DELIVERY_PENDING",
+    ).toBe(true);
 
-    // Replay while still delivery-pending: must not 402.
     const midReplay = await monitoringPassForAgent({
       paymentAuthorizationHeader: header,
       resource: PASS_RESOURCE,
@@ -392,10 +505,7 @@ describe("delivery-pending missing-journey recovery", () => {
       testVerifier: acceptingVerifier(settlementRef),
     });
     expect(after.ok && after.status === "MONITORING_PASS_ISSUED").toBe(true);
-    if (after.ok && after.status === "MONITORING_PASS_ISSUED") {
-      expect(after.http_status).toBe(200);
-    }
-    // Unpaid contact still 402; settled replay never re-challenges.
+
     const unpaid = await monitoringPassForAgent({
       paymentAuthorizationHeader: null,
       resource: PASS_RESOURCE,

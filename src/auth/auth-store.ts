@@ -643,8 +643,9 @@ export interface AuthStore {
   >;
   /**
    * Settled payments that already have an issued/redeemed Monitoring Pass but
-   * no marketplace Purchase Setup journey. Continuations may or may not exist.
-   * Authoritative recovery source for MONITORING_PASS_DELIVERY_PENDING.
+   * no marketplace Purchase Setup journey, and that are safe for automatic
+   * recovery: either no continuation, or a continuation with null claim hash.
+   * Historical claim-hash continuations are excluded (credential recovery only).
    */
   listSettledMonitoringPassPaymentsMissingJourney(
     limit?: number,
@@ -2029,6 +2030,8 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
         .all() as MonitoringPassPaymentRow[];
     },
     async listSettledMonitoringPassPaymentsMissingJourney(limit) {
+      // Safe for automatic recovery only: no journey, and no claim-hash
+      // continuation (missing cont OR cont with claim_credential_hash IS NULL).
       const sql = `SELECT p.* FROM monitoring_pass_payments p
            INNER JOIN monitoring_passes m ON m.payment_id = p.id
            WHERE p.status = 'settled'
@@ -2036,6 +2039,11 @@ export function createSqliteAuthStore(db: NobuDatabase): AuthStore {
              AND NOT EXISTS (
                SELECT 1 FROM marketplace_purchase_journeys j
                WHERE j.monitoring_pass_id = m.id
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM monitoring_pass_continuations c
+               WHERE (c.payment_id = p.id OR c.monitoring_pass_id = m.id)
+                 AND c.claim_credential_hash IS NOT NULL
              )
            ORDER BY p.created_at ASC`;
       if (limit != null && Number.isFinite(limit) && limit > 0) {
@@ -4006,27 +4014,24 @@ export function createPostgresAuthStore(
         limit != null && Number.isFinite(limit) && limit > 0
           ? Math.floor(limit)
           : null;
+      // Safe for automatic recovery only: no journey, and no claim-hash
+      // continuation (missing cont OR cont with claim_credential_hash IS NULL).
+      const baseSql = `SELECT p.* FROM monitoring_pass_payments p
+             INNER JOIN monitoring_passes m ON m.payment_id = p.id
+             WHERE p.status = 'settled'
+               AND m.status IN ('issued', 'redeemed')
+               AND NOT EXISTS (
+                 SELECT 1 FROM marketplace_purchase_journeys j
+                 WHERE j.monitoring_pass_id = m.id
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM monitoring_pass_continuations c
+                 WHERE (c.payment_id = p.id OR c.monitoring_pass_id = m.id)
+                   AND c.claim_credential_hash IS NOT NULL
+               )
+             ORDER BY p.created_at ASC`;
       const r = await q<MonitoringPassPaymentRow>(
-        bounded == null
-          ? `SELECT p.* FROM monitoring_pass_payments p
-             INNER JOIN monitoring_passes m ON m.payment_id = p.id
-             WHERE p.status = 'settled'
-               AND m.status IN ('issued', 'redeemed')
-               AND NOT EXISTS (
-                 SELECT 1 FROM marketplace_purchase_journeys j
-                 WHERE j.monitoring_pass_id = m.id
-               )
-             ORDER BY p.created_at ASC`
-          : `SELECT p.* FROM monitoring_pass_payments p
-             INNER JOIN monitoring_passes m ON m.payment_id = p.id
-             WHERE p.status = 'settled'
-               AND m.status IN ('issued', 'redeemed')
-               AND NOT EXISTS (
-                 SELECT 1 FROM marketplace_purchase_journeys j
-                 WHERE j.monitoring_pass_id = m.id
-               )
-             ORDER BY p.created_at ASC
-             LIMIT $1`,
+        bounded == null ? baseSql : `${baseSql} LIMIT $1`,
         bounded == null ? [] : [bounded],
       );
       return r.rows;

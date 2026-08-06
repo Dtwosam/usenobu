@@ -277,9 +277,17 @@ async function ensureContinuation(
   };
 }
 
+type EnsureJourneyResult = {
+  journey: MarketplacePurchaseJourneyRow;
+  /** True only when this caller inserted the row (proposed id won). */
+  created: boolean;
+};
+
 /**
  * Exactly one journey per monitoring_pass_id (idempotent ensure).
  * Never resets an advanced journey.
+ * `created` is true only when this caller's proposed id is the durable row id
+ * after ON CONFLICT DO NOTHING — concurrent followers report created: false.
  */
 async function ensureIssuedPassJourney(
   store: AuthStore,
@@ -289,7 +297,7 @@ async function ensureIssuedPassJourney(
     nowIso: string;
     env?: EnvRecord;
   },
-): Promise<MarketplacePurchaseJourneyRow | null> {
+): Promise<EnsureJourneyResult | null> {
   // Test-only: force delivery-pending path after pass + continuation succeed.
   // Requires NOBU_AUTH_TEST_MODE so Production never honors this.
   const env = args.env ?? process.env;
@@ -299,23 +307,37 @@ async function ensureIssuedPassJourney(
   ) {
     return null;
   }
+  const proposedId = newJourneyId();
   try {
-    return await store.ensureMarketplacePurchaseJourney({
-      id: newJourneyId(),
+    const journey = await store.ensureMarketplacePurchaseJourney({
+      id: proposedId,
       monitoringPassId: args.monitoringPassId,
       passContinuationId: args.passContinuationId,
       nowIso: args.nowIso,
     });
+    return {
+      journey,
+      created: journey.id === proposedId,
+    };
   } catch {
     // Recover readable journey if a concurrent insert won or transient failure.
     try {
-      return await store.getMarketplacePurchaseJourneyByPassId(
+      const journey = await store.getMarketplacePurchaseJourneyByPassId(
         args.monitoringPassId,
       );
+      if (!journey) return null;
+      return { journey, created: false };
     } catch {
       return null;
     }
   }
+}
+
+/** True when automatic reconcile must not invent a journey (historical claim). */
+function continuationBlocksAutomaticJourney(cont: {
+  claim_credential_hash?: string | null;
+} | null): boolean {
+  return Boolean(cont?.claim_credential_hash);
 }
 
 async function challengeResult(args: {
@@ -390,13 +412,13 @@ async function finalizeIssuedPassResult(args: {
     payer: args.payer ?? undefined,
     status: "success",
   });
-  const journey = await ensureIssuedPassJourney(args.store, {
+  const ensured = await ensureIssuedPassJourney(args.store, {
     monitoringPassId: args.pass.id,
     passContinuationId: cont.id,
     nowIso: args.nowIso,
     env: args.env,
   });
-  if (!journey) {
+  if (!ensured) {
     return {
       ok: true,
       status: "MONITORING_PASS_DELIVERY_PENDING",
@@ -415,8 +437,8 @@ async function finalizeIssuedPassResult(args: {
     http_status: 200,
     pass: args.pass,
     pass_continuation_id: cont.id,
-    journey_id: journey.id,
-    journey_stage: journey.stage,
+    journey_id: ensured.journey.id,
+    journey_stage: ensured.journey.stage,
     settlementRef: args.settlementRef,
     payer: args.payer ?? args.pass.payer_address ?? undefined,
     payment_response_header: receipt,
@@ -1270,6 +1292,7 @@ export async function reconcilePendingPassSettlements(args: {
   let journeysBackfilled = 0;
 
   // Historical: settled + pass + no continuation row.
+  // New continuation is null-hash → safe to ensure journey.
   const missingContinuations =
     await store.listSettledPassPaymentsMissingContinuation();
   for (const payment of missingContinuations) {
@@ -1286,21 +1309,21 @@ export async function reconcilePendingPassSettlements(args: {
       args.env,
     );
     if (!beforeCont) continuationsBackfilled += 1;
-    const beforeJourney = await store.getMarketplacePurchaseJourneyByPassId(
-      pass.id,
-    );
-    const journey = await ensureIssuedPassJourney(store, {
+    // Guard: never auto-journey if a claim-hash continuation appeared.
+    const contRow = await store.getMonitoringPassContinuationById(cont.id);
+    if (continuationBlocksAutomaticJourney(contRow)) continue;
+    const ensured = await ensureIssuedPassJourney(store, {
       monitoringPassId: pass.id,
       passContinuationId: cont.id,
       nowIso,
       env: args.env,
     });
-    if (!beforeJourney && journey) journeysBackfilled += 1;
+    if (ensured?.created) journeysBackfilled += 1;
   }
 
   // Authoritative delivery-pending recovery: settled + pass (issued/redeemed)
   // + no marketplace journey — independent of pending/orphan/continuation batches.
-  // Continuations may already exist; do not require them to be missing.
+  // Query already excludes claim-hash continuations; recheck before create.
   const missingJourneys =
     await store.listSettledMonitoringPassPaymentsMissingJourney(args.limit);
   for (const payment of missingJourneys) {
@@ -1331,15 +1354,16 @@ export async function reconcilePendingPassSettlements(args: {
       if (!contRow) continue;
     }
 
-    const journey = await ensureIssuedPassJourney(store, {
+    // Explicit guard: historical claim-hash rows use credential recovery only.
+    if (continuationBlocksAutomaticJourney(contRow)) continue;
+
+    const ensured = await ensureIssuedPassJourney(store, {
       monitoringPassId: pass.id,
       passContinuationId: contRow.id,
       nowIso,
       env: args.env,
     });
-    // ensureMarketplacePurchaseJourney is ON CONFLICT DO NOTHING and never
-    // resets stage — only count a newly readable journey after previous miss.
-    if (journey) journeysBackfilled += 1;
+    if (ensured?.created) journeysBackfilled += 1;
   }
 
   // Journeys for passes newly issued in this reconcile batch (hot path).
@@ -1361,13 +1385,14 @@ export async function reconcilePendingPassSettlements(args: {
       contRow = await store.getMonitoringPassContinuationById(cont.id);
       if (!contRow) continue;
     }
-    const journey = await ensureIssuedPassJourney(store, {
+    if (continuationBlocksAutomaticJourney(contRow)) continue;
+    const ensured = await ensureIssuedPassJourney(store, {
       monitoringPassId: passId,
       passContinuationId: contRow.id,
       nowIso,
       env: args.env,
     });
-    if (journey) journeysBackfilled += 1;
+    if (ensured?.created) journeysBackfilled += 1;
   }
 
   return {
