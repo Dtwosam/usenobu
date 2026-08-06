@@ -1,10 +1,10 @@
 # Production unpaid probes
 
-## Recovery repair deploy (2026-08-06)
+## Recovery FINAL deploy (claim boundary + concurrent count) (2026-08-06)
 
-**Deploy:** `usenobu-gpnco5w1s-dtwoflicks-2878s-projects.vercel.app`  
+**Deploy:** `usenobu-5a6w2xj3t-dtwoflicks-2878s-projects.vercel.app`  
 **Alias:** `https://www.usenobu.xyz` (explicit)  
-**Code commit:** `c506695`
+**Code commit:** `c8eaac9`
 
 | Probe | Result |
 |---|---|
@@ -14,6 +14,15 @@
 | Live pass `pass_ec936ecc6d76445c949c891adcea351e` | **200** `MONITORING_ACTIVE` `monitoring_active=true` |
 
 No genuine payment. No ASP mutation. Live monitor not stopped/altered.
+
+## Recovery repair deploy (2026-08-06)
+
+**Deploy:** `usenobu-gpnco5w1s-dtwoflicks-2878s-projects.vercel.app`  
+**Code commit:** `c506695`
+
+| Probe | Result |
+|---|---|
+| health / unpaid paid / free / live | 200 / 402 / 400 / MONITORING_ACTIVE |
 
 ## Prior interoperability deploy
 

@@ -5,16 +5,16 @@
 
 The build proceeds lane by lane. A lane closes only when its required proof passes.
 
-## Active closeout — Buyer-agent interoperability RECOVERY PASS
+## Active closeout — Buyer-agent interoperability RECOVERY FINAL PASS
 
-**State:** RECOVERY PASS — delivery-pending rows with pass+continuation but no journey are discovered and backfilled without payment replay; new continuations never store claim hashes.
+**State:** FINAL PASS — null-hash delivery-pending auto-recovered; historical claim-hash continuations never auto-journeyed; concurrent `journeys_backfilled` sums to one.
 
-Repair (2026-08-06) baseline `e7a485a` (prior SAFE PASS from `1775ff1`):
+Repair (2026-08-06) baseline `f52b537`:
 
-- `listSettledMonitoringPassPaymentsMissingJourney` (SQLite + Postgres).
-- Independent missing-journey reconcile loop; accurate `journeys_backfilled`; never resets advanced journeys.
-- New continuations: `claim_credential_hash: null` (historical claim recovery preserved).
-- Prior SAFE PASS handoff/HTTP/neutral metadata unchanged.
+- Missing-journey query excludes `claim_credential_hash IS NOT NULL`.
+- Reconcile rechecks continuation before create (defense in depth).
+- `ensureIssuedPassJourney` → `{ journey, created }`; count only `created`.
+- Historical credential recovery + null-hash new continuations unchanged.
 
 Exact next lane:
 
@@ -23,7 +23,7 @@ Exact next lane:
 3. Do not mutate ASP `#5541` unless a later lane explicitly requires it.
 
 **Closeout proof:** `docs/proof/buyer-agent-interoperability-repair/README.md` + `tests/payments/delivery-pending-journey-recovery.test.ts`.
-**Current verdict:** `NOBU_BUYER_AGENT_INTEROPERABILITY_RECOVERY_PASS`.
+**Current verdict:** `NOBU_BUYER_AGENT_INTEROPERABILITY_RECOVERY_FINAL_PASS`.
 
 ## Prior closeout — Paid-to-free machine continuation FINAL PASS
 

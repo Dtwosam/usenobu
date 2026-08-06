@@ -1,9 +1,11 @@
 # Nobu Current State
 
 **Date:** 2026-08-06
-**Status:** `NOBU_BUYER_AGENT_INTEROPERABILITY_RECOVERY_PASS` — delivery-pending missing-journey reconciliation + no claim hash on new continuations.
+**Status:** `NOBU_BUYER_AGENT_INTEROPERABILITY_RECOVERY_FINAL_PASS` — historical claim-hash rows excluded from auto journey recovery; concurrent `journeys_backfilled` accurate.
 
-**Buyer-agent interoperability recovery (2026-08-06):** **PASS.** Baseline `e7a485a`. Authoritative `listSettledMonitoringPassPaymentsMissingJourney` discovers settled+pass without journey even when continuation exists; reconcile backfills journey independently; new continuations store `claim_credential_hash: null`. Focused delivery-pending tests 4/4. Evidence: `docs/proof/buyer-agent-interoperability-repair/`.
+**Buyer-agent interoperability recovery FINAL (2026-08-06):** **PASS.** Baseline `f52b537`. Missing-journey query + reconcile guard skip continuations with `claim_credential_hash IS NOT NULL`; historical credential recovery preserved; `created` flag from ensure journey makes concurrent backfill count sum to 1. Focused tests 6/6. Evidence: `docs/proof/buyer-agent-interoperability-repair/`.
+
+**Buyer-agent interoperability recovery (2026-08-06):** **SUPERSEDED** by FINAL (query/guard tightened). Baseline `e7a485a`.
 
 **Buyer-agent interoperability repair (2026-08-06):** **SUPERSEDED as current status** by recovery repair (handoff/HTTP/neutral metadata remain). Baseline `1775ff1`. Evidence path retained.
 

@@ -1,8 +1,10 @@
 # Buyer-agent interoperability repair
 
-**Date:** 2026-08-06  
-**Baseline:** `1775ff1` → recovery repair from `e7a485a`  
-**Verdict:** `NOBU_BUYER_AGENT_INTEROPERABILITY_RECOVERY_PASS`
+**Date:** 2026-08-06
+
+**Baseline:** `1775ff1` → recovery `e7a485a` → claim-boundary final from `f52b537`
+
+**Verdict:** `NOBU_BUYER_AGENT_INTEROPERABILITY_RECOVERY_FINAL_PASS`
 
 ## Live defects repaired (without mutating the active monitor)
 
@@ -161,11 +163,18 @@ Legacy free-action guidance (service selection, free validation) left intact.
 
 **Repair:**
 
-1. `AuthStore.listSettledMonitoringPassPaymentsMissingJourney(limit?)` (SQLite + Postgres) — settled payments with issued/redeemed pass and no `marketplace_purchase_journeys` row (continuation not required to be missing).
-2. `reconcilePendingPassSettlements` processes that set **independently** of pending/orphan/missing-continuation batches; ensures continuation only when absent; idempotently ensures one journey at `confirm_use_pass`; never resets advanced journeys; accurate `journeys_backfilled`.
-3. New continuations no longer derive or store `claim_credential_hash` (always null for new rows). Historical claim-hash rows and recovery unchanged.
+1. `AuthStore.listSettledMonitoringPassPaymentsMissingJourney(limit?)` (SQLite + Postgres) — settled payments with issued/redeemed pass and no journey, **excluding** claim-hash continuations.
+2. `reconcilePendingPassSettlements` processes that set independently; rechecks continuation before create; never auto-journeys when `claim_credential_hash IS NOT NULL`.
+3. New continuations: `claim_credential_hash: null`. Historical claim recovery unchanged.
+4. `ensureIssuedPassJourney` returns `{ journey, created }`; `journeys_backfilled` increments only when `created === true` (concurrent workers sum to 1).
 
-**Focused proof:** `tests/payments/delivery-pending-journey-recovery.test.ts` (4/4).
+**Focused proof:** `tests/payments/delivery-pending-journey-recovery.test.ts` (6/6).
+
+## Historical claim boundary final (follow-up)
+
+**Defect:** missing-journey query included historical unconsumed claim-hash rows; recon created journeys without credential validation, bypassing claim.
+
+**Repair:** query + explicit reconcile guard exclude any continuation with non-null `claim_credential_hash` (consumed or unconsumed). Credential path remains the only creator for those rows. Concurrent `journeys_backfilled` uses proposed-id win detection.
 
 ## Production probes (unpaid only)
 
